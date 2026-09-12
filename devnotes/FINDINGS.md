@@ -78,3 +78,73 @@
 - a26b108d (2026-09-04, "safety: fix Hyundai longitudinal PID gains") — 이번 발견의 핵심 커밋
 - e79bfd5d (StoppingAccel 0일 때 -0.5 복원 로직)
 - carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12, 변경 없음)
+
+## [2026-09-12] DisableDM=2 의미 확인 — 운전자 모니터링 완전 OFF + Carrot Vision WebRTC 활성화
+
+### 배경
+- PARAMS_REGISTRY.md에 DisableDM=2가 기본값(0)이 아닌 채로 확인되었으나 의미 미확인 상태였음.
+
+### 확인된 사실 (openpilot/selfdrive/carrot_settings.json 설명 문구 기준)
+- descr: "1.DisableDM, 2: +EnableWebRTC, reboot required"
+- 즉 값의 의미: 0=기본(DM 켜짐), 1=DM 비활성화만, 2=DM 비활성화 + Carrot Vision(WebRTC 원격 스트리밍) 활성화(재부팅 필요)
+
+### 코드 레벨 동작 (DisableDM=1과 2 공통, DM 비활성화 부분)
+- system/manager/process_config.py `enable_dm()`: `DisableDM == 0`일 때만 dmonitoringd(운전자 카메라 모니터링 프로세스) 실행
+  → 1이든 2든 운전자 모니터링 프로세스 자체가 아예 뜨지 않음.
+- selfdrive/selfdrived/selfdrived.py 245행: `DisableDM == 0`일 때만 졸음/주의분산 lockout, 경고(driverDistracted1~3 등) 로직 수행
+  → 1/2에서는 이 안전 경고·개입 잠금 로직이 전부 스킵됨.
+- selfdrive/controls/controlsd.py 426행: `DisableDM == 0`일 때만 AlertLevel.three(3단계 경고) 시 forceDecel(강제 감속) 적용
+  → 1/2에서는 운전자 부주의로 인한 강제 감속도 발생하지 않음.
+
+### DisableDM=2 전용 동작 (WebRTC)
+- system/manager/process_config.py `enable_webrtc()`: `DisableDM == 2 and not ClusterHud`일 때
+  carrot_vision_encoderd(도로 카메라 WebRTC 인코더) 프로세스가 활성화됨 (Carrot Vision 원격 시청 기능).
+- ClusterHud==1이면(계기판 클러스터가 로드 카메라를 직접 사용 중) 충돌 방지를 위해 WebRTC는 비활성화됨.
+
+### 결론
+- 사용자의 DisableDM=2 설정은 "운전자 모니터링(졸음/주의분산 감지, 관련 경고·강제감속)을 완전히 끄고,
+  대신 Carrot Vision을 통한 원격 화면 시청 기능을 켠 상태"를 의미함.
+- 이는 안전과 직결되는 설정이며, 사용자가 의도적으로 설정한 것인지(예: DM 카메라 미장착/오작동, 또는
+  의도적 비활성화) carrot-wip 자체의 결함은 아니고 사용자 선택의 문제임.
+- carrot/server/features/intro/presets.py의 3개 기본 프리셋은 모두 `DisableDM: 0`(DM 켜짐)을 기본값으로
+  두고 있어, 현재 값(2)은 사용자가 프리셋에서 벗어나 직접 변경한 상태로 보임.
+
+### 실차 검증
+- 미실시. 코드/설정 문구 기준 정적 분석. 사용자에게 이 설정이 의도된 것인지 확인 필요.
+
+## [2026-09-12] LateralTorqueCustom=0 확인 — 저장된 LateralTorque* 값은 미적용, 실제로는 기본 튜닝 사용 중
+
+### 배경
+- PARAMS_REGISTRY.md에 LateralTorqueKf=100, Friction=30, AccelFactor=2500, KiV=10, KpV=100, Kd=0이
+  기록되어 있었으나 LateralTorqueCustom=0이라 "비활성 상태로 보임"이라는 잠정 메모만 있었음.
+
+### 확인된 사실 (openpilot/selfdrive/controls/lib/latcontrol_torque.py)
+- `update()`에서 매 10프레임마다 `LateralTorqueCustom` 값을 확인:
+  - `> 0`이면 저장된 LateralTorqueKpV/KiV/Kf/Kd/AccelFactor/Friction 값을 읽어 PID와 torque_params에 적용.
+  - `== 0`(현재 상태)이면 이 분기를 타지 않으므로 저장된 LateralTorque* 값은 전혀 읽히지도, 적용되지도 않음.
+  - (0으로 막 전환된 프레임에서 1회 한정으로 기본값 복원 로직은 있으나, 이후에는 그냥 기존 기본값 유지)
+- 실제 적용되는 기본 토크 튜닝은 `CarInterfaceBase.configure_torque_tune()`
+  (opendbc_repo/opendbc/car/interfaces.py)이 `opendbc/car/torque_data/params.toml`에서
+  차종별 실측 계수를 읽어 설정:
+  - HYUNDAI_GENESIS 실측값: LAT_ACCEL_FACTOR=2.7807965280270794, FRICTION=0.0984484465421171
+  - kp=1.0, kf=1.0, ki=0.1은 전 차종 공통 하드코딩값 (params.toml과 무관)
+  - latAccelOffset=0.0 고정
+
+### 결론
+- 사용자가 저장해 둔 LateralTorqueKf=100 등 값은 "커스텀 토크 테이블을 쓰겠다"는 스위치
+  (LateralTorqueCustom)를 켜지 않아 실제로는 전혀 사용되지 않고 있음.
+- 현재 제네시스 DH 2015는 opendbc가 실측해 둔 기본 torque_data(LAT_ACCEL_FACTOR≈2.78, FRICTION≈0.098)로
+  조향 토크가 계산되는 중.
+- 이는 버그가 아니라 "커스텀 토크 끔" 상태의 정상 동작이며, 저장된 값 자체가 잘못된 것도 아님
+  (켜기만 하면 그 값들이 그대로 적용됨). 사용자가 커스텀 토크 튜닝을 실제로 원한다면
+  LateralTorqueCustom을 1 이상으로 바꿔야 함.
+
+### 실차 검증
+- 미실시. 코드 정적 분석 기준.
+
+### 분석 근거 파일
+- openpilot/selfdrive/selfdrived/selfdrived.py, openpilot/selfdrive/controls/controlsd.py,
+  openpilot/system/manager/process_config.py, openpilot/selfdrive/carrot_settings.json (DisableDM)
+- openpilot/selfdrive/controls/lib/latcontrol_torque.py, opendbc_repo/opendbc/car/interfaces.py,
+  opendbc_repo/opendbc/car/torque_data/params.toml (LateralTorqueCustom)
+- carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12, 변경 없음)

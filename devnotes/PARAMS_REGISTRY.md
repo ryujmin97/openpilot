@@ -15,13 +15,15 @@
 - LatSuspendAngleDeg: 45
 
 **조향 토크 튜닝 (LateralTorque*)**
-- LateralTorqueKf: 100
-- LateralTorqueFriction: 30
-- LateralTorqueAccelFactor: 2500
-- LateralTorqueKiV: 10
-- LateralTorqueKpV: 100
-- LateralTorqueKd: 0
-- LateralTorqueCustom: 0 (커스텀 토크 테이블 자체는 비활성 상태로 보임 — 확인 필요)
+- LateralTorqueKf: 100    ⚠ LateralTorqueCustom=0이라 미적용 (FINDINGS 2026-09-12 참고)
+- LateralTorqueFriction: 30   ⚠ 위와 동일, 미적용
+- LateralTorqueAccelFactor: 2500   ⚠ 위와 동일, 미적용
+- LateralTorqueKiV: 10   ⚠ 위와 동일, 미적용
+- LateralTorqueKpV: 100   ⚠ 위와 동일, 미적용
+- LateralTorqueKd: 0   ⚠ 위와 동일, 미적용
+- LateralTorqueCustom: 0 (확인됨: 이 값이 0이면 위 6개 값은 전혀 읽히지 않음.
+  실제로는 opendbc torque_data/params.toml의 HYUNDAI_GENESIS 실측값
+  LAT_ACCEL_FACTOR≈2.7808, FRICTION≈0.0984로 조향 토크가 계산됨)
 
 **종방향(가감속) 튜닝**
 - LongPitch: True
@@ -44,7 +46,9 @@
 - IsLdwsCar: 0
 
 **Driver Monitoring**
-- DisableDM: 2  ← 기본값(0)이 아님. 의미와 근거는 아직 미확인 (다음 분석 대상 후보)
+- DisableDM: 2  ← 기본값(0)이 아님. 확인됨(FINDINGS 2026-09-12): 운전자 모니터링(졸음/주의분산 감지,
+  경고, 강제감속) 완전 OFF + Carrot Vision WebRTC 원격 스트리밍 활성화. 안전 관련 설정이므로
+  사용자 의도 여부 재확인 필요.
 
 ### 실차 검증
 - 이 값들은 사용자가 실제로 디바이스에 적용해 사용 중인 값 (실주행 반영 상태로 추정).

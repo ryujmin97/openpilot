@@ -1,25 +1,26 @@
 # HANDOFF
 
-Worker: Claude (세션 4)
+Worker: Claude (세션 4, 계속)
 Date: 2026-09-12
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (base commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1, carrot-wip과 동일, 코드 변경 없음)
-Note Branch: carrot-ryu-note (4차 devnotes 반영)
+Note Branch: carrot-ryu-note (4차 계속 devnotes 반영)
 carrot-wip 마지막 동기화 commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (신규 커밋 없음 확인, 동기화 불필요)
 
 작업:
 완료:
-- 종방향 제어(가감속) 로직 분석 (longcontrol.py, longitudinal_planner.py, hyundai interface.py/values.py)
-- 핵심 발견: 현대·기아·제네시스 종방향 PID 게인(Kp/Ki/Kf)이 커밋 a26b108d(2026-09-04)에서
-  코드 레벨로 고정됨(1.0/0.0/1.0). 사용자의 LongTuningKpV/KiV/Kf=100/0/100 설정은 실제로 무시됨.
-- 실제 적용되는 종방향 노브: LongActuatorDelay(현재 20→0.2s), VEgoStopping(5→0.05m/s),
-  StoppingAccel(-10→-0.1m/s²) 3가지뿐임을 확인
-- ACCEL_MIN/MAX(-4.0/2.5 m/s²)는 제네시스 전용값 없이 Hyundai 계열 공통값임을 확인
-- FINDINGS.md / PARAMS_REGISTRY.md / LAST_ANALYZED.md / WIP.md(4차) 갱신
+- (이어서) DisableDM=2 의미 확인: 운전자 모니터링(졸음/주의분산 감지, 경고, 강제감속) 완전 OFF +
+  Carrot Vision WebRTC 원격 스트리밍 활성화. carrot_settings.json 설명 문구 + process_config.py/
+  selfdrived.py/controlsd.py 코드로 확정.
+- LateralTorqueCustom=0 의미 확인: 저장된 LateralTorqueKf/Friction/AccelFactor/KiV/KpV/Kd 6개 값이
+  전혀 적용되지 않음. 실제로는 opendbc torque_data/params.toml의 HYUNDAI_GENESIS 실측값
+  (LAT_ACCEL_FACTOR≈2.7808, FRICTION≈0.0984)로 조향 토크 계산 중.
+- FINDINGS.md / PARAMS_REGISTRY.md / WIP.md(4차 계속) / LAST_ANALYZED.md 갱신
+- (직전 회차, 이미 push 완료됨) 종방향 PID 게인 고정 확인 — commit 2440764a
 
 미완료:
-- DisableDM=2 의미/근거 미확인 (이번 세션에서 사용자가 보류 지정)
-- LateralTorqueCustom=0인데 LateralTorque* 값들이 커스텀된 이유 미확인 (보류)
+- DisableDM=2가 사용자의 의도된 설정인지 실제로 확인 안 됨 (다음 세션에서 사용자에게 직접 질문 필요)
+- LateralTorqueCustom을 켜서(1 이상) 커스텀 토크 테이블을 실제로 쓸지 여부는 사용자 결정 대기
 - TFollowGap / 차간거리(t_follow.py), 곡선감속(curve_speed.py), 정지선(traffic_stop.py) 등
   carrot 전용 종방향 모듈은 아직 분석 안 함
 - 종방향 MPC(longitudinal_mpc_lib) 코스트 함수 분석 안 함
@@ -27,12 +28,15 @@ carrot-wip 마지막 동기화 commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 
 검증: 실차 검증 미실시 (정적 코드/문서 분석 기준)
 
 주의사항:
-- 이번 발견은 버그가 아니라 carrot-wip이 문서화한 의도된 안전 고정값임 (docs/user/ko/cruise-gap.md,
-  settings.md에 명시됨). carrot-ryu에 임의로 "게인을 되살리는" 패치를 하지 말 것 — 사용자 승인 필요.
+- DisableDM=2는 안전과 직결된 설정임. 다음 세션에서 이 대화나 devnotes를 이어받으면,
+  사용자가 이 설정을 의도적으로 켠 것인지(예: DM 카메라 미장착 등 이유) 반드시 확인하고,
+  Claude가 임의로 "안전하니 0으로 바꾸라"고 강권하지 말고 사실만 전달할 것.
+- LateralTorqueCustom/LongTuningKpV류처럼 "저장은 되어있지만 실제 미적용"인 파라미터가
+  이 프로젝트에 반복적으로 나타나는 패턴이 있음. 향후 다른 파라미터 분석 시에도
+  "저장값 존재 = 실제 적용"으로 단정하지 말고 반드시 코드에서 읽는 조건을 확인할 것.
 - carrot-ryu는 여전히 carrot-wip과 코드 동일 (분기 이후 실제 코드 수정 아직 없음)
-- carrot-wip에 신규 커밋 없음을 이번 세션에서 재확인함 (동기화 작업 불필요)
 
 다음 작업 후보:
-- DisableDM=2 / LateralTorqueCustom 분석 재개
+- 사용자에게 DisableDM=2 의도 확인
 - TFollowGap 등 차간거리 로직 분석
 - 또는 사용자가 원하는 다른 항목

@@ -1,5 +1,20 @@
 # WIP
 
+## 4차 계속 (완료 — DisableDM / LateralTorqueCustom 분석) — 보류했던 두 항목 확인
+
+- 같은 세션에서 이어서 "DisableDM=2 / LateralTorqueCustom" 보류 항목 분석 진행
+- DisableDM=2 확인: carrot_settings.json 설명("1.DisableDM, 2: +EnableWebRTC")과
+  process_config.py/selfdrived.py/controlsd.py 코드로 의미 확정
+  → 운전자 모니터링(졸음/주의분산 감지·경고·강제감속) 완전 OFF + Carrot Vision WebRTC 활성화
+  → 안전 관련 설정이라 사용자에게 의도 여부 재확인 필요 (다음 세션 또는 지금 확인)
+- LateralTorqueCustom=0 확인: latcontrol_torque.py 분기 구조상 0이면 저장된
+  LateralTorqueKf/Friction/AccelFactor/KiV/KpV/Kd 값이 전혀 읽히지 않음.
+  실제로는 opendbc torque_data/params.toml의 HYUNDAI_GENESIS 실측값
+  (LAT_ACCEL_FACTOR≈2.7808, FRICTION≈0.0984)로 조향 토크 계산 중임을 확인
+- FINDINGS.md, PARAMS_REGISTRY.md 갱신
+- 코드 변경 없음 (분석/기록만)
+- 실차 검증: 미실시
+
 ## 4차 (완료 — 종방향 PID 게인 고정 확인) — LongTuningKpV/KiV/Kf 무효화 발견
 
 - 사용자 요청으로 "종방향 제어(가감속) 로직 분석" 착수
