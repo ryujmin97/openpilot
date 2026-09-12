@@ -1,5 +1,34 @@
 # WIP
 
+## 6차 (완료 — 베이스 브랜치 전환) — carrot-wip → carrot-ms 로 변경
+
+- 사용자가 happymaj11r/openpilot 저장소의 carrot-ms 브랜치(콤마 주행모델 선택 기능,
+  carrot-wip 기반으로 매번 재생성/rebase됨)를 확인 요청
+- git merge-base로 확인한 결과 carrot-wip과 carrot-ms는 공통 조상 커밋이 없음(히스토리
+  공유 안 함) — carrot-ms는 carrot-wip이 업데이트될 때마다 그 위에 모델선택 기능을 다시
+  얹어 통째로 재작성(rebase/force-push)하는 방식으로 판단됨
+- 전체 히스토리 비교 결과 carrot-wip에 없고 carrot-ms에만 있는 커밋 117개 확인.
+  이 중 모델 셀렉터 관련 키워드로 필터링한 것 약 58개, 나머지 약 59개는 클러스터(계기판)
+  HUD, PC 시뮬레이터 지원, 로그 업로드 서버(토스/당근) 선택 기능 등 이 프로젝트와 무관한
+  기능으로 판단됨. 선별 이식(cherry-pick)은 다단계 작업이 될 것으로 예상됨
+- 사용자 결정: 선별 이식 대신, carrot-ryu 브랜치 자체의 베이스를 carrot-wip에서
+  carrot-ms로 전면 전환하기로 결정 (당시 carrot-ryu에 사용자 코드가 전혀 없어 안전하게
+  가능한 시점이었음)
+- 실행: carrot-ryu(origin) 브랜치 삭제 후 happymaj11r/carrot-ms 기준으로 재생성.
+  carrot-ryu HEAD가 carrot-ms HEAD(02015190f58a4380a433ee0130e6374455dddc2e,
+  "Recover evil-merge resolutions from carrot-wip PR #516 and PR #517")와 일치함을 확인
+- carrot-ryu-note는 그대로 유지 (기존 종방향 분석 내용은 carrot-wip 기반 코드 분석이라
+  carrot-ms에도 대부분 그대로 유효함 — 코드가 크게 갈라지지 않는 한 재분석 불필요)
+- 프로젝트 지침 문서(PROJECT_INSTRUCTIONS)의 "베이스 브랜치" 항목을 carrot-wip →
+  carrot-ms로 수정하는 문구를 사용자에게 전달함 (문서 자체는 저장소 밖에서 사용자가
+  보관하는 것으로 파악되어 Claude가 직접 수정하지 않음)
+- ⚠ 향후 영향: carrot-ms는 매번 히스토리가 재작성되므로, carrot-wip처럼 fast-forward
+  동기화가 불가능함. carrot-ms가 업데이트될 때마다 carrot-ms와 carrot-wip의 커밋 메시지를
+  비교해 "모델 셀렉터 관련 커밋"만 선별 반영하는 방식이 필요함 (2절 동기화 원칙의 확장 적용
+  필요 — 다음 세션에서 WIP_SYNC.md 구조를 carrot-ms용으로도 확장할지 검토 필요)
+- 코드 변경 없음 (브랜치 베이스 전환만 수행, carrot-ryu는 여전히 carrot-ms와 동일)
+- 실차 검증: 해당 없음 (인프라 변경 작업)
+
 ## 5차 계속 (완료 — traffic_stop / curve_speed / MPC 코스트 함수 분석) — 종방향 코드 분석 1단계 마무리
 
 - 같은 세션에서 이어서 traffic_stop.py(정지선/신호 감속) → curve_speed.py(비전 커브 감속) →
