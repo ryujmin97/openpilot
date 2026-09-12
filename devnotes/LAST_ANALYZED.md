@@ -1,6 +1,16 @@
 # LAST ANALYZED
 
 carrot-wip commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12)
+분석 범위 (5차 계속 — traffic_stop / curve_speed / MPC 코스트 함수, 종방향 1단계 마무리):
+  openpilot/selfdrive/carrot/traffic_stop.py (TrafficStopModelLeadMatcher, get_traffic_stop_*)
+  openpilot/selfdrive/carrot/curve_speed.py (curve_speed, VisionCurveSpeed)
+  openpilot/selfdrive/carrot/carrot_functions.py (check_model_stopping, XState 상태머신,
+    jerk_factor 결정부)
+  openpilot/selfdrive/carrot/carrot_man.py (carrot_curve_speed, vturn_speed)
+  openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py (get_jerk_factor,
+    get_a_change_cost, set_weights, x2 obstacle 반영부)
+  openpilot/selfdrive/carrot_settings.json (TrafficLightDetectMode, AutoCurveSpeedFactor 등)
+
 분석 범위 (5차 — route 감속 체인 + T_FOLLOW/TFollowGap):
   openpilot/selfdrive/carrot/carrot_man.py (carrot_navi_route, calculate_curvature)
   openpilot/selfdrive/carrot/carrot_serv.py (update_navi, speed_n_sources)
@@ -35,8 +45,10 @@ carrot-wip commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12)
   openpilot/selfdrive/carrot_settings.json (DisableMinSteerSpeed UI)
 
 다음 분석 후보:
-- 정지선 감속(traffic_stop.py)
-- 곡선 감속(curve_speed.py, 비전 버전 — route 버전과 달리 3노드 median 필터 있음)
-- 종방향 MPC 코스트 함수(long_mpc.py의 나머지 부분, jerk_factor/aChangeCostStarting 등)
-- 이후: 실차주행 → route 로그 생성 → 로그분석으로 코드 분석과 실제 거동 일치 여부 검증
-- (완료됨: DisableDM=2, LateralTorqueCustom — 4차 계속 / route 감속 체인, T_FOLLOW — 5차 참고)
+- ✅ 종방향(가감속) 코드 분석 1단계 완료: route/vturn 감속, T_FOLLOW, traffic_stop,
+  MPC 코스트 함수까지 전체 체인 추적 완료
+- 다음 단계: 실차주행(콤마 디바이스 실장착) → route 로그 생성 → 로그분석으로 코드 분석과
+  실제 거동 일치 여부 검증
+- (그 외 보류 항목: TurnSpeedControlMode/EnableSpeedTF 등 사용자 의도 확인, DisableDM=2 확인)
+- (완료됨: DisableDM=2, LateralTorqueCustom — 4차 계속 / route 감속 체인, T_FOLLOW — 5차 /
+  traffic_stop, curve_speed, MPC 코스트 함수 — 5차 계속 참고)

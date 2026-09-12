@@ -1,5 +1,27 @@
 # WIP
 
+## 5차 계속 (완료 — traffic_stop / curve_speed / MPC 코스트 함수 분석) — 종방향 코드 분석 1단계 마무리
+
+- 같은 세션에서 이어서 traffic_stop.py(정지선/신호 감속) → curve_speed.py(비전 커브 감속) →
+  longitudinal MPC 코스트 함수(set_weights, jerk_factor) 순으로 분석 진행
+- traffic_stop.py: 주행모델 예측(x,y,v)만으로 정지신호 판단하는 순수 E2E 휴리스틱 확인.
+  XState 상태머신, TrafficStopModelLeadMatcher(5프레임 confirm)까지 확인. HD맵/신호색상
+  인식 없음 — 모델 성능 의존 리스크 있음. long_mpc.py의 x2 obstacle까지 실제 연결됨 확인.
+  이 차량 설정: TrafficLightDetectMode=2(기본값, 이미 활성 상태)
+- curve_speed.py(비전): route 버전과 달리 외부 내비 앱 불필요, 순수 modelV2 기반. 곡률=
+  yaw_rate/velocity를 3점 median 필터링 후 물리공식(v=sqrt(횡가속도예산/곡률))으로 계산 —
+  route 버전보다 견고함. 이 차량 AutoCurveSpeedFactor=80(기본보다 느슨하게 설정됨) 확인
+- longitudinal MPC 코스트 함수: stock openpilot acados 프레임워크 그대로, carrot은 입력값만
+  주입. jerk_factor가 personality/myDrivingMode에 연동(0.5~1.0)됨을 확인, TFollowGap
+  선택과 일관되게 설계되어 있음을 확인
+- 종방향 전체 체계(LongControl PID → v_cruise 상한 → MPC obstacle/코스트 → 액추에이터)
+  종합 다이어그램으로 FINDINGS.md에 정리
+- 종방향 코드 분석 1단계(4차~5차)를 여기서 마무리하기로 결정. 다음 단계는 실차주행 →
+  route 로그 생성 → 로그분석
+- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md, CURRENT_STATUS.md, HANDOFF.md 갱신
+- 코드 변경 없음 (분석/기록만), carrot-ryu는 carrot-wip과 여전히 동일
+- 실차 검증: 미실시
+
 ## 5차 (완료 — route 감속 체인 + T_FOLLOW/TFollowGap 체인 분석) — 종방향 감속 로직 계속
 
 - 사용자 방향: "종방향 관련 코드부터 분석 → 실차주행 → 로그분석" 순서로 진행하기로 결정

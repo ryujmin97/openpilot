@@ -266,3 +266,151 @@
 - openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py (t_follow 사용부, 405~470행)
 - openpilot/selfdrive/carrot_settings.json (TFollowGap1~4 설명/범위)
 - carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)
+
+## [2026-09-12] traffic_stop.py(E2E 정지신호 감속) 체인 확인 — 순수 비전모델 휴리스틱, HD맵/신호색상 인식 없음
+
+### 배경
+- 종방향 분석 계속 진행: t_follow.py 다음으로 traffic_stop.py(정지선/신호 감속) 추적.
+
+### 확인된 사실 (호출 체인)
+- carrot_functions.py: check_model_stopping() — 주행모델이 예측한 미래 경로(x,y,v)만으로
+  정지신호 여부 추론. 속도구간별 다른 임계값(1km/h 미만: model_x<20&&model_v<10 /
+  82km/h 미만: model_x<d_rel-3, 속도별 거리상한 120~150m, model_v<3 or <v[0]*0.7, |y[-1]|<5m /
+  82km/h 이상: 감지 안 함). stopSignCount/startSignCount 프레임 누적으로 trafficState(red/green/off) 결정
+- XState 상태머신(e2eCruise→e2ePrepare→e2eStop→e2eStopped) — 가스/브레이크, 레이더 리드,
+  trafficState에 따라 전이. is_traffic_stop_entry_allowed()로 조향각 50도 이상(회전 중)이면
+  새 정지 진입 억제
+- actual_stop_distance: 속도 높을수록 먼 거리 추정치를 np.interp로 깎아 보정. 빨간불 지속시
+  comfort_brake를 매 프레임 0.9배씩 부드럽게 조임
+- TrafficStopModelLeadMatcher(traffic_stop.py): 정차 상태에서 레이더 리드가 없을 때 모델이
+  본 정차 선두차량 위치를 5프레임 연속(확률≥0.90, 거리 4~80m, 정지선과 gap 0~3m, 속도≤2m/s,
+  x/y/v 표준편차 임계값 이내) 검증 후에만 obstacle로 확정 — median 필터 + confirm frame으로
+  방어적으로 설계됨
+- long_mpc.py(469~475행): get_traffic_stop_distance_adjust()/get_traffic_stop_obstacle_distance()로
+  stop_x를 MPC obstacle(x2)로 변환, x_obstacles에 포함되어 acados MPC가 실제 감속 궤적 계산.
+  50m~순항거리 구간에서 신호 obstacle을 점진적으로 노출해 급제동 방지하는 스무딩 포함
+
+### 이 차량의 실제 설정
+- TrafficLightDetectMode=2 (기본값, "정지+출발 모두 감지" — 별도 조작 없이 이미 실도로에서
+  작동 중이었을 가능성 높음)
+- StopDistanceCarrot=700 (7.00m), TrafficStopDistanceAdjust=0 (코드 초기값 2.5m을
+  사용자가 0으로 재설정)
+
+### 결론
+- 실제 MPC까지 연결되는 진짜 감속 경로이고 방어 로직(median 필터, confirm frame, isfinite,
+  std 임계값)도 탄탄함.
+- 구조적 리스크: HD맵/신호등 색상 인식이 전혀 없는 순수 E2E 휴리스틱이라 주행모델의 예측
+  정확도에 전적으로 의존. 회전교차로, 임시신호, 공사구간 등 모델이 학습 못한 상황에서
+  놓치거나 오검출할 수 있음(버그가 아니라 이 접근 방식 자체의 근본적 한계).
+
+### 실차 검증
+- 미실시. 정적 코드/설정값 분석 기준.
+
+### 분석 근거 파일
+- openpilot/selfdrive/carrot/traffic_stop.py (TrafficStopModelLeadMatcher, get_traffic_stop_*)
+- openpilot/selfdrive/carrot/carrot_functions.py (check_model_stopping, XState 상태머신, 340~680행)
+- openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py (440~490행, x2 obstacle 반영부)
+- openpilot/selfdrive/carrot_settings.json (TrafficLightDetectMode 설명)
+- carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)
+
+## [2026-09-12] curve_speed.py(비전 커브 감속) 확인 — 물리식 기반, 외부 의존성 없어 route 버전보다 견고
+
+### 배경
+- 종방향 분석 계속: curve_speed.py(비전 버전) 및 route 버전과의 차이 비교.
+
+### 확인된 사실
+- carrot_man.py: carrot_curve_speed() → vturn_speed() → curve_speed.py의 curve_speed() 함수 호출.
+  입력은 sm['modelV2'](주행모델 예측 경로/속도/각속도)와 carState.vEgo/aEgo/vCluRatio 뿐 —
+  외부 내비 앱(APN) 연동 불필요, 항상 동작 가능.
+- curve_speed() 계산: 곡률=yaw_rate/velocity를 경로 각 지점에서 계산 → 3점 median 필터로
+  순간 yaw 스파이크 제거(route 버전엔 없는 필터) → curve_ms=sqrt(횡가속도_예산/곡률)
+  (원운동 물리공식, 룩업테이블 아님) → 감속 반응시간(액추에이터 지연 1.0초+저크 해소시간)과
+  감속도(1.0 m/s²)를 감안한 거리기반 역산으로 approach_ms 산출 → 최대 180m(or v_ego*6s)
+  전방 중 가장 타이트한 제약(최솟값) 선택
+- VisionCurveSpeed.update(): 속도를 줄이는 쪽은 즉시 반영, 늘리는(제약 해제) 쪽은
+  0.35초 대기 후 초당 7.2km/h로만 서서히 반영 — 커브 탈출 시 급가속 방지
+- vturn_speed는 carrot_serv.py의 speed_n_sources에 "vturn" 소스로 포함되어 route/sdi 등과
+  함께 desiredSpeed 최솟값 계산에 참여(5차 route 감속 체인 항목 참고)
+
+### 이 차량의 실제 설정
+- AutoCurveSpeedFactor=80 (기본 100%보다 낮음. 설정 설명상 "값을 높이면 허용 횡가속도가
+  낮아져 목표속도가 낮아짐" → 80%는 기본보다 느슨하게, 즉 커브를 더 빠른 속도로
+  통과하도록 설정된 상태). AutoCurveSpeedLowerLimit=20 (route 버전과 공유)
+
+### route(경로) 버전과 비교
+| 항목 | route(경로) | curve_speed(비전) |
+|---|---|---|
+| 데이터 소스 | 폰 내비 앱 GPS 폴리라인 | 주행모델 예측 경로만 |
+| 외부 의존성 | APN 연결 필수 | 없음(항상 동작) |
+| 스파이크 필터 | 없음 | 3노드 median 있음 |
+| 신뢰도(정적 분석 기준) | 내비 앱 연동 상태에 좌우 | 상대적으로 견고 |
+
+### 결론
+- 물리식 기반으로 설계가 탄탄하고 외부 의존성이 없어 route 버전보다 작동 신뢰도가 높음.
+- 다만 결국 주행모델이 예측한 미래 경로/yaw에 의존하므로, 모델의 원거리 커브 인지 정확도가
+  이 기능 전체의 성패를 좌우함(E2E 모델 의존 시스템 공통 한계).
+
+### 실차 검증
+- 미실시. 정적 코드/설정값 분석 기준.
+
+### 분석 근거 파일
+- openpilot/selfdrive/carrot/curve_speed.py (curve_speed, VisionCurveSpeed)
+- openpilot/selfdrive/carrot/carrot_man.py (carrot_curve_speed, vturn_speed)
+- openpilot/selfdrive/carrot/carrot_serv.py (speed_n_sources "vturn" 항목, 5차 항목과 공유)
+- openpilot/selfdrive/carrot_settings.json (AutoCurveSpeedFactor 설명)
+- carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)
+
+## [2026-09-12] longitudinal MPC 코스트 함수 확인 + 종방향 전체 체계 종합 — 종방향 코드 분석 1단계 마무리
+
+### 배경
+- 종방향 분석 마지막 항목: long_mpc.py의 코스트 함수(set_weights) 및 jerk_factor 연동 확인,
+  이후 지금까지(4차~5차) 분석한 종방향 6개 축을 종합.
+
+### 확인된 사실
+- set_weights()는 stock openpilot의 acados 기반 MPC 프레임워크(gen_long_ocp) 그대로이며,
+  carrot 고유 로직이 아님. 코스트 항목: X_EGO_OBSTACLE_COST, X_EGO_COST, V_EGO_COST,
+  A_EGO_COST, a_change_cost(감가속 변화 억제), jerk_factor×J_EGO_COST(저크 억제).
+  carrot은 이 프레임워크에 입력값(t_follow, v_cruise, stop_x, jerk_factor)만 주입하는 구조.
+- jerk_factor는 carrot_functions.py에서 personality(4단계)/myDrivingMode에 연동되어
+  0.5~1.0 사이로 결정 → 낮을수록 저크 비용↓ → 가감속 변화가 더 급격해짐(반응성↑ 승차감↓).
+  이 차량은 EnableSpeedTF=0(else 분기)이라 personality=standard 기준
+  myDrivingMode≠Safe면 jerk_factor=0.7.
+- TFollowGap1~4(1.10/1.20/1.40/1.60초) 순서가 personality aggressive/standard/relaxed/
+  moreRelaxed와 jerk_factor 배정(0.5/0.7/1.0/1.0)이 서로 일관되게 짝지어져 있음을 확인
+  (설계 일관성 양호).
+
+### 종방향 전체 체계 종합 (4차~5차 통합)
+```
+[LongControl PID] -- 현대차는 Kp=1.0/Ki=0.0/Kf=1.0 고정 (설정값 무시, 4차)
+        |
+[v_cruise 상한] <- min(route 감속, curve_speed 비전 감속, sdi카메라, 도로제한속도) -> carrotMan.desiredSpeed
+        |
+        v
+[longitudinal MPC] <- t_follow(TFollowGap 체인) -> 리드차 obstacle
+                   <- stop_dist(traffic_stop 체인) -> 정지선 obstacle(x2)
+                   <- jerk_factor/a_change_cost -> 코스트 웨이트
+        |
+        v
+   실제 가/감속 궤적(a_target) -> LongControl -> 액추에이터
+```
+
+### 결론 (종방향 코드 분석 1단계 마무리)
+- route/vturn/T_FOLLOW/traffic_stop 4개 커스텀 입력 체인 모두 표시용이 아니라 실제로
+  MPC까지 연결되어 물리적 가/감속 명령을 만들어내는 것을 코드 레벨에서 확인함.
+- MPC 자체(acados 프레임워크)는 stock openpilot 그대로라 신뢰도가 높고, carrot의
+  커스텀 입력 생성부도 전반적으로 방어적으로(isfinite, median 필터, confirm frame,
+  클립/램프) 작성되어 있어 정적 분석 기준 버그는 발견되지 않음.
+- 구조적 리스크 2가지: ①route 감속은 폰 내비 앱(APN) 연동 안정성에 좌우, ②traffic_stop은
+  HD맵/신호색상 인식 없이 순수 E2E 모델 휴리스틱이라 모델 성능에 전적으로 의존.
+- 실차 검증은 전혀 미실시. 지금까지 결론은 모두 정적 코드 분석 기준이며, 실제 동작 일치
+  여부는 실차주행 로그로만 확인 가능 — 다음 단계(실차주행 → 로그분석)로 넘어가기로
+  사용자와 합의됨.
+
+### 실차 검증
+- 미실시. 정적 코드/설정값 분석 기준. 다음 단계는 실차주행 후 로그분석.
+
+### 분석 근거 파일
+- openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py (get_jerk_factor,
+  get_a_change_cost, set_weights, 60~343행)
+- openpilot/selfdrive/carrot/carrot_functions.py (jerk_factor 결정부, 220~263행)
+- carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)

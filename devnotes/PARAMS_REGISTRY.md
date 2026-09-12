@@ -51,6 +51,15 @@
 - MapTurnSpeedFactor: 100 ← 경로 감속 반영비율 100%(조정 없음)
 - AutoCurveSpeedLowerLimit: 20 ← 커브/경로 감속 하한 20km/h
 - AutoNaviSpeedDecelRate: 60(=0.60 m/s²) ← 카메라/커브/경로 공통 감속률
+- AutoCurveSpeedFactor: 80 ← 기본값(100)보다 낮음. "높이면 목표속도가 낮아진다"는 설명
+  기준, 80%는 기본보다 느슨하게(커브를 더 빠른 속도로 통과)로 설정된 상태 (curve_speed.py
+  비전 버전, FINDINGS 참고)
+
+**정지신호 감속(traffic_stop.py) — FINDINGS 2026-09-12 참고**
+- TrafficLightDetectMode: 2 ← 기본값("정지+출발 모두 감지"). 별도 조작 없이 이미
+  실도로에서 작동 중이었을 가능성 높음
+- StopDistanceCarrot: 700(=7.00m) ← 정지선/장애물 정지거리
+- TrafficStopDistanceAdjust: 0(=0.00m) ← 코드 초기값 2.5m을 사용자가 0으로 재설정
 
 **차량/카메라 인식 관련**
 - HyundaiCameraSCC: 1
@@ -74,3 +83,7 @@
   실제로 붙어있는 상태인지 확인 필요 (FINDINGS 2026-09-12 route 감속 체인 참고)
 - EnableSpeedTF=0 / LeadAccelResponse=0이 의도적 설정인지, 아니면 시험해보지 않은
   기본값 방치인지 확인 필요
+- ✅ 종방향(가감속) 코드 분석 1단계 완료(4차~5차 계속): LongControl PID, route/vturn 감속,
+  T_FOLLOW, traffic_stop, MPC 코스트 함수까지 전체 체인 추적 완료. FINDINGS 2026-09-12
+  "종방향 전체 체계 종합" 참고
+- 다음 단계: 실차주행 → route 로그 생성 → 로그분석으로 코드 분석과 실제 거동 일치 여부 검증
