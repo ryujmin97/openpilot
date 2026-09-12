@@ -25,12 +25,12 @@
 
 **종방향(가감속) 튜닝**
 - LongPitch: True
-- LongActuatorDelay: 20
-- LongTuningKpV: 100
-- LongTuningKiV: 0
-- LongTuningKf: 100
-- StoppingAccel: -10
-- VEgoStopping: 5
+- LongActuatorDelay: 20 ← 실제 적용됨 (longitudinal_planner.py)
+- LongTuningKpV: 100  ⚠ 현대·기아·제네시스는 코드에서 고정(Kp=1.0)되어 이 값 무시됨 (FINDINGS 2026-09-12 참고)
+- LongTuningKiV: 0    ⚠ 위와 동일, 고정(Ki=0.0)되어 무시됨
+- LongTuningKf: 100   ⚠ 위와 동일, 고정(Kf=1.0)되어 무시됨
+- StoppingAccel: -10 ← 실제 적용됨 (고정 로직 대상 아님)
+- VEgoStopping: 5 ← 실제 적용됨
 - SteerActuatorDelay: 0
 
 **크루즈 속도/추종거리 프로파일**

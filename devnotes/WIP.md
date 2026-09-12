@@ -1,5 +1,19 @@
 # WIP
 
+## 4차 (완료 — 종방향 PID 게인 고정 확인) — LongTuningKpV/KiV/Kf 무효화 발견
+
+- 사용자 요청으로 "종방향 제어(가감속) 로직 분석" 착수
+  (DisableDM=2 / LateralTorqueCustom 항목은 이번 세션에서 보류)
+- longcontrol.py 분석 중, 커밋 a26b108d(2026-09-04)에서 현대·기아·제네시스 차량의
+  종방향 PID 게인(Kp/Ki/Kf)이 코드에 고정(1.0/0.0/1.0)되어 있음을 확인
+- 사용자가 보유한 LongTuningKpV=100/KiV=0/Kf=100 설정값은 제네시스 DH 2015에서
+  실제로는 읽히지 않고 무시됨 (문서에도 명시된 의도된 동작, 버그 아님)
+- 실제 적용되는 종방향 노브는 LongActuatorDelay / VEgoStopping / StoppingAccel 뿐임을 확인
+- ACCEL_MIN/MAX(-4.0/2.5 m/s²)는 제네시스 전용 값 없이 Hyundai 계열 공통값임을 확인
+- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md에 반영
+- 코드 변경 없음 (분석/기록만), carrot-ryu는 carrot-wip과 여전히 동일
+- 실차 검증: 미실시
+
 ## 3차 (완료 — 파라미터 베이스라인 기록) — 현재 적용 설정값 스냅샷
 
 - 사용자가 콤마 디바이스에서 export한 params_backup-4.json 수령
