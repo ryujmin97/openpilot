@@ -1,5 +1,27 @@
 # WIP
 
+## 5차 (완료 — route 감속 체인 + T_FOLLOW/TFollowGap 체인 분석) — 종방향 감속 로직 계속
+
+- 사용자 방향: "종방향 관련 코드부터 분석 → 실차주행 → 로그분석" 순서로 진행하기로 결정
+- route(경로) 기반 커브 감속 체인 전체 추적:
+  carrot_man.py(carrot_navi_route, GPS 폴리라인→곡률→속도) → carrot_serv.py(update_navi,
+  speed_n_sources 최솟값 선택) → carrot_functions.py(_update_carrot_man, v_cruise_kph 갱신) →
+  longitudinal_planner.py → MPC v_cruise 상한 → 실제 감속 명령까지 이어짐을 확인 (표시 전용이 아님)
+- 활성화 전제조건 확인: TurnSpeedControlMode>=2 필요(기본값은 1=비전만), 폰 내비 앱의
+  APN 연결로 경로 폴리라인 수신 필요, shapely 라이브러리 필요
+- ⚠ 이 차량의 실제 저장값은 TurnSpeedControlMode=2로, route 감속이 켜져 있는 상태임을
+  params_backup-4.json에서 확인 (DisableDM=2처럼 "설정은 켜져있는데 의도 미확인" 패턴)
+- T_FOLLOW/TFollowGap(차간거리) 체인 전체 추적:
+  t_follow.py(헬퍼) → carrot_functions.py(_get_base_t_follow ~ get_T_FOLLOW, personality별
+  기본값/속도보정/감속시 여유거리 boost&hold/클립/램프) → long_mpc.py(t_follow →
+  desired_follow_distance → MPC 리드차 장애물 제약)로 실제 추종거리 제어에 반영됨을 확인
+- 이 차량은 EnableSpeedTF=0, LeadAccelResponse=0으로 가장 단순한 personality 고정값
+  모드로 운용 중임을 확인 (TFollowGap1~4=110/120/140/160, 표준 범위 내 이상 없음)
+- 정적 분석 기준 버그는 발견되지 않음(상태 변수 초기화, 클립/램프 로직 모두 안전하게 작성됨)
+- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md 갱신
+- 코드 변경 없음 (분석/기록만), carrot-ryu는 carrot-wip과 여전히 동일
+- 실차 검증: 미실시
+
 ## 4차 계속 (완료 — DisableDM / LateralTorqueCustom 분석) — 보류했던 두 항목 확인
 
 - 같은 세션에서 이어서 "DisableDM=2 / LateralTorqueCustom" 보류 항목 분석 진행

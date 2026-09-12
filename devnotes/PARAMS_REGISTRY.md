@@ -38,7 +38,19 @@
 **크루즈 속도/추종거리 프로파일**
 - CruiseSpeed1~5: 50 / 70 / 90 / 100 / 120
 - CruiseMaxVals0~6: 130 / 125 / 80 / 60 / 50 / 45 / 40
-- TFollowGap1~5: 110 / 120 / 140 / 160 (Gap4 기준, Gap5 값 미포함 확인 필요)
+- TFollowGap1~4: 110 / 120 / 140 / 160 (=1.10/1.20/1.40/1.60초, openpilot 표준 범위 내,
+  정정: 코드상 Gap1~4까지만 존재, Gap5 항목 없음. FINDINGS 2026-09-12 T_FOLLOW 체인 참고)
+- EnableSpeedTF: 0 ← 속도기반 차간거리 보정 미사용, personality 고정값만 사용 중
+- LeadAccelResponse: 0 ← 레벨4-5 예외(선행차 가속중 설정 유지) 비활성
+- DynamicTFollowLC: 100(=1.0) ← 차선변경시 차간거리 배율 변화 없음
+- TFollowDecelBoost: 10(=0.10) ← 감속시 여유거리 보정 약하게(최대 0.05초)
+
+**감속제어 (커브/route/카메라) — route 감속 체인, FINDINGS 2026-09-12 참고**
+- TurnSpeedControlMode: 2 ← 기본값(1, 비전만)이 아님. "비전+경로(TBT)" 모드로 실제
+  route 감속이 활성화된 상태. ⚠ 사용자 의도 여부 확인 필요 (DisableDM=2와 동일 패턴)
+- MapTurnSpeedFactor: 100 ← 경로 감속 반영비율 100%(조정 없음)
+- AutoCurveSpeedLowerLimit: 20 ← 커브/경로 감속 하한 20km/h
+- AutoNaviSpeedDecelRate: 60(=0.60 m/s²) ← 카메라/커브/경로 공통 감속률
 
 **차량/카메라 인식 관련**
 - HyundaiCameraSCC: 1
@@ -58,3 +70,7 @@
 - DisableDM=2의 정확한 의미와 왜 이 값으로 설정했는지 확인
 - LateralTorqueCustom=0인데 LateralTorque* 값들이 커스텀되어 있는 이유 확인
   (커스텀 토크 테이블이 실제로 적용되는 조건 확인 필요)
+- TurnSpeedControlMode=2(route 감속 활성화)가 사용자 의도인지, 폰 내비 앱(APN) 연동이
+  실제로 붙어있는 상태인지 확인 필요 (FINDINGS 2026-09-12 route 감속 체인 참고)
+- EnableSpeedTF=0 / LeadAccelResponse=0이 의도적 설정인지, 아니면 시험해보지 않은
+  기본값 방치인지 확인 필요

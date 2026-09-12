@@ -1,42 +1,45 @@
 # HANDOFF
 
-Worker: Claude (세션 4, 계속)
+Worker: Claude (세션 5)
 Date: 2026-09-12
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (base commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1, carrot-wip과 동일, 코드 변경 없음)
-Note Branch: carrot-ryu-note (4차 계속 devnotes 반영)
+Note Branch: carrot-ryu-note (5차 devnotes 반영)
 carrot-wip 마지막 동기화 commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (신규 커밋 없음 확인, 동기화 불필요)
 
 작업:
 완료:
-- (이어서) DisableDM=2 의미 확인: 운전자 모니터링(졸음/주의분산 감지, 경고, 강제감속) 완전 OFF +
-  Carrot Vision WebRTC 원격 스트리밍 활성화. carrot_settings.json 설명 문구 + process_config.py/
-  selfdrived.py/controlsd.py 코드로 확정.
-- LateralTorqueCustom=0 의미 확인: 저장된 LateralTorqueKf/Friction/AccelFactor/KiV/KpV/Kd 6개 값이
-  전혀 적용되지 않음. 실제로는 opendbc torque_data/params.toml의 HYUNDAI_GENESIS 실측값
-  (LAT_ACCEL_FACTOR≈2.7808, FRICTION≈0.0984)로 조향 토크 계산 중.
-- FINDINGS.md / PARAMS_REGISTRY.md / WIP.md(4차 계속) / LAST_ANALYZED.md 갱신
-- (직전 회차, 이미 push 완료됨) 종방향 PID 게인 고정 확인 — commit 2440764a
+- 사용자 방향 확정: 종방향 코드 분석 우선 완료 → 실차주행 → 로그분석 순서로 진행
+- route(경로) 기반 커브 감속 체인 전체 추적 완료: carrot_man.py(GPS 폴리라인→곡률→속도) →
+  carrot_serv.py(speed_n_sources) → carrot_functions.py(v_cruise_kph 갱신) →
+  longitudinal_planner.py → MPC v_cruise 상한까지 실제 감속 명령으로 이어짐을 확인
+- 이 차량 실제 설정 TurnSpeedControlMode=2(route 감속 활성화 상태) 확인 (기본값 1이 아님)
+- T_FOLLOW/TFollowGap(차간거리) 체인 전체 추적 완료: t_follow.py(헬퍼) →
+  carrot_functions.py(get_T_FOLLOW, personality/속도보정/감속시 boost&hold/클립/램프) →
+  long_mpc.py(MPC 리드차 장애물 제약)까지 실제 반영됨을 확인
+- 이 차량은 EnableSpeedTF=0, LeadAccelResponse=0으로 단순 personality 고정값 모드 운용 확인
+- FINDINGS.md / PARAMS_REGISTRY.md / WIP.md(5차) / LAST_ANALYZED.md / CURRENT_STATUS.md 갱신
 
 미완료:
-- DisableDM=2가 사용자의 의도된 설정인지 실제로 확인 안 됨 (다음 세션에서 사용자에게 직접 질문 필요)
-- LateralTorqueCustom을 켜서(1 이상) 커스텀 토크 테이블을 실제로 쓸지 여부는 사용자 결정 대기
-- TFollowGap / 차간거리(t_follow.py), 곡선감속(curve_speed.py), 정지선(traffic_stop.py) 등
-  carrot 전용 종방향 모듈은 아직 분석 안 함
-- 종방향 MPC(longitudinal_mpc_lib) 코스트 함수 분석 안 함
+- traffic_stop.py(정지선 감속) 분석 안 함
+- curve_speed.py(비전 커브 감속) 분석 안 함
+- longitudinal MPC 코스트 함수(long_mpc.py 나머지, jerk_factor/aChangeCostStarting 등) 분석 안 함
+- TurnSpeedControlMode=2(route 감속 켜짐)가 사용자 의도인지, 폰 내비 앱(APN) 연동이 실제로
+  붙어있는지 확인 안 됨 (DisableDM=2와 동일한 "설정은 있는데 의도 미확인" 패턴)
+- EnableSpeedTF=0 / LeadAccelResponse=0이 의도적 설정인지 확인 안 됨
+- 실차주행 전혀 안 함 (콤마 디바이스 실장착/실주행 로그 없음)
 
-검증: 실차 검증 미실시 (정적 코드/문서 분석 기준)
+검증: 실차 검증 미실시 (정적 코드/설정값 분석 기준)
 
 주의사항:
-- DisableDM=2는 안전과 직결된 설정임. 다음 세션에서 이 대화나 devnotes를 이어받으면,
-  사용자가 이 설정을 의도적으로 켠 것인지(예: DM 카메라 미장착 등 이유) 반드시 확인하고,
-  Claude가 임의로 "안전하니 0으로 바꾸라"고 강권하지 말고 사실만 전달할 것.
-- LateralTorqueCustom/LongTuningKpV류처럼 "저장은 되어있지만 실제 미적용"인 파라미터가
-  이 프로젝트에 반복적으로 나타나는 패턴이 있음. 향후 다른 파라미터 분석 시에도
-  "저장값 존재 = 실제 적용"으로 단정하지 말고 반드시 코드에서 읽는 조건을 확인할 것.
+- TurnSpeedControlMode=2 / DisableDM=2 둘 다 "저장값은 있지만 사용자 의도 확인 안 된 안전
+  관련 설정"임. 다음 세션에서 사용자에게 직접 확인 필요 (Claude가 임의로 끄라고 권하지 말 것).
 - carrot-ryu는 여전히 carrot-wip과 코드 동일 (분기 이후 실제 코드 수정 아직 없음)
+- 종방향 분석이 어느 정도 마무리되면(traffic_stop.py, curve_speed.py, MPC 코스트 함수까지),
+  실차주행 단계로 넘어가기로 사용자와 합의됨. 실차주행 시 route 로그는 13절 원칙에 따라
+  Git에 직접 커밋하지 말고 Google Drive 등에 보관, devnotes에는 참조 정보만 남길 것.
 
 다음 작업 후보:
-- 사용자에게 DisableDM=2 의도 확인
-- TFollowGap 등 차간거리 로직 분석
-- 또는 사용자가 원하는 다른 항목
+- traffic_stop.py(정지선), curve_speed.py(비전 커브), longitudinal MPC 코스트 함수 순으로 종방향 분석 마무리
+- 종방향 분석 마무리 후: 사용자에게 TurnSpeedControlMode/EnableSpeedTF 등 의도 확인
+- 그 다음: 콤마 디바이스 실차주행 → route 로그 수집 → 로그분석 단계로 전환

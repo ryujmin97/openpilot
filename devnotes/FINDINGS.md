@@ -148,3 +148,121 @@
 - openpilot/selfdrive/controls/lib/latcontrol_torque.py, opendbc_repo/opendbc/car/interfaces.py,
   opendbc_repo/opendbc/car/torque_data/params.toml (LateralTorqueCustom)
 - carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12, 변경 없음)
+
+## [2026-09-12] route(경로) 기반 커브 감속 체인 확인 — 실제 감속 명령까지 연결됨, 이 차량은 활성화 상태
+
+### 배경
+- "route 감속 관련 코드 분석" 요청. carrot-serv.py의 speed_n_sources에 "route"라는
+  소스 이름이 있는 것을 확인하고 그 전체 체인을 추적함.
+
+### 확인된 사실 (호출 체인)
+1. carrot_man.py: carrot_navi_route() — 외부 내비 앱이 보내준 경로 폴리라인(self.navi_points,
+   최대 256포인트, carrotNavi 브리지로 수신)에서 현재 위치 기준 300m 구간을 5m 간격 리샘플링 →
+   3점(40m 간격)으로 곡률 계산 → 곡률→속도 룩업테이블(V_CURVE_LOOKUP_BP/VALS) 적용 →
+   autoNaviSpeedDecelRate로 역순 가속도 제한 감속 프로파일 생성 → route_speed 산출
+2. carrot_serv.py: update_navi() — route_speed에 mapTurnSpeedFactor 곱하고
+   autoCurveSpeedLowerLimit로 하한 적용. TurnSpeedControlMode가 2/3/4일 때만
+   speed_n_sources에 ("route", route_speed) 추가. 다른 소스(과속카메라 sdi, 방지턱,
+   스쿨존, 비전커브 vturn, 도로제한속도 road)와 함께 최솟값을 desiredSpeed로 선택 →
+   carrotMan 메시지로 publish
+3. carrot_functions.py: CarrotPlanner._update_carrot_man() (451행) —
+   v_cruise_kph = min(v_cruise_kph, carrot_man.desiredSpeed)
+4. longitudinal_planner.py (126~130행) — self.v_cruise_kph = carrot.update(sm, v_cruise_kph, mode) →
+   v_cruise로 변환되어 LongitudinalMpc의 v_cruise 상한 파라미터로 전달 → MPC가 이 상한에 맞춰
+   실제 가/감속 궤적(jerk 제한 포함)을 계산 → actuator로 전달
+- controlsd.py의 hudControl.setSpeed는 이 체인과 별개의 표시 전용 값이며, 실제 감속은
+  4번 체인(carrot.update → longitudinal_planner → MPC)을 통해 일어남.
+
+### 활성화 전제조건 (모두 만족해야 발동)
+- TurnSpeedControlMode = 2 이상 (0: 미사용, 1: 비전만, 2: 비전+경로(TBT, ±500m 이내만),
+  3/4: 경로 항상). carrot_settings.json 상 기본값은 1(비전만)이라 route 소스 기본 비활성.
+- MapTurnSpeedFactor 설명에 "APN 연결시에만"이라 명시 — 폰 내비 앱이 carrotNavi 브리지로
+  경로 폴리라인을 실시간 전송해야 함(navi_points_active, navd_active).
+- is_onroad, SHAPELY_AVAILABLE(shapely 라이브러리)도 필요. 하나라도 빠지면
+  carrot_navi_route()가 (300, 무제한)을 반환해 사실상 미작동.
+
+### 이 차량(제네시스 DH 2015)의 실제 설정 — 활성화 상태로 확인됨
+- params_snapshots/2026-09-12_params_backup-4.json 확인 결과 TurnSpeedControlMode=2
+  (기본값 1이 아님) → 이 차량은 route 감속이 켜져 있는 상태.
+- MapTurnSpeedFactor=100(반영비율 100%), AutoCurveSpeedLowerLimit=20(하한 20km/h),
+  AutoNaviSpeedDecelRate=60(0.60 m/s² 감속률)
+- ⚠ DisableDM=2와 같은 패턴: "설정은 켜져 있는데 사용자가 의도한 것인지 아직 확인 안 됨".
+  폰 내비 앱 연동(APN) 자체가 실제로 붙어있는지도 미확인.
+
+### 잠재 리스크 (정적 분석 기준)
+- 곡률을 GPS 폴리라인 좌표로만 계산 — 내비 앱이 주는 폴리라인의 점 밀도/정확도에
+  전적으로 의존. curve_speed.py(비전 버전)에는 있는 3노드 median 스파이크 제거 필터가
+  이 route 버전(carrot_navi_route)에는 없어, GPS 노이즈로 인한 곡률 오검출 가능성 있음.
+- GPS 위치/heading(bearing) 오차가 gps_to_relative_xy 변환에 그대로 전파됨.
+
+### 결론
+- 코드 자체는 완결된 파이프라인이고 실제 감속 명령까지 이어지는 것은 확인됨. 다만
+  "코드가 있다 = 실차에서 항상 안전하게 작동한다"는 아니며, 외부 내비 앱 연동 안정성과
+  GPS 폴리라인 품질에 성패가 좌우됨.
+- 버그로 보이는 부분은 없음(설계상 위험 요소는 존재).
+
+### 실차 검증
+- 미실시. 정적 코드/설정값 분석 기준.
+
+### 분석 근거 파일
+- openpilot/selfdrive/carrot/carrot_man.py (carrot_navi_route, calculate_curvature)
+- openpilot/selfdrive/carrot/carrot_serv.py (update_navi, speed_n_sources)
+- openpilot/selfdrive/carrot/carrot_functions.py (_update_carrot_man)
+- openpilot/selfdrive/carrot/carrot_navi_control.py (parse_carrot_navi_control, NaviRouteControl)
+- openpilot/selfdrive/controls/lib/longitudinal_planner.py (v_cruise_kph 계산부)
+- openpilot/selfdrive/controls/controlsd.py (setSpeed, hudControl 표시부)
+- openpilot/selfdrive/carrot_settings.json (TurnSpeedControlMode, MapTurnSpeedFactor 설명)
+- carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)
+
+## [2026-09-12] T_FOLLOW/TFollowGap(차간거리) 체인 확인 — MPC 리드차 장애물 제약에 직접 반영됨
+
+### 배경
+- "종방향 코드 계속 분석" 요청으로 t_follow.py(22줄, 헬퍼 함수만 존재)에서 시작해
+  실제 호출부(carrot_functions.py, long_mpc.py)까지 추적함.
+
+### 확인된 사실 (계산 체인, carrot_functions.py)
+1. _get_base_t_follow() — personality(aggressive/standard/relaxed/moreRelaxed) 4단계별
+   TFollowGap1~4 값 선택. EnableSpeedTF<0이면 속도 구간별 보간으로 대체 가능(고정 브레이크포인트
+   [0,30,60,90]/[0,40,80,120]/[0,50,100,150] 중 EnableSpeedTF값(-1/-2/-3)으로 선택)
+2. _apply_speed_t_follow_scale() — EnableSpeedTF>0이면 저속에서 차간거리를 줄였다가
+   고속으로 갈수록 원복(반대 방향 스케일링)
+3. _apply_decel_hold_and_boost_t_follow() — 감속(a_ego≤-0.2) 중엔 여유거리를 즉시 늘리고
+   (TFollowDecelBoost 비율, a_ego=-2.5일 때 최대 0.5초 추가), 해제 시엔 서서히만
+   줄여(0.10×dt/frame) 널뛰기 방지
+4. _clip_t_follow() — [0.3초, tf_max]로 클립. tf_max는 myTFollowFactor(주행모드)로 확장 가능
+5. ramp_t_follow() — 거리를 늘리는 쪽만 램프(0.30 또는 0.60초/초, decel_extra 여부에 따라),
+   줄이는 쪽은 즉시 반영
+6. get_T_FOLLOW()에 leadAccelResponse>=4 레벨 예외 있음: 추적 중인 선행차가 양의 가속
+   중이면(gap이 벌어지는 중) 속도기반 스케일을 건너뛰고 설정된 tf_base를 그대로 유지
+   (gap이 벌어지는데 차간거리를 괜히 좁히지 않기 위함)
+- long_mpc.py 421행: t_follow = carrot.get_T_FOLLOW(...) → desired_follow_distance() →
+  MPC의 리드차 장애물 거리 제약(obstacle constraint)에 직접 반영 → 실제 추종거리/
+  가감속 명령으로 이어짐 (route 감속과 마찬가지로 표시용이 아니라 실동작 경로).
+- 상태 변수(_tf_decel_extra, _tf_base_last 등) 초기화 확인: __init__에서 안전하게
+  초기화되어 있고 getattr fallback도 첫 프레임에서 크래시 나지 않음. 정적으로 버그
+  발견되지 않음.
+
+### 이 차량의 실제 설정값 (params_backup-4.json)
+- TFollowGap1~4: 110/120/140/160 (1.10/1.20/1.40/1.60초) — openpilot 표준 범위 내, 이상 없음
+- EnableSpeedTF: 0 → 속도기반 보정 미사용, personality 고정값만 사용 중
+- LeadAccelResponse: 0 → 레벨4-5 예외(선행차 가속중 설정값 유지) 비활성 상태
+- DynamicTFollowLC: 100(=1.0) → 차선변경시 차간거리 배율 변화 없음
+- TFollowDecelBoost: 10(=0.10) → 감속시 여유거리 보정 약하게(최대 0.05초)
+- (PARAMS_REGISTRY.md의 기존 "TFollowGap5 미확인" 메모는 정정: 코드상 TFollowGap1~4까지만
+  존재하며 5번째 항목은 없음)
+
+### 결론
+- T_FOLLOW 체인은 정적으로 문제없이 설계되어 있고, 실제 추종거리 제어에 반영됨.
+- 이 차량은 속도기반 보정(EnableSpeedTF)과 레벨4-5 예외(LeadAccelResponse)를 모두 끈
+  "가장 단순한" personality 고정값 모드로 운용 중 — 의도적 설정인지, 아니면 시험해보지
+  않은 기본값인지는 사용자 확인 필요.
+
+### 실차 검증
+- 미실시. 정적 코드/설정값 분석 기준.
+
+### 분석 근거 파일
+- openpilot/selfdrive/carrot/t_follow.py
+- openpilot/selfdrive/carrot/carrot_functions.py (_get_base_t_follow ~ get_T_FOLLOW, 189~328행)
+- openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py (t_follow 사용부, 405~470행)
+- openpilot/selfdrive/carrot_settings.json (TFollowGap1~4 설명/범위)
+- carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)

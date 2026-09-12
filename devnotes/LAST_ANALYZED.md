@@ -1,6 +1,18 @@
 # LAST ANALYZED
 
 carrot-wip commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12)
+분석 범위 (5차 — route 감속 체인 + T_FOLLOW/TFollowGap):
+  openpilot/selfdrive/carrot/carrot_man.py (carrot_navi_route, calculate_curvature)
+  openpilot/selfdrive/carrot/carrot_serv.py (update_navi, speed_n_sources)
+  openpilot/selfdrive/carrot/carrot_functions.py (_update_carrot_man, _get_base_t_follow ~ get_T_FOLLOW)
+  openpilot/selfdrive/carrot/carrot_navi_control.py (parse_carrot_navi_control)
+  openpilot/selfdrive/carrot/t_follow.py
+  openpilot/selfdrive/controls/lib/longitudinal_planner.py (v_cruise_kph 계산부)
+  openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py (t_follow 사용부)
+  openpilot/selfdrive/controls/controlsd.py (setSpeed/hudControl 표시부, carrotMan 소비부)
+  openpilot/selfdrive/carrot_settings.json (TurnSpeedControlMode, MapTurnSpeedFactor, TFollowGap1~4 등)
+  devnotes/params_snapshots/2026-09-12_params_backup-4.json (실제 저장값 대조)
+
 분석 범위 (4차 계속 — DisableDM / LateralTorqueCustom):
   openpilot/selfdrive/selfdrived/selfdrived.py (DisableDM 사용부, 245행)
   openpilot/selfdrive/controls/controlsd.py (DisableDM 사용부, 426행)
@@ -23,6 +35,8 @@ carrot-wip commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12)
   openpilot/selfdrive/carrot_settings.json (DisableMinSteerSpeed UI)
 
 다음 분석 후보:
-- TFollowGap / 차간거리 로직 (longitudinal_mpc, t_follow.py)
-- 곡선 감속(curve_speed.py), 정지선 감속(traffic_stop.py) 등 carrot 전용 종방향 모듈
-- (완료됨: DisableDM=2, LateralTorqueCustom — 4차 계속 참고)
+- 정지선 감속(traffic_stop.py)
+- 곡선 감속(curve_speed.py, 비전 버전 — route 버전과 달리 3노드 median 필터 있음)
+- 종방향 MPC 코스트 함수(long_mpc.py의 나머지 부분, jerk_factor/aChangeCostStarting 등)
+- 이후: 실차주행 → route 로그 생성 → 로그분석으로 코드 분석과 실제 거동 일치 여부 검증
+- (완료됨: DisableDM=2, LateralTorqueCustom — 4차 계속 / route 감속 체인, T_FOLLOW — 5차 참고)
