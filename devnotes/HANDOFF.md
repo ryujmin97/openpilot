@@ -1,29 +1,30 @@
 # HANDOFF
 
-Worker: Claude (세션 2)
+Worker: Claude (세션 3)
 Date: 2026-09-12
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1, carrot-wip과 동일)
-Note Branch: carrot-ryu-note (2차 devnotes 반영)
+Code Branch: carrot-ryu (base commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1, carrot-wip과 동일, 아직 코드 변경 없음)
+Note Branch: carrot-ryu-note (3차 devnotes 반영)
 carrot-wip 마지막 동기화 commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (분기 시점, 아직 추가 동기화 없음)
 
 작업:
 완료:
-- 브랜치 3종 세팅 완료 (carrot-wip / carrot-ryu / carrot-ryu-note)
-- minSteerSpeed 60km/h 제한 관련 분석 완료
-- DisableMinSteerSpeed 설정 토글 존재 확인 (코드 수정 불필요, 설정으로 해결)
+- 사용자 디바이스 params_backup-4.json 수령 및 devnotes에 스냅샷 보관
+- 현재 적용 중인 주요 튜닝 파라미터 PARAMS_REGISTRY.md에 정리
+- DisableMinSteerSpeed=1 실제 적용 확인 (기존 FINDINGS와 일치)
 
 미완료:
-- 콤마 디바이스에서 DisableMinSteerSpeed=1 적용 후 실차 검증
-- carrot-wip 다른 영역(종방향 제어, DM 등) 분석 미착수
+- DisableDM=2 의미/근거 미확인
+- LateralTorqueCustom=0인데 LateralTorque* 값들이 커스텀된 이유 미확인
+- carrot-wip 다른 영역(종방향 제어 세부 로직 등) 분석 미착수
 
-검증: 실차 검증 미실시 (정적 분석만 수행)
+검증: 실차 검증 미실시 (사용자 제공 백업 파일 기반 기록)
 
 주의사항:
-- carrot-ryu는 아직 carrot-wip과 코드 차이 없음 (분기만 한 상태)
-- DisableMinSteerSpeed=1 설정 후에도 저속에서 실제 조향 개입 강도/안정성은
-  SMDPS 개조 품질에 좌우되므로 초기 테스트는 안전한 공간에서 진행 권장
+- carrot-ryu는 아직 carrot-wip과 코드 차이 없음
+- 이번 파라미터들은 "현재 적용 중"인 값이므로, 향후 값을 바꿀 때는
+  이 스냅샷과 비교해서 변경 이력을 PARAMS_REGISTRY.md에 남길 것
 
-다음 작업:
-- (사용자 결정 필요) 콤마 디바이스 설정 반영 후 실주행 테스트 진행 여부
-- 또는 다음 분석 대상 선정 (예: longitudinal 튜닝, MDPS 토크 파라미터 등)
+다음 작업 후보:
+- DisableDM=2, LateralTorqueCustom 관련 코드 분석
+- 또는 사용자가 원하는 다른 튜닝 항목 우선 분석

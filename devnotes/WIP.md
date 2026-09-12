@@ -1,5 +1,15 @@
 # WIP
 
+## 3차 (완료 — 파라미터 베이스라인 기록) — 현재 적용 설정값 스냅샷
+
+- 사용자가 콤마 디바이스에서 export한 params_backup-4.json 수령
+- CarSelected3="Hyundai Genesis 2015-16"로 차량 매칭 확인
+- DisableMinSteerSpeed=1이 실제로 적용되어 있음을 확인 (2차 FINDINGS와 일치)
+- 원본 파일을 devnotes/params_snapshots/2026-09-12_params_backup-4.json으로 보관
+- PARAMS_REGISTRY.md에 주요 커스텀 값(조향 토크, 종방향 튜닝, 크루즈 프로파일 등) 요약 기록
+- DisableDM=2, LateralTorqueCustom=0 등 의미 미확인 항목을 다음 분석 후보로 등록
+- 실차 검증: 해당 없음 (기록 작업)
+
 ## 2차 (완료 — 저속조향 제한 분석) — minSteerSpeed / SMDPS
 
 - CAR.HYUNDAI_GENESIS minSteerSpeed=60km/h 하드코딩 확인
