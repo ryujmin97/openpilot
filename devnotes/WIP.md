@@ -1,256 +1,259 @@
 # WIP
 
-## 11차 (완료 — 코드 수정) — 더블탭 캡쳐 스크린샷 + 온로드 시계 초단위 표시
+## 12차 (완료 — 코드 반영 + 반영 프로세스 디버깅) — 더블탭 대신 화면 중앙 하단 스크린샷 버튼 + 온로드 시계 초단위 표시(재반영)
 
-- 사용자 요청 1: 온로드 화면 좌상단 시계가 분 단위로만 갱신되어 초 단위 표시가 필요
-  - 코드 위치: selfdrive/ui/onroad/hud_renderer.py의 _refresh_date_time_text()
-  - 원인: 캐시 키가 tm_min까지만 사용해 같은 분 안에서는 갱신을 건너뜀
-  - 수정: 캐시 키에 tm_sec 추가, 포맷 "%H:%M"  "%H:%M:%S"로 변경 (18:36:02 형식, 매초 갱신)
-- 사용자 요청 2: 온로드 화면을 더블탭하면 스크린샷을 찍어 carrotweb 로그탭의
-  "화면녹화" 목록에서 바로 보이게 하고 싶음
-  - 더블탭 판정: selfdrive/ui/onroad/augmented_road_view.py의 _handle_mouse_press()에
-    0.4초60px 이내 재탭이면 더블탭으로 보는 판정 로직 추가(_check_double_tap_screenshot).
-    기존 단일 탭 클릭(사이드바 토글)과 HUD 인터랙션 중 무시 동작은 그대로 유지
-  - 캡쳐: 새 파일 selfdrive/ui/onroad/screenshot_capture.py 추가. pyray의
-    take_screenshot()으로 PNG 저장. 저장 위치는 SCREEN_RECORDING_DIRS[1]
-    (/data/media/0/screenrecord) — carrotweb이 이미 스캔 중인 폴더라 별도 반영 없이
-    자동 노출
-  - 백엔드(selfdrive/carrot/server/): config.py에 SCREEN_RECORDING_IMAGE_EXTS
-    (.png/.jpg/.jpeg) 추가하고 SCREEN_RECORDING_EXTS에 합산. catalog.py의
-    build_videos()가 kind="image"/"video" 구분값을 내려주도록 하고, 정지 이미지는
-    thumbnail_path()에서 ffmpeg -ss 탐색 없이 바로 리사이즈만 하도록 분기
-  - 프론트엔드(selfdrive/carrot/web/): screenrecord.js에서 kind==="image"인 행은
-    data-action을 "view-screenrecord-image"로 바꿔 비디오 플레이어 대신 새 탭에서
-    원본 이미지가 열리도록 하고, runtime.js에 해당 액션 핸들러 추가. npm run build로
-    js/generated/logs.js(및 asset-manifest.json 해시) 재빌드
-- 검증: Claude 샌드박스에서 GitHub 최신 코드(carrot-ryu, 10차 반영 직후 = e1e587b,
-  그 위의 내용 없는 빈 커밋 2c33603 "token test" 포함) 기준으로 미리 패치 적용 
-  py_compile 통과(수정 Python 파일 5개), node --check 통과(JS 파일 2개), npm run
-  build로 로그탭 번들 재빌드 정상 완료(esbuild 에러 없음)까지 확인. cereal/capnp
-  미빌드로 UI 자체 구동/pytest 실행은 이번에도 불가(9~10차와 동일한 한계)
-- 실차 검증: 미실시. 다음 실주행에서 시계가 초 단위로 매초 갱신되는지, 온로드
-  화면 더블탭 시 스크린샷이 찍혀 carrotweb 로그탭 > 화면녹화 목록에 이미지로 뜨고
-  탭하면 새 탭에서 원본 이미지가 열리는지 확인 필요
-- 관련 없는 리팩터링 없음. 파일 6개 수정(hud_renderer.py, augmented_road_view.py,
-  config.py, catalog.py, screenrecord.js, runtime.js) + 파일 1개 신규
-  (screenshot_capture.py) + 빌드 산출물 2개(js/generated/logs.js,
+- 배경: 11차에서 설계했던 "더블탭으로 스크린샷" + "시계 초단위 표시"가 실제로는
+  GitHub에 반영되지 못한 채(패치 적용 실패 반복) 이번 12차까지 넘어옴. 이번
+  세션에서 설계를 바꿔 실제로 반영을 완료함.
+- 설계 변경: 더블탭 제스처(augmented_road_view.py 수정) 대신, 온로드 화면 중앙
+  하단에 항상 보이는 버튼(ScreenshotButton, 지름 140px 원형 카메라 아이콘)을
+  새로 추가하는 방식으로 재설계. 기존 단일 탭(사이드바 토글)과 겹치지 않도록
+  명시적 탭 대상만 사용.
+  - 신규 파일: selfdrive/ui/onroad/screenshot_button.py (버튼 위젯, pyray로
+    원형 카메라 아이콘 직접 그림)
+  - 신규 파일: selfdrive/ui/onroad/screenshot_capture.py (11차와 동일한 로직 —
+    take_screenshot()으로 cwd에 저장 후 SCREEN_RECORDING_DIRS[1]로 이동)
+  - hud_renderer.py: ScreenshotButton import, __init__에서 인스턴스 생성,
+    _render 하단 중앙에 배치, user_interacting()에 버튼 눌림 상태 포함
+  - hud_renderer.py: 11차 계획대로 시계 캐시 키에 tm_sec 추가,
+    "%H:%M" -> "%H:%M:%S"
+  - 이번 회차에서는 augmented_road_view.py 더블탭 판정 코드는 적용하지 않음
+    (설계 변경으로 불필요) — 11차 WIP 기록의 더블탭 관련 서술은 이번 재설계로
+    대체됨
+  - 11차가 계획했던 backend(config.py의 SCREEN_RECORDING_IMAGE_EXTS,
+    catalog.py의 kind 구분)와 frontend(screenrecord.js/runtime.js의 이미지
+    뷰어 액션) 변경은 이번 12차에 포함되지 않음 — 스크린샷 파일은 폴더에
+    저장되지만, carrotweb 로그탭에서 정지 이미지로 정상 표시/재생될지는
+    미확인 상태로 남음(다음 세션 후보)
+- 반영 프로세스 디버깅(참고용, 앞으로 비슷한 실수 방지):
+  1. 최초 diff에 PowerShell Set-Content -NoNewline으로 diff 파일 끝 개행이
+     빠져 "corrupt patch" 발생 -> -NoNewline 제거로 1차 수정
+  2. 그 다음 "patch does not apply" 발생 -> 처음엔 core.autocrlf 체크아웃
+     변환을 원인으로 추정했으나, Claude 샌드박스에서 실제 GitHub 최신
+     hud_renderer.py를 직접 받아(raw.githubusercontent.com이 네트워크 허용
+     도메인이라 컨테이너에서 바로 curl 접근 가능함을 확인) LF/CRLF/BOM 각각
+     재현 테스트했지만 모두 정상 적용됨 -> 이 진단은 근거 부족으로 폐기
+  3. BOM 회피를 위해 Set-Content를 [System.IO.File]::WriteAllText 기반
+     헬퍼로 바꿨다가, PowerShell here-string이 마지막 줄 개행을 보존하지
+     않는 특성 때문에 diff 파일에 "corrupt patch"가 재발 -> 헬퍼에 "끝에
+     개행 없으면 추가" 로직을 넣어 최종 해결(샌드박스에서 재현/수정 모두 검증)
+  4. py_compile 단계에서 원인불명 실패 -> 실제로는 이 PC에 진짜 Python이
+     없고 Windows "App Execution Alias" 더미 python.exe만 있어서 발생.
+     Claude 샌드박스의 실제 Python으로 3개 파일 모두 문법 검증 완료(정상)로
+     대체 확인. 스크립트의 python 감지 로직(Get-Command python)이 이 더미를
+     걸러내지 못하는 문제는 아직 미수정(다음 세션 후보)
+  5. 반영 스크립트의 git add -A 범위에 diff 파일 자체(hud_renderer.diff)가
+     포함되어 carrot-ryu에 잘못 커밋됨 -> git rm으로 후속 커밋(4f4f8a8)에서
+     제거, GitHub raw로 삭제 확인(단, raw.githubusercontent.com CDN 캐시로
+     약 5분간 이전 내용이 잠깐 더 보일 수 있음 확인)
+- 검증: Claude 샌드박스에서 실제 GitHub 최신 파일 기준 diff 적용 성공 확인,
+  py_compile 통과(3개 파일) 확인. GitHub push 후 raw.githubusercontent.com으로
+  반영 내용 재확인(ScreenshotButton import/사용, second_key 로직 모두 확인됨)
+- 실차 검증: 미실시
+- carrot-ryu HEAD: 12차 완료 후 4f4f8a8 (684b30d에서 hud_renderer.diff
+  오커밋 제거)
+
+## 11李?(?꾨즺 ??肄붾뱶 ?섏젙) ???붾툝??罹≪퀜 ?ㅽ겕由곗꺑 + ?⑤줈???쒓퀎 珥덈떒???쒖떆
+
+- ?ъ슜???붿껌 1: ?⑤줈???붾㈃ 醫뚯긽???쒓퀎媛 遺??⑥쐞濡쒕쭔 媛깆떊?섏뼱 珥??⑥쐞 ?쒖떆媛 ?꾩슂
+  - 肄붾뱶 ?꾩튂: selfdrive/ui/onroad/hud_renderer.py??_refresh_date_time_text()
+  - ?먯씤: 罹먯떆 ?ㅺ? tm_min源뚯?留??ъ슜??媛숈? 遺??덉뿉?쒕뒗 媛깆떊??嫄대꼫?
+  - ?섏젙: 罹먯떆 ?ㅼ뿉 tm_sec 異붽?, ?щ㎎ "%H:%M"  "%H:%M:%S"濡?蹂寃?(18:36:02 ?뺤떇, 留ㅼ큹 媛깆떊)
+- ?ъ슜???붿껌 2: ?⑤줈???붾㈃???붾툝??븯硫??ㅽ겕由곗꺑??李띿뼱 carrotweb 濡쒓렇??쓽
+  "?붾㈃?뱁솕" 紐⑸줉?먯꽌 諛붾줈 蹂댁씠寃??섍퀬 ?띠쓬
+  - ?붾툝???먯젙: selfdrive/ui/onroad/augmented_road_view.py??_handle_mouse_press()??    0.4珥?0px ?대궡 ?ы꺆?대㈃ ?붾툝??쑝濡?蹂대뒗 ?먯젙 濡쒖쭅 異붽?(_check_double_tap_screenshot).
+    湲곗〈 ?⑥씪 ???대┃(?ъ씠?쒕컮 ?좉?)怨?HUD ?명꽣?숈뀡 以?臾댁떆 ?숈옉? 洹몃?濡??좎?
+  - 罹≪퀜: ???뚯씪 selfdrive/ui/onroad/screenshot_capture.py 異붽?. pyray??    take_screenshot()?쇰줈 PNG ??? ????꾩튂??SCREEN_RECORDING_DIRS[1]
+    (/data/media/0/screenrecord) ??carrotweb???대? ?ㅼ틪 以묒씤 ?대뜑??蹂꾨룄 諛섏쁺 ?놁씠
+    ?먮룞 ?몄텧
+  - 諛깆뿏??selfdrive/carrot/server/): config.py??SCREEN_RECORDING_IMAGE_EXTS
+    (.png/.jpg/.jpeg) 異붽??섍퀬 SCREEN_RECORDING_EXTS???⑹궛. catalog.py??    build_videos()媛 kind="image"/"video" 援щ텇媛믪쓣 ?대젮二쇰룄濡??섍퀬, ?뺤? ?대?吏??    thumbnail_path()?먯꽌 ffmpeg -ss ?먯깋 ?놁씠 諛붾줈 由ъ궗?댁쫰留??섎룄濡?遺꾧린
+  - ?꾨줎?몄뿏??selfdrive/carrot/web/): screenrecord.js?먯꽌 kind==="image"???됱?
+    data-action??"view-screenrecord-image"濡?諛붽퓭 鍮꾨뵒???뚮젅?댁뼱 ???????뿉??    ?먮낯 ?대?吏媛 ?대━?꾨줉 ?섍퀬, runtime.js???대떦 ?≪뀡 ?몃뱾??異붽?. npm run build濡?    js/generated/logs.js(諛?asset-manifest.json ?댁떆) ?щ퉴??- 寃利? Claude ?뚮뱶諛뺤뒪?먯꽌 GitHub 理쒖떊 肄붾뱶(carrot-ryu, 10李?諛섏쁺 吏곹썑 = e1e587b,
+  洹??꾩쓽 ?댁슜 ?녿뒗 鍮?而ㅻ컠 2c33603 "token test" ?ы븿) 湲곗??쇰줈 誘몃━ ?⑥튂 ?곸슜 
+  py_compile ?듦낵(?섏젙 Python ?뚯씪 5媛?, node --check ?듦낵(JS ?뚯씪 2媛?, npm run
+  build濡?濡쒓렇??踰덈뱾 ?щ퉴???뺤긽 ?꾨즺(esbuild ?먮윭 ?놁쓬)源뚯? ?뺤씤. cereal/capnp
+  誘몃퉴?쒕줈 UI ?먯껜 援щ룞/pytest ?ㅽ뻾? ?대쾲?먮룄 遺덇?(9~10李⑥? ?숈씪???쒓퀎)
+- ?ㅼ감 寃利? 誘몄떎?? ?ㅼ쓬 ?ㅼ＜?됱뿉???쒓퀎媛 珥??⑥쐞濡?留ㅼ큹 媛깆떊?섎뒗吏, ?⑤줈??  ?붾㈃ ?붾툝?????ㅽ겕由곗꺑??李랁? carrotweb 濡쒓렇??> ?붾㈃?뱁솕 紐⑸줉???대?吏濡??④퀬
+  ??븯硫?????뿉???먮낯 ?대?吏媛 ?대━?붿? ?뺤씤 ?꾩슂
+- 愿???녿뒗 由ы뙥?곕쭅 ?놁쓬. ?뚯씪 6媛??섏젙(hud_renderer.py, augmented_road_view.py,
+  config.py, catalog.py, screenrecord.js, runtime.js) + ?뚯씪 1媛??좉퇋
+  (screenshot_capture.py) + 鍮뚮뱶 ?곗텧臾?2媛?js/generated/logs.js,
   generated/asset-manifest.json)
 
-## 10차 (완료 — 코드 수정) — RES/+ 인게이지 시 설정속도가 현재속도보다 낮아지는 문제 안전장치 추가
+## 10李?(?꾨즺 ??肄붾뱶 ?섏젙) ??RES/+ ?멸쾶?댁? ???ㅼ젙?띾룄媛 ?꾩옱?띾룄蹂대떎 ??븘吏??臾몄젣 ?덉쟾?μ튂 異붽?
 
-- 사용자 제보: 출발 후 가속 중(예: 약 50km/h) 핸들 +RES 버튼으로 크루즈 인게이지 시,
-  설정속도가 현재속도보다 낮게(예: 약 30km/h) 잡혀 급감속이 발생하는 경우가 있다는
-  실사용 증상 보고 (실주행 로그 없이 사용자 설명 기반, 아직 rlog로 재현 확인 전)
-- 코드 확인(carrot-ryu 2dbe492 기준, selfdrive/car/cruise.py):
-  - `_update_cruise_buttons()`의 accelCruise 인게이지 분기(`_cruise_ready or not
-    CC.enabled or CS.cruiseState.standstill`)에서, `_v_cruise_kph_at_brake`(브레이크
-    시점에 저장해두는 "재개용" 속도) 또는 아직 초기화되지 않은 v_cruise_kph 값이
-    현재속도(v_ego_kph_set)보다 낮은 채로 그대로 인게이지 속도로 채택될 수 있는
-    경로 존재
-  - `_v_cruise_kph_at_brake`는 브레이크 재개 목적 외에 `_auto_speed_up()`의 도로제한
-    속도 동기화 로직(`AutoRoadSpeedLimitOffset > 0`일 때, 매 프레임 CC.enabled 여부와
-    무관하게 `nRoadLimitSpeed + offset`으로 덮어씀, 726번 줄 부근)에서도 값이 채워질
-    수 있어, 최초 인게이지 시점에 도로제한속도 기반의 낮은 값이 남아있을 가능성 있음
-    (단, `AutoRoadSpeedLimitOffset` 기본값은 -1이라 사용자가 이 옵션을 켠 경우에만
-    해당 경로가 열림 - PARAMS_REGISTRY에 이 값 미기록이라 이 차량 설정은 미확인)
-  - `SpeedFromPCM`이 1이 아닌 기본 설정(0 등)에서는 openpilot 자체 v_cruise_kph 로직이
-    쓰이므로 위 경로가 실제로 영향을 줄 수 있음(1이면 순정 SCC 값을 그대로 씀 - 이
-    경우 문제가 있다면 순정 ECU 쪽 이슈이므로 이번 코드수정 대상 아님)
-- 수정: 최소 변경 원칙에 따라 인게이지 분기 마지막에 안전장치(floor)만 추가.
-  계산된 인게이지 속도가 "현재속도 + ENGAGE_SPEED_MARGIN_KPH(2km/h)"보다 낮으면
-  "현재속도 + 2km/h"로 올림. 브레이크 후 저장된 속도가 현재속도보다 높은 정상적인
-  재개(예: 커브에서 감속 후 RES로 이전 설정속도로 복귀) 케이스는 그대로 유지됨
-  (그 값이 floor보다 크므로 영향 없음)
-- 검증:
-  - 문법검증(py_compile) 통과
-  - 기존 `test_carrot_cruise_buttons.py`의 인게이지 관련 테스트 4건
-    (`test_accel_restores_at_least_brake_speed_while_cruise_is_off` 2건,
+- ?ъ슜???쒕낫: 異쒕컻 ??媛??以??? ??50km/h) ?몃뱾 +RES 踰꾪듉?쇰줈 ?щ（利??멸쾶?댁? ??
+  ?ㅼ젙?띾룄媛 ?꾩옱?띾룄蹂대떎 ??쾶(?? ??30km/h) ?≫? 湲됯컧?띿씠 諛쒖깮?섎뒗 寃쎌슦媛 ?덈떎??  ?ㅼ궗??利앹긽 蹂닿퀬 (?ㅼ＜??濡쒓렇 ?놁씠 ?ъ슜???ㅻ챸 湲곕컲, ?꾩쭅 rlog濡??ы쁽 ?뺤씤 ??
+- 肄붾뱶 ?뺤씤(carrot-ryu 2dbe492 湲곗?, selfdrive/car/cruise.py):
+  - `_update_cruise_buttons()`??accelCruise ?멸쾶?댁? 遺꾧린(`_cruise_ready or not
+    CC.enabled or CS.cruiseState.standstill`)?먯꽌, `_v_cruise_kph_at_brake`(釉뚮젅?댄겕
+    ?쒖젏????ν빐?먮뒗 "?ш컻?? ?띾룄) ?먮뒗 ?꾩쭅 珥덇린?붾릺吏 ?딆? v_cruise_kph 媛믪씠
+    ?꾩옱?띾룄(v_ego_kph_set)蹂대떎 ??? 梨꾨줈 洹몃?濡??멸쾶?댁? ?띾룄濡?梨꾪깮?????덈뒗
+    寃쎈줈 議댁옱
+  - `_v_cruise_kph_at_brake`??釉뚮젅?댄겕 ?ш컻 紐⑹쟻 ?몄뿉 `_auto_speed_up()`???꾨줈?쒗븳
+    ?띾룄 ?숆린??濡쒖쭅(`AutoRoadSpeedLimitOffset > 0`???? 留??꾨젅??CC.enabled ?щ??
+    臾닿??섍쾶 `nRoadLimitSpeed + offset`?쇰줈 ??뼱?, 726踰?以?遺洹??먯꽌??媛믪씠 梨꾩썙吏?    ???덉뼱, 理쒖큹 ?멸쾶?댁? ?쒖젏???꾨줈?쒗븳?띾룄 湲곕컲????? 媛믪씠 ?⑥븘?덉쓣 媛?μ꽦 ?덉쓬
+    (?? `AutoRoadSpeedLimitOffset` 湲곕낯媛믪? -1?대씪 ?ъ슜?먭? ???듭뀡??耳?寃쎌슦?먮쭔
+    ?대떦 寃쎈줈媛 ?대┝ - PARAMS_REGISTRY????媛?誘멸린濡앹씠????李⑤웾 ?ㅼ젙? 誘명솗??
+  - `SpeedFromPCM`??1???꾨땶 湲곕낯 ?ㅼ젙(0 ???먯꽌??openpilot ?먯껜 v_cruise_kph 濡쒖쭅??    ?곗씠誘濡???寃쎈줈媛 ?ㅼ젣濡??곹뼢??以????덉쓬(1?대㈃ ?쒖젙 SCC 媛믪쓣 洹몃?濡?? - ??    寃쎌슦 臾몄젣媛 ?덈떎硫??쒖젙 ECU 履??댁뒋?대?濡??대쾲 肄붾뱶?섏젙 ????꾨떂)
+- ?섏젙: 理쒖냼 蹂寃??먯튃???곕씪 ?멸쾶?댁? 遺꾧린 留덉?留됱뿉 ?덉쟾?μ튂(floor)留?異붽?.
+  怨꾩궛???멸쾶?댁? ?띾룄媛 "?꾩옱?띾룄 + ENGAGE_SPEED_MARGIN_KPH(2km/h)"蹂대떎 ??쑝硫?  "?꾩옱?띾룄 + 2km/h"濡??щ┝. 釉뚮젅?댄겕 ????λ맂 ?띾룄媛 ?꾩옱?띾룄蹂대떎 ?믪? ?뺤긽?곸씤
+  ?ш컻(?? 而ㅻ툕?먯꽌 媛먯냽 ??RES濡??댁쟾 ?ㅼ젙?띾룄濡?蹂듦?) 耳?댁뒪??洹몃?濡??좎???  (洹?媛믪씠 floor蹂대떎 ?щ?濡??곹뼢 ?놁쓬)
+- 寃利?
+  - 臾몃쾿寃利?py_compile) ?듦낵
+  - 湲곗〈 `test_carrot_cruise_buttons.py`???멸쾶?댁? 愿???뚯뒪??4嫄?    (`test_accel_restores_at_least_brake_speed_while_cruise_is_off` 2嫄?
     `test_accel_keeps_initialized_speed_without_brake_snapshot_while_cruise_is_off`,
-    "브레이크 후 더 높은 속도로 정상 재개" 신규 케이스)을 동일 로직으로 재현한
-    standalone 합성 스크립트로 결과 일치 확인 (샌드박스에 cereal/capnp 빌드가 없어
-    pytest 자체 실행은 9차와 동일하게 불가)
-  - 사용자가 보고한 "50km/h 주행 중 RES → 30km/h로 급감속" 시나리오를 동일 로직으로
-    재현 → 수정 후 52km/h(현재속도+2)로 인게이지됨을 합성 테스트로 확인
-- 실차 검증: 미실시. 다음 세션/실주행에서 동일 상황(출발 가속 중 RES 인게이지) 재현
-  시 급감속이 사라졌는지 확인 필요
-- 관련 없는 리팩터링 없음, 파일 1개(cruise.py)만 수정, 12줄 추가
+    "釉뚮젅?댄겕 ?????믪? ?띾룄濡??뺤긽 ?ш컻" ?좉퇋 耳?댁뒪)???숈씪 濡쒖쭅?쇰줈 ?ы쁽??    standalone ?⑹꽦 ?ㅽ겕由쏀듃濡?寃곌낵 ?쇱튂 ?뺤씤 (?뚮뱶諛뺤뒪??cereal/capnp 鍮뚮뱶媛 ?놁뼱
+    pytest ?먯껜 ?ㅽ뻾? 9李⑥? ?숈씪?섍쾶 遺덇?)
+  - ?ъ슜?먭? 蹂닿퀬??"50km/h 二쇳뻾 以?RES ??30km/h濡?湲됯컧?? ?쒕굹由ъ삤瑜??숈씪 濡쒖쭅?쇰줈
+    ?ы쁽 ???섏젙 ??52km/h(?꾩옱?띾룄+2)濡??멸쾶?댁??⑥쓣 ?⑹꽦 ?뚯뒪?몃줈 ?뺤씤
+- ?ㅼ감 寃利? 誘몄떎?? ?ㅼ쓬 ?몄뀡/?ㅼ＜?됱뿉???숈씪 ?곹솴(異쒕컻 媛??以?RES ?멸쾶?댁?) ?ы쁽
+  ??湲됯컧?띿씠 ?щ씪議뚮뒗吏 ?뺤씤 ?꾩슂
+- 愿???녿뒗 由ы뙥?곕쭅 ?놁쓬, ?뚯씪 1媛?cruise.py)留??섏젙, 12以?異붽?
 
 
-## 9차 (완료 — 코드 수정) — route 커브 오검출 근본수정: median 스파이크 필터 추가
+## 9李?(?꾨즺 ??肄붾뱶 ?섏젙) ??route 而ㅻ툕 ?ㅺ?異?洹쇰낯?섏젙: median ?ㅽ뙆?댄겕 ?꾪꽣 異붽?
 
-- 8차에서 실주행 로그로 확인한 route 감속 오검출에 대해, 사용자가 근본수정(옵션 ②)
-  선택
-- carrot_man.py의 carrot_navi_route()를 수정: 3점 곡률을 먼저 전부 계산한 뒤,
-  3-샘플 슬라이딩 median 필터를 적용하고 그 결과로만 목표속도 산출하도록 구조 변경
-  (비전 커브 curve_speed.py에 이미 있던 median 필터 방식을 route 쪽에도 동일 적용)
-- 최소 변경(함수 내 한 블록만 교체), Claude 샌드박스에서 GitHub 최신 코드로 미리
-  패치 적용/문법검증/diff 검증 후 스크립트로 전달 → 사용자가 Termux에서 실행,
-  carrot-ryu 브랜치에 반영 완료 (commit 0201519..2dbe492)
-- 스크립트 실행 중 두 가지 이슈 발생 및 해결: ①heredoc 안 한글 텍스트가 Termux
-  붙여넣기 과정에서 줄바꿈이 깨져 히어독이 안 닫힌 문제(재시도로 해결, 실제 반영
-  안 된 상태에서 중단됐던 것 확인) ②git diff가 less 페이저를 띄우며 화면이 꼬여
-  셸까지 깨진 문제(GIT_PAGER=cat, --no-pager diff --stat로 해결). 두 이슈 모두
-  코드/devnotes에 실제 손상 없이 안전하게 재시도로 해결됨
-- 합성 테스트로 필터가 단발성 곡률 스파이크를 제거하면서 정상 커브는 유지함을 확인
-- 실차 검증: 미실시. 다음 실주행에서 동일 분기점 재통과 시 rlog로 재확인 필요
+- 8李⑥뿉???ㅼ＜??濡쒓렇濡??뺤씤??route 媛먯냽 ?ㅺ?異쒖뿉 ??? ?ъ슜?먭? 洹쇰낯?섏젙(?듭뀡 ??
+  ?좏깮
+- carrot_man.py??carrot_navi_route()瑜??섏젙: 3??怨〓쪧??癒쇱? ?꾨? 怨꾩궛????
+  3-?섑뵆 ?щ씪?대뵫 median ?꾪꽣瑜??곸슜?섍퀬 洹?寃곌낵濡쒕쭔 紐⑺몴?띾룄 ?곗텧?섎룄濡?援ъ“ 蹂寃?  (鍮꾩쟾 而ㅻ툕 curve_speed.py???대? ?덈뜕 median ?꾪꽣 諛⑹떇??route 履쎌뿉???숈씪 ?곸슜)
+- 理쒖냼 蹂寃??⑥닔 ????釉붾줉留?援먯껜), Claude ?뚮뱶諛뺤뒪?먯꽌 GitHub 理쒖떊 肄붾뱶濡?誘몃━
+  ?⑥튂 ?곸슜/臾몃쾿寃利?diff 寃利????ㅽ겕由쏀듃濡??꾨떖 ???ъ슜?먭? Termux?먯꽌 ?ㅽ뻾,
+  carrot-ryu 釉뚮옖移섏뿉 諛섏쁺 ?꾨즺 (commit 0201519..2dbe492)
+- ?ㅽ겕由쏀듃 ?ㅽ뻾 以???媛吏 ?댁뒋 諛쒖깮 諛??닿껐: ?쟦eredoc ???쒓? ?띿뒪?멸? Termux
+  遺숈뿬?ｊ린 怨쇱젙?먯꽌 以꾨컮轅덉씠 源⑥졇 ?덉뼱?낆씠 ???ロ엺 臾몄젣(?ъ떆?꾨줈 ?닿껐, ?ㅼ젣 諛섏쁺
+  ?????곹깭?먯꽌 以묐떒?먮뜕 寃??뺤씤) ?죊it diff媛 less ?섏씠?瑜??꾩슦硫??붾㈃??瑗ъ뿬
+  ?멸퉴吏 源⑥쭊 臾몄젣(GIT_PAGER=cat, --no-pager diff --stat濡??닿껐). ???댁뒋 紐⑤몢
+  肄붾뱶/devnotes???ㅼ젣 ?먯긽 ?놁씠 ?덉쟾?섍쾶 ?ъ떆?꾨줈 ?닿껐??- ?⑹꽦 ?뚯뒪?몃줈 ?꾪꽣媛 ?⑤컻??怨〓쪧 ?ㅽ뙆?댄겕瑜??쒓굅?섎㈃???뺤긽 而ㅻ툕???좎??⑥쓣 ?뺤씤
+- ?ㅼ감 寃利? 誘몄떎?? ?ㅼ쓬 ?ㅼ＜?됱뿉???숈씪 遺꾧린???ы넻怨???rlog濡??ы솗???꾩슂
 
-## 8차 (완료 — 실주행 로그 분석) — route 감속 오검출 최초 실증
+## 8李?(?꾨즺 ???ㅼ＜??濡쒓렇 遺꾩꽍) ??route 媛먯냽 ?ㅺ?異?理쒖큹 ?ㅼ쬆
 
-- 사용자가 실제 콤마 디바이스 주행 로그(route 000003fb--8470375f65--21, rlog/qlog/
-  qcamera)를 업로드. 증상: 고속도로 좌커브 분기점 접근 시 route기반 감속이 미리
-  과하게 걸렸다가 다시 원복되는 느낌
-- pycapnp + carrot-wip cereal 스키마로 rlog.zst를 직접 복호화하여 carrotMan/carState/
-  carControl/longitudinalPlan 타임라인 재구성, 문제 구간(t=47~59s) 정밀 분석
-- 확인: t=47.3s경 desiredSource="route"로 desiredSpeed가 67km/h로 급락(당시 분기점
-  까지 아직 499m). 실제 감속 명령까지 이어져 vEgo 96→69km/h 하락. 운전자가 7.5초간
-  가스 개입. 이후 t=54.8~57.9s에 route 소스가 115~121km/h로 자체 재계산되며 복귀
-- 원인: carrot_navi_route()의 3점(40m) 곡률 계산에 스파이크 제거 필터가 없어, 분기점
-  폴리라인 기하 국소 왜곡을 실제보다 급한 커브로 오검출한 것으로 추정(5차계속 정적
-  분석에서 이미 지적된 리스크의 실제 발현). 다만 폴리라인 기하 자체는 직접 대조 못함
-- FINDINGS.md에 상세 기록. 코드 수정은 아직 하지 않음(대응 옵션 3가지 제시, 사용자
-  판단 대기)
-- 실차 검증: 현상 자체는 실주행 로그로 확인. 원인 메커니즘 일부(폴리라인 기하)는
-  미확진
+- ?ъ슜?먭? ?ㅼ젣 肄ㅻ쭏 ?붾컮?댁뒪 二쇳뻾 濡쒓렇(route 000003fb--8470375f65--21, rlog/qlog/
+  qcamera)瑜??낅줈?? 利앹긽: 怨좎냽?꾨줈 醫뚯빱釉?遺꾧린???묎렐 ??route湲곕컲 媛먯냽??誘몃━
+  怨쇳븯寃?嫄몃졇?ㅺ? ?ㅼ떆 ?먮났?섎뒗 ?먮굦
+- pycapnp + carrot-wip cereal ?ㅽ궎留덈줈 rlog.zst瑜?吏곸젒 蹂듯샇?뷀븯??carrotMan/carState/
+  carControl/longitudinalPlan ??꾨씪???ш뎄?? 臾몄젣 援ш컙(t=47~59s) ?뺣? 遺꾩꽍
+- ?뺤씤: t=47.3s寃?desiredSource="route"濡?desiredSpeed媛 67km/h濡?湲됰씫(?뱀떆 遺꾧린??  源뚯? ?꾩쭅 499m). ?ㅼ젣 媛먯냽 紐낅졊源뚯? ?댁뼱??vEgo 96??9km/h ?섎씫. ?댁쟾?먭? 7.5珥덇컙
+  媛??媛쒖엯. ?댄썑 t=54.8~57.9s??route ?뚯뒪媛 115~121km/h濡??먯껜 ?ш퀎?곕릺硫?蹂듦?
+- ?먯씤: carrot_navi_route()??3??40m) 怨〓쪧 怨꾩궛???ㅽ뙆?댄겕 ?쒓굅 ?꾪꽣媛 ?놁뼱, 遺꾧린??  ?대━?쇱씤 湲고븯 援?냼 ?쒓끝???ㅼ젣蹂대떎 湲됲븳 而ㅻ툕濡??ㅺ?異쒗븳 寃껋쑝濡?異붿젙(5李④퀎???뺤쟻
+  遺꾩꽍?먯꽌 ?대? 吏?곷맂 由ъ뒪?ъ쓽 ?ㅼ젣 諛쒗쁽). ?ㅻ쭔 ?대━?쇱씤 湲고븯 ?먯껜??吏곸젒 ?議?紐삵븿
+- FINDINGS.md???곸꽭 湲곕줉. 肄붾뱶 ?섏젙? ?꾩쭅 ?섏? ?딆쓬(????듭뀡 3媛吏 ?쒖떆, ?ъ슜??  ?먮떒 ?湲?
+- ?ㅼ감 寃利? ?꾩긽 ?먯껜???ㅼ＜??濡쒓렇濡??뺤씤. ?먯씤 硫붿빱?덉쬁 ?쇰?(?대━?쇱씤 湲고븯)??  誘명솗吏?
+## 7李?(?꾨즺 ????UI ?꾪솚 留덈Т由?+ carrot-ms ?숆린???먭?) ??釉뚮옖移??뺣━ 諛??좉퇋 而ㅻ컠 ?놁쓬 ?뺤씤
 
-## 7차 (완료 — 웹 UI 전환 마무리 + carrot-ms 동기화 점검) — 브랜치 정리 및 신규 커밋 없음 확인
+- ryujmin97/openpilot???ㅼ젣濡??⑥븘?덈뜕 carrot-ms, carrot-wip 釉뚮옖移?媛곴컖
+  happymaj11r/openpilot, ajouatom/openpilot???꾩쟾??蹂듭궗蹂?瑜??ъ슜?먭? GitHub ??UI?먯꽌
+  吏곸젒 ??젣 ?꾨즺. ?댁젣 ryujmin97/openpilot?먮뒗 carrot-ryu, carrot-ryu-note ??釉뚮옖移섎쭔
+  議댁옱?섏뿬 臾몄꽌?붾맂 釉뚮옖移?援ъ꽦怨??쇱튂?섎뒗 ?곹깭濡??뺣━??(吏移?16????ぉ ?댁냼)
+- carrot-ms(happymaj11r/openpilot) ?좉퇋 而ㅻ컠 ?숆린??寃??吏꾪뻾: git ls-remote濡??뺤씤??寃곌낵
+  carrot-ryu HEAD? carrot-ms HEAD媛 ?뺥솗???쇱튂(02015190f58a4380a433ee0130e6374455dddc2e)
+  ??6李??몄뀡 ?댄썑 carrot-ms???덈줈??rebase/而ㅻ컠???꾪? ?놁쓬. 諛섏쁺 ???而ㅻ컠 0嫄?- 李멸퀬濡?carrot-wip(ajouatom/openpilot)? HEAD媛 bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1濡?  怨꾩냽 吏꾪뻾 以묒씠?? carrot-ms媛 ?꾩쭅 ?대? ?곕씪 rebase?섏? ?딆븘 吏移?2???먯튃?濡?吏곸젒 鍮꾧탳
+  ??곸쑝濡??쇱? ?딆쓬
+- WIP_SYNC.md瑜?carrot-ms 湲곗? 泥댄겕?ъ씤??諛⑹떇?쇰줈 媛깆떊(?대쾲 ?먭? 寃곌낵 湲곕줉)
+- 肄붾뱶 蹂寃??놁쓬 (釉뚮옖移??뺣━ + ?먭?留??섑뻾), carrot-ryu???ъ쟾??carrot-ms? ?숈씪
+- ?ㅼ감 寃利? ?대떦 ?놁쓬 (?명봽???먭? ?묒뾽)
 
-- ryujmin97/openpilot에 실제로 남아있던 carrot-ms, carrot-wip 브랜치(각각
-  happymaj11r/openpilot, ajouatom/openpilot의 완전한 복사본)를 사용자가 GitHub 웹 UI에서
-  직접 삭제 완료. 이제 ryujmin97/openpilot에는 carrot-ryu, carrot-ryu-note 두 브랜치만
-  존재하여 문서화된 브랜치 구성과 일치하는 상태로 정리됨 (지침 16절 항목 해소)
-- carrot-ms(happymaj11r/openpilot) 신규 커밋 동기화 검토 진행: git ls-remote로 확인한 결과
-  carrot-ryu HEAD와 carrot-ms HEAD가 정확히 일치(02015190f58a4380a433ee0130e6374455dddc2e)
-  → 6차 세션 이후 carrot-ms에 새로운 rebase/커밋이 전혀 없음. 반영 대상 커밋 0건
-- 참고로 carrot-wip(ajouatom/openpilot)은 HEAD가 bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1로
-  계속 진행 중이나, carrot-ms가 아직 이를 따라 rebase하지 않아 지침 2절 원칙대로 직접 비교
-  대상으로 삼지 않음
-- WIP_SYNC.md를 carrot-ms 기준 체크포인트 방식으로 갱신(이번 점검 결과 기록)
-- 코드 변경 없음 (브랜치 정리 + 점검만 수행), carrot-ryu는 여전히 carrot-ms와 동일
-- 실차 검증: 해당 없음 (인프라 점검 작업)
+## 6李?(?꾨즺 ??踰좎씠??釉뚮옖移??꾪솚) ??carrot-wip ??carrot-ms 濡?蹂寃?
+- ?ъ슜?먭? happymaj11r/openpilot ??μ냼??carrot-ms 釉뚮옖移?肄ㅻ쭏 二쇳뻾紐⑤뜽 ?좏깮 湲곕뒫,
+  carrot-wip 湲곕컲?쇰줈 留ㅻ쾲 ?ъ깮??rebase??瑜??뺤씤 ?붿껌
+- git merge-base濡??뺤씤??寃곌낵 carrot-wip怨?carrot-ms??怨듯넻 議곗긽 而ㅻ컠???놁쓬(?덉뒪?좊━
+  怨듭쑀 ???? ??carrot-ms??carrot-wip???낅뜲?댄듃???뚮쭏??洹??꾩뿉 紐⑤뜽?좏깮 湲곕뒫???ㅼ떆
+  ?뱀뼱 ?듭㎏濡??ъ옉??rebase/force-push)?섎뒗 諛⑹떇?쇰줈 ?먮떒??- ?꾩껜 ?덉뒪?좊━ 鍮꾧탳 寃곌낵 carrot-wip???녾퀬 carrot-ms?먮쭔 ?덈뒗 而ㅻ컠 117媛??뺤씤.
+  ??以?紐⑤뜽 ??됲꽣 愿???ㅼ썙?쒕줈 ?꾪꽣留곹븳 寃???58媛? ?섎㉧吏 ??59媛쒕뒗 ?대윭?ㅽ꽣(怨꾧린??
+  HUD, PC ?쒕??덉씠??吏?? 濡쒓렇 ?낅줈???쒕쾭(?좎뒪/?밴렐) ?좏깮 湲곕뒫 ?????꾨줈?앺듃? 臾닿???  湲곕뒫?쇰줈 ?먮떒?? ?좊퀎 ?댁떇(cherry-pick)? ?ㅻ떒怨??묒뾽????寃껋쑝濡??덉긽??- ?ъ슜??寃곗젙: ?좊퀎 ?댁떇 ??? carrot-ryu 釉뚮옖移??먯껜??踰좎씠?ㅻ? carrot-wip?먯꽌
+  carrot-ms濡??꾨㈃ ?꾪솚?섍린濡?寃곗젙 (?뱀떆 carrot-ryu???ъ슜??肄붾뱶媛 ?꾪? ?놁뼱 ?덉쟾?섍쾶
+  媛?ν븳 ?쒖젏?댁뿀??
+- ?ㅽ뻾: carrot-ryu(origin) 釉뚮옖移???젣 ??happymaj11r/carrot-ms 湲곗??쇰줈 ?ъ깮??
+  carrot-ryu HEAD媛 carrot-ms HEAD(02015190f58a4380a433ee0130e6374455dddc2e,
+  "Recover evil-merge resolutions from carrot-wip PR #516 and PR #517")? ?쇱튂?⑥쓣 ?뺤씤
+- carrot-ryu-note??洹몃?濡??좎? (湲곗〈 醫낅갑??遺꾩꽍 ?댁슜? carrot-wip 湲곕컲 肄붾뱶 遺꾩꽍?대씪
+  carrot-ms?먮룄 ?遺遺?洹몃?濡??좏슚????肄붾뱶媛 ?ш쾶 媛덈씪吏吏 ?딅뒗 ???щ텇??遺덊븘??
+- ?꾨줈?앺듃 吏移?臾몄꽌(PROJECT_INSTRUCTIONS)??"踰좎씠??釉뚮옖移? ??ぉ??carrot-wip ??  carrot-ms濡??섏젙?섎뒗 臾멸뎄瑜??ъ슜?먯뿉寃??꾨떖??(臾몄꽌 ?먯껜????μ냼 諛뽰뿉???ъ슜?먭?
+  蹂닿??섎뒗 寃껋쑝濡??뚯븙?섏뼱 Claude媛 吏곸젒 ?섏젙?섏? ?딆쓬)
+- ???ν썑 ?곹뼢: carrot-ms??留ㅻ쾲 ?덉뒪?좊━媛 ?ъ옉?깅릺誘濡? carrot-wip泥섎읆 fast-forward
+  ?숆린?붽? 遺덇??ν븿. carrot-ms媛 ?낅뜲?댄듃???뚮쭏??carrot-ms? carrot-wip??而ㅻ컠 硫붿떆吏瑜?  鍮꾧탳??"紐⑤뜽 ??됲꽣 愿??而ㅻ컠"留??좊퀎 諛섏쁺?섎뒗 諛⑹떇???꾩슂??(2???숆린???먯튃???뺤옣 ?곸슜
+  ?꾩슂 ???ㅼ쓬 ?몄뀡?먯꽌 WIP_SYNC.md 援ъ“瑜?carrot-ms?⑹쑝濡쒕룄 ?뺤옣?좎? 寃???꾩슂)
+- 肄붾뱶 蹂寃??놁쓬 (釉뚮옖移?踰좎씠???꾪솚留??섑뻾, carrot-ryu???ъ쟾??carrot-ms? ?숈씪)
+- ?ㅼ감 寃利? ?대떦 ?놁쓬 (?명봽??蹂寃??묒뾽)
 
-## 6차 (완료 — 베이스 브랜치 전환) — carrot-wip → carrot-ms 로 변경
+## 5李?怨꾩냽 (?꾨즺 ??traffic_stop / curve_speed / MPC 肄붿뒪???⑥닔 遺꾩꽍) ??醫낅갑??肄붾뱶 遺꾩꽍 1?④퀎 留덈Т由?
+- 媛숈? ?몄뀡?먯꽌 ?댁뼱??traffic_stop.py(?뺤????좏샇 媛먯냽) ??curve_speed.py(鍮꾩쟾 而ㅻ툕 媛먯냽) ??  longitudinal MPC 肄붿뒪???⑥닔(set_weights, jerk_factor) ?쒖쑝濡?遺꾩꽍 吏꾪뻾
+- traffic_stop.py: 二쇳뻾紐⑤뜽 ?덉륫(x,y,v)留뚯쑝濡??뺤??좏샇 ?먮떒?섎뒗 ?쒖닔 E2E ?대━?ㅽ떛 ?뺤씤.
+  XState ?곹깭癒몄떊, TrafficStopModelLeadMatcher(5?꾨젅??confirm)源뚯? ?뺤씤. HD留??좏샇?됱긽
+  ?몄떇 ?놁쓬 ??紐⑤뜽 ?깅뒫 ?섏〈 由ъ뒪???덉쓬. long_mpc.py??x2 obstacle源뚯? ?ㅼ젣 ?곌껐???뺤씤.
+  ??李⑤웾 ?ㅼ젙: TrafficLightDetectMode=2(湲곕낯媛? ?대? ?쒖꽦 ?곹깭)
+- curve_speed.py(鍮꾩쟾): route 踰꾩쟾怨??щ━ ?몃? ?대퉬 ??遺덊븘?? ?쒖닔 modelV2 湲곕컲. 怨〓쪧=
+  yaw_rate/velocity瑜?3??median ?꾪꽣留???臾쇰━怨듭떇(v=sqrt(?↔??띾룄?덉궛/怨〓쪧))?쇰줈 怨꾩궛 ??  route 踰꾩쟾蹂대떎 寃ш퀬?? ??李⑤웾 AutoCurveSpeedFactor=80(湲곕낯蹂대떎 ?먯뒯?섍쾶 ?ㅼ젙?? ?뺤씤
+- longitudinal MPC 肄붿뒪???⑥닔: stock openpilot acados ?꾨젅?꾩썙??洹몃?濡? carrot? ?낅젰媛믩쭔
+  二쇱엯. jerk_factor媛 personality/myDrivingMode???곕룞(0.5~1.0)?⑥쓣 ?뺤씤, TFollowGap
+  ?좏깮怨??쇨??섍쾶 ?ㅺ퀎?섏뼱 ?덉쓬???뺤씤
+- 醫낅갑???꾩껜 泥닿퀎(LongControl PID ??v_cruise ?곹븳 ??MPC obstacle/肄붿뒪?????≪텛?먯씠??
+  醫낇빀 ?ㅼ씠?닿렇?⑥쑝濡?FINDINGS.md???뺣━
+- 醫낅갑??肄붾뱶 遺꾩꽍 1?④퀎(4李?5李?瑜??ш린??留덈Т由ы븯湲곕줈 寃곗젙. ?ㅼ쓬 ?④퀎???ㅼ감二쇳뻾 ??  route 濡쒓렇 ?앹꽦 ??濡쒓렇遺꾩꽍
+- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md, CURRENT_STATUS.md, HANDOFF.md 媛깆떊
+- 肄붾뱶 蹂寃??놁쓬 (遺꾩꽍/湲곕줉留?, carrot-ryu??carrot-wip怨??ъ쟾???숈씪
+- ?ㅼ감 寃利? 誘몄떎??
+## 5李?(?꾨즺 ??route 媛먯냽 泥댁씤 + T_FOLLOW/TFollowGap 泥댁씤 遺꾩꽍) ??醫낅갑??媛먯냽 濡쒖쭅 怨꾩냽
 
-- 사용자가 happymaj11r/openpilot 저장소의 carrot-ms 브랜치(콤마 주행모델 선택 기능,
-  carrot-wip 기반으로 매번 재생성/rebase됨)를 확인 요청
-- git merge-base로 확인한 결과 carrot-wip과 carrot-ms는 공통 조상 커밋이 없음(히스토리
-  공유 안 함) — carrot-ms는 carrot-wip이 업데이트될 때마다 그 위에 모델선택 기능을 다시
-  얹어 통째로 재작성(rebase/force-push)하는 방식으로 판단됨
-- 전체 히스토리 비교 결과 carrot-wip에 없고 carrot-ms에만 있는 커밋 117개 확인.
-  이 중 모델 셀렉터 관련 키워드로 필터링한 것 약 58개, 나머지 약 59개는 클러스터(계기판)
-  HUD, PC 시뮬레이터 지원, 로그 업로드 서버(토스/당근) 선택 기능 등 이 프로젝트와 무관한
-  기능으로 판단됨. 선별 이식(cherry-pick)은 다단계 작업이 될 것으로 예상됨
-- 사용자 결정: 선별 이식 대신, carrot-ryu 브랜치 자체의 베이스를 carrot-wip에서
-  carrot-ms로 전면 전환하기로 결정 (당시 carrot-ryu에 사용자 코드가 전혀 없어 안전하게
-  가능한 시점이었음)
-- 실행: carrot-ryu(origin) 브랜치 삭제 후 happymaj11r/carrot-ms 기준으로 재생성.
-  carrot-ryu HEAD가 carrot-ms HEAD(02015190f58a4380a433ee0130e6374455dddc2e,
-  "Recover evil-merge resolutions from carrot-wip PR #516 and PR #517")와 일치함을 확인
-- carrot-ryu-note는 그대로 유지 (기존 종방향 분석 내용은 carrot-wip 기반 코드 분석이라
-  carrot-ms에도 대부분 그대로 유효함 — 코드가 크게 갈라지지 않는 한 재분석 불필요)
-- 프로젝트 지침 문서(PROJECT_INSTRUCTIONS)의 "베이스 브랜치" 항목을 carrot-wip →
-  carrot-ms로 수정하는 문구를 사용자에게 전달함 (문서 자체는 저장소 밖에서 사용자가
-  보관하는 것으로 파악되어 Claude가 직접 수정하지 않음)
-- ⚠ 향후 영향: carrot-ms는 매번 히스토리가 재작성되므로, carrot-wip처럼 fast-forward
-  동기화가 불가능함. carrot-ms가 업데이트될 때마다 carrot-ms와 carrot-wip의 커밋 메시지를
-  비교해 "모델 셀렉터 관련 커밋"만 선별 반영하는 방식이 필요함 (2절 동기화 원칙의 확장 적용
-  필요 — 다음 세션에서 WIP_SYNC.md 구조를 carrot-ms용으로도 확장할지 검토 필요)
-- 코드 변경 없음 (브랜치 베이스 전환만 수행, carrot-ryu는 여전히 carrot-ms와 동일)
-- 실차 검증: 해당 없음 (인프라 변경 작업)
+- ?ъ슜??諛⑺뼢: "醫낅갑??愿??肄붾뱶遺??遺꾩꽍 ???ㅼ감二쇳뻾 ??濡쒓렇遺꾩꽍" ?쒖꽌濡?吏꾪뻾?섍린濡?寃곗젙
+- route(寃쎈줈) 湲곕컲 而ㅻ툕 媛먯냽 泥댁씤 ?꾩껜 異붿쟻:
+  carrot_man.py(carrot_navi_route, GPS ?대━?쇱씤?믨끝瑜졻넂?띾룄) ??carrot_serv.py(update_navi,
+  speed_n_sources 理쒖넖媛??좏깮) ??carrot_functions.py(_update_carrot_man, v_cruise_kph 媛깆떊) ??  longitudinal_planner.py ??MPC v_cruise ?곹븳 ???ㅼ젣 媛먯냽 紐낅졊源뚯? ?댁뼱吏먯쓣 ?뺤씤 (?쒖떆 ?꾩슜???꾨떂)
+- ?쒖꽦???꾩젣議곌굔 ?뺤씤: TurnSpeedControlMode>=2 ?꾩슂(湲곕낯媛믪? 1=鍮꾩쟾留?, ???대퉬 ?깆쓽
+  APN ?곌껐濡?寃쎈줈 ?대━?쇱씤 ?섏떊 ?꾩슂, shapely ?쇱씠釉뚮윭由??꾩슂
+- ????李⑤웾???ㅼ젣 ??κ컪? TurnSpeedControlMode=2濡? route 媛먯냽??耳쒖졇 ?덈뒗 ?곹깭?꾩쓣
+  params_backup-4.json?먯꽌 ?뺤씤 (DisableDM=2泥섎읆 "?ㅼ젙? 耳쒖졇?덈뒗???섎룄 誘명솗?? ?⑦꽩)
+- T_FOLLOW/TFollowGap(李④컙嫄곕━) 泥댁씤 ?꾩껜 異붿쟻:
+  t_follow.py(?ы띁) ??carrot_functions.py(_get_base_t_follow ~ get_T_FOLLOW, personality蹂?  湲곕낯媛??띾룄蹂댁젙/媛먯냽???ъ쑀嫄곕━ boost&hold/?대┰/?⑦봽) ??long_mpc.py(t_follow ??  desired_follow_distance ??MPC 由щ뱶李??μ븷臾??쒖빟)濡??ㅼ젣 異붿쥌嫄곕━ ?쒖뼱??諛섏쁺?⑥쓣 ?뺤씤
+- ??李⑤웾? EnableSpeedTF=0, LeadAccelResponse=0?쇰줈 媛???⑥닚??personality 怨좎젙媛?  紐⑤뱶濡??댁슜 以묒엫???뺤씤 (TFollowGap1~4=110/120/140/160, ?쒖? 踰붿쐞 ???댁긽 ?놁쓬)
+- ?뺤쟻 遺꾩꽍 湲곗? 踰꾧렇??諛쒓껄?섏? ?딆쓬(?곹깭 蹂??珥덇린?? ?대┰/?⑦봽 濡쒖쭅 紐⑤몢 ?덉쟾?섍쾶 ?묒꽦??
+- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md 媛깆떊
+- 肄붾뱶 蹂寃??놁쓬 (遺꾩꽍/湲곕줉留?, carrot-ryu??carrot-wip怨??ъ쟾???숈씪
+- ?ㅼ감 寃利? 誘몄떎??
+## 4李?怨꾩냽 (?꾨즺 ??DisableDM / LateralTorqueCustom 遺꾩꽍) ??蹂대쪟?덈뜕 ????ぉ ?뺤씤
 
-## 5차 계속 (완료 — traffic_stop / curve_speed / MPC 코스트 함수 분석) — 종방향 코드 분석 1단계 마무리
+- 媛숈? ?몄뀡?먯꽌 ?댁뼱??"DisableDM=2 / LateralTorqueCustom" 蹂대쪟 ??ぉ 遺꾩꽍 吏꾪뻾
+- DisableDM=2 ?뺤씤: carrot_settings.json ?ㅻ챸("1.DisableDM, 2: +EnableWebRTC")怨?  process_config.py/selfdrived.py/controlsd.py 肄붾뱶濡??섎? ?뺤젙
+  ???댁쟾??紐⑤땲?곕쭅(議몄쓬/二쇱쓽遺꾩궛 媛먯?쨌寃쎄퀬쨌媛뺤젣媛먯냽) ?꾩쟾 OFF + Carrot Vision WebRTC ?쒖꽦??  ???덉쟾 愿???ㅼ젙?대씪 ?ъ슜?먯뿉寃??섎룄 ?щ? ?ы솗???꾩슂 (?ㅼ쓬 ?몄뀡 ?먮뒗 吏湲??뺤씤)
+- LateralTorqueCustom=0 ?뺤씤: latcontrol_torque.py 遺꾧린 援ъ“??0?대㈃ ??λ맂
+  LateralTorqueKf/Friction/AccelFactor/KiV/KpV/Kd 媛믪씠 ?꾪? ?쏀엳吏 ?딆쓬.
+  ?ㅼ젣濡쒕뒗 opendbc torque_data/params.toml??HYUNDAI_GENESIS ?ㅼ륫媛?  (LAT_ACCEL_FACTOR??.7808, FRICTION??.0984)濡?議고뼢 ?좏겕 怨꾩궛 以묒엫???뺤씤
+- FINDINGS.md, PARAMS_REGISTRY.md 媛깆떊
+- 肄붾뱶 蹂寃??놁쓬 (遺꾩꽍/湲곕줉留?
+- ?ㅼ감 寃利? 誘몄떎??
+## 4李?(?꾨즺 ??醫낅갑??PID 寃뚯씤 怨좎젙 ?뺤씤) ??LongTuningKpV/KiV/Kf 臾댄슚??諛쒓껄
 
-- 같은 세션에서 이어서 traffic_stop.py(정지선/신호 감속) → curve_speed.py(비전 커브 감속) →
-  longitudinal MPC 코스트 함수(set_weights, jerk_factor) 순으로 분석 진행
-- traffic_stop.py: 주행모델 예측(x,y,v)만으로 정지신호 판단하는 순수 E2E 휴리스틱 확인.
-  XState 상태머신, TrafficStopModelLeadMatcher(5프레임 confirm)까지 확인. HD맵/신호색상
-  인식 없음 — 모델 성능 의존 리스크 있음. long_mpc.py의 x2 obstacle까지 실제 연결됨 확인.
-  이 차량 설정: TrafficLightDetectMode=2(기본값, 이미 활성 상태)
-- curve_speed.py(비전): route 버전과 달리 외부 내비 앱 불필요, 순수 modelV2 기반. 곡률=
-  yaw_rate/velocity를 3점 median 필터링 후 물리공식(v=sqrt(횡가속도예산/곡률))으로 계산 —
-  route 버전보다 견고함. 이 차량 AutoCurveSpeedFactor=80(기본보다 느슨하게 설정됨) 확인
-- longitudinal MPC 코스트 함수: stock openpilot acados 프레임워크 그대로, carrot은 입력값만
-  주입. jerk_factor가 personality/myDrivingMode에 연동(0.5~1.0)됨을 확인, TFollowGap
-  선택과 일관되게 설계되어 있음을 확인
-- 종방향 전체 체계(LongControl PID → v_cruise 상한 → MPC obstacle/코스트 → 액추에이터)
-  종합 다이어그램으로 FINDINGS.md에 정리
-- 종방향 코드 분석 1단계(4차~5차)를 여기서 마무리하기로 결정. 다음 단계는 실차주행 →
-  route 로그 생성 → 로그분석
-- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md, CURRENT_STATUS.md, HANDOFF.md 갱신
-- 코드 변경 없음 (분석/기록만), carrot-ryu는 carrot-wip과 여전히 동일
-- 실차 검증: 미실시
+- ?ъ슜???붿껌?쇰줈 "醫낅갑???쒖뼱(媛媛먯냽) 濡쒖쭅 遺꾩꽍" 李⑹닔
+  (DisableDM=2 / LateralTorqueCustom ??ぉ? ?대쾲 ?몄뀡?먯꽌 蹂대쪟)
+- longcontrol.py 遺꾩꽍 以? 而ㅻ컠 a26b108d(2026-09-04)?먯꽌 ?꾨?쨌湲곗븘쨌?쒕꽕?쒖뒪 李⑤웾??  醫낅갑??PID 寃뚯씤(Kp/Ki/Kf)??肄붾뱶??怨좎젙(1.0/0.0/1.0)?섏뼱 ?덉쓬???뺤씤
+- ?ъ슜?먭? 蹂댁쑀??LongTuningKpV=100/KiV=0/Kf=100 ?ㅼ젙媛믪? ?쒕꽕?쒖뒪 DH 2015?먯꽌
+  ?ㅼ젣濡쒕뒗 ?쏀엳吏 ?딄퀬 臾댁떆??(臾몄꽌?먮룄 紐낆떆???섎룄???숈옉, 踰꾧렇 ?꾨떂)
+- ?ㅼ젣 ?곸슜?섎뒗 醫낅갑???몃툕??LongActuatorDelay / VEgoStopping / StoppingAccel 肉먯엫???뺤씤
+- ACCEL_MIN/MAX(-4.0/2.5 m/s짼)???쒕꽕?쒖뒪 ?꾩슜 媛??놁씠 Hyundai 怨꾩뿴 怨듯넻媛믪엫???뺤씤
+- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md??諛섏쁺
+- 肄붾뱶 蹂寃??놁쓬 (遺꾩꽍/湲곕줉留?, carrot-ryu??carrot-wip怨??ъ쟾???숈씪
+- ?ㅼ감 寃利? 誘몄떎??
+## 3李?(?꾨즺 ???뚮씪誘명꽣 踰좎씠?ㅻ씪??湲곕줉) ???꾩옱 ?곸슜 ?ㅼ젙媛??ㅻ깄??
+- ?ъ슜?먭? 肄ㅻ쭏 ?붾컮?댁뒪?먯꽌 export??params_backup-4.json ?섎졊
+- CarSelected3="Hyundai Genesis 2015-16"濡?李⑤웾 留ㅼ묶 ?뺤씤
+- DisableMinSteerSpeed=1???ㅼ젣濡??곸슜?섏뼱 ?덉쓬???뺤씤 (2李?FINDINGS? ?쇱튂)
+- ?먮낯 ?뚯씪??devnotes/params_snapshots/2026-09-12_params_backup-4.json?쇰줈 蹂닿?
+- PARAMS_REGISTRY.md??二쇱슂 而ㅼ뒪? 媛?議고뼢 ?좏겕, 醫낅갑???쒕떇, ?щ（利??꾨줈?뚯씪 ?? ?붿빟 湲곕줉
+- DisableDM=2, LateralTorqueCustom=0 ???섎? 誘명솗????ぉ???ㅼ쓬 遺꾩꽍 ?꾨낫濡??깅줉
+- ?ㅼ감 寃利? ?대떦 ?놁쓬 (湲곕줉 ?묒뾽)
 
-## 5차 (완료 — route 감속 체인 + T_FOLLOW/TFollowGap 체인 분석) — 종방향 감속 로직 계속
+## 2李?(?꾨즺 ????띿“???쒗븳 遺꾩꽍) ??minSteerSpeed / SMDPS
 
-- 사용자 방향: "종방향 관련 코드부터 분석 → 실차주행 → 로그분석" 순서로 진행하기로 결정
-- route(경로) 기반 커브 감속 체인 전체 추적:
-  carrot_man.py(carrot_navi_route, GPS 폴리라인→곡률→속도) → carrot_serv.py(update_navi,
-  speed_n_sources 최솟값 선택) → carrot_functions.py(_update_carrot_man, v_cruise_kph 갱신) →
-  longitudinal_planner.py → MPC v_cruise 상한 → 실제 감속 명령까지 이어짐을 확인 (표시 전용이 아님)
-- 활성화 전제조건 확인: TurnSpeedControlMode>=2 필요(기본값은 1=비전만), 폰 내비 앱의
-  APN 연결로 경로 폴리라인 수신 필요, shapely 라이브러리 필요
-- ⚠ 이 차량의 실제 저장값은 TurnSpeedControlMode=2로, route 감속이 켜져 있는 상태임을
-  params_backup-4.json에서 확인 (DisableDM=2처럼 "설정은 켜져있는데 의도 미확인" 패턴)
-- T_FOLLOW/TFollowGap(차간거리) 체인 전체 추적:
-  t_follow.py(헬퍼) → carrot_functions.py(_get_base_t_follow ~ get_T_FOLLOW, personality별
-  기본값/속도보정/감속시 여유거리 boost&hold/클립/램프) → long_mpc.py(t_follow →
-  desired_follow_distance → MPC 리드차 장애물 제약)로 실제 추종거리 제어에 반영됨을 확인
-- 이 차량은 EnableSpeedTF=0, LeadAccelResponse=0으로 가장 단순한 personality 고정값
-  모드로 운용 중임을 확인 (TFollowGap1~4=110/120/140/160, 표준 범위 내 이상 없음)
-- 정적 분석 기준 버그는 발견되지 않음(상태 변수 초기화, 클립/램프 로직 모두 안전하게 작성됨)
-- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md 갱신
-- 코드 변경 없음 (분석/기록만), carrot-ryu는 carrot-wip과 여전히 동일
-- 실차 검증: 미실시
-
-## 4차 계속 (완료 — DisableDM / LateralTorqueCustom 분석) — 보류했던 두 항목 확인
-
-- 같은 세션에서 이어서 "DisableDM=2 / LateralTorqueCustom" 보류 항목 분석 진행
-- DisableDM=2 확인: carrot_settings.json 설명("1.DisableDM, 2: +EnableWebRTC")과
-  process_config.py/selfdrived.py/controlsd.py 코드로 의미 확정
-  → 운전자 모니터링(졸음/주의분산 감지·경고·강제감속) 완전 OFF + Carrot Vision WebRTC 활성화
-  → 안전 관련 설정이라 사용자에게 의도 여부 재확인 필요 (다음 세션 또는 지금 확인)
-- LateralTorqueCustom=0 확인: latcontrol_torque.py 분기 구조상 0이면 저장된
-  LateralTorqueKf/Friction/AccelFactor/KiV/KpV/Kd 값이 전혀 읽히지 않음.
-  실제로는 opendbc torque_data/params.toml의 HYUNDAI_GENESIS 실측값
-  (LAT_ACCEL_FACTOR≈2.7808, FRICTION≈0.0984)로 조향 토크 계산 중임을 확인
-- FINDINGS.md, PARAMS_REGISTRY.md 갱신
-- 코드 변경 없음 (분석/기록만)
-- 실차 검증: 미실시
-
-## 4차 (완료 — 종방향 PID 게인 고정 확인) — LongTuningKpV/KiV/Kf 무효화 발견
-
-- 사용자 요청으로 "종방향 제어(가감속) 로직 분석" 착수
-  (DisableDM=2 / LateralTorqueCustom 항목은 이번 세션에서 보류)
-- longcontrol.py 분석 중, 커밋 a26b108d(2026-09-04)에서 현대·기아·제네시스 차량의
-  종방향 PID 게인(Kp/Ki/Kf)이 코드에 고정(1.0/0.0/1.0)되어 있음을 확인
-- 사용자가 보유한 LongTuningKpV=100/KiV=0/Kf=100 설정값은 제네시스 DH 2015에서
-  실제로는 읽히지 않고 무시됨 (문서에도 명시된 의도된 동작, 버그 아님)
-- 실제 적용되는 종방향 노브는 LongActuatorDelay / VEgoStopping / StoppingAccel 뿐임을 확인
-- ACCEL_MIN/MAX(-4.0/2.5 m/s²)는 제네시스 전용 값 없이 Hyundai 계열 공통값임을 확인
-- FINDINGS.md, PARAMS_REGISTRY.md, LAST_ANALYZED.md에 반영
-- 코드 변경 없음 (분석/기록만), carrot-ryu는 carrot-wip과 여전히 동일
-- 실차 검증: 미실시
-
-## 3차 (완료 — 파라미터 베이스라인 기록) — 현재 적용 설정값 스냅샷
-
-- 사용자가 콤마 디바이스에서 export한 params_backup-4.json 수령
-- CarSelected3="Hyundai Genesis 2015-16"로 차량 매칭 확인
-- DisableMinSteerSpeed=1이 실제로 적용되어 있음을 확인 (2차 FINDINGS와 일치)
-- 원본 파일을 devnotes/params_snapshots/2026-09-12_params_backup-4.json으로 보관
-- PARAMS_REGISTRY.md에 주요 커스텀 값(조향 토크, 종방향 튜닝, 크루즈 프로파일 등) 요약 기록
-- DisableDM=2, LateralTorqueCustom=0 등 의미 미확인 항목을 다음 분석 후보로 등록
-- 실차 검증: 해당 없음 (기록 작업)
-
-## 2차 (완료 — 저속조향 제한 분석) — minSteerSpeed / SMDPS
-
-- CAR.HYUNDAI_GENESIS minSteerSpeed=60km/h 하드코딩 확인
-- DisableMinSteerSpeed Params 토글이 carrot-wip에 이미 구현되어 있음을 확인
-  (interfaces.py + carrot_settings.json UI 노출)
-- 코드 수정 없이 설정값 변경만으로 해결 가능 판단
-- 실차 검증: 미실시
-
-## 1차 (완료 — 브랜치 세팅) — 프로젝트 구조 초기화
-
-- carrot-wip: 원본 참고 브랜치 확인
-- carrot-ryu: carrot-wip에서 분기하여 생성
-- carrot-ryu-note: orphan 브랜치로 생성, devnotes 폴더 구조 세팅
-- 실차 검증: 미실시
+- CAR.HYUNDAI_GENESIS minSteerSpeed=60km/h ?섎뱶肄붾뵫 ?뺤씤
+- DisableMinSteerSpeed Params ?좉???carrot-wip???대? 援ы쁽?섏뼱 ?덉쓬???뺤씤
+  (interfaces.py + carrot_settings.json UI ?몄텧)
+- 肄붾뱶 ?섏젙 ?놁씠 ?ㅼ젙媛?蹂寃쎈쭔?쇰줈 ?닿껐 媛???먮떒
+- ?ㅼ감 寃利? 誘몄떎??
+## 1李?(?꾨즺 ??釉뚮옖移??명똿) ???꾨줈?앺듃 援ъ“ 珥덇린??
+- carrot-wip: ?먮낯 李멸퀬 釉뚮옖移??뺤씤
+- carrot-ryu: carrot-wip?먯꽌 遺꾧린?섏뿬 ?앹꽦
+- carrot-ryu-note: orphan 釉뚮옖移섎줈 ?앹꽦, devnotes ?대뜑 援ъ“ ?명똿
+- ?ㅼ감 寃利? 誘몄떎??
