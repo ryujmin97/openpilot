@@ -25,6 +25,10 @@ CRUISE_LONG_PRESS = 50
 # Keep automatic re-engagement out of parking/full-lock turns. Hyundai EPS
 # fault avoidance begins at 85 degrees, so leave margin below that boundary.
 AUTO_CRUISE_MAX_STEERING_ANGLE = 70.0
+# When engaging (RES/+), the resulting set speed must never be below current
+# speed by more than this margin, to avoid an abrupt hard deceleration right
+# at engage (e.g. a stale/at-brake or road-limit-derived value below current speed).
+ENGAGE_SPEED_MARGIN_KPH = 2
 CRUISE_NEAREST_FUNC = {
   ButtonType.accelCruise: math.ceil,
   ButtonType.decelCruise: math.floor,
@@ -583,6 +587,14 @@ class VCruiseCarrot:
             road_limit_kph = self.nRoadLimitSpeed * self.autoSpeedUptoRoadSpeedLimit
             if road_limit_kph > 1.0:
               v_cruise_kph = max(v_cruise_kph, road_limit_kph)
+          # Safety floor: a stale/at-brake or road-limit-derived engage speed must
+          # never be below current speed, or engaging would command an abrupt
+          # hard deceleration right at engage (e.g. first RES press of a drive
+          # picking up an old/low remembered speed). Engage speed is always at
+          # least current speed + margin.
+          if v_cruise_kph < self.v_ego_kph_set + ENGAGE_SPEED_MARGIN_KPH:
+            v_cruise_kph = self.v_ego_kph_set + ENGAGE_SPEED_MARGIN_KPH
+            self._add_log(f"{v_cruise_kph} Cruise engage speed floor (>= current speed)")
         else:
           # Once cruise is already active, RES/+ is a speed adjustment. Stale resume or
           # initialization state must not consume the first press without changing speed.
