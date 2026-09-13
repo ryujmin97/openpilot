@@ -579,18 +579,31 @@ class CarrotMan:
         distance = 10.0
         sample = 4
         if len(resampled_points) >= sample * 2 + 1:
-            # Calculate curvatures and speeds based on curvature
-            speeds = []
+            # Calculate curvatures from 3-point geometry
             for i in range(len(resampled_points) - sample * 2):
                 distance += distance_interval
                 p1, p2, p3 = resampled_points[i], resampled_points[i + sample], resampled_points[i + sample * 2]
                 curvature = calculate_curvature(p1, p2, p3)
                 curvatures.append(curvature)
+                distances.append(distance)
+            # Reject isolated curvature spikes with a 3-sample median before turning
+            # curvature into a target speed (same idea as curve_speed.py's vision-side
+            # median filter). A single noisy polyline vertex near a junction can
+            # otherwise read as a much sharper curve than the road actually has,
+            # causing a brief over-decel that self-corrects once the window moves on.
+            n_curv = len(curvatures)
+            filtered_curvatures = []
+            for i in range(n_curv):
+              start = max(0, min(i - 1, n_curv - 3)) if n_curv >= 3 else 0
+              window = curvatures[start:start + 3] if n_curv >= 3 else curvatures
+              filtered_curvatures.append(float(np.median(window)))
+            speeds = []
+            for curvature in filtered_curvatures:
                 speed = np.interp(abs(curvature), V_CURVE_LOOKUP_BP, V_CRUVE_LOOKUP_VALS)
                 if abs(curvature) < 0.02:
                   speed = max(speed, self.carrot_serv.nRoadLimitSpeed)
                 speeds.append(speed)
-                distances.append(distance)
+
             #print(f"curvatures= {[round(s, 4) for s in curvatures]}")
             #print(f"speeds= {[round(s, 1) for s in speeds]}")
             # Apply acceleration limits in reverse to adjust speeds
