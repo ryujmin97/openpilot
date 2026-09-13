@@ -1,5 +1,21 @@
 # WIP
 
+## 7차 (완료 — 웹 UI 전환 마무리 + carrot-ms 동기화 점검) — 브랜치 정리 및 신규 커밋 없음 확인
+
+- ryujmin97/openpilot에 실제로 남아있던 carrot-ms, carrot-wip 브랜치(각각
+  happymaj11r/openpilot, ajouatom/openpilot의 완전한 복사본)를 사용자가 GitHub 웹 UI에서
+  직접 삭제 완료. 이제 ryujmin97/openpilot에는 carrot-ryu, carrot-ryu-note 두 브랜치만
+  존재하여 문서화된 브랜치 구성과 일치하는 상태로 정리됨 (지침 16절 항목 해소)
+- carrot-ms(happymaj11r/openpilot) 신규 커밋 동기화 검토 진행: git ls-remote로 확인한 결과
+  carrot-ryu HEAD와 carrot-ms HEAD가 정확히 일치(02015190f58a4380a433ee0130e6374455dddc2e)
+  → 6차 세션 이후 carrot-ms에 새로운 rebase/커밋이 전혀 없음. 반영 대상 커밋 0건
+- 참고로 carrot-wip(ajouatom/openpilot)은 HEAD가 bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1로
+  계속 진행 중이나, carrot-ms가 아직 이를 따라 rebase하지 않아 지침 2절 원칙대로 직접 비교
+  대상으로 삼지 않음
+- WIP_SYNC.md를 carrot-ms 기준 체크포인트 방식으로 갱신(이번 점검 결과 기록)
+- 코드 변경 없음 (브랜치 정리 + 점검만 수행), carrot-ryu는 여전히 carrot-ms와 동일
+- 실차 검증: 해당 없음 (인프라 점검 작업)
+
 ## 6차 (완료 — 베이스 브랜치 전환) — carrot-wip → carrot-ms 로 변경
 
 - 사용자가 happymaj11r/openpilot 저장소의 carrot-ms 브랜치(콤마 주행모델 선택 기능,
