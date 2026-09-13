@@ -1,5 +1,45 @@
 # WIP
 
+## 10차 (완료 — 코드 수정) — RES/+ 인게이지 시 설정속도가 현재속도보다 낮아지는 문제 안전장치 추가
+
+- 사용자 제보: 출발 후 가속 중(예: 약 50km/h) 핸들 +RES 버튼으로 크루즈 인게이지 시,
+  설정속도가 현재속도보다 낮게(예: 약 30km/h) 잡혀 급감속이 발생하는 경우가 있다는
+  실사용 증상 보고 (실주행 로그 없이 사용자 설명 기반, 아직 rlog로 재현 확인 전)
+- 코드 확인(carrot-ryu 2dbe492 기준, selfdrive/car/cruise.py):
+  - `_update_cruise_buttons()`의 accelCruise 인게이지 분기(`_cruise_ready or not
+    CC.enabled or CS.cruiseState.standstill`)에서, `_v_cruise_kph_at_brake`(브레이크
+    시점에 저장해두는 "재개용" 속도) 또는 아직 초기화되지 않은 v_cruise_kph 값이
+    현재속도(v_ego_kph_set)보다 낮은 채로 그대로 인게이지 속도로 채택될 수 있는
+    경로 존재
+  - `_v_cruise_kph_at_brake`는 브레이크 재개 목적 외에 `_auto_speed_up()`의 도로제한
+    속도 동기화 로직(`AutoRoadSpeedLimitOffset > 0`일 때, 매 프레임 CC.enabled 여부와
+    무관하게 `nRoadLimitSpeed + offset`으로 덮어씀, 726번 줄 부근)에서도 값이 채워질
+    수 있어, 최초 인게이지 시점에 도로제한속도 기반의 낮은 값이 남아있을 가능성 있음
+    (단, `AutoRoadSpeedLimitOffset` 기본값은 -1이라 사용자가 이 옵션을 켠 경우에만
+    해당 경로가 열림 - PARAMS_REGISTRY에 이 값 미기록이라 이 차량 설정은 미확인)
+  - `SpeedFromPCM`이 1이 아닌 기본 설정(0 등)에서는 openpilot 자체 v_cruise_kph 로직이
+    쓰이므로 위 경로가 실제로 영향을 줄 수 있음(1이면 순정 SCC 값을 그대로 씀 - 이
+    경우 문제가 있다면 순정 ECU 쪽 이슈이므로 이번 코드수정 대상 아님)
+- 수정: 최소 변경 원칙에 따라 인게이지 분기 마지막에 안전장치(floor)만 추가.
+  계산된 인게이지 속도가 "현재속도 + ENGAGE_SPEED_MARGIN_KPH(2km/h)"보다 낮으면
+  "현재속도 + 2km/h"로 올림. 브레이크 후 저장된 속도가 현재속도보다 높은 정상적인
+  재개(예: 커브에서 감속 후 RES로 이전 설정속도로 복귀) 케이스는 그대로 유지됨
+  (그 값이 floor보다 크므로 영향 없음)
+- 검증:
+  - 문법검증(py_compile) 통과
+  - 기존 `test_carrot_cruise_buttons.py`의 인게이지 관련 테스트 4건
+    (`test_accel_restores_at_least_brake_speed_while_cruise_is_off` 2건,
+    `test_accel_keeps_initialized_speed_without_brake_snapshot_while_cruise_is_off`,
+    "브레이크 후 더 높은 속도로 정상 재개" 신규 케이스)을 동일 로직으로 재현한
+    standalone 합성 스크립트로 결과 일치 확인 (샌드박스에 cereal/capnp 빌드가 없어
+    pytest 자체 실행은 9차와 동일하게 불가)
+  - 사용자가 보고한 "50km/h 주행 중 RES → 30km/h로 급감속" 시나리오를 동일 로직으로
+    재현 → 수정 후 52km/h(현재속도+2)로 인게이지됨을 합성 테스트로 확인
+- 실차 검증: 미실시. 다음 세션/실주행에서 동일 상황(출발 가속 중 RES 인게이지) 재현
+  시 급감속이 사라졌는지 확인 필요
+- 관련 없는 리팩터링 없음, 파일 1개(cruise.py)만 수정, 12줄 추가
+
+
 ## 9차 (완료 — 코드 수정) — route 커브 오검출 근본수정: median 스파이크 필터 추가
 
 - 8차에서 실주행 로그로 확인한 route 감속 오검출에 대해, 사용자가 근본수정(옵션 ②)

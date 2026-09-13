@@ -1,53 +1,51 @@
 # HANDOFF
 
-Worker: Claude (세션 9)
+Worker: Claude (세션 10)
 Date: 2026-09-13
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base commit: 2dbe492, 8차 이후 route 감속 근본수정 1건 반영)
-Note Branch: carrot-ryu-note (9차 devnotes 반영)
+Code Branch: carrot-ryu (base commit: 10차 RES/+ 인게이지 속도 안전장치 반영 스크립트 실행 직후 커밋)
+Note Branch: carrot-ryu-note (10차 devnotes 반영, 이 커밋)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 세션과 동일, 신규 커밋 없음
 (WIP_SYNC.md 참고, 이번 세션에서는 재확인하지 않음)
 
 작업:
 완료:
-- 8차에서 발견된 route 감속 오검출(고속도로 분기점 조기 과감속/원복)에 대해 사용자가
-  근본수정(스파이크 제거 필터) 방향 선택
-- carrot_man.py의 carrot_navi_route()에 3-샘플 median 필터 추가 (비전 curve_speed.py
-  방식과 동일한 원리). Claude 샌드박스에서 GitHub 최신 코드 기준으로 미리 패치 적용,
-  문법검증(py_compile), diff 검증, 합성 스파이크 제거 테스트까지 마친 뒤 사용자
-  실행용 스크립트로 전달
-- 사용자가 Termux에서 스크립트 실행, carrot-ryu 브랜치에 반영 완료
-  (commit 0201519..2dbe492). Claude가 codeload.github.com tarball로 push된 실제
-  commit 내용까지 재확인, 문법 검증 재통과 확인
-- FINDINGS.md / WIP.md에 상세 기록
+- 사용자 제보(출발 가속 중 +RES 인게이지 시 설정속도가 현재속도보다 낮게 잡혀
+  급감속 발생) 코드 확인. selfdrive/car/cruise.py의 accelCruise 인게이지 분기에서
+  _v_cruise_kph_at_brake(브레이크 재개용 저장 속도, _auto_speed_up의 도로제한속도
+  동기화 로직에서도 재사용/덮어쓰기됨) 또는 미초기화 v_cruise_kph가 현재속도보다
+  낮은 채로 인게이지 속도로 채택될 수 있는 경로 확인
+- 최소 변경으로 인게이지 분기 끝에 안전장치(floor) 추가: 인게이지 속도가
+  "현재속도 + 2km/h(ENGAGE_SPEED_MARGIN_KPH)"보다 낮으면 올림. 정상적인
+  "브레이크 후 더 높은 속도로 재개" 케이스는 영향 없음
+- Claude 샌드박스에서 GitHub 최신 코드(carrot-ryu 2dbe492) 기준으로 미리 패치
+  적용, 문법검증(py_compile) 통과, 기존 테스트 4건 + 사용자 시나리오 1건을
+  standalone 합성 스크립트로 재현하여 결과 확인 (cereal/capnp 미빌드로 pytest
+  자체 실행은 불가, 9차와 동일한 한계)
+- 9절 방식(Termux 스크립트, head/tail 기반 라인 삽입)으로 반영 스크립트 작성해 전달
+- WIP.md에 10차 항목 기록 (이 파일)
 
 미완료 / 다음 세션 우선순위:
-1. **실주행 재검증 필요 (최우선)** — carrot-ryu commit 2dbe492가 실제 콤마 디바이스에
-   설치되어, 8차에서 문제가 있었던 것과 동일/유사한 고속도로 분기점을 다시 통과할 때
-   desiredSource="route" 전환 시점의 desiredSpeed 급락(오검출)이 사라졌는지 rlog로
-   재확인 필요. 확인 전까지는 "고쳐졌다"고 단정하지 않음(12절 원칙)
-2. carrot-ms가 추가한 "모델 셀렉터" 코드(carrot/model_selector, web(models) 등) 자체는
-   아직 분석하지 않음
-3. TurnSpeedControlMode=2 / EnableSpeedTF=0 / DisableDM=2 등 사용자 의도 확인
+1. **실주행 재검증 필요** — 이번 수정과 8~9차의 route 감속 근본수정(2dbe492) 모두
+   실제 콤마 디바이스 주행으로 확인 안 됨. 다음 실주행에서 "출발 가속 중 RES 인게이지"
+   상황을 재현해 급감속이 사라졌는지 확인 필요
+2. `AutoRoadSpeedLimitOffset`(기본값 -1) / `SpeedFromPCM` 이 차량의 실제 설정값이
+   PARAMS_REGISTRY.md에 없어 미확인 — 이번 버그의 정확한 발생 조건을 완전히
+   특정하지 못했음
+3. carrot-ms가 추가한 "모델 셀렉터" 코드는 아직 분석하지 않음
+4. TurnSpeedControlMode=2 / EnableSpeedTF=0 / DisableDM=2 등 사용자 의도 확인
    (오래된 보류 항목, 일부는 안전 관련)
-4. carrot-wip(ajouatom/openpilot)이 carrot-ms보다 앞서 진행 중 — carrot-ms가 다음에
-   rebase되는 시점에 다시 동기화 검토 필요
 
-검증: 정적 분석 + 문법 검증 + 합성(가상) 스파이크 데이터로만 검증. 실차 검증 미실시.
+검증: 정적 분석 + 문법 검증 + 기존 테스트 로직을 재현한 합성 스크립트로만 검증.
+실차 검증 미실시.
 
 주의사항:
-- 이번 세션의 코드 변경(carrot_man.py 한 블록)은 GitHub API/tarball로 실제 반영 여부와
-  내용을 이중 확인함(raw.githubusercontent.com은 CDN 캐시로 몇 분간 구버전을 보여줄 수
-  있으니, 즉시 확인이 필요하면 codeload.github.com tarball 방식 사용 권장)
-- Termux에서 heredoc에 긴 한글 텍스트를 붙여넣을 때 줄바꿈이 깨질 수 있음(이번
-  세션에서 재확인됨) → 실행 실패 시 무엇이 실제로 반영됐는지 항상 GitHub에서
-  재확인 후 진행
-- git diff는 반드시 --no-pager 또는 GIT_PAGER=cat과 함께 사용 (안 그러면 Termux에서
-  less 페이저가 꼬여 셸이 깨질 수 있음, 이번 세션에서 확인됨)
-- route 감속 관련 코드는 이제 8차 이전과 다르므로, 향후 carrot-ms 동기화 시 이
-  블록에서 충돌 가능성 있음(10절 "carrot-ms 대비 무엇이 왜 달라졌는지" 원칙 참고)
+- 사용자가 폰(Termux)에서 작업 중. 이번 세션부터 코드 반영 스크립트는 sed 대신
+  head/tail 기반 라인 삽입 방식 사용(Termux의 sed/awk 구현이 GNU sed와 다를 수
+  있어 더 안전한 방식으로 변경)
+- git diff는 반드시 --no-pager 또는 GIT_PAGER=cat과 함께 사용 (9차에서 확인된 이슈)
 
 다음 작업 후보:
-1. 실주행 재검증 (최우선, 사용자가 실제 주행 후 로그 업로드해야 진행 가능)
-2. (선택) carrot-ms의 model_selector 코드 분석
-3. TurnSpeedControlMode/EnableSpeedTF/DisableDM 등 사용자 의도 확인
+1. 실주행 재검증 (이번 건 + 8~9차 route 감속 수정 모두)
+2. AutoRoadSpeedLimitOffset/SpeedFromPCM 실제 설정값 확인
+3. (선택) carrot-ms의 model_selector 코드 분석
