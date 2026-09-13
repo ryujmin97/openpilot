@@ -1,5 +1,31 @@
 # WIP
 
+## 13차 (완료 — 온로드 시계 좌측 화면 경계 잘림 버그 수정) — hud_renderer.py _draw_date_time() x좌표 보정
+
+- 배경: 사용자가 실제 화면 사진(2026-09-13 23:32:34 촬영)을 공유, 좌측 상단
+  시계가 "23:32:34"가 아니라 "3:32:34"로 보여 맨 앞 "2"가 잘림을 보고
+- 원인 분석 (코드 레벨):
+  - openpilot/selfdrive/ui/onroad/hud_renderer.py의 _draw_date_time()에서
+    시계 텍스트(HH:MM:SS, font_size=100)를 align="center_bottom"으로 그리는데,
+    기준 x가 rect.x+170(고정값)
+  - text_draw.py의 get_text_draw_pos()는 center_bottom일 때
+    draw_x = x - text_size.x*0.5 로 계산 -> 텍스트 폭이 넓을수록 draw_x가
+    더 왼쪽으로 밀림
+  - 8자 "HH:MM:SS" 폭이 넓어 draw_x가 음수(화면 밖)로 계산되어 좌측 첫 글자
+    (시 10의 자리)가 잘림 (사진 현상과 일치)
+  - 12차에서 시계 캐시 키에 tm_sec을 추가하며 "%H:%M"(5자) -> "%H:%M:%S"(8자)
+    로 표시 자릿수가 늘어난 것이 이 clipping을 유발한 회귀로 추정
+- 수정: measure_text_cached로 시계 텍스트 실측 폭을 구해, 좌측 여백
+  (UI_CONFIG.border_size=30)을 보장하도록 x를 동적으로 보정(clamp)하는 로직
+  추가. 날짜 텍스트(MM-DD(요일))는 동일 x를 재사용해 시계와 세로 정렬 유지
+- 파일: openpilot/selfdrive/ui/onroad/hud_renderer.py, _draw_date_time()만
+  수정(10절 최소 변경 원칙)
+- 반영 방식: 9절 diff(git apply) 방식. 반영 직전 GitHub 최신
+  hud_renderer.py를 다시 조회해 그 위에서 diff 생성, 별도 clone
+  시뮬레이션에서 git apply --check/git apply 성공 + py_compile 통과 확인
+  (Claude 샌드박스, 사용자 PC python 환경과 무관)
+- 실차 검증: 미실시(정적 분석 + 코드 시뮬레이션만)
+
 ## 12차 (완료 — 코드 반영 + 반영 프로세스 디버깅) — 더블탭 대신 화면 중앙 하단 스크린샷 버튼 + 온로드 시계 초단위 표시(재반영)
 
 - 배경: 11차에서 설계했던 "더블탭으로 스크린샷" + "시계 초단위 표시"가 실제로는

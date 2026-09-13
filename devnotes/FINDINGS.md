@@ -1,5 +1,29 @@
 # FINDINGS
 
+## [2026-09-13] 온로드 좌측 상단 시계 좌측 화면 경계 잘림 버그 원인규명 및 수정 (13차)
+
+### 배경
+- 사용자가 실제 화면 사진을 공유. 좌측 상단 시계가 "23:32:34" 대신
+  "3:32:34"로 표시되어 맨 앞 "2"가 잘려 보임을 보고
+
+### 원인
+- openpilot/selfdrive/ui/onroad/hud_renderer.py `_draw_date_time()`:
+  시계 텍스트(HH:MM:SS, 8자, font_size=100)를 align="center_bottom"으로
+  그리며 고정 x=rect.x+170을 기준으로 삼음
+- text_draw.py `get_text_draw_pos()`: center_bottom 정렬은
+  draw_x = x - 텍스트폭*0.5로 계산 -> 8자 텍스트의 절반 폭이 170px을
+  넘어 draw_x가 음수(화면 좌측 밖)가 됨
+- 12차에서 시계 표시가 %H:%M(5자)에서 %H:%M:%S(8자)로 늘어나며 발생한
+  회귀로 추정 (5자일 때는 절반 폭이 170px보다 작아 문제가 드러나지 않았을
+  가능성)
+
+### 적용한 수정
+- measure_text_cached로 시계 텍스트 실측 폭을 구해, 왼쪽 여백
+  (UI_CONFIG.border_size)을 보장하도록 x를 max(기존x, 최소x)로 보정
+- _draw_date_time() 한 곳만 수정, 다른 로직/파일은 건드리지 않음
+- 검증: git apply --check 통과, py_compile 통과(Claude 샌드박스).
+  실차 검증은 미실시
+
 ## [2026-09-13] route 감속 오검출 근본수정 적용 — carrot_navi_route()에 3-샘플 median 스파이크 필터 (8차 발견에 대한 조치, carrot-ryu commit 2dbe492)
 
 ### 배경
