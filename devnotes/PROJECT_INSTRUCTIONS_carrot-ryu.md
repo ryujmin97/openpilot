@@ -1,0 +1,316 @@
+# CARROT-MS 프로젝트 진행 지침
+(ryujmin97/openpilot 기반  Claude 세션 연속 진행용)
+
+이 문서는 매 세션 시작 시 Claude가 먼저 확인해야 하는 프로젝트 기준 문서이다.
+무료 사용량(컨텍스트/토큰)을 아끼는 것을 기본 전제로 설계되어 있다.
+
+**[12차 세션부터] 이 문서 자체가 Source of Truth 저장소다.** `carrot-ryu-note` 브랜치의
+`devnotes/PROJECT_INSTRUCTIONS_carrot-ryu.md`에 보관되며, 매 세션 시작 시 Claude가
+raw.githubusercontent.com으로 직접 조회한다(4절 0번 단계 참고). 사용자가 매번 채팅에
+전체 문서를 붙여넣지 않아도 되며, 계정/기기가 바뀌어도 이 파일 하나만 최신으로
+유지하면 모든 세션이 동일한 기준을 따른다. 이 문서를 고칠 때는 19절 절차(변경 이유 
+기존 규칙  변경안  사용자 승인  변경  GitHub 저장)를 그대로 따르고, 저장이
+끝나야 "반영 완료"로 간주한다(다른 devnotes 파일과 동일한 원칙, 5절 참고).
+
+
+## 0. 프로젝트 목표
+
+- 저장소: ryujmin97/openpilot
+- 차량: 제네시스 DH 2015년식
+- 베이스 브랜치: carrot-ms (외부 저장소 happymaj11r/openpilot의 브랜치. carrot-wip을 기반으로 콤마 주행모델 선택 기능을 얹어, carrot-wip이 업데이트될 때마다 통째로 재생성(rebase)됨. 직접 수정하지 않음. carrot-wip은 이 브랜치를 통해 간접적으로만 반영됨. ⚠️ 히스토리가 매번 재작성되므로 carrot-wip처럼 fast-forward 동기화가 불가능 — 새 버전이 나올 때마다 carrot-ms와 carrot-wip의 커밋 메시지를 비교해 "모델 셀렉터 관련 커밋"만 선별 반영 필요)
+  - [6차 세션 변경 이력] 기존 규칙은 "베이스 브랜치: carrot-wip"이었음. carrot-ms가 carrot-wip 기반 + 모델선택 기능을 자동으로 따라가도록 설계된 브랜치라는 점이 확인되어, carrot-ryu의 베이스를 carrot-wip에서 carrot-ms로 옮기기로 사용자 승인하에 결정함(당시 carrot-ryu에 사용자 코드가 없어 데이터 손실 없이 재생성 완료). 이에 맞춰 문서 전체(1, 2, 3, 4, 8, 10, 16, 17, 18절 및 최종 목표 요약)의 carrot-wip 기준 서술을 carrot-ms 기준으로 함께 정리함(변경 이력 항목 참고).
+- 코드 작업 브랜치: carrot-ryu (carrot-ms를 베이스로 생성, 내 차량에 맞게 튜닝/수정. 이후 콤마 디바이스에 설치되어 실제 주행 로그를 만들어내는 대상)
+- 기록 전용 브랜치: carrot-ryu-note (devnotes 보관 전용, 코드는 두지 않음. 코드 히스토리와 분리된 orphan 브랜치. **[12차]** 이 문서(PROJECT_INSTRUCTIONS_carrot-ryu.md)도 이 브랜치에 보관)
+- 목표: carrot-wip을 분석하여 이해한 뒤, carrot-ryu 위에서 내 차에 맞는 코드를 점진적으로 완성해 나간다.
+- 여러 세션(대화)에 걸쳐 이어서 진행하며, 매 세션 무료 사용량 한도 안에서 끝내고 다음 세션이 이어받을 수 있어야 한다.
+- **[7차 세션부터 변경] 사용자 컴퓨터/폰에 "지속적으로 유지되는" 로컬 클론은 두지 않는다.** ryujmin97/openpilot 저장소의 `carrot-ryu`, `carrot-ryu-note` 두 브랜치에 대한 실제 반영(커밋)은 항상 사용자가 직접 수행하며, Claude는 GitHub 인증정보(토큰/비밀번호/SSH 키)를 절대 전달받거나 보관하지 않는다. carrot-ms와 carrot-wip은 ryujmin97/openpilot에 더 이상 미러링하지 않으며(7차 세션에서 삭제 완료), Claude가 필요할 때 GitHub API/웹으로 외부 저장소(happymaj11r/openpilot의 carrot-ms, ajouatom/openpilot의 carrot-wip)를 직접 조회한다.
+- **[8차 세션 변경] 반영 수단을 "GitHub 웹 UI 수동 편집" 중심에서 "사용자 실행 스크립트(PowerShell/Termux)" 중심으로 전환.** Claude가 매 반영 시점에 PowerShell(주로 PC) 또는 Termux(폰)용 스크립트를 만들어 전달하면, 사용자가 그 스크립트를 그대로 붙여넣어 실행한다. 스크립트는 실행될 때마다 (1) 임시 폴더에 해당 브랜치를 clone하고 (2) 필요한 파일을 만들거나 고치고 (3) commitpush한 뒤 (4) 임시 폴더를 스스로 삭제한다. 즉 "실행하는 몇 초~수십 초 동안만" 로컬에 폴더가 존재했다가 사라지며, 세션이 끝나도 남아있는 로컬 클론은 생기지 않는다. GitHub 인증은 사용자 PC/폰에 이미 설정되어 있는 git 인증 수단(Git Credential Manager, 이전 로그인 캐시, gh CLI 로그인 등 사용자 소유의 인증)으로 push 시점에 처리되며, Claude는 이 인증 과정에 전혀 관여하지 않고 토큰을 요구하지도, 받지도 않는다. 파일 용량이 크거나 스크립트로 다루기 번거로운 예외적인 경우에 한해 기존 GitHub 웹 UI 수동 반영 방식을 보조 수단으로 계속 사용할 수 있다(9절 참고).
+  - (참고: 사용자가 GitHub 계정에 쓰기 권한을 가진 PAT를 발급해 Claude에게 직접 전달하고 Claude가 API로 직접 push하는 방식도 검토했으나, Claude가 인증정보를 보관/사용하지 않는다는 원칙(15절)에 어긋나 채택하지 않음. 대신 스크립트는 Claude가 만들지만 실제 push 실행과 인증은 항상 사용자 장치에서, 사용자 권한으로 이루어지는 현재 방식으로 확정함.)
+- **[12차 세션 추가] 사용자는 PC(Windows PowerShell) 환경을 기본으로 사용한다.** Termux(폰) 기준 스크립트가 필요한 경우 사용자가 명시적으로 알려주면 그때 Termux용으로 전환한다. 기본값을 PowerShell로 두어 8차~11차에서 있었던 셸 착오(Termux bash 스크립트를 PowerShell에 붙여넣는 등)를 방지한다.
+
+
+## 1. 저장소/브랜치 역할 정의
+
+### carrot-wip
+- 최종 참고용 업스트림(실제 관리 저장소: ajouatom/openpilot). 절대 직접 커밋/수정하지 않는다.
+- carrot-ryu가 직접 비교/동기화하는 대상이 아니라, carrot-ms를 통해서만 간접적으로 반영된다(6차 세션부터 변경, 2절 참고).
+- **[7차 세션] ryujmin97/openpilot에는 이 브랜치를 두지 않는다.** 필요 시 Claude가 ajouatom/openpilot 저장소를 GitHub API/웹으로 직접 조회한다.
+
+### carrot-ms
+- [6차 세션부터 추가] carrot-ryu의 직접적인 베이스 브랜치. 실제 관리 저장소: happymaj11r/openpilot.
+- carrot-wip을 기반으로 콤마 주행모델 선택 기능을 얹은 브랜치이며, carrot-wip이 업데이트될 때마다 통째로 재생성(rebase)된다 — 즉 carrot-wip과 커밋 히스토리를 공유하지 않고, 매번 최신 carrot-wip 위에 모델선택 기능을 다시 얹어 force-push하는 방식이다.
+- 절대 직접 커밋/수정하지 않는다(carrot-wip과 동일하게 참고용 업스트림으로 취급).
+- ⚠️ 히스토리가 매번 재작성되므로 일반적인 fast-forward 방식으로 새 커밋을 추적할 수 없다. 새 버전이 나올 때마다 carrot-ms와 carrot-wip의 커밋 메시지를 비교하여 "모델 셀렉터 관련 커밋"만 선별해야 한다(2절 참고).
+- **[7차 세션] ryujmin97/openpilot에는 이 브랜치를 두지 않는다.** 필요 시 Claude가 happymaj11r/openpilot 저장소를 GitHub API/웹으로 직접 조회한다.
+
+### carrot-ryu
+- 실제 코드 작업 브랜치. 내 차량(제네시스 DH 2015) 맞춤 코드만 쌓이는 곳.
+- carrot-ms에서 분기하여 시작하고, 이후 carrot-ms의 새 커밋 중 모델 셀렉터 관련 변경을 선별 반영한다. carrot-wip 자체와는 직접 비교/동기화하지 않는다.
+- **[8차 세션] 반영은 사용자가 실행하는 스크립트(PowerShell/Termux)로 진행한다.** Claude가 반영이 필요한 변경 내용을 스크립트(임시 clone  파일 수정/생성  commit/push  임시 폴더 삭제) 형태로 전달하면 사용자가 그대로 실행한다. cherry-pick/merge 같은 git 기능도 이 스크립트 안에서 Claude가 명령어로 구성해 전달할 수 있다(9절 참고). 파일이 매우 크거나 예외적인 경우에는 기존 GitHub 웹 UI 방식도 보조로 사용 가능하다.
+- 이후 콤마 디바이스에 설치되어 실주행 로그를 생성하는 대상이므로, devnotes 등 기록 파일을 섞지 않고 코드만 유지한다.
+
+### carrot-ryu-note
+- devnotes 전용 브랜치. orphan 브랜치(carrot-wip/carrot-ryu의 커밋 이력과 완전히 독립된, 처음부터 이력이 없는 빈 브랜치)로 생성한다.
+- 이유: openpilot 코드 히스토리와 devnotes 히스토리가 섞이지 않게 하고, 저장소 용량/이력을 깔끔하게 유지하기 위함.
+- **[7차 세션 참고] 이미 생성되어 있다면 그대로 사용.** 새로 만들어야 할 경우 로컬 git이 없으므로, GitHub 웹의 "Create new file"로 이 브랜치를 새로 만들 때 브랜치 생성 UI(파일 편집 화면에서 "Create a new branch" 옵션, base를 지정하지 않는 방식은 웹 UI만으로는 완전한 orphan 브랜치 생성이 어려움 — 이 경우 GitHub 웹의 브랜치 생성은 항상 기존 브랜치에서 분기되므로, 코드 이력이 섞이지 않게 하려면 생성 직후 기존 코드 파일들을 모두 삭제하는 커밋을 한 번 만들어 정리한다)로 처리한다.
+- 이 브랜치 안에 다음 파일들을 둔다.
+  - `PROJECT_INSTRUCTIONS_carrot-ryu.md` - **[12차 추가]** 이 프로젝트 지침 문서 자체 (Source of Truth, 4절 0번 단계에서 매 세션 최우선 조회)
+  - `devnotes/WIP.md` - 누적 작업 회차 기록
+  - `devnotes/HANDOFF.md` - 다음 세션에게 넘기는 인수인계
+  - `devnotes/CURRENT_STATUS.md` - 현재 상태 요약 (항상 최신 1개 버전만 유지)
+  - `devnotes/FINDINGS.md` - 분석/원인 규명 결과 누적
+  - `devnotes/LAST_ANALYZED.md` - 마지막으로 분석한 commit/범위
+  - `devnotes/PARAMS_REGISTRY.md` - 튜닝 파라미터 값과 변경 이력
+  - `devnotes/WIP_SYNC.md` - carrot-ms  carrot-ryu 동기화 이력 기록. carrot-ms 히스토리가 매번 재작성되므로 commit hash가 아닌 "커밋 메시지/내용 기준"으로 반영 여부를 추적한다 (2절 참고)
+  - `devnotes/toolkit/` - 재사용 가능한 분석/검증 스크립트 (참고용 코드 스니펫. 로컬 실행 도구 모음이 아니라 필요할 때 복사해 쓰는 스크립트 저장소로 취급)
+
+ 코드(carrot-ryu)와 기록(carrot-ryu-note)은 항상 브랜치 단위로 분리해서 관리한다.
+같은 커밋/같은 반영 작업에 두 브랜치 내용을 섞지 않는다. **[8차 세션]** 스크립트로 반영할 때도 스크립트 안 `$Branch` 값(또는 clone 대상 브랜치)을 매번 확인하는 것이 특히 중요하다(9절 참고).
+devnotes를 위한 별도 "저장소"는 만들지 않는다(무료 사용량/관리 단순화 목적). 필요성이 커지면 사용자 승인 하에 분리할 수 있다.
+
+
+## 2. carrot-ms 동기화(Sync) 원칙 [6차 세션부터 carrot-wip  carrot-ms로 대상 변경]
+
+- carrot-ms는 carrot-wip이 업데이트될 때마다 통째로 재생성(rebase)되므로, carrot-wip처럼 fast-forward 방식(마지막 동기화 commit 대비 git log)으로 새 커밋을 추적할 수 없다. commit hash가 매번 바뀌기 때문에, "커밋 메시지/내용 기준"으로 반영 여부를 추적해야 한다.
+- 확인 순서:
+  1. carrot-ryu-note의 `devnotes/WIP_SYNC.md`에서 마지막으로 검토/반영한 커밋 메시지 목록 확인 (hash 기준이 아님)
+  2. Claude가 GitHub API로 happymaj11r/openpilot(carrot-ms)과 ajouatom/openpilot(carrot-wip)의 커밋 메시지를 직접 조회하여, carrot-wip에는 없고 carrot-ms에만 있는 커밋(= 모델 셀렉터 등 carrot-ms가 얹은 기능) 목록을 뽑는다. **[8차 세션 참고]** carrot-ms/carrot-ryu HEAD가 동일한지는 `git ls-remote`로 가볍게 먼저 점검할 수 있다(신규 커밋 유무만 빠르게 확인할 때 유용).
+  3. 그중 `devnotes/WIP_SYNC.md`에 이미 검토 완료로 기록된 것을 제외하고, 아직 검토하지 않은 커밋만 추려서 내 차량(제네시스 DH 2015)carrot-ryu 코드에 필요한 기능(모델 셀렉터 관련)인지 판단
+  4. 반영이 필요하면 사용자에게 어떤 커밋을, 어떤 파일에, 어떻게 반영할지 제안하고 승인받은 뒤, **Claude가 반영 스크립트(9절 방식)를 만들어 전달**하면 사용자가 실행한다. 클러스터 HUD, PC 시뮬레이터, 로그 업로드 서버 선택 등 모델 셀렉터와 무관한 커밋은 기본적으로 제외 대상으로 분류하고, 필요 여부를 사용자에게 먼저 확인한다
+  5. 반영 결과(가져온 커밋, 제외한 커밋과 이유, 충돌 여부/해결 방법)를 `devnotes/WIP_SYNC.md`에 기록
+- carrot-ms/carrot-wip 원본(happymaj11r/openpilot, ajouatom/openpilot) 자체는 절대 직접 수정하지 않는다. 오직 조회하여 carrot-ryu로 가져오는 방향으로만 사용한다.
+- 자동으로 임의 반영하지 않는다. 특히 충돌 가능성이 있거나 내 차량 튜닝값에 영향을 줄 수 있는 변경은 반드시 먼저 사용자에게 보고하고 승인 후 진행한다.
+- 대규모 업데이트(다수 커밋)가 쌓여 있을 경우, 한 세션에 모두 반영하려 하지 말고 의미 단위로 나누어 여러 세션에 걸쳐 진행한다(17절 세션 관리 원칙과 연계). 특히 carrot-ms에는 carrot-wip 대비 100여 개 단위의 후보 커밋이 쌓여있을 수 있으므로, 반드시 여러 세션에 걸쳐 나누어 검토한다.
+- carrot-wip은 carrot-ms를 통해서만 간접 반영되므로, carrot-wip을 직접 대상으로 한 동기화 작업은 하지 않는다.
+
+
+## 3. 가장 중요한 원칙
+
+- GitHub이 항상 Source of Truth이다. Claude의 이전 대화 기억보다 GitHub의 현재 상태를 우선한다. **[12차]** 이 지침 문서 자체도 예외가 아니다 — Claude의 기억이나 사용자가 채팅에 붙여넣은 과거 버전보다, carrot-ryu-note의 `PROJECT_INSTRUCTIONS_carrot-ryu.md` 최신 버전을 우선한다.
+- carrot-wip = 최종 원본(간접 참고, ajouatom/openpilot에 존재), carrot-ms = carrot-ryu의 직접 베이스(carrot-wip+모델셀렉터, happymaj11r/openpilot에 존재, 매번 재생성됨), carrot-ryu = 내 코드, carrot-ryu-note = 작업 기억(devnotes + 이 지침 문서). 이 네 가지의 역할을 항상 구분하고, 서로의 내용이 섞이지 않게 한다. carrot-ryu/carrot-ryu-note만 ryujmin97/openpilot에 존재한다.
+
+
+## 4. 새 세션 시작 시 확인 순서 (지연 로딩, 무료 사용량 절약)
+
+전체 파일을 다 읽지 않는다. 필요한 만큼만, 아래 순서로 확인한다.
+0. **[12차 세션 추가]** `carrot-ryu-note` 브랜치의 `PROJECT_INSTRUCTIONS_carrot-ryu.md` — 이 지침 문서 자체를 raw.githubusercontent.com으로 가장 먼저 조회한다. 사용자가 채팅에 별도로 붙여넣지 않았어도 이 파일을 기준으로 진행하며, 붙여넣은 버전과 GitHub 버전이 다르면 GitHub 버전(더 최신)을 우선한다(3절 원칙).
+1. carrot-ryu-note 브랜치의 `devnotes/HANDOFF.md` - 그 다음 확인 (직전 세션 인수인계)
+2. carrot-ryu-note 브랜치의 `devnotes/CURRENT_STATUS.md` - 현재 상태 요약
+3. carrot-ryu 브랜치 최신 commit 확인 (GitHub API로 커밋 목록 조회)
+4. carrot-ryu-note 브랜치의 `devnotes/WIP.md` - 이전 작업을 이어서 할 때만 (최상단 회차 위주로)
+5. carrot-ryu-note 브랜치의 `devnotes/LAST_ANALYZED.md` - commit/로그 분석 범위를 정할 때만
+6. carrot-ryu-note 브랜치의 `devnotes/FINDINGS.md` - 문제 원인 분석/신규 이슈 기록할 때만
+7. carrot-ryu-note 브랜치의 `devnotes/PARAMS_REGISTRY.md` - 튜닝 파라미터 다룰 때만
+8. carrot-ryu-note 브랜치의 `devnotes/WIP_SYNC.md` - carrot-ms 동기화 여부/이력 확인할 때만
+9. carrot-ryu-note 브랜치의 `devnotes/toolkit/README.md` - 로그 분석/검증 스크립트 작업할 때만
+10. happymaj11r/openpilot의 carrot-ms, ajouatom/openpilot의 carrot-wip - carrot-ryu와 비교/분석 또는 동기화가 필요한 시점에만 Claude가 GitHub API/웹으로 직접 조회 (로컬 remote 불필요)
+
+이 확인 작업 자체는 Claude가 GitHub API(raw.githubusercontent.com, api.github.com)를 통해 직접 읽기만 하면 되므로, 사용자의 스크립트 실행이 필요 없다(9절의 스크립트는 "쓰기/반영"에만 필요).
+
+
+## 5. 작업 흐름 (기본 사이클)
+
+Claude 작업 (carrot-ryu용 코드 변경사항 작성)
+
+devnotes 기록 작성 (carrot-ryu-note용 WIP.mdHANDOFF.md 등, 코드와 별도로 준비)
+
+사용자에게 두 묶음으로 전달
+- (a) carrot-ryu 브랜치에 반영할 **스크립트**(신규/수정 파일 내용 또는 diff 포함) + 실행 방법
+- (b) carrot-ryu-note 브랜치에 반영할 devnotes **스크립트**(누적 파일은 이어붙이기용 추가분만, 요약 파일은 전체 교체분) + 실행 방법
+
+사용자가 PowerShell(또는 Termux)에서 스크립트를 그대로 실행  임시 clone  파일 반영  commit/push  임시 폴더 자동 삭제
+
+다음 세션(같은 Claude거나 새 세션)이 carrot-ryu / carrot-ryu-note 두 브랜치의 GitHub 최신 상태부터 이어서 진행
+
+- Claude가 작업을 끝냈어도, 사용자가 실제로 스크립트를 실행해 GitHub에 push하기 전까지는 "다음 세션에 반영된 것"으로 간주하지 않는다. **[12차]** 사용자가 실행 로그를 보여줘도, 중간에 스크립트가 멈췄거나 잘렸을 가능성이 있으면 Claude는 GitHub API/clone으로 실제 반영 여부를 직접 재확인한 뒤에만 "완료"로 간주한다(11차 세션에서 실제로 스크립트가 중간에 멈췄던 사례 있음, 16절 참고).
+- 세션이 무료 사용량 한도에 가까워지면, 미완성이라도 현재까지 진행 상황을 devnotes(carrot-ryu-note)에 기록하고 안전하게 마무리한다(17번 참고).
+
+
+## 6. Base Commit 원칙
+
+- 작업 시작 시 carrot-ryu의 현재 commit을 확인하고 기록한다. devnotes 작업을 시작할 때는 carrot-ryu-note의 현재 commit도 별도로 확인한다.
+- 작업 중 원격에 새 commit이 생기면(사용자가 다른 세션 결과를 이미 커밋한 경우 등) 먼저 최신 상태를 확인하고, 오래된 commit 기준으로 계속 진행하지 않는다. 두 브랜치 모두 각자 최신 상태 기준으로 확인한다.
+- **[8차 세션]** 반영용 스크립트는 실행되는 시점에 항상 해당 브랜치를 새로 clone하므로, 스크립트를 실행하는 순간 자동으로 최신 상태 위에서 작업하게 된다(오래된 base 위에 쌓일 위험이 구조적으로 낮음). 다만 Claude가 스크립트를 "작성"하는 시점과 사용자가 "실행"하는 시점 사이에 시간차가 있고 그 사이 다른 경로로 같은 파일이 바뀌었을 가능성이 있으므로, 특히 코드 파일처럼 내용이 서로 얽혀있는 변경은 스크립트 작성 직전에 Claude가 해당 파일의 GitHub 최신 버전을 다시 조회한 뒤 그 위에 반영 내용을 구성한다. **[9차 세션]** 이는 diff/patch 방식을 쓸 때 특히 중요하다 — diff는 원본과 정확히 일치해야 적용되므로, 최신 조회 없이 만든 diff는 적용에 실패할 수 있다.
+- carrot-ms는 매번 rebase되어 commit hash가 바뀌므로, "base commit"을 특정 hash로 고정해서 추적하지 않는다. 대신 마지막으로 검토한 커밋 메시지 목록(WIP_SYNC.md)을 기준으로 삼는다(2절 참고).
+- 충돌(같은 파일에 대해 서로 다른 예상 버전) 여부가 불확실하면 임의로 진행하지 않고 사용자에게 보고한다. 스크립트 실행 중 `git push`가 non-fast-forward 등으로 실패하면, 사용자는 그 에러 메시지를 그대로 Claude에게 전달하고 임의로 `--force`를 사용하지 않는다.
+
+
+## 7. WIP.md 작성 규칙 (carrot-ryu-note 브랜치)
+
+- 회차는 마크다운 헤더로 구분한다.
+  - 형식: `## N차 (상태 요약) — 제목`
+  - 예: `## 3차 (진행 중 — LKAS 파라미터 분석) — 내 차량 조향 튜닝`
+- 새 회차는 파일 최상단에 추가한다(최신이 위).
+- 기존 회차는 삭제/수정/순서변경하지 않는다.
+- 같은 회차를 이어갈 때는 "## N차 계속", "## N차 계속2" 형식 사용.
+- 오래된 내용을 임의로 축약/삭제하지 않는다. 필요하면 사용자에게 먼저 제안한다.
+- **[8차 세션]** 이 "최상단에 추가만 하고 기존 내용은 그대로 둔다"는 규칙 덕분에, 반영 스크립트는 파일 전체를 다시 보낼 필요 없이 "새 회차 텍스트"만 담아서 기존 파일 맨 위에 자동으로 이어붙이는 방식을 쓸 수 있다(9절 참고).
+
+
+## 8. HANDOFF.md 작성 규칙 (carrot-ryu-note 브랜치)
+
+가능하면 다음 항목을 포함한다.
+- Worker: (Claude / 세션 정보)
+- Date:
+- Repository: ryujmin97/openpilot
+- Code Branch: carrot-ryu (base commit: ...)
+- Note Branch: carrot-ryu-note (base commit: ...)
+- carrot-ms 마지막 검토/동기화 커밋(메시지 기준): ... (WIP_SYNC.md 참고)
+- 작업:
+- 완료:
+- 미완료:
+- 검증:
+- 주의사항:
+- 다음 작업:
+
+이 파일은 "항상 최신 1개 버전만 유지"하는 성격이라, 반영 시 전체 내용을 새로 구성해 통째로 교체한다(9절의 "교체형" 파일).
+
+
+## 9. 작업 결과물 전달 규칙 (매번 필수) [12차 세션 개정 — PowerShell 절대경로 규칙 추가]
+
+- **기본 방식: PowerShell(PC) / Termux(폰) 스크립트.** Claude는 다음 구조의 스크립트를 만들어 전달한다.
+  1. `$RepoUrl`, `$Branch`, `$CommitMsg` 등 변수 설정
+  2. 시스템 임시 폴더 하위에 무작위 이름으로 폴더를 만들고 해당 브랜치를 `git clone --branch <branch> --single-branch`
+  3. 파일 반영 — 아래 유형을 구분해서 처리:
+     - **이어붙이기형(누적 파일)**: `WIP.md`, `WIP_SYNC.md`, `FINDINGS.md`, `PARAMS_REGISTRY.md` 등은 "새로 추가할 내용"만 스크립트에 담아 기존 파일 최상단(제목 줄 바로 아래)에 삽입한다. 파일 전체를 옮기지 않는다.
+     - **교체형(요약 파일)**: `CURRENT_STATUS.md`, `HANDOFF.md`, `PROJECT_INSTRUCTIONS_carrot-ryu.md`(19절 승인 시) 등 "항상 최신 1개만 유지"하는 파일은 전체 내용을 스크립트에 담아 통째로 덮어쓴다.
+     - **코드 파일 — 소규모 변경(값 하나, 한두 줄)**: 문자열 찾아바꾸기(PowerShell `-replace`, 지정 라인 치환)로 처리한다.
+     - **코드 파일 — 신규 파일 또는 파일 대부분을 재작성하는 경우**: 전체 내용을 스크립트에 담는다(교체형과 동일).
+     - **코드 파일 — [9차 세션 추가] 파일은 크지만 변경 범위가 파일 크기 대비 작은 경우(여러 군데 부분 수정, 함수 단위 수정 등)**: unified diff(patch)를 생성해 스크립트 안에 here-string으로 담고, clone 직후 `git apply`로 적용한다. 파일 전체를 옮기는 것보다 토큰/전달량을 크게 줄일 수 있어 이 경우 기본으로 우선 사용한다.
+       - `git apply` 실패 시(컨텍스트 불일치 등) 스크립트를 그 자리에서 중단하고 에러 메시지를 사용자에게 그대로 보여주며, 임의로 강제 적용하지 않는다(15절 원칙과 동일).
+       - diff는 원본과 정확히 일치해야 적용되므로, Claude는 diff를 만들기 직전에 해당 파일의 GitHub 최신 내용을 다시 조회해 그 위에서 diff를 생성한다(6절과 연계, 특히 이 방식에서 더 중요).
+  4. `git add`  `git commit -m $CommitMsg`  `git push origin $Branch`
+  5. 임시 폴더를 스스로 삭제(`Remove-Item -Recurse -Force` 등)
+- **[12차 세션 추가, PowerShell 필수 규칙]** 스크립트 내에서 파일을 읽거나 쓸 때(`Get-Content`, `Set-Content`, `[System.IO.File]::WriteAllText`/`ReadAllText` 등)는 항상 `Join-Path $Tmp "상대경로"` 형태의 **절대경로**를 사용한다. `Set-Location`으로 작업 디렉터리를 옮겨도 .NET의 일부 API(`[System.IO.File]` 계열 등)는 PowerShell 셸의 현재 위치를 따라가지 않고 프로세스 시작 시점 디렉터리(예: `C:\Windows\system32`) 기준으로 상대경로를 해석해 `DirectoryNotFoundException`이 날 수 있다(11차 세션에서 실제 발생확인). `git` 명령어 자체는 셸의 실제 작업 디렉터리를 따르므로 이 문제가 없지만, 파일 쓰기 함수는 항상 절대경로로 통일한다.
+- 코드 파일은 carrot-ryu 브랜치, devnotes 파일은 carrot-ryu-note 브랜치에 반영되어야 하므로, 한 스크립트 안에서 두 브랜치를 섞지 않는다. 한 번에 두 브랜치 모두 반영이 필요하면, 브랜치별로 스크립트를 나눠서 제공한다.
+- **인증**: push 시점의 GitHub 인증은 사용자 장치에 이미 설정된 git 인증 수단(Git Credential Manager, 이전 로그인 캐시, gh CLI 로그인 등)으로 처리된다. Claude는 어떤 형태의 GitHub 인증정보(비밀번호, PAT, SSH 키 등)도 요청하거나 전달받지 않는다(15절 참고).
+- **보조 방식: GitHub 웹 UI 수동 반영.** 아래와 같은 예외적인 경우에는 완성된 파일 전체 내용을 만들어 전달  사용자가 GitHub 웹에서 "Add file"/파일 편집 화면의 연필 아이콘으로 직접 반영하는 기존 방식을 계속 사용할 수 있다.
+  - 파일 내용이 매우 커서 스크립트 안에 담기 부담스럽고, diff로도 처리하기 어려운 경우(예: 구조 자체가 크게 바뀌는 경우)
+  - 이미지 등 텍스트가 아닌 바이너리 파일을 다뤄야 하는 경우
+  - 사용자가 특정 세션에서 스크립트 실행이 어려운 환경에 있는 경우(예: PC/폰 모두 사용이 어려운 상황)
+  - 이 경우에도 브랜치 선택은 매번 명시적으로 안내한다: "먼저 `carrot-ryu`(또는 `carrot-ryu-note`) 브랜치로 전환하세요."
+- 매번 다음 내용을 함께 전달한다:
+  1. 실행할 스크립트 전체 (복사해서 터미널에 붙여넣을 수 있는 형태)
+  2. 어떤 브랜치에 반영되는지, 어떤 파일이 새로 생성/수정되는지, (diff 방식이면) diff가 어떤 파일에 적용되는지
+  3. (보조 방식을 쓸 경우) 정확한 파일 경로와 GitHub 웹 UI 반영 절차, 권장 커밋 메시지
+- 한글/비ASCII 문자는 스크립트 안 문자열에 그대로 넣어도 되며, PowerShell에서는 `Set-Content -Encoding UTF8` 또는 위 `Write-Utf8NoBom` 방식(BOM 없는 UTF-8, `git diff`/`grep` 등과의 호환을 위해 권장)을 사용해 인코딩 깨짐을 방지한다.
+- 코드 파일을 수정할 때는(replace든 diff든 전체교체든), 해당 파일의 **현재 GitHub 최신 내용**을 Claude가 먼저 조회한 뒤 그 위에 수정사항을 반영한 스크립트를 만든다(오래된 버전 위에 수정하지 않도록, 6절 참고).
+- 스크립트 실행 결과(특히 `git apply`/`git commit`/`git push` 출력)를 사용자가 그대로 전달해주면, Claude가 그 로그를 보고 정상 반영 여부를 확인한다. 다만 **[12차]** 로그가 중간에 끊기거나 스크립트가 끝까지 실행됐는지 불확실하면, Claude는 그 로그만으로 "완료"로 단정하지 않고 GitHub API/clone으로 직접 재확인한다(5절, 16절 참고).
+
+
+## 10. 코드 수정 원칙
+
+- 최소 변경 원칙: 필요한 파일/코드만 수정한다.
+- 관련 없는 리팩터링, 관련 없는 파라미터 변경을 하지 않는다.
+- carrot-ms 대비 무엇이 왜 달라졌는지 항상 설명 가능하게 유지한다(향후 carrot-ms 업데이트 반영 시 충돌 최소화).
+- 코드는 항상 carrot-ryu 브랜치 기준으로만 작업하며, carrot-ryu-note 브랜치에는 코드 파일을 두지 않는다.
+
+
+## 11. 분석 원칙
+
+- 추측만으로 원인을 확정하지 않는다. 가능하면 다음 순서로 추적한다.
+  - 증상  재현조건  입력  상태  호출흐름  계산  조건/분기  출력  원인  수정안  검증
+- git 커밋 분석 시에도 필요한 범위부터 단계적으로 확장한다(GitHub API/웹으로 조회).
+  - 커밋 목록  커밋 diff  변경 파일  변경 함수  호출자  호출되는 함수
+  - (openpilot 전체를 불필요하게 다 분석하지 않는다.)
+
+
+## 12. 실차 검증 표기 원칙
+
+- 정적 분석/시뮬레이션만 했다면 "실차 검증"했다고 표현하지 않는다.
+- 실제로 하지 않은 검증을 했다고 보고하지 않는다.
+- 예: 실차 검증: 미실시 형태로 명확히 표기.
+- carrot-ryu는 콤마 디바이스에 설치되어 제네시스 DH 2015년식 차량에서 실주행하는 것이 최종 검증 경로임을 항상 염두에 둔다. 그 전까지의 모든 코드 변경은 정적 분석/추론 단계임을 명확히 한다.
+
+
+## 13. 대용량 파일/로그
+
+- 대용량 CSV, route 로그 등은 Git에 커밋하지 않는다(history에 blob이 남아 저장소가 계속 커짐). carrot-ryu에도, carrot-ryu-note에도 커밋하지 않는다. (스크립트 방식이든 GitHub 웹 UI "Upload files"든 파일당 용량 제한이 있으므로 큰 로그는 애초에 시도하지 않는다.)
+- 재사용 가치가 있으면 사용자의 Google Drive 등 외부 저장소에 보관하고, devnotes(carrot-ryu-note)에는 drive 파일 ID 등 참조 정보만 남긴다.
+- 별도 저장 수단이 없으면 임시로만 다루고, 세션 종료 시 사라질 수 있음을 사용자에게 알린다.
+
+
+## 14. Toolkit
+
+- 로그 분석/검증 스크립트를 새로 만들기 전에 carrot-ryu-note 브랜치의 `devnotes/toolkit/README.md`를 먼저 확인한다.
+- 동일 목적의 도구가 있으면 재사용한다.
+- 새로 만든 도구는 carrot-ryu-note 브랜치의 `devnotes/toolkit/` 에 저장하고 README.md, CHANGELOG.md를 함께 갱신한다(9절 방식대로 스크립트로 커밋).
+
+
+## 15. GitHub 커밋/인증 관련
+
+
+- GitHub에 실제로 반영(커밋/push)하는 것은 항상 사용자가 직접 수행한다 — 웹 UI에서 클릭하거나, Claude가 만든 스크립트를 사용자 장치에서 직접 실행하는 형태 모두 포함.
+- **Claude는 Personal Access Token, 비밀번호, SSH 키 등 어떤 형태의 GitHub 인증정보도 절대 요구하지 않고, 전달받지도 않으며, 보관하지도 않는다.** [8차 세션] 이 원칙은 "Claude 샌드박스가 직접 GitHub에 push하는" 방식을 검토했다가 명시적으로 기각하면서 재확인되었다 — push 실행과 그에 필요한 인증은 항상 사용자 장치사용자 권한으로만 이루어진다.
+- 강제 덮어쓰기(과거 히스토리를 지우는 행위, `git push --force` 등)는 하지 않는다. 파일을 편집/교체/이어붙이는 것은 일반적인 새 커밋이므로 문제 없으나, 파일 삭제 후 재생성 같은 큰 구조 변경은 사전에 사용자에게 알린다. 스크립트 실행 중 push가 거부되면(non-fast-forward 등) 임의로 `--force`를 쓰지 않고 상황을 Claude에게 먼저 알린다(6절 참고).
+- 웹 UI로 반영할 때는 "Commit changes" 누르기 전에 화면에 표시되는 변경 diff(빨간/초록 줄)를 한 번 확인하도록 안내한다. 스크립트로 반영할 때는 `git apply`/`git commit`/`git push` 실행 결과(로그)를 사용자가 확인하고, 의심스러우면 Claude에게 그 로그를 그대로 전달해 확인받는다.
+
+
+## 16. GitHub 상태가 예상과 다를 경우
+
+다음과 같은 경우 임의로 진행하지 않고 먼저 GitHub 실제 상태를 확인한 뒤, 그래도 판단이 안 서면 사용자에게 보고한다.
+- WIP.md/HANDOFF.md 내용과 실제 코드 상태가 다름
+- Base commit이 존재하지 않음
+- 같은 파일에 예상치 못한 변경이 있음
+- 커밋(반영) 여부가 불명확함
+- carrot-ryu와 carrot-ryu-note 브랜치 사이에 내용이 서로 섞여 있음(예: carrot-ryu에 devnotes 파일이 존재, carrot-ryu-note에 코드 파일이 존재)
+- carrot-ms(happymaj11r/openpilot)에 새 커밋(모델 셀렉터 관련)이 있는데 WIP_SYNC.md에 반영/검토 기록이 없는 상태로 오래 방치되어 있음
+- ryujmin97/openpilot에 carrot-ms/carrot-wip 브랜치가 다시 나타나는 등, 문서화된 브랜치 구성(carrot-ryu, carrot-ryu-note 두 개만 존재)과 다른 상태가 발견됨
+- devnotes(HANDOFF/WIP/CURRENT_STATUS 등)에 기록된 마지막 회차와, 실제 GitHub 상의 최신 커밋/브랜치 구성 사이에 괴리가 있음(예: 문서에는 특정 작업이 "완료"로 서술되어 있으나 devnotes 자체에는 해당 회차 기록이 없는 경우) — 이 경우 실제로 그 세션이 있었는지, 기록만 누락된 것인지 사용자에게 확인한다
+- **[8차 세션 추가]** 사용자가 반영 스크립트를 실행했다고 알렸는데 실행 로그에 에러(clone 실패, push 실패, 파일 못 찾음, `git apply` 실패 등)가 있었던 경우, 또는 실행 로그를 아직 확인하지 못한 경우 — 해당 반영이 GitHub에 실제로 완료됐다고 가정하지 않고, GitHub API로 직접 재확인한다
+- **[12차 세션 추가]** 사용자가 붙여넣은 실행 로그가 스크립트 끝(`git commit`/`git push`/완료 메시지)까지 도달하지 못하고 중간에서 끊긴 경우 — 터미널 출력이 길어서 화면에 안 보이는 것인지, 스크립트가 실제로 멈춘 것인지 구분이 안 되므로, 반드시 GitHub API/clone으로 실제 최신 commit파일 내용을 직접 확인한 뒤에만 반영 여부를 판단한다(11차 세션에서 실제로 스크립트가 `HANDOFF.md` 교체 직전에 멈췄던 사례 있음).
+
+
+## 17. 세션(무료 사용량) 관리 원칙
+
+- 매 세션은 무료 사용량 한도 안에서 끝나는 것을 전제로 설계한다.
+- 큰 작업은 한 세션에 몰아서 끝내려 하지 말고, 의미 있는 단위(예: 파라미터 하나, 함수 하나, 이슈 하나, carrot-ms 후보 커밋 몇 개)로 쪼갠다.
+- 세션이 끝나가는 시점에는 완성 여부와 관계없이 반드시 carrot-ryu-note 브랜치의 devnotes(WIP.md/HANDOFF.md)에 현재 상태를 기록하고 마무리한다.
+- 다음 세션은 새 대화로 시작하며, 이 문서(carrot-ryu-note 브랜치의 `PROJECT_INSTRUCTIONS_carrot-ryu.md`, 4절 0번 참고)와 `devnotes/HANDOFF.md`부터 확인하고 이어간다.
+
+
+## 18. 절대 하지 말아야 할 것
+
+- carrot-wip(ajouatom/openpilot) 브랜치를 직접 수정
+- carrot-ms(happymaj11r/openpilot) 브랜치를 직접 수정
+- 히스토리를 지우는 강제 덮어쓰기(`--force` push 등)
+- WIP 기존 회차 삭제/임의 수정
+- FINDINGS 기존 기록 삭제
+- **Claude에게 GitHub 인증 토큰(PAT)비밀번호SSH 키 등 인증정보를 주거나, Claude가 이를 요구하는 것** [8차 세션 명문화]
+- 검증하지 않은 것을 검증했다고 보고
+- 기존 toolkit 확인 없이 동일 도구 새로 작성
+- 대용량 CSV/로그를 Git에 커밋
+- 사용자가 스크립트를 실행(push)하지 않은 작업을 이미 GitHub에 반영된 것으로 가정
+- 결과물(스크립트 또는 파일)만 전달하고 실행/반영 절차(브랜치, 실행 방법, 커밋 방법)를 생략
+- carrot-ryu 브랜치에 devnotes 파일을 섞어서 커밋
+- carrot-ryu-note 브랜치에 코드 파일을 섞어서 커밋
+- devnotes를 위한 별도의 새 GitHub 저장소를 임의로 생성
+- carrot-ms의 새 커밋을 사용자 승인 없이 임의로 carrot-ryu에 반영
+- ryujmin97/openpilot에 carrot-ms/carrot-wip을 다시 미러링하는 것 (7차 세션에서 삭제 완료, 필요 시 외부 저장소를 직접 조회)
+- **[8차 세션 추가]** 반영 스크립트 실행 후 임시 폴더를 삭제하지 않고 남겨두는 것(스크립트 자체에 항상 정리 단계를 포함시킨다)
+- **[9차 세션 추가]** diff/patch가 `git apply`에 실패했는데 강제로 적용하거나(`--3way`/`--reject` 등으로 임의 우회 포함) 무시하고 다음 단계(commit/push)를 진행하는 것 — 실패 시 반드시 중단하고 사용자Claude에게 보고한다.
+- **[12차 세션 추가]** PowerShell 스크립트에서 파일 쓰기 시 상대경로를 사용하는 것 — 항상 `Join-Path $Tmp ...` 절대경로 사용(9절 참고). 실행 로그가 스크립트 끝까지 도달했는지 불확실한 상태에서 "반영 완료"로 단정하는 것.
+
+
+## 19. 이 지침 자체의 변경
+
+- 이 문서(`PROJECT_INSTRUCTIONS_carrot-ryu.md`)를 고칠 필요가 있으면 Claude가 독단적으로 바꾸지 않는다.
+- 변경 이유  기존 규칙  변경안 제시  사용자 승인  변경  GitHub 저장 순서로 진행한다.
+- **[12차 세션부터]** 이 문서는 `carrot-ryu-note` 브랜치의 `PROJECT_INSTRUCTIONS_carrot-ryu.md`에 보관되며(9절 "교체형" 파일과 동일하게 전체 교체 방식), 매 세션 0번 단계(4절)에서 Claude가 최우선으로 조회한다. 사용자가 채팅에 이 문서를 매번 붙여넣을 필요는 없으나, 붙여넣은 내용이 GitHub 버전과 다르면 GitHub 버전을 기준으로 삼는다(3절).
+
+
+## 최종 목표 요약
+
+carrot-wip(ajouatom/openpilot, 최종 원본)  carrot-ms(happymaj11r/openpilot, carrot-wip+모델셀렉터, 매번 재생성)  분석  carrot-ryu(내 코드) 생성/발전
+ 매 세션 carrot-ryu-note(orphan 브랜치) 브랜치에 devnotes 기록  사용자가 Claude가 만든 스크립트를 PowerShell/Termux에서 직접 실행해 반영(임시 clone  적용(전체교체/부분치환/diff apply)  commit/push  자동 삭제)  다음 세션이 이어받음
+ 무료 사용량 안에서, 끊김 없이, 조금씩 확실하게 제네시스 DH 2015년식에 맞는 openpilot을 완성해 나간다.
+
+
+## 변경 이력
+
+- [6차 세션] 베이스 브랜치를 carrot-wip  carrot-ms로 변경. 사유: carrot-ms가 carrot-wip 기반 위에 콤마 주행모델 선택 기능을 자동으로 따라가도록 설계된 브랜치임을 확인. carrot-ryu에 아직 사용자 코드가 없어 데이터 손실 없이 재생성 완료(git push origin --delete carrot-ryu  happymaj11r/carrot-ms 기반으로 재생성). carrot-ms는 carrot-wip 업데이트 시 통째로 rebase되어 커밋 히스토리를 공유하지 않으므로, 2절 동기화 절차를 hash 기준에서 커밋 메시지 기준으로 변경. 기존 carrot-ryu-note의 FINDINGS.md/PARAMS_REGISTRY.md 등은 삭제하지 않고 유지(carrot-ms에도 대부분 그대로 유효한 분석이므로). ryujmin97/openpilot에 carrot-ms를 별도로 미러링(fork)하지는 않았으며, 로컬 클론에 happymaj11r remote를 추가해 carrot-ms를 직접 참고하는 방식으로 작업함.
+- [7차 세션] 로컬 클론 기반 작업 방식을 폐기하고, GitHub 웹 UI(Create new file / Upload files / 파일 편집) 기반 작업 방식으로 전환. 사유: 사용자가 로컬 레포 작업을 하지 않기로 결정. 이 과정에서 ryujmin97/openpilot에 실제로 미러링되어 있던 carrot-ms, carrot-wip 브랜치(각각 happymaj11r/openpilot, ajouatom/openpilot의 완전한 복사본으로 확인됨)를 문서 원칙(미러링하지 않음)에 맞춰 삭제함. 이에 맞춰 0, 1, 2, 4, 5, 6, 9, 15, 16, 18절 및 최종 목표 요약의 로컬 클론/git 명령어 기준 서술을 GitHub 웹 UI 기준으로 정리. patch(git diff/apply) 기반 부분 반영 방식을 폐기하고, Claude가 완성된 파일 전체를 만들어 전달하는 방식으로 변경. PowerShell 인코딩 관련 주의사항은 로컬 작업이 없어짐에 따라 해당 없음으로 처리(9절).
+- [8차 세션] 반영 수단을 "GitHub 웹 UI 수동 편집" 중심에서 "사용자 실행 스크립트(PowerShell/Termux)" 중심으로 전환. 사유: 매 회차마다 파일 전체를 웹 UI에서 손으로 교체하는 방식이 번거롭고, WIP.md처럼 계속 누적되는 파일은 매번 전체를 다시 붙여넣어야 해서 비효율적이었음. Claude가 GitHub API로 직접 push하는 방안(사용자가 PAT를 Claude에게 전달)도 검토했으나, "Claude는 인증정보를 절대 받지 않는다"는 원칙(15절, 18절)에 정면으로 배치되어 기각함. 최종적으로 (1) Claude는 스크립트만 작성하고, (2) 실행인증push는 항상 사용자 장치에서 사용자 권한으로 이루어지며, (3) 스크립트는 실행 시점에 임시 폴더를 만들어 clone반영push까지 마친 뒤 스스로 삭제해 "지속되는 로컬 클론"이 남지 않도록 하는 방식으로 확정함. 이와 함께, WIP.md/WIP_SYNC.md 등 누적형 파일은 스크립트가 "새로 추가되는 내용만" 담아 기존 파일 최상단에 자동으로 이어붙이고, CURRENT_STATUS.md/HANDOFF.md 등 요약형 파일은 기존처럼 전체 교체하는 방식으로 구분함(9절). 이 변경 과정에서 실제로 4개 devnotes 파일(WIP.md, WIP_SYNC.md, HANDOFF.md, CURRENT_STATUS.md)을 PowerShell 스크립트로 carrot-ryu-note 브랜치에 반영 완료함. 0, 1, 6, 9, 15, 16, 18절 및 최종 목표 요약을 이에 맞춰 정리.
+- [9차 세션] 9절에 "코드 파일 — 파일은 크지만 변경 범위가 작은 경우" 옵션으로 diff/patch(`git apply`) 방식을 추가. 사유: 파일 전체 교체 방식은 파일이 클수록 스크립트에 담기는 내용(및 응답 토큰)이 커지는 문제가 있어, 변경된 줄 위주로만 전달하는 diff 방식을 도입하면 이를 줄일 수 있음. 소규모 변경(-replace)과 신규/전면 재작성(전체 교체)은 기존 방식 유지, 그 중간 케이스에만 diff를 적용. diff 적용 실패 시 강제 적용 금지 원칙은 15절과 동일하게 적용됨을 명시. 6, 9, 15, 16, 18절 및 최종 목표 요약을 이에 맞춰 정리.
+- [11차 세션] (문서 변경 아님, 실행 이슈) 코드 반영 스크립트를 Termux(bash) 기준으로 전달했으나 사용자가 PowerShell 환경이라 착오 발생, PowerShell로 재작성. 이어서 devnotes 반영 스크립트에서 `Set-Location`으로 임시폴더 이동 후에도 `[System.IO.File]::WriteAllText`가 상대경로를 프로세스 시작 디렉터리(`system32`) 기준으로 해석해 실패하는 문제 발견  절대경로(`Join-Path $Tmp ...`)로 수정 후 정상 작동 확인. 사용자가 붙여넣은 실행 로그가 중간에 끊겨(`HANDOFF.md` 교체 직전) 실제 반영 여부가 불명확했던 사례 발생  GitHub API로 직접 재확인하는 절차의 필요성이 실증됨(12차에서 문서화).
+- [12차 세션] 이 문서(PROJECT_INSTRUCTIONS_carrot-ryu.md) 자체를 carrot-ryu-note 브랜치에 신규 저장하고, 4절에 "0번 단계"로 이 문서를 매 세션 최우선 조회하도록 추가. 사유: 여러 계정/기기에서 지침 문서를 매번 채팅에 붙여넣는 방식이 번거롭고 버전 불일치 위험이 있어, GitHub Source of Truth 원칙(3절)을 지침 문서 자체에도 적용. 또한 11차 세션에서 실제로 겪은 두 가지 이슈를 문서화: (1) 9절18절에 PowerShell 파일 쓰기 시 절대경로(`Join-Path $Tmp ...`) 사용 필수 규칙 추가, (2) 5절16절에 사용자가 붙여넣은 실행 로그가 스크립트 끝까지 도달했는지 불확실하면 GitHub API로 직접 재확인 후에만 "반영 완료"로 간주하는 절차 추가. 0절에 "사용자는 PC(PowerShell) 기본" 명시 추가. 0, 1, 3, 4, 5, 9, 16, 18, 19절 및 변경이력을 이에 맞춰 정리.
