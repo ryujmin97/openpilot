@@ -1,5 +1,41 @@
 # WIP
 
+## 11차 (완료 — 코드 수정) — 더블탭 캡쳐 스크린샷 + 온로드 시계 초단위 표시
+
+- 사용자 요청 1: 온로드 화면 좌상단 시계가 분 단위로만 갱신되어 초 단위 표시가 필요
+  - 코드 위치: selfdrive/ui/onroad/hud_renderer.py의 _refresh_date_time_text()
+  - 원인: 캐시 키가 tm_min까지만 사용해 같은 분 안에서는 갱신을 건너뜀
+  - 수정: 캐시 키에 tm_sec 추가, 포맷 "%H:%M"  "%H:%M:%S"로 변경 (18:36:02 형식, 매초 갱신)
+- 사용자 요청 2: 온로드 화면을 더블탭하면 스크린샷을 찍어 carrotweb 로그탭의
+  "화면녹화" 목록에서 바로 보이게 하고 싶음
+  - 더블탭 판정: selfdrive/ui/onroad/augmented_road_view.py의 _handle_mouse_press()에
+    0.4초60px 이내 재탭이면 더블탭으로 보는 판정 로직 추가(_check_double_tap_screenshot).
+    기존 단일 탭 클릭(사이드바 토글)과 HUD 인터랙션 중 무시 동작은 그대로 유지
+  - 캡쳐: 새 파일 selfdrive/ui/onroad/screenshot_capture.py 추가. pyray의
+    take_screenshot()으로 PNG 저장. 저장 위치는 SCREEN_RECORDING_DIRS[1]
+    (/data/media/0/screenrecord) — carrotweb이 이미 스캔 중인 폴더라 별도 반영 없이
+    자동 노출
+  - 백엔드(selfdrive/carrot/server/): config.py에 SCREEN_RECORDING_IMAGE_EXTS
+    (.png/.jpg/.jpeg) 추가하고 SCREEN_RECORDING_EXTS에 합산. catalog.py의
+    build_videos()가 kind="image"/"video" 구분값을 내려주도록 하고, 정지 이미지는
+    thumbnail_path()에서 ffmpeg -ss 탐색 없이 바로 리사이즈만 하도록 분기
+  - 프론트엔드(selfdrive/carrot/web/): screenrecord.js에서 kind==="image"인 행은
+    data-action을 "view-screenrecord-image"로 바꿔 비디오 플레이어 대신 새 탭에서
+    원본 이미지가 열리도록 하고, runtime.js에 해당 액션 핸들러 추가. npm run build로
+    js/generated/logs.js(및 asset-manifest.json 해시) 재빌드
+- 검증: Claude 샌드박스에서 GitHub 최신 코드(carrot-ryu, 10차 반영 직후 = e1e587b,
+  그 위의 내용 없는 빈 커밋 2c33603 "token test" 포함) 기준으로 미리 패치 적용 
+  py_compile 통과(수정 Python 파일 5개), node --check 통과(JS 파일 2개), npm run
+  build로 로그탭 번들 재빌드 정상 완료(esbuild 에러 없음)까지 확인. cereal/capnp
+  미빌드로 UI 자체 구동/pytest 실행은 이번에도 불가(9~10차와 동일한 한계)
+- 실차 검증: 미실시. 다음 실주행에서 시계가 초 단위로 매초 갱신되는지, 온로드
+  화면 더블탭 시 스크린샷이 찍혀 carrotweb 로그탭 > 화면녹화 목록에 이미지로 뜨고
+  탭하면 새 탭에서 원본 이미지가 열리는지 확인 필요
+- 관련 없는 리팩터링 없음. 파일 6개 수정(hud_renderer.py, augmented_road_view.py,
+  config.py, catalog.py, screenrecord.js, runtime.js) + 파일 1개 신규
+  (screenshot_capture.py) + 빌드 산출물 2개(js/generated/logs.js,
+  generated/asset-manifest.json)
+
 ## 10차 (완료 — 코드 수정) — RES/+ 인게이지 시 설정속도가 현재속도보다 낮아지는 문제 안전장치 추가
 
 - 사용자 제보: 출발 후 가속 중(예: 약 50km/h) 핸들 +RES 버튼으로 크루즈 인게이지 시,

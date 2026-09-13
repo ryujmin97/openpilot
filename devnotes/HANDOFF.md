@@ -1,51 +1,55 @@
 # HANDOFF
 
-Worker: Claude (세션 10)
+Worker: Claude (세션 11)
 Date: 2026-09-13
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base commit: 10차 RES/+ 인게이지 속도 안전장치 반영 스크립트 실행 직후 커밋)
-Note Branch: carrot-ryu-note (10차 devnotes 반영, 이 커밋)
+Code Branch: carrot-ryu (base commit: 10차 RES/+ 인게이지 안전장치 = e1e587b, 그 위에
+  내용 없는 빈 커밋 2c33603 "token test" 존재)
+Note Branch: carrot-ryu-note (11차 devnotes 반영, 이 커밋)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 세션과 동일, 신규 커밋 없음
-(WIP_SYNC.md 참고, 이번 세션에서는 재확인하지 않음)
+(WIP_SYNC.md 참고, 이번 세션에서도 재확인하지 않음)
 
 작업:
 완료:
-- 사용자 제보(출발 가속 중 +RES 인게이지 시 설정속도가 현재속도보다 낮게 잡혀
-  급감속 발생) 코드 확인. selfdrive/car/cruise.py의 accelCruise 인게이지 분기에서
-  _v_cruise_kph_at_brake(브레이크 재개용 저장 속도, _auto_speed_up의 도로제한속도
-  동기화 로직에서도 재사용/덮어쓰기됨) 또는 미초기화 v_cruise_kph가 현재속도보다
-  낮은 채로 인게이지 속도로 채택될 수 있는 경로 확인
-- 최소 변경으로 인게이지 분기 끝에 안전장치(floor) 추가: 인게이지 속도가
-  "현재속도 + 2km/h(ENGAGE_SPEED_MARGIN_KPH)"보다 낮으면 올림. 정상적인
-  "브레이크 후 더 높은 속도로 재개" 케이스는 영향 없음
-- Claude 샌드박스에서 GitHub 최신 코드(carrot-ryu 2dbe492) 기준으로 미리 패치
-  적용, 문법검증(py_compile) 통과, 기존 테스트 4건 + 사용자 시나리오 1건을
-  standalone 합성 스크립트로 재현하여 결과 확인 (cereal/capnp 미빌드로 pytest
-  자체 실행은 불가, 9차와 동일한 한계)
-- 9절 방식(Termux 스크립트, head/tail 기반 라인 삽입)으로 반영 스크립트 작성해 전달
-- WIP.md에 10차 항목 기록 (이 파일)
+- 온로드 시계 초 단위 표시 (hud_renderer.py)
+- 더블탭 캡쳐 스크린샷 + carrotweb 로그탭 연동 (augmented_road_view.py 신규
+  더블탭 판정, screenshot_capture.py 신규 파일, config.py/catalog.py 백엔드 확장,
+  screenrecord.js/runtime.js 프론트엔드 확장 + 로그탭 번들 재빌드)
+- Claude 샌드박스에서 GitHub 최신 코드 기준 미리 패치 적용, py_compile/node --check/
+  npm run build 통과 확인
+- 9절 방식(PowerShell 스크립트, git apply + 신규 파일 생성 + npm run build)로 반영
+  스크립트 작성해 전달 (11차 세션 중간에 Termux/PowerShell 착오 + .NET 현재디렉터리
+  이슈로 두 차례 재작성)
+- WIP.md에 11차 항목 기록 (이 파일과 함께)
 
 미완료 / 다음 세션 우선순위:
-1. **실주행 재검증 필요** — 이번 수정과 8~9차의 route 감속 근본수정(2dbe492) 모두
-   실제 콤마 디바이스 주행으로 확인 안 됨. 다음 실주행에서 "출발 가속 중 RES 인게이지"
-   상황을 재현해 급감속이 사라졌는지 확인 필요
-2. `AutoRoadSpeedLimitOffset`(기본값 -1) / `SpeedFromPCM` 이 차량의 실제 설정값이
-   PARAMS_REGISTRY.md에 없어 미확인 — 이번 버그의 정확한 발생 조건을 완전히
-   특정하지 못했음
+1. **실주행 재검증 필요** — 이번 11차(시계 초단위, 더블탭 캡쳐) + 8~10차(route
+   감속 근본수정, RES 인게이지 안전장치) 모두 실제 콤마 디바이스 주행으로 확인 안 됨
+2. `AutoRoadSpeedLimitOffset`(기본값 -1) / `SpeedFromPCM` 실제 설정값 미확인
+   (10차부터 이어지는 항목)
 3. carrot-ms가 추가한 "모델 셀렉터" 코드는 아직 분석하지 않음
 4. TurnSpeedControlMode=2 / EnableSpeedTF=0 / DisableDM=2 등 사용자 의도 확인
    (오래된 보류 항목, 일부는 안전 관련)
+5. (신규, 낮은 우선순위) rl.take_screenshot()이 절대경로를 그대로 지원하는지는
+   기존 사용례(상대경로 사용)만으로 추정했고 실기기에서 직접 확인되지 않음 —
+   실주행 검증 시 스크린샷 파일이 실제로 지정 폴더에 생성되는지 함께 확인
+6. (신규, 참고) PowerShell에서 Set-Location으로 이동해도 [System.IO.File] 계열
+   .NET API는 프로세스의 실제 CurrentDirectory를 따르지 않아 상대경로가 예상과
+   다른 곳으로 풀릴 수 있음 확인 — 앞으로 반영 스크립트는 항상 $Tmp 기준
+   절대경로(Join-Path)로 파일을 써야 함 (9절에 반영 검토)
 
-검증: 정적 분석 + 문법 검증 + 기존 테스트 로직을 재현한 합성 스크립트로만 검증.
-실차 검증 미실시.
+검증: 정적 분석 + 문법 검증(py_compile/node --check) + 프론트엔드 빌드(npm run
+build) 성공까지만 확인. 실차 검증 미실시.
 
 주의사항:
-- 사용자가 폰(Termux)에서 작업 중. 이번 세션부터 코드 반영 스크립트는 sed 대신
-  head/tail 기반 라인 삽입 방식 사용(Termux의 sed/awk 구현이 GNU sed와 다를 수
-  있어 더 안전한 방식으로 변경)
-- git diff는 반드시 --no-pager 또는 GIT_PAGER=cat과 함께 사용 (9차에서 확인된 이슈)
+- git diff는 반드시 --no-pager 또는 GIT_PAGER=cat과 함께 사용 (9차에서 확인된
+  이슈, 계속 유효)
+- carrot-ryu HEAD에 "token test"라는 빈 커밋(변경 내용 없음, 아마 사용자의 git
+  인증 테스트용)이 10차 커밋 위에 하나 더 있음을 확인 — 코드/devnotes에는 영향 없음
+- 사용자는 PC(PowerShell) 환경에서 작업 중임을 이번 세션에 재확인
+- PowerShell 스크립트에서 파일 쓰기는 상대경로 대신 항상 $Tmp 기준 절대경로 사용
 
 다음 작업 후보:
-1. 실주행 재검증 (이번 건 + 8~9차 route 감속 수정 모두)
+1. 실주행 재검증 (11차 신규 2건 + 8~10차 기존 2건 모두)
 2. AutoRoadSpeedLimitOffset/SpeedFromPCM 실제 설정값 확인
 3. (선택) carrot-ms의 model_selector 코드 분석
