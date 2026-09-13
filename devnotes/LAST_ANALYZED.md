@@ -1,5 +1,12 @@
 # LAST ANALYZED
 
+분석 범위 (8차 — 실주행 로그 분석, route 감속 오검출 확인):
+  route 000003fb--8470375f65--21 (rlog.zst, qlog.zst, qcamera.ts) — carrotMan/carState/
+    carControl/longitudinalPlan 메시지 파싱 및 시계열 대조 (5차 정적분석 대상이었던
+    carrot_navi_route/update_navi 체인의 실주행 검증)
+  openpilot/selfdrive/carrot/carrot_man.py (carrot_navi_route, calculate_curvature) — 재확인
+  openpilot/selfdrive/carrot/carrot_serv.py (update_navi, speed_n_sources) — 재확인
+
 carrot-wip commit: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (2026-09-12)
 분석 범위 (5차 계속 — traffic_stop / curve_speed / MPC 코스트 함수, 종방향 1단계 마무리):
   openpilot/selfdrive/carrot/traffic_stop.py (TrafficStopModelLeadMatcher, get_traffic_stop_*)

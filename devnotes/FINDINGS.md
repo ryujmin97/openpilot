@@ -1,5 +1,62 @@
 # FINDINGS
 
+## [2026-09-13] route(경로) 커브 감속 오검출 — 실주행 로그로 최초 확인 (고속도로 분기점 조기 과감속 후 원복)
+
+### 배경
+- 사용자가 실제 콤마 디바이스로 주행 중 채증한 로그(qcamera.ts/qlog.zst/rlog.zst, route
+  000003fb--8470375f65--21) 업로드.
+- 증상: 고속도로 거의 직선 구간에서 좌로 약간 굽은 분기점 접근 시, 미리감속이 과하게
+  걸렸다가 다시 원복되는 느낌.
+
+### 확인된 사실 (rlog 파싱 결과, pycapnp + carrot-wip 스키마로 직접 복호화)
+- t=47.3s경 carrotMan.desiredSource가 "route"로 전환되며 desiredSpeed가 67km/h로 급락.
+  이 시점 xDistToTurn(분기점까지 거리)은 아직 499m로, 실제 커브와는 거리가 먼 시점.
+- 시스템이 실제로 aTarget 최대 -2.0m/s²까지 감속 명령을 걸어 vEgo가 약 12초간
+  96km/h→69km/h로 실제 감소함 (carControl.actuators.accel까지 물리적으로 전달됨,
+  표시용 아님).
+- 운전자가 t=52.1~59.6s(약 7.5초) 동안 gasPressed=True로 가속페달 개입, 69~72km/h
+  유지하며 시스템 감속에 저항.
+- t=54.8~57.9s 사이 route/vturn 소스 자체가 재계산되어 desiredSpeed가 115~121km/h로
+  회복됨 → 최초 67km/h 목표는 실제보다 훨씬 급한 커브로 오검출된 일시적 값이었음이
+  로그상 확인됨.
+
+### 원인 (기존 5차/5차계속 정적 분석과 연결)
+- carrot_man.py의 carrot_navi_route()가 내비 폴리라인 3점(40m 간격) 곡률로
+  route_speed를 산출하는데, curve_speed.py(비전 버전)에 있는 median 스파이크 제거
+  필터가 없음(5차 계속 분석에서 이미 지적된 구조적 리스크).
+- 고속도로 분기점 부근은 폴리라인 정점 밀도/기하가 국소적으로 흐트러지기 쉬운
+  지점이라 이 3점 곡률 계산이 순간적으로 실제보다 훨씬 급한 커브로 오검출 →
+  route_speed가 스파이크성으로 급락 → 차가 그 구간을 지나며 리샘플링 윈도우 이동 →
+  오검출 해소 → desiredSpeed가 다시 정상 수준으로 복귀. 이게 "미리 과감속 후 원복"
+  체감의 정체.
+- ⚠ 이번 로그는 실제 route(경로) 폴리라인 좌표 자체를 갖고 있지 않아(carrotMan/
+  carState 메시지만으로 재구성), 폴리라인 기하가 실제로 어떻게 틀어져 있었는지
+  위성지도 등으로 직접 대조 확인하지는 못함. 메커니즘은 신호 패턴(거리/소스/속도
+  궤적)으로 강하게 뒷받침되나 100% 확진은 아님.
+
+### 결론
+- 5차 계속 분석에서 "설계상 위험 요소로 존재한다"고 정적으로만 지적했던 route 감속
+  오검출 리스크가, 이번 실주행 로그로 실제 발생을 최초로 확인함.
+- 버그라기보다는 필터 부재로 인한 설계상 취약점의 실제 발현 사례.
+
+### 대응 옵션 (미결정, 사용자 선택 필요)
+1. 임시완화: TurnSpeedControlMode 2→1(비전만)로 낮춰 route 소스 비활성화
+2. 근본수정: carrot_navi_route()에 median/스파이크 제거 필터 추가, 또는 프레임 간
+   route_speed 하락률에 clamp 적용
+3. 곡률 계산 샘플 간격(현재 40m) 확대로 노이즈 민감도 완화
+
+### 실차 검증
+- 실주행 로그(rlog) 1건으로 현상 자체는 확인됨. 다만 원인 메커니즘 중 "폴리라인 기하
+  왜곡" 부분은 위성지도 등 외부 자료 대조까지는 하지 못했으므로 100% 확진은 아님.
+  코드 수정/최종 조치는 아직 미실시.
+
+### 분석 근거 파일 / 데이터
+- 업로드 route: 000003fb--8470375f65--21 (qcamera.ts, qlog.zst, rlog.zst)
+- 파싱 도구: pycapnp + carrot-wip(ajouatom/openpilot) cereal/log.capnp, custom.capnp 스키마
+- openpilot/selfdrive/carrot/carrot_man.py (carrot_navi_route, calculate_curvature)
+- openpilot/selfdrive/carrot/carrot_serv.py (update_navi, speed_n_sources)
+- carrot-ryu HEAD: 02015190f58a4380a433ee0130e6374455dddc2e (변경 없음, 분석만 수행)
+
 ## [2026-09-12] minSteerSpeed 60km/h 제한 — SMDPS 장착 차량용 해제 토글 확인
 
 ### 배경

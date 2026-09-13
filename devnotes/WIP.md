@@ -1,5 +1,23 @@
 # WIP
 
+## 8차 (완료 — 실주행 로그 분석) — route 감속 오검출 최초 실증
+
+- 사용자가 실제 콤마 디바이스 주행 로그(route 000003fb--8470375f65--21, rlog/qlog/
+  qcamera)를 업로드. 증상: 고속도로 좌커브 분기점 접근 시 route기반 감속이 미리
+  과하게 걸렸다가 다시 원복되는 느낌
+- pycapnp + carrot-wip cereal 스키마로 rlog.zst를 직접 복호화하여 carrotMan/carState/
+  carControl/longitudinalPlan 타임라인 재구성, 문제 구간(t=47~59s) 정밀 분석
+- 확인: t=47.3s경 desiredSource="route"로 desiredSpeed가 67km/h로 급락(당시 분기점
+  까지 아직 499m). 실제 감속 명령까지 이어져 vEgo 96→69km/h 하락. 운전자가 7.5초간
+  가스 개입. 이후 t=54.8~57.9s에 route 소스가 115~121km/h로 자체 재계산되며 복귀
+- 원인: carrot_navi_route()의 3점(40m) 곡률 계산에 스파이크 제거 필터가 없어, 분기점
+  폴리라인 기하 국소 왜곡을 실제보다 급한 커브로 오검출한 것으로 추정(5차계속 정적
+  분석에서 이미 지적된 리스크의 실제 발현). 다만 폴리라인 기하 자체는 직접 대조 못함
+- FINDINGS.md에 상세 기록. 코드 수정은 아직 하지 않음(대응 옵션 3가지 제시, 사용자
+  판단 대기)
+- 실차 검증: 현상 자체는 실주행 로그로 확인. 원인 메커니즘 일부(폴리라인 기하)는
+  미확진
+
 ## 7차 (완료 — 웹 UI 전환 마무리 + carrot-ms 동기화 점검) — 브랜치 정리 및 신규 커밋 없음 확인
 
 - ryujmin97/openpilot에 실제로 남아있던 carrot-ms, carrot-wip 브랜치(각각
