@@ -1,17 +1,17 @@
 # CURRENT STATUS
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
-- ⚠ 베이스 브랜치 변경됨: carrot-wip → carrot-ms (happymaj11r/openpilot, 콤마 주행모델
-  선택 기능 포함, carrot-wip 기반으로 매번 재생성/rebase됨). 프로젝트 지침 문서의
-  "베이스 브랜치" 항목을 이 사실에 맞춰 갱신해야 함 (6차 WIP 참고, 수정 문구 HANDOFF 참고)
+- 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 더 이상
+  carrot-ms/carrot-wip을 미러링하지 않음 (7차 세션에서 삭제 완료, 필요 시 외부 저장소
+  직접 조회)
 - carrot-ryu 최신 commit: 02015190f58a4380a433ee0130e6374455dddc2e
-  ("Recover evil-merge resolutions from carrot-wip PR #516 and PR #517", carrot-ms HEAD와 동일)
-- carrot-wip 직접 동기화는 더 이상 하지 않음 — carrot-ms를 통해 간접 반영됨
-- carrot-ms 동기화 방식: histor가 매번 재작성(rebase)되어 fast-forward 불가. carrot-ms가
-  업데이트될 때마다 carrot-ms/carrot-wip 커밋 메시지를 비교해 "모델 셀렉터 관련 커밋"만
-  선별 반영 필요 (2절 동기화 원칙의 carrot-ms용 확장 적용 필요, 아직 미정)
-- 상태: 코드 변경 없음(베이스 전환만 수행). 종방향(가감속) 코드 분석 1단계는 완료된 상태이며
-  carrot-wip 기반 분석이라 carrot-ms에도 대부분 그대로 유효한 것으로 판단
+  (carrot-ms HEAD와 완전히 동일, 2026-09-13 확인)
+- carrot-ms 동기화 상태: 6차 세션 이후 carrot-ms에 신규 커밋(rebase) 없음 확인
+  (2026-09-13 점검). 반영 대상 없음
+- 참고: carrot-wip(ajouatom/openpilot) HEAD는 bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1로
+  계속 진행 중이나, carrot-ms가 아직 이를 따라 rebase하지 않아 직접 비교 대상 아님
+  (2절 원칙)
+- 상태: 코드 변경 없음. 종방향(가감속) 코드 분석 1단계는 완료된 상태
 - 핵심 발견 1: 현대·기아·제네시스는 종방향 PID 게인(Kp/Ki/Kf)이 코드에 고정되어
   LongTuningKpV/KiV/Kf 설정값이 실제로는 무시됨. 조절 가능한 종방향 노브는
   LongActuatorDelay / VEgoStopping / StoppingAccel 뿐
@@ -26,6 +26,6 @@
 - ⚠ 미확인: carrot-ms가 추가한 "모델 셀렉터" 관련 코드(carrot/model_selector 등)는
   아직 전혀 분석하지 않음 — 다음 분석 후보
 - 다음 작업: ①모델 셀렉터 코드 분석(신규), ②실차주행(콤마 디바이스 실장착) → route 로그
-  수집 → 로그분석, ③사용자 프로젝트 지침 문서에 베이스 브랜치 변경 반영
+  수집 → 로그분석, ③TurnSpeedControlMode/DisableDM 등 사용자 의도 확인
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0이
   사용자 의도인지, DisableDM=2 의도 여부, LateralTorqueCustom=0 이유
