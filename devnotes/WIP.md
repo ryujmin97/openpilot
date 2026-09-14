@@ -1,5 +1,62 @@
 # WIP
 
+## 16차 (완료 -- 코드 반영 + hotfix) -- upload_jobs.py zip+Drive 재작성 + app.py 연결 + 반영 스크립트 버그 3종 발견/수정
+
+- 배경: 15차에서 만든 gdrive_upload.py가 아직 아무 데서도 호출되지 않는
+  상태였음(15차 HANDOFF 우선순위 1a/1c). 이번 세션에서 실제로 연결.
+- 1) gdrive_upload.py: upload_file_resumable()에 progress_cb(sent, total)
+  콜백 파라미터 추가. 호출자가 자체 진행률/취소 체계를 가질 때 바이트 단위
+  진행률을 전달받기 위함. 콜백에서 예외를 던지면 그대로 전파되어 업로드 중단.
+- 2) server/features/dashcam/upload_jobs.py: run_upload_segments() 전면
+  재작성. 세그먼트별 개별 스트리밍 업로드(Carrot/Toss 대상) -> 세그먼트
+  파일들을 zip(무압축 ZIP_STORED)으로 묶어 gdrive_upload.upload_file_resumable()
+  로 단일 업로드하는 방식으로 전환. job/progress/취소/Discord 알림 골격은
+  유지, 내부 구현만 교체(10절 최소 변경 원칙).
+  - 설계 변경: 성공/실패 판정이 "세그먼트별" -> "zip 전체 단위"로 바뀜.
+    Discord 알림을 target 무관 항상 시도하도록 변경(기존엔 carrot일 때만).
+- 3) server/app.py: gdrive_upload.register(app) 앱 진입점 연결
+  (15차 HANDOFF 우선순위 1c 완료).
+- 4) server/services/dashcam_upload_report.py: gdrive 대상일 때
+  "Open & Analyze" 구간 링크 생성 스킵 (이번 세션에 새로 발견).
+- **반영 과정에서 스크립트 버그 3종을 실전에서 발견/수정함** (전부 Claude
+  샌드박스 리허설로는 못 잡았던, 사용자 실제 Windows PC 환경에서만
+  드러난 문제들 -- 앞으로 반영 스크립트 작성 시 반드시 유의할 것):
+  a) **CRLF 정규화 누락**: Windows git의 core.autocrlf로 로컬 체크아웃 시
+     .py 파일이 CRLF로 변환됨. PowerShell 문자열 치환 코드가 LF(`` `n ``)
+     기준으로 .Contains()/.Replace()를 했다가 실패 -> 이후 파일을 읽을 때
+     항상 CRLF/CR을 LF로 정규화하는 Read-Utf8Lf 헬퍼를 표준으로 채택.
+  b) **상대경로 vs 프로세스 작업 디렉터리 불일치**: PowerShell의
+     Push-Location/Set-Location으로 "현재 위치"를 옮겨도 .NET
+     [System.IO.File]::WriteAllText 같은 API는 그 위치를 따라가지 않고
+     실제 프로세스 작업 디렉터리(예: C:\WINDOWS\system32)를 기준으로
+     상대경로를 해석함 -> 이후 모든 파일 I/O 경로는 $TempDir 기준
+     절대경로(Join-Path)로 고정하는 것을 표준으로 채택.
+  c) **PowerShell here-string(`@' ... '@`) 끝 개행 소실**: 닫는 줄(`'@`)
+     바로 앞의 개행이 문자열에 포함되지 않아, 줄바꿈을 포함해야 하는
+     교체 텍스트 끝에 개행이 누락됨 -> dashcam_upload_report.py에
+     `else []  if runs:` 처럼 두 줄이 한 줄로 붙는 문법 오류가 실제로
+     **한 번 GitHub에 push된 채로 남아있었음**(commit dae901ce). hotfix
+     커밋(cc734e18)으로 즉시 수정. 앞으로 here-string으로 만드는 교체
+     텍스트는 항상 명시적으로 끝에 개행이 있는지 눈으로 재확인할 것.
+  d) (버그는 아니지만 함께 발견) **py_compile 실패가 스크립트를 멈추지
+     못함**: `python -m py_compile`이 SyntaxError로 실패(exit code != 0)
+     했는데도 PowerShell이 이를 종료 오류로 인식하지 못해 그대로
+     commit/push까지 진행됨(외부 프로세스의 비정상 exit code는
+     $ErrorActionPreference="Stop"의 대상이 아님) -> 이후 `$LASTEXITCODE`
+     를 명시적으로 확인해 0이 아니면 throw하도록 표준화.
+- 결과: dae901ce(문법 오류 포함, 실사용 불가 상태로 짧게 존재)
+  -> cc734e18(hotfix, 정상)까지 push 완료 확인. GitHub 실제 파일(4개)을
+  codeload tarball로 재조회해 py_compile 전부 통과 재확인함(16절 원칙:
+  스크립트 출력만 믿지 않고 GitHub 실제 상태로 재검증).
+- 반영: 9절 방식. 1차 스크립트(diff 2개 + 문자열치환 2개) 실행 중
+  app.py 단계에서 CRLF 문제로 1차 실패 -> 수정판 실행 중 상대경로 문제로
+  2차 실패 -> 수정판2로 4개 파일 반영 성공(dae901ce)하되
+  dashcam_upload_report.py에 here-string 개행 버그로 인한 문법 오류
+  포함된 채 push됨 -> hotfix 스크립트로 해당 한 줄만 수정해 push(cc734e18)
+- 실차 검증: 미실시(정적 분석 + mock 시뮬레이션만. 실제 Google Drive
+  계정/토큰 업로드 테스트 없음. carrot-ryu가 콤마 디바이스에 설치되어
+  실제로 대시캠 업로드 버튼을 눌러봐야 최종 검증됨)
+
 ## 15차 (진행 중 -- Carrotweb 구글드라이브 전환 범위 확정 + gdrive_upload.py 신규 모듈) -- web_upload.py Carrot/Toss -> Drive 2단계
 
 - 배경: 14차에서 설계 방향(zip 압축 후 Drive 업로드)까지는 정리했으나
