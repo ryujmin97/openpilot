@@ -1,6 +1,21 @@
 # WIP
 
 
+## 27차 (완료 — 코드 수정 1건 GitHub 반영·재확인 완료) — 우측하단 경로안내 박스 크기/레이아웃 개편
+
+- 사용자가 실기기 스크린샷(20260913_183642.jpg) 제공. 요청: 우측하단 경로안내 박스를 좌측하단 디버그 박스(475x495)와 동일 크기로, "도착: 2.4분(18:39) / 0.9km" 순서를 "도착: 0.9km" -> "2.4분(18:39)" 2줄로, 글자크기는 신호과속 라벨과 동일(40)로, 박스가 세로로 길어진 만큼 각 요소가 겹치지 않게 재배치, "route=숫자"는 신호과속이 떠도 겹치거나 사라지지 않도록 항상 우측끝맞춤으로 별도 표시.
+- 원인 분석: 우측하단 박스는 _draw_turn_info_hud()(기존 790x300 고정). "route=숫자"는 carrot_serv.py의 self.debugText(f"route={{route_speed:.1f}}")가 carrotMan.szPosRoadName(도로명)에 공백으로 이어붙어 들어오는 값이며, 기존 코드는 if 신호과속(sdi_descr) / elif 도로명 구조라 신호과속이 뜨면 route= 값이 도로명과 함께 통째로 사라지는 구조였음(원인 확정, 스크린샷과 코드 대조로 확인).
+- 적용한 수정(carrot-ryu, selfdrive/ui/onroad/hud_renderer.py만, 최소 변경, commit 5f5e49d0):
+  1. import re 추가.
+  2. _format_eta_text() -> _format_eta_time_text()로 이름 변경 + "도착:" 라벨 제거(거리 줄과 분리해 두 번째 줄 전용), _split_road_name_debug() 신규 헬퍼 추가(정규식 route=[-0-9.]+ 로 도로명과 route= 디버그 값을 분리).
+  3. _draw_turn_info_hud() 레이아웃 재구성: 박스 475x495(좌하단 디버그 박스와 동일), 상단에 안내제목(좌)+route=숫자(우측끝맞춤, 항상 별도 줄), 중단에 회전아이콘+거리, 중하단에 "도착: 거리"/"N.N분(HH:MM)" 2줄(글자크기 40), 하단에 신호과속(또는 도로명) 배지 — 신호과속 배지와 route=숫자가 물리적으로 분리되어 있어 항상 함께 보임.
+- 반영 방식: 문자열 블록 치환(Replace-Block, 20차 원칙) 3곳, 치환 전 GitHub 최신(d338afb7) 대비 정확히 1회 매치 확인 후 진행. Python 문법 검증(ast.parse) 통과.
+- 실행 이슈 1건 발생 -> 해결: 최초 실행 시 Windows Git의 core.autocrlf로 clone된 파일이 CRLF로 변환되어 있어, LF 기준으로 만든 치환 블록이 import-re 단계에서 0회 매치로 실패 -> 15절/18절/20절 원칙대로 아무 것도 건드리지 않고 안전하게 중단(커밋/푸시 이전이라 carrot-ryu 영향 없음, 임시 폴더도 정상 삭제됨 확인). git clone에 --config core.autocrlf=false 추가 + 읽은 직후 CRLF->LF 정규화 안전장치를 넣어 재작성한 스크립트로 재실행, 정상 반영됨(d338afb7..5f5e49d0).
+- 반영 후 재확인: raw.githubusercontent.com으로 carrot-ryu HEAD(5f5e49d0)의 hud_renderer.py를 직접 재조회해, 의도한 변경 외 차이가 없음(diff 1곳, 의도한 주석 라벨 변경)과 ast.parse 문법 통과를 확인함(16절/20절 원칙).
+- 사용자에게 변경 후 UI 레이아웃을 설명하는 목업(SVG, 실제 기기 픽셀/폰트와는 다른 개략도)을 별도로 렌더링해 전달함.
+- 실차 검증: 미실시(정적 코드 변경 단계, 12절 원칙).
+
+
 ## 26차 (진행 중 — 실기기 검증 결과와 정적 코드 리뷰 결과가 모순되어 원인 미확정, 실기기 디버깅 다음 세션으로 이월) — Google Drive 연결 UI 미노출 재조사
 
 - 세션 시작: 지침 문서 22차 버전 확인 -> HANDOFF.md/CURRENT_STATUS.md(25차 상태, carrot-ryu HEAD d338afb7) 확인 후 진행.
