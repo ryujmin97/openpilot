@@ -1,6 +1,11 @@
 # PARAMS REGISTRY
 
-## 현재 적용 파라미터 베이스라인 스냅샷
+## Google Drive 연동 파라미터 (22차 신규 등록)
+- CarrotGDriveClientId (PERSISTENT, STRING) — Google Cloud Console에서 발급받은 OAuth 클라이언트 ID. 로그탭 Drive 연결 설정에서 사용자가 직접 입력, gdrive_upload.py가 저장.
+- CarrotGDriveClientSecret (PERSISTENT, STRING) — 위 클라이언트의 보안 비밀번호. 사용자 직접 입력.
+- CarrotGDriveRefreshToken (PERSISTENT, STRING) — Device Authorization Grant 인증 완료 후 자동 저장되는 refresh token. carrotweb 재시작/기기 재부팅 후에도 재인증 없이 유지하기 위한 값.
+- 사용처: openpilot/selfdrive/carrot/gdrive_upload.py (PARAM_CLIENT_ID/PARAM_CLIENT_SECRET/PARAM_REFRESH_TOKEN 상수)
+- ⚠ [22차 발견 및 수정] 15차부터 코드에서 이 3개를 사용해왔으나 openpilot/common/params_keys.h에 등록이 빠져 있어 Params.get()/.put() 호출 시 UnknownKeyName 예외 발생 -> Drive "연결" 버튼을 누르는 첫 단계부터 항상 HTTP 500 실패하는 상태였음. 22차에서 params_keys.h에 3줄 추가(carrot-ryu commit 48c2e081)로 수정. 실제 값은 아직 스냅샷에 없음(사용자가 실제로 Drive 연결을 완료한 적이 없어 params_backup 파일에도 값 없음) — 실기기 연결 테스트는 여전히 미실시(FINDINGS.md 2026-09-14 참고).## 현재 적용 파라미터 베이스라인 스냅샷
 - 파일: devnotes/params_snapshots/2026-09-12_params_backup-4.json
 - 출처: 사용자가 콤마 디바이스에서 export한 params_backup-4.json
 - 기록일: 2026-09-12

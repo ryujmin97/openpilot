@@ -1,6 +1,30 @@
 # FINDINGS
 
-## [2026-09-13] 온로드 좌측 상단 시계 좌측 화면 경계 잘림 버그 원인규명 및 수정 (13차)
+## [2026-09-14] Google Drive 연동 파라미터 미등록으로 인한 UnknownKeyName 실패 (22차)
+
+### 배경
+- HANDOFF 다음 작업 후보 "PARAMS_REGISTRY.md 파라미터 3종 등록"을 진행하기 위해 gdrive_upload.py(15~20차에 걸쳐 작성)의 실제 파라미터 이름을 GitHub에서 직접 조회함.
+
+### 원인
+- gdrive_upload.py는 PARAM_CLIENT_ID="CarrotGDriveClientId", PARAM_CLIENT_SECRET="CarrotGDriveClientSecret", PARAM_REFRESH_TOKEN="CarrotGDriveRefreshToken" 3개 Params 키를 사용.
+- openpilot/common/params_keys.h에는 이 3개가 전혀 등록되어 있지 않았음(다른 모든 Carrot* 파라미터는 예외 없이 이 파일에 등록되어 있음, {PERSISTENT, ...} 형태).
+- openpilot/common/params_pyx.pyx의 get()/put()은 호출 시 check_key()를 거치며, params_keys.h에 없는 키면 UnknownKeyName 예외를 던짐(101-102줄).
+- gdrive_upload.py의 api_gdrive_device()(Drive 연결 시작 API, "연결" 버튼이 호출)는 client_id/secret을 저장하는 첫 단계(_params().put(PARAM_CLIENT_ID, client_id))에서 이 예외를 try/except로 받아 HTTP 500을 반환하도록 되어 있음. 즉 사용자가 로그탭 설정에서 "연결"을 눌러 client_id를 입력하는 순간부터 항상 실패하는 상태였음.
+- api_gdrive_callback()(디바이스 코드 인증 완료 후 refresh_token 저장)도 동일하게 _params().put(PARAM_REFRESH_TOKEN, refresh_token)에서 실패하도록 되어 있어, 설령 앞 단계를 우회하더라도 최종 인증 완료 단계에서도 실패했을 것으로 추정.
+- 15차부터 20차까지 6개 세션에 걸쳐 만들어진 Drive 연동 기능이 실제 기기 연결 테스트를 한 번도 거치지 않아(devnotes에 이미 "실차 검증 미실시"로 기록되어 있었음) 이 버그가 드러나지 않고 있었음.
+
+### 적용한 수정
+- openpilot/common/params_keys.h에 다른 Carrot* 파라미터와 동일한 패턴으로 3줄 추가:
+  {"CarrotGDriveClientId", {PERSISTENT, STRING}},
+  {"CarrotGDriveClientSecret", {PERSISTENT, STRING}},
+  {"CarrotGDriveRefreshToken", {PERSISTENT, STRING}},
+- 위치: 기존 CarrotExceptionDiscordWebhookUrl 줄과 CwebPushRecoveryBoot 줄 사이.
+- carrot-ryu commit 48c2e081.
+
+### 검증
+- 문자열 블록 치환 스크립트 실행 로그: git commit/push 정상 완료 확인.
+- raw.githubusercontent.com으로 commit 48c2e081 시점의 params_keys.h를 직접 재조회하여 3줄이 의도한 위치에 정확히 들어간 것을 확인(정적 검증 완료).
+- ⚠ 미검증: 실제 Google Cloud Console에서 OAuth 클라이언트를 발급하고 콤마 기기에서 "연결"을 눌러 device flow 전체(디바이스 코드 발급 -> 사용자 인증 -> refresh_token 저장 -> 실제 업로드)가 끝까지 동작하는지는 여전히 미실시. params_keys.h 수정으로 최소한 "저장 시 예외 발생" 문제는 해소되었으나, 그 외 OAuth 흐름 자체(스코프, 리다이렉트 등)의 정합성은 정적 분석 수준으로만 확인됨.## [2026-09-13] 온로드 좌측 상단 시계 좌측 화면 경계 잘림 버그 원인규명 및 수정 (13차)
 
 ### 배경
 - 사용자가 실제 화면 사진을 공유. 좌측 상단 시계가 "23:32:34" 대신

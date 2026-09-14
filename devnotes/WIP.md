@@ -1,6 +1,21 @@
 # WIP
 
-## 18~20차 (완료 — 코드 반영, GitHub push 완료) — api_dashcam_upload_test를 Google Drive 연결 테스트로 전환
+## 22차 (완료 — Google Drive 파라미터 등록 버그 발견 및 수정) — params_keys.h 미등록 수정 + PARAMS_REGISTRY.md 정리
+
+- 배경: HANDOFF 다음 작업 후보 중 "PARAMS_REGISTRY.md 파라미터 3종 등록"(가장 가벼운 작업으로 사용자 선택)을 진행하기 위해 gdrive_upload.py의 실제 파라미터 이름(PARAM_CLIENT_ID/PARAM_CLIENT_SECRET/PARAM_REFRESH_TOKEN = CarrotGDriveClientId/CarrotGDriveClientSecret/CarrotGDriveRefreshToken)을 GitHub에서 직접 조회하던 중, openpilot/common/params_keys.h에 이 3개가 전혀 등록되어 있지 않은 것을 발견함.
+- 원인: openpilot Params 클래스는 get()/put() 호출 시 내부적으로 checkKey()를 거쳐 params_keys.h에 등록 안 된 키면 UnknownKeyName 예외를 던짐(params_pyx.pyx 101-102줄 확인). gdrive_upload.py의 api_gdrive_device()(Drive 연결 시작 API)는 client_id 저장 단계(_params().put(PARAM_CLIENT_ID, ...))에서 이 예외를 그대로 받아 HTTP 500을 반환하도록 되어 있어, 15차부터 만들어온 Drive 연동 기능 전체가 "연결" 버튼을 누르는 순간부터 실패하는 상태였음(실제 기기 연결 테스트를 아직 안 해봐서 지금까지 미발견 — FINDINGS.md 참고).
+- 사용자에게 즉시 보고(11절/16절 원칙) 후 승인받아, 원래 "문서화만" 범위였던 이번 작업을 "코드 수정(params_keys.h) + 문서화(PARAMS_REGISTRY.md)"로 확대함.
+- 수정: params_keys.h에 다른 모든 Carrot* 파라미터와 동일한 패턴({PERSISTENT, STRING})으로 3줄 추가. 문자열 블록 치환 방식(CarrotExceptionDiscordWebhookUrl 줄을 앵커로 사용) 적용, carrot-ryu commit 48c2e081.
+- 최종 GitHub 반영 확인: raw.githubusercontent.com으로 commit 48c2e081 시점의 params_keys.h를 직접 재조회하여 3줄이 정확한 위치(CarrotExceptionDiscordWebhookUrl 다음, CwebPushRecoveryBoot 이전)에 들어간 것을 확인 완료.
+- PARAMS_REGISTRY.md에 이 3개 파라미터(이름/타입/용도)와 버그 경위를 함께 등록.
+- 미완료: 실제 기기에서 Drive 연결(OAuth device flow) 테스트 — params_keys.h 수정으로 UnknownKeyName 예외는 해소됐으나, 실제 Google Cloud Console 클라이언트 ID/Secret 발급 및 콤마 기기에서의 연결은 여전히 미실시.
+
+## 21차 (완료 — 소급 기록, 22차 세션에서 devnotes 누락 발견 후 작성) — 반영 방식을 .ps1 파일 생성 + BOM 필수로 개정
+
+- 배경: PROJECT_INSTRUCTIONS_carrot-ryu.md 자체에는 21차 변경사항이 이미 반영되어 있었으나(carrot-ryu-note commit 21da1364, "docs: PROJECT_INSTRUCTIONS_carrot-ryu.md 21차 갱신"), WIP.md/HANDOFF.md/CURRENT_STATUS.md에는 21차 회차 기록이 전혀 없었음. 22차 세션 시작 시 이 불일치를 발견(16절 해당 사례), 사용자 확인 결과 "21차는 실제 있었던 세션, devnotes 기록만 누락"으로 확인되어 이번 커밋에서 소급 기록함.
+- 변경 1: 9절 기본 전달 방식을 "스크립트 전체를 채팅에 붙여넣기"에서 ".ps1 파일로 생성해 전달 + 실행 명령만 채팅에 별도 안내"로 전환. 사유: 대용량 교체형 파일(PROJECT_INSTRUCTIONS_carrot-ryu.md 등)을 채팅에 직접 붙여넣는 것이 파일 생성 도구로 전달하는 것보다 무료 사용량(토큰)을 훨씬 많이 쓰는 것이 실측으로 확인됨.
+- 변경 2: 9절·18절에 ".ps1 스크립트 파일에 한글 등 비ASCII 문자가 있으면 반드시 UTF-8 BOM을 포함해 생성한다" 규칙 추가. 사유: BOM 없는 .ps1 파일을 Windows PowerShell 5.1이 시스템 코드페이지(CP949 등)로 잘못 읽어, 쓰기 시점 인코딩 지정과 무관하게 스크립트 내 한글 문자열 자체가 이미 손상된 채 커밋되는 사고가 실제 발생함. BOM 포함 스크립트로 재실행해 정상 복구 확인.
+- 22차부터 전달하는 모든 .ps1 파일은 이 규칙(파일 생성 도구로 전달 + UTF-8 BOM 포함)을 따름(이번 22차 params_keys.h 수정 스크립트도 BOM 포함하여 정상 실행 확인됨).## 18~20차 (완료 — 코드 반영, GitHub push 완료) — api_dashcam_upload_test를 Google Drive 연결 테스트로 전환
 
 - 배경: HANDOFF 미완료 우선순위 1번(15차부터 이월). dashcam 업로드 연결 테스트 버튼(`/api/dashcam/upload/test`, routes.py의 `api_dashcam_upload_test`)이 16~17차에서 이미 Drive로 전환된 실제 업로드 경로와 달리 여전히 옛 Carrot/Toss 헬스체크(`check_web_upload_health`)를 가리키고 있었음.
 - gdrive_upload.py에 `test_connection()` 추가: `is_connected()`가 refresh_token 존재 여부만 보는 것과 달리, 실제 access_token 갱신 + 대상 폴더 조회까지 왕복해 Drive 연동이 실제로 동작하는지 확인.
