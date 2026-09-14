@@ -1,4 +1,4 @@
-﻿/* ?? Logs / Dashcam ????????????????????????????????????????? */
+/* ?? Logs / Dashcam ????????????????????????????????????????? */
 .page--logs {
   height: calc(var(--app-vv-height, 100dvh) - var(--app-nav-bottom-gap, var(--nav-bar-height)));
   min-height: 0;
@@ -1161,6 +1161,60 @@
 .screenrecord-download:hover {
   color: var(--md-primary);
   background: color-mix(in srgb, var(--md-primary) 10%, transparent);
+}
+
+.screenrecord-photos-wrap {
+  flex: 0 0 auto;
+  padding: 10px var(--logs-content-inline) 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--md-outline-var) 40%, transparent);
+}
+
+.screenrecord-photos-wrap[hidden] {
+  display: none;
+}
+
+.screenrecord-photos-title {
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--md-on-surface-var);
+  margin-bottom: 8px;
+}
+
+.screenrecord-photos {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.screenrecord-photos::-webkit-scrollbar {
+  display: none;
+}
+
+.screenrecord-photo {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--md-outline-var) 44%, transparent);
+  border-radius: 6px;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--md-surface-cont);
+  cursor: pointer;
+}
+
+.screenrecord-photo:hover {
+  border-color: color-mix(in srgb, var(--md-primary) 38%, var(--md-outline-var));
+}
+
+.screenrecord-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 @media (min-width: 900px) {

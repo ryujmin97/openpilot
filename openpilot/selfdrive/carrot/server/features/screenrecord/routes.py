@@ -7,7 +7,7 @@ import time
 from aiohttp import web
 
 from ...config import SCREEN_RECORDING_DIRS
-from .catalog import build_videos, find_file, thumbnail_path
+from .catalog import build_photos, build_videos, find_file, find_photo, photo_thumbnail_path, thumbnail_path
 
 VIDEO_CACHE_TTL = 3.0
 _video_cache_lock = threading.Lock()
@@ -85,8 +85,86 @@ async def api_screenrecord_download(request: web.Request) -> web.StreamResponse:
   )
 
 
+_photo_cache_lock = threading.Lock()
+_photo_cache = {"time": 0.0, "photos": []}
+
+
+def cached_screenrecord_photos() -> list[dict]:
+  now = time.monotonic()
+  with _photo_cache_lock:
+    if now - float(_photo_cache.get("time") or 0.0) < VIDEO_CACHE_TTL:
+      return list(_photo_cache.get("photos") or [])
+
+  photos = build_photos()
+  with _photo_cache_lock:
+    _photo_cache["time"] = time.monotonic()
+    _photo_cache["photos"] = photos
+  return list(photos)
+
+
+async def api_screenrecord_photos(request: web.Request) -> web.Response:
+  try:
+    offset = max(0, int(request.query.get("offset", "0") or 0))
+    limit = max(1, min(200, int(request.query.get("limit", "80") or 80)))
+    photos = await asyncio.to_thread(cached_screenrecord_photos)
+    total = len(photos)
+    end = min(offset + limit, total)
+    return web.json_response({
+      "ok": True,
+      "photos": photos[offset:end],
+      "offset": offset,
+      "limit": limit,
+      "total": total,
+      "nextOffset": end if end < total else None,
+      "hasMore": end < total,
+    })
+  except Exception as e:
+    return web.json_response({"ok": False, "error": str(e)}, status=500)
+
+
+async def api_screenrecord_photo_thumbnail(request: web.Request) -> web.StreamResponse:
+  file_id_in = request.match_info.get("file_id", "")
+  path = await asyncio.to_thread(photo_thumbnail_path, file_id_in)
+  return web.FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
+
+
+async def api_screenrecord_photo(request: web.Request) -> web.StreamResponse:
+  file_id_in = request.match_info.get("file_id", "")
+  path = await asyncio.to_thread(find_photo, file_id_in)
+  mime = mimetypes.guess_type(path)[0] or "application/octet-stream"
+  headers = {
+    "Content-Type": mime,
+    "Cache-Control": "private, max-age=3600",
+  }
+  if request.query.get("download"):
+    filename = os.path.basename(path)
+    safe_filename = "".join(ch if 32 <= ord(ch) < 127 and ch not in {'"', "\\"} else "_" for ch in filename)
+    headers["Content-Disposition"] = f'attachment; filename="{safe_filename or "screenshot"}"'
+  return web.FileResponse(path, headers=headers)
+
+
+async def api_screenrecord_photo_download(request: web.Request) -> web.StreamResponse:
+  file_id_in = request.match_info.get("file_id", "")
+  path = await asyncio.to_thread(find_photo, file_id_in)
+  filename = os.path.basename(path)
+  safe_filename = "".join(ch if 32 <= ord(ch) < 127 and ch not in {'"', "\\"} else "_" for ch in filename)
+  mime = mimetypes.guess_type(path)[0] or "application/octet-stream"
+  return web.FileResponse(
+    path,
+    headers={
+      "Content-Type": mime,
+      "Content-Disposition": f'attachment; filename="{safe_filename or "screenshot"}"',
+    },
+  )
+
+
 def register(app: web.Application) -> None:
   app.router.add_get("/api/screenrecord/videos", api_screenrecord_videos)
   app.router.add_get("/api/screenrecord/thumbnail/{file_id}", api_screenrecord_thumbnail)
   app.router.add_get("/api/screenrecord/video/{file_id}", api_screenrecord_video)
   app.router.add_get("/api/screenrecord/download/{file_id}", api_screenrecord_download)
+  app.router.add_get("/api/screenrecord/photos", api_screenrecord_photos)
+  app.router.add_get("/api/screenrecord/photo/thumbnail/{file_id}", api_screenrecord_photo_thumbnail)
+  app.router.add_get("/api/screenrecord/photo/{file_id}", api_screenrecord_photo)
+  app.router.add_get("/api/screenrecord/photo/download/{file_id}", api_screenrecord_photo_download)
+

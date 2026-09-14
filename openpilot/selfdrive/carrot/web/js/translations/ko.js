@@ -1454,6 +1454,8 @@ window.CarrotTranslations.register("ko", {
     screenrecord_empty_title: "화면녹화 기록이 없습니다",
     screenrecord_empty_desc: "화면녹화를 시작하면 녹화 파일이 이곳에 표시됩니다.",
     screenrecord_load_failed: "화면녹화 목록 로드 실패",
+    screenrecord_photos_title: "사진",
+    screenrecord_photos_load_failed: "사진 목록 로드 실패",
     toggle_log_panel: "로그 패널 펼치기/접기",
     git_reset_head_prompt: "HEAD 기준 리셋 방식을 선택하세요.",
     disable_dm_inactive: "DisableDM 2에서 사용 가능",

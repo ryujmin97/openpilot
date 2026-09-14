@@ -1390,6 +1390,8 @@ window.CarrotTranslations.register("zh", {
     screenrecord_empty_title: "No screen recordings",
     screenrecord_empty_desc: "Screen recording files will appear here after recording.",
     screenrecord_load_failed: "屏幕录制列表加载失败",
+    screenrecord_photos_title: "照片",
+    screenrecord_photos_load_failed: "照片列表加载失败",
     toggle_log_panel: "展开或折叠日志面板",
     git_reset_head_prompt: "请选择基于 HEAD 的重置模式。",
     disable_dm_inactive: "DisableDM 为 2 时可用。",
