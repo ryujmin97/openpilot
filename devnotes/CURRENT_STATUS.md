@@ -2,11 +2,11 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: d338afb7 (25차 LOG_UPLOAD_TARGETS "gdrive" 누락 수정, GitHub push 완료 확인 -- raw.githubusercontent.com으로 실제 파일 내용까지 직접 재조회). 24차 스크린샷 사진 스트립(a7a912c1) 다음 커밋.
+- carrot-ryu HEAD: d338afb7 (25차 LOG_UPLOAD_TARGETS "gdrive" 누락 수정, 변경 없음 유지). 26차는 코드 변경 없이 조사만 진행.
 - carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
-- carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~24차 세션에서는 동기화 재점검 없음
+- carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~26차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
-- PROJECT_INSTRUCTIONS_carrot-ryu.md는 22차 버전(4절 0번 단계 보고 의무화)이 최신. 이 세션 중 다른 경로(작성자 "Ryu <ryu@example.com>")로 실수로 9차 구버전에 덮어써졌다가(commit 7d44f2f), 같은 작성자가 직접 22차(98fad93) 상태로 복구함(commit c7b86a0). 현재 정상.
+- PROJECT_INSTRUCTIONS_carrot-ryu.md는 22차 버전(4절 0번 단계 보고 의무화)이 최신. 26차에서도 이 문서를 최우선 조회함.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -18,9 +18,9 @@
 7. send_tmux_web() Drive 업로드 전환(17차, commit 2869149) -- GitHub 반영됨
 8. dashcam 업로드 연결 테스트 버튼(api_dashcam_upload_test)을 Google Drive 기준으로 전환(18~20차, commit ad055dd4) -- GitHub 반영됨
 9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- GitHub 반영됨
-10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 단, 사용자 실기기에서 Client ID/Secret 입력란이 보이지 않는 문제 보고됨 -- 24차 계속2에서 조사, 렌더링 로직 자체는 정상 확인(시뮬레이션). 입력란 미노출은 스크롤 가설이 유력(미검증, 실기기 확인 필요).
-11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- GitHub 반영됨 (raw.githubusercontent.com으로 신규 파일 존재 직접 확인)
-12. LOG_UPLOAD_TARGETS "gdrive" 누락 수정(25차, commit d338afb7) -- GitHub 반영됨(raw.githubusercontent.com으로 파일 내용 직접 재확인)
+10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 실기기에서 Client ID/Secret 입력란이 계속 안 보이는 문제 진행 중(26차까지 원인 미확정, 아래 핵심 발견 16 참고).
+11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- GitHub 반영됨
+12. LOG_UPLOAD_TARGETS "gdrive" 누락 수정(25차, commit d338afb7) -- GitHub 반영됨
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
@@ -42,24 +42,27 @@
 - tmux 진단 업로드(17차): tmux.log+toggle_values.json+metadata.json을 zip(ZIP_DEFLATED)으로 묶어 동일 업로드 함수 재사용.
 - 연결 테스트 버튼(18~20차): api_dashcam_upload_test가 gdrive_upload.test_connection()을 호출.
 - 파라미터 등록 버그 수정(22차): params_keys.h에 3종 등록, 15~20차 백엔드가 실제로는 한 번도 정상 동작할 수 없었던 상태였음을 수정.
-- 프론트엔드 연결 UI(23차): web_settings에 Drive 연결 버튼/Client ID·Secret 입력/인증 코드 표시 UI 추가(commit 272834b). 사용자 실기기에서 드롭다운은 바뀌었으나 입력란이 안 보이는 문제 보고 -- 원인 미확정(브라우저 캐시 가설, 미검증).
-- 미완료: docs/carrot_web_upload.md 미갱신, 실제 Drive 계정 업로드 테스트/실차 검증 전부 미실시, 입력란 미노출 원인 조사.
+- 프론트엔드 연결 UI(23차): web_settings에 Drive 연결 버튼/Client ID·Secret 입력/인증 코드 표시 UI 추가(commit 272834b). 실기기에서 드롭다운은 바뀌었으나 입력란이 안 보이는 문제 계속 진행 중(26차, 아래 핵심 발견 16).
+- 미완료: docs/carrot_web_upload.md 미갱신, 실제 Drive 계정 업로드 테스트/실차 검증 전부 미실시, 입력란 미노출 원인 조사(진행 중), 화면녹화 전송 다이얼로그 라벨 불일치 조사(26차 신규 발견, 미착수).
 
 ## 핵심 발견 11 (17~20차) -- diff(git apply) 방식의 실전 한계, 결국 예외적 보조로 격하
-17~18차에서 diff/git apply가 두 차례 실전 문제(corrupt patch, 조용한 미반영)를 일으켜 19~20차에 문자열 블록 치환(Replace-Block, 치환 전 블록 정확히 1회 매치 검증)으로 전환. 22, 24차에서도 동일 방식으로 정상 반영/검증 확인.
+17~18차에서 diff/git apply가 두 차례 실전 문제(corrupt patch, 조용한 미반영)를 일으켜 19~20차에 문자열 블록 치환(Replace-Block, 치환 전 블록 정확히 1회 매치 검증)으로 전환. 22, 24, 25차에서도 동일 방식으로 정상 반영/검증 확인.
 
 ## 핵심 발견 12 (22차) -- Google Drive 연동 파라미터 3종이 params_keys.h에 미등록되어 실전에서 항상 실패했을 버그
-gdrive_upload.py(15차)가 사용하는 CarrotGDriveClientId/Secret/RefreshToken이 params_keys.h에 미등록되어 Drive "연결" 버튼을 누르는 순간부터 항상 UnknownKeyName -> HTTP 500으로 실패했음. 22차에서 수정(commit 48c2e081). 상세: FINDINGS.md 2026-09-14 항목.
+gdrive_upload.py(15차)가 사용하는 CarrotGDriveClientId/Secret/RefreshToken이 params_keys.h에 미등록되어 Drive "연결" 버튼을 누르는 순간부터 항상 UnknownKeyName -> HTTP 500으로 실패했음. 22차에서 수정(commit 48c2e081). 상세: FINDINGS.md 2026-09-14(22차) 항목.
 
 ## 핵심 발견 13 (24차) -- devnotes 기록 누락과 미반영 작업을 "이어서 진행" 요청 시 구분해야 함
-23차는 코드가 실제 GitHub에 반영되어 있었지만 devnotes만 누락된 경우였고, 24차는 처음에는(세션 시작 시점) devnotes/스크립트까지 다 준비됐지만 실제 GitHub에는 전혀 반영되지 않은 경우였다가, 세션 도중 사용자가 스크립트를 실행해 실제로 반영 완료됨(commit a7a912c1, GitHub API로 직접 재확인). "GitHub의 현재 상태를 먼저 직접 확인"(3절/16절)하지 않으면 두 상태를 구분할 수 없다는 것이 이번 세션에서 실증됨.
+23차는 코드가 실제 GitHub에 반영되어 있었지만 devnotes만 누락된 경우였고, 24차는 세션 도중 사용자가 스크립트를 실행해 실제로 반영 완료됨(commit a7a912c1). "GitHub의 현재 상태를 먼저 직접 확인"(3절/16절)하지 않으면 두 상태를 구분할 수 없다는 것이 실증됨.
 
 ## 핵심 발견 14 (24차 계속2) -- Google Drive 연결 UI 입력란 미노출: 백엔드 LOG_UPLOAD_TARGETS에 "gdrive" 누락
-23차에서 프론트엔드 드롭다운에만 value="gdrive" 옵션을 추가하고 server/services/web_settings.py의 LOG_UPLOAD_TARGETS = {"carrot", "toss"}는 갱신하지 않아, "gdrive" 선택이 백엔드에서 유효하지 않은 enum 값으로 취급됨. Client ID/Secret 입력란(web-gdrive-connect 컴포넌트) 자체의 렌더링 로직은 Node.js 시뮬레이션으로 정상 확인됨 -- 실기기에서 안 보인다는 증상은 렌더링 버그가 아니라 스크롤(.web-settings-group__body{overflow:auto}) 때문일 가능성이 유력(미검증). LOG_UPLOAD_TARGETS 수정은 사용자 승인 대기 중, 아직 미적용. 상세: FINDINGS.md 2026-09-14 항목.
+23차에서 프론트엔드 드롭다운에만 value="gdrive" 옵션을 추가하고 server/services/web_settings.py의 LOG_UPLOAD_TARGETS = {"carrot", "toss"}는 갱신하지 않아, "gdrive" 선택이 백엔드에서 유효하지 않은 enum 값으로 취급됨. 25차에서 수정 완료(commit d338afb7). 다만 이 수정 이후에도(26차 실기기 검증) 입력란 미노출 현상은 그대로 재현됨 -> LOG_UPLOAD_TARGETS는 원인이 아니었거나, 원인 중 일부만 해결한 것으로 보임(아래 핵심 발견 16).
 
 ## 핵심 발견 15 (25차) -- web_upload.py/dashcam upload.py 데드코드 3개 + test_web_upload.py 낡은 테스트 의심
-`web_upload.py`의 `tmux_web_target()`과 `dashcam/upload.py`의 `resolve_upload_target()`/`upload_target_settings()`는 프로덕션 호출자가 없는 진짜 죽은 코드로 확인됨(단, `UPLOAD_TARGETS`/`selected_upload_settings()` 자체는 `_tmux_toss_only()`가 실사용 중이라 삭제 대상 아님). 이 3개를 지우려면 `test_web_upload.py`의 관련 테스트도 함께 정리해야 하는데, 그중 하나가 16차에 이미 제거된 `upload_jobs.upload_folder_to_web`/`send_web_upload_complete`를 monkeypatch하고 있어 이미 깨져 있는 낡은 테스트일 가능성이 높음(직접 실행 검증은 못함). 데드코드 삭제가 예상보다 큰 "낡은 테스트 정리" 작업으로 번질 수 있어 이번 세션에서는 보류, 다음 세션으로 이월. 상세: FINDINGS.md 2026-09-14 "web_upload.py/dashcam upload.py 데드코드 및 test_web_upload.py 낡은 테스트 의심" 항목.
+web_upload.py의 tmux_web_target()과 dashcam/upload.py의 resolve_upload_target()/upload_target_settings()는 프로덕션 호출자가 없는 진짜 죽은 코드로 확인됨(단, UPLOAD_TARGETS/selected_upload_settings() 자체는 _tmux_toss_only()가 실사용 중이라 삭제 대상 아님). test_web_upload.py의 한 테스트가 16차에 이미 제거된 코드를 monkeypatch하고 있어 낡은 테스트일 가능성 높음(직접 실행 검증은 못함). 데드코드 삭제가 예상보다 큰 작업으로 번질 수 있어 25차에서는 보류, 이월.
+
+## 핵심 발견 16 (26차) -- Google Drive 연결 UI 미노출: 정적 코드 리뷰와 실기기 스크린샷이 모순됨(원인 미확정)
+25차에서 LOG_UPLOAD_TARGETS 백엔드 버그를 고쳤음에도, 실기기 스크린샷(2026-09-14 14:47~18:41)에서는 여전히 Client ID/Secret 입력란이 안 보이고 당근서버/토스서버 주소 입력란이 보임(업로드 서버가 구글드라이브로 선택된 상태에서). carrot-ryu 최신(d338afb7) 소스를 직접 받아 정적 코드 리뷰한 결과, schema.js/components.js/tools.js(esbuild 번들)/tools.css 모두 web-gdrive-connect가 정상 등록·렌더되고, web-upload의 carrot/toss 필드는 target이 gdrive면 반드시 숨겨지도록 구현돼 있어 이론상 현재 스크린샷과 같은 현상이 나올 수 없음. 즉 코드 자체에서는 원인을 못 찾음 -> 실기기가 최신 tools.js/tools.css 번들을 실제로 서빙/로드하고 있는지 의심(브라우저 캐시 또는 esbuild 재생성 누락 가능성). 실기기 디버깅은 사용자 사정으로 다음 세션 이월. 부가로, 화면녹화 전송 다이얼로그가 업로드 서버=gdrive인데도 라벨을 "당근서버"로 표시하는 별도 불일치도 발견(코드 위치 미조사). 상세: FINDINGS.md 2026-09-14(26차) 항목.
 
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: test_web_upload.py 실제 실행해 낡은 테스트 범위 확정(25차 발견), 데드코드 3개 삭제 + 대응 테스트 정리, 실기기 스크롤 확인(Drive UI 입력란), 실제 Drive 연결 테스트(사용자 액션 필요), docs 갱신, 코드 수정 12건 전부 실주행 재검증, 모델 셀렉터 코드 분석
+- 다음 작업: (최우선) 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, 화면녹화 전송 다이얼로그 "당근서버" 라벨 하드코딩 조사, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, 실제 Drive 연결 테스트(사용자 액션 필요), docs 갱신, 코드 수정 12건 전부 실주행 재검증, 모델 셀렉터 코드 분석
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM

@@ -1,6 +1,22 @@
 # WIP
 
 
+## 26차 (진행 중 — 실기기 검증 결과와 정적 코드 리뷰 결과가 모순되어 원인 미확정, 실기기 디버깅 다음 세션으로 이월) — Google Drive 연결 UI 미노출 재조사
+
+- 세션 시작: 지침 문서 22차 버전 확인 -> HANDOFF.md/CURRENT_STATUS.md(25차 상태, carrot-ryu HEAD d338afb7) 확인 후 진행.
+- 사용자가 오늘(2026-09-14) 실기기에서 찍은 스크린샷 10장 제공(14:47~18:41). 내용: 웹 설정 > 로그 업로드에서 업로드 서버를 "구글 드라이브"로 선택한 화면, 화면녹화 세그먼트 전송 시도 및 결과.
+- 관찰 1: "웹 설정 > 로그 업로드" 카드의 업로드 서버 드롭다운은 당근서버/토스서버/구글드라이브 3개 옵션이 정상 표시되고 구글드라이브가 선택돼 있음. 그런데 그 아래에는 23차에서 추가한 Client ID/Secret 입력란(web-gdrive-connect 컴포넌트) 대신 "당근서버 주소"/"토스서버 주소" 입력란이 그대로 보임.
+- 관찰 2(신규 발견): 화면녹화 탭에서 세그먼트 "전송" 시도 시 다이얼로그 라벨이 "당근서버"로 표시됨(업로드 서버는 구글드라이브로 설정된 상태인데도). 최종적으로 "Google Drive가 연결되어 있지 않습니다" 에러가 뜸 -> 실제 라우팅은 gdrive로 가는 것으로 추정되나 다이얼로그 라벨 텍스트만 하드코딩된 "당근서버"를 쓰고 있는 것으로 보임(코드 위치는 아직 조사 안 함).
+- carrot-ryu 최신(commit d338afb7) 소스를 codeload tarball로 직접 받아 정적 코드 리뷰 수행:
+  - web/src/features/tools/web_settings/schema.js: log_upload 그룹에 web-upload, web-gdrive-connect 두 항목 모두 정상 존재.
+  - web/src/features/tools/web_settings/components.js: web-gdrive-connect 컴포넌트가 Client ID/Secret 입력란을 포함해 정상 등록돼 있음. isVisible을 별도 정의하지 않아 기본값(빈 settingKeys -> every()가 vacuous true)이 적용되므로 이론상 항상 visible이어야 함.
+  - web/js/generated/tools.js(esbuild 번들): 위 로직이 소스와 완전히 동일하게 반영돼 있음을 확인 -- 예전에 있었던 "esbuild 번들 재생성 누락" 유형 문제는 이번 소스/번들 비교로는 재현되지 않음.
+  - web/css/generated/tools.css: .web-gdrive-settings 관련 셀렉터가 전부 정상 포함돼 있고 display:none 등 숨김 규칙 없음.
+  - web-upload 컴포넌트의 당근서버/토스서버 주소 필드는 코드상 target === "carrot" / target === "toss" 일 때만 hidden이 해제되도록 짜여 있어, 스크린샷처럼 target이 "gdrive"인 상황에서는 두 필드가 반드시 숨겨져야 함. 그런데 스크린샷은 정반대(두 필드는 보이고 gdrive 전용 필드는 안 보임) -- 정적 코드 리뷰 결과와 실기기 스크린샷이 모순됨.
+- 결론(미확정): 코드 자체에서는 문제를 찾지 못함. 실기기 브라우저가 최신 tools.js/tools.css 번들을 실제로 로드하고 있는지 의심됨(브라우저 캐시, 또는 scons 빌드 시 esbuild 재생성 누락 가능성). 사용자가 이번 세션 중에는 실기기 디버깅(터미널로 배포된 파일 내용 확인, 강제 새로고침/시크릿모드 재현 테스트)을 진행할 수 없어 다음 세션으로 이월.
+- 이번 세션은 코드/devnotes 커밋 변경 없이 조사만 진행. carrot-ryu HEAD는 25차와 동일하게 d338afb7 유지.
+
+
 ## 25차 (완료 -- 코드 수정 1건 GitHub 반영 확인, 조사 1건 추가 발견) -- LOG_UPLOAD_TARGETS "gdrive" 누락 수정 + 데드코드/낡은 테스트 의심 발견
 
 - 24차 계속2에서 발견한 확실한 버그(server/services/web_settings.py의 LOG_UPLOAD_TARGETS = {"carrot", "toss"}에 "gdrive" 누락)를 사용자 승인 후 수정. 문자열 치환(소규모 변경, 9절) 방식으로 anchor 1회 매치 검증 -> py_compile 검증 -> 스크립트 전달 -> 사용자 실행 -> commit d338afb7 push 확인 -> raw.githubusercontent.com으로 실제 파일 내용까지 직접 재조회해 `LOG_UPLOAD_TARGETS = {"carrot", "toss", "gdrive"}`로 반영됨을 확인(5절/16절).

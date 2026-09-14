@@ -1,5 +1,30 @@
 # FINDINGS
 
+
+## 2026-09-14 (26차) — Google Drive 연결 UI 미노출: 정적 코드 리뷰와 실기기 스크린샷이 모순됨(원인 미확정)
+
+**증상**: 실기기 "웹 설정 > 로그 업로드"에서 업로드 서버를 "구글 드라이브"로 선택해도 Client ID/Secret 입력란(web-gdrive-connect 컴포넌트, 23차 추가)이 보이지 않고, 대신 "당근서버 주소"/"토스서버 주소" 입력란(web-upload 컴포넌트의 carrot/toss 전용 필드)이 계속 보임.
+
+**정적 코드 리뷰 결과(carrot-ryu HEAD d338afb7 기준)**:
+- schema.js의 log_upload 그룹에 web-upload / web-gdrive-connect 두 항목 모두 정상 등록.
+- components.js의 web-gdrive-connect는 isVisible을 별도 정의하지 않아, WebSettingsComponents.isVisible()의 기본 폴백 로직 `(component.settingKeys || []).every(...)` 가 적용됨. settingKeys가 undefined이므로 빈 배열의 every()는 항상 true -> 이 컴포넌트는 이론상 항상 visible이어야 함.
+- web-upload 컴포넌트 내부의 "당근서버 주소"/"토스서버 주소" 필드는 각각 `target === "carrot"` / `target === "toss"` 일 때만 hidden 속성이 풀리도록 구현돼 있음. 즉 target이 "gdrive"이면 이 두 필드는 코드상 반드시 숨겨져야 함.
+- web/js/generated/tools.js(배포용 esbuild 번들)를 소스와 직접 대조한 결과, 위 로직이 토씨 하나 다르지 않게 동일하게 반영돼 있었음(문자열 치환/축약 없이 로직 그대로 minify됨). web/css/generated/tools.css에도 .web-gdrive-settings 관련 셀렉터가 전부 포함, 숨김 규칙 없음.
+
+**모순**: 실기기 스크린샷은 "구글 드라이브"가 선택된 상태에서 (a) carrot/toss 필드가 보이고 (b) gdrive 전용 필드가 안 보이는, 코드와 정반대의 상태를 보여줌. 즉 정적 코드 리뷰만으로는 원인을 찾지 못함.
+
+**가설(미검증)**:
+1. 실기기 브라우저가 최신 tools.js/tools.css를 서빙받지 못하고 캐시된 구버전을 쓰고 있을 가능성 (Samsung Browser 캐시)
+2. scons 빌드 과정에서 이번 코드 변경분에 대해 esbuild 번들 재생성이 실제로는 안 됐을 가능성 (과거 devnotes에 기록된 것과 유사한 유형의 문제)
+3. (낮은 가능성) 서버 쪽이 별도의 오래된 정적 파일 경로를 서빙하고 있을 가능성
+
+**검증 방법(다음 세션에서 실기기로 수행 필요)**:
+- 콤마 기기 터미널 탭에서 실제 서빙되는 tools.js 파일 내용에 "web-gdrive-connect" 문자열이 존재하는지 직접 grep
+- 브라우저 강제 새로고침(캐시 무시) 또는 시크릿 모드로 재접속해 동일 현상 재현 여부 확인
+- (선택) tools.js 파일의 수정시각/해시가 carrot-ryu HEAD(d338afb7) 반영 이후인지 확인
+
+**부가 발견(코드 위치 미조사)**: 화면녹화 탭의 세그먼트 "전송" 다이얼로그가 업로드 서버를 "구글 드라이브"로 선택한 상태에서도 라벨을 "당근서버"로 표시함. 실제 업로드는 gdrive로 라우팅되는 것으로 보이나(최종적으로 "Google Drive가 연결되어 있지 않습니다" 에러 발생) 라벨 텍스트가 하드코딩됐을 가능성. 다음 세션에서 조사 필요.
+
 ## [2026-09-14] web_upload.py/dashcam upload.py 데드코드 및 test_web_upload.py 낡은 테스트 의심 (25차)
 
 ### 배경
