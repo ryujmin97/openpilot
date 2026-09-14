@@ -18,6 +18,7 @@ from aiohttp import ClientSession, web
 from openpilot.cereal import messaging
 
 from ..realtime.transports import CameraWsHub, RawWsHub
+from .. import gdrive_upload
 from . import features
 from openpilot.carrot.model_selector.web import routes as model_selector_routes
 from .config import SELFDRIVE_ASSETS_DIR, WEB_DIR, migrate_legacy_carrot_state
@@ -227,6 +228,7 @@ def make_app() -> web.Application:
 
   features.register_all(app)
   model_selector_routes.register(app)
+  gdrive_upload.register(app)
 
   # Cluster and web HUDs consume one canonical set of icons/fonts. Register the
   # shared tree before the web-root fallback so the URL cannot be shadowed.

@@ -115,8 +115,11 @@ def upload_message_lines(payload: dict[str, Any], max_results: int | None = None
     f"- Commit: {commit_text} ({commit_date})",
   ]
 
-  runs = _consecutive_runs(visible_uploaded)
-  if runs:
+  # [16차] Drive 업로드(target="gdrive")는 세그먼트별 브라우징 가능한 경로가
+  # 아니라 zip 파일 하나의 링크만 있으므로, 그 링크에 세그먼트 범위를 이어붙여
+  # 만드는 "Open & Analyze" 구간 URL은 의미가 없다(오히려 깨진 링크가 됨).
+  # Carrot/Toss 대상일 때만 생성한다.
+  runs = _consecutive_runs(visible_uploaded) if str(payload.get("target") or "") != "gdrive" else []  if runs:
     lines.append("### Open & Analyze")
     for run in runs:
       first_parts = _segment_parts(run[0])

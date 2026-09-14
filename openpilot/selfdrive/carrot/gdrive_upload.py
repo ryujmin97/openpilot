@@ -43,6 +43,7 @@ c3-ms-dev 원본과 다른 점 (사용자 지정):
 import os
 import time
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 import aiohttp
@@ -413,11 +414,25 @@ _UPLOAD_TIMEOUT = aiohttp.ClientTimeout(total=1800, sock_connect=30, sock_read=3
 UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024
 
 
-async def upload_file_resumable(file_path: str, filename: str, job: dict[str, Any] | None = None) -> dict[str, Any]:
+async def upload_file_resumable(
+  file_path: str,
+  filename: str,
+  job: dict[str, Any] | None = None,
+  progress_cb: Callable[[int, int], None] | None = None,
+) -> dict[str, Any]:
+  """업로드. `job`은 이 모듈 자체의 job 레지스트리(create_job/get_job, /api/gdrive/job
+
+  폴링용)에 진행률을 기록하고 싶을 때만 넘긴다. `progress_cb(sent, total)`은 호출자가
+  자체 진행률/취소 체계(예: dashcam upload_jobs.py)를 갖고 있을 때 그쪽으로 바이트
+  단위 진행률을 전달하기 위한 것으로, 두 방식은 상호 배타적이지 않고 함께 쓸 수 있다.
+  진행률 콜백에서 예외를 던지면(예: 취소 요청 감지) 그대로 전파되어 업로드가 중단된다.
+  """
   if not os.path.isfile(file_path):
     raise FileNotFoundError(file_path)
   size = os.path.getsize(file_path)
   set_job_message(job, "Google Drive 연결 확인 중...")
+  if progress_cb:
+    progress_cb(0, size)
   try:
     async with aiohttp.ClientSession(timeout=_UPLOAD_TIMEOUT) as session:
       token = await _get_access_token(session)
@@ -464,10 +479,14 @@ async def upload_file_resumable(file_path: str, filename: str, job: dict[str, An
               result = await _read_json_safe(resp)
               sent += chunk_len
               _set_job_progress(job, sent, size, "업로드 완료 처리 중...")
+              if progress_cb:
+                progress_cb(sent, size)
               return result
             if resp.status == 308:
               sent += chunk_len
               _set_job_progress(job, sent, size)
+              if progress_cb:
+                progress_cb(sent, size)
               continue
             text = (await resp.text())[:400]
             raise RuntimeError(f"업로드 청크 실패(HTTP {resp.status}): {text or '(empty body)'}")
