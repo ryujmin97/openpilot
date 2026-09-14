@@ -1,6 +1,13 @@
 # WIP
 
 
+## 25차 (완료 -- 코드 수정 1건 GitHub 반영 확인, 조사 1건 추가 발견) -- LOG_UPLOAD_TARGETS "gdrive" 누락 수정 + 데드코드/낡은 테스트 의심 발견
+
+- 24차 계속2에서 발견한 확실한 버그(server/services/web_settings.py의 LOG_UPLOAD_TARGETS = {"carrot", "toss"}에 "gdrive" 누락)를 사용자 승인 후 수정. 문자열 치환(소규모 변경, 9절) 방식으로 anchor 1회 매치 검증 -> py_compile 검증 -> 스크립트 전달 -> 사용자 실행 -> commit d338afb7 push 확인 -> raw.githubusercontent.com으로 실제 파일 내용까지 직접 재조회해 `LOG_UPLOAD_TARGETS = {"carrot", "toss", "gdrive"}`로 반영됨을 확인(5절/16절).
+- 수정 과정에서 사용자가 "관련 죽은 코드도 같이 삭제하면 안 되나" 요청 -> 조사 결과, 처음 보고했던 것과 달리 web_upload.py의 `UPLOAD_TARGETS`/`selected_upload_settings()`는 carrot_man.py의 `_tmux_toss_only()`(Discord/carrot_logs 진단 전송 시 "Toss 전용이면 스킵" 게이트, 958/1054줄에서 실제 호출)가 사용하는 **살아있는 코드**로 정정 확인됨. 반면 `web_upload.py`의 `tmux_web_target()`과 `server/features/dashcam/upload.py`의 `resolve_upload_target()`/`upload_target_settings()`는 프로덕션 호출자가 없고 테스트에서만 참조되는 **진짜 죽은 코드**로 확인됨.
+- 이 3개 함수를 삭제하려고 `server/tests/test_web_upload.py`의 관련 테스트를 조사하던 중, `test_dashcam_upload_completion_notifies_web_server_and_discord`(397번째 줄 부근)가 `upload_jobs.upload_folder_to_web`/`upload_jobs.send_web_upload_complete`를 monkeypatch하는데, 이 두 함수는 **16차(대시캠 업로드를 세그먼트별 HTTP 업로드에서 zip+Google Drive 단일 업로드로 전환)에서 이미 제거되어 현재 upload_jobs.py에 존재하지 않음**을 발견. `monkeypatch.setattr`은 대상 속성이 실존해야 하므로 이 테스트는 16차 이후 갱신되지 않은 채 이미 깨져 있을 가능성이 높음(테스트 스위트를 직접 실행해 확인하지는 못함, openpilot 전체 런타임 의존성 없이는 이 파일만 단독 실행이 어려움).
+- 범위가 예상보다 커서(데드코드 3개 삭제 -> 관련 테스트 삭제 -> "16차 전환 이후 방치된 낡은 테스트 뭉치" 가능성) 10절(최소 변경)·17절(세션 크기 관리) 원칙에 따라, 이번 세션에서는 확실한 버그 수정(LOG_UPLOAD_TARGETS)만 반영하고 데드코드 삭제/낡은 테스트 정리는 사용자 결정에 따라 다음 세션으로 이월.
+- 상세: FINDINGS.md 2026-09-14 "web_upload.py/dashcam upload.py 데드코드 및 test_web_upload.py 낡은 테스트 의심" 항목 참고.
 ## 24차 계속2 (완료 -- 조사만, 코드 미수정) -- Google Drive 연결 UI 입력란 미노출 문제 조사 + 리포지토리 외부 변경 사항 확인
 
 - HANDOFF 우선순위 1번(Drive UI 입력란 미노출)을 조사함. 캐싱 가설은 기각(index.html이 매 요청 no-cache로 서빙되고 정적 자산 URL이 콘텐츠 해시로 재작성됨을 코드로 확인, 서비스워커 없음).

@@ -1,5 +1,28 @@
 # FINDINGS
 
+## [2026-09-14] web_upload.py/dashcam upload.py 데드코드 및 test_web_upload.py 낡은 테스트 의심 (25차)
+
+### 배경
+- LOG_UPLOAD_TARGETS "gdrive" 누락 버그(24차 계속2 발견) 수정을 진행하면서, 사용자가 "관련 죽은 코드도 같이 삭제"를 요청해 조사함.
+
+### 조사 1: 처음 보고를 정정 -- web_upload.py의 UPLOAD_TARGETS/selected_upload_settings()는 살아있는 코드
+- `web_upload.py`: `UPLOAD_TARGETS = {"carrot", "toss"}`, `selected_upload_settings()`는 "gdrive"를 모르고 무조건 "carrot"으로 되돌리는 것은 맞으나, 이 함수는 `carrot_man.py`의 `_tmux_toss_only()`(958줄 `send_tmux_carrot_logs`, 1054줄 `send_tmux_discord`에서 호출)가 실제로 사용 중. `_tmux_toss_only()`는 "target이 toss인지"만 판별하는데, "gdrive"가 "carrot"으로 잘못 되돌려져도 결과적으로 "toss가 아니다"는 결론은 동일해 현재 시점 실사용 동작 버그는 없음. 하지만 함수 자체는 삭제 대상이 아님.
+
+### 조사 2: 진짜 죽은 코드 3개 확인 (프로덕션 호출자 없음, grep으로 저장소 전체 재확인)
+- `web_upload.py`의 `tmux_web_target()`: `send_tmux_web()`이 17차에 Google Drive 직접 업로드로 재작성되면서 더 이상 호출하지 않음. 현재 `server/tests/test_web_upload.py`에서만 참조(489, 503, 508, 514번째 줄).
+- `server/features/dashcam/upload.py`의 `resolve_upload_target()`, `upload_target_settings()`: 같은 파일 안에서도, 다른 어떤 파일에서도 프로덕션 코드가 호출하지 않음. `server/tests/test_web_upload.py`에서 `resolve_upload_target`을 최소 6곳(397, 467, 702, 747, 767, 786번째 줄)에서 monkeypatch로만 참조.
+- 이 3개 함수를 지우면 `web_upload.py`의 `os` 관련 상수(DEFAULT_TMUX_WEB_UPLOAD_URL)와 `dashcam/upload.py`의 `selected_upload_settings`/`read_web_settings` import 2개도 함께 미사용이 되어 정리 대상.
+
+### 조사 3: test_web_upload.py 자체가 16차 전환 이전 기준으로 낡아있을 가능성 (미확정, 실행 검증 못함)
+- `resolve_upload_target`을 monkeypatch하는 테스트 중 397번째 줄 부근의 `test_dashcam_upload_completion_notifies_web_server_and_discord`가 `upload_jobs.upload_folder_to_web`, `upload_jobs.send_web_upload_complete`도 함께 monkeypatch함.
+- 그런데 `upload_jobs.py`를 직접 확인한 결과 이 두 함수는 더 이상 존재하지 않음 -- 16차에서 세그먼트 업로드를 "세그먼트/파일별 개별 HTTP 업로드"에서 "선택된 세그먼트를 zip으로 묶어 `gdrive_upload.upload_file_resumable()`로 단일 업로드"로 전면 재작성하면서 제거된 것으로 보임(`upload_jobs.py`의 `run_upload_segments()` 함수 docstring에 "기존에는... upload_folder_to_web... 통지했다"라고 과거형으로 명시되어 있음).
+- `monkeypatch.setattr(obj, name, value)`은 기본적으로 `obj`에 `name` 속성이 실존해야 성립하므로(그렇지 않으면 AttributeError), 이 테스트는 16차 이후 실행하면 이미 실패했을 가능성이 높음. 다만 이번 세션에서는 pytest를 실제로 돌려보지 못해(openpilot 전체 런타임 의존성 없이 이 테스트 파일만 단독 실행이 어려움) 확정하지 못함 -- "가능성 높음"으로만 기록.
+- 이 발견이 사실이라면, `resolve_upload_target` 등 3개 함수를 단순 삭제하는 작업이 "16차 전환 이후 갱신되지 않고 방치된 테스트 뭉치 전체 정리"로 범위가 커질 수 있음.
+
+### 결론 및 다음 조치 (사용자 결정, 미착수)
+- 사용자와 협의 결과, 이번 세션은 확실한 버그(LOG_UPLOAD_TARGETS)만 수정하고, 데드코드 3개 삭제 + test_web_upload.py 정리는 다음 세션으로 이월하기로 결정.
+- 다음 세션 시작 시 권장 순서: (1) test_web_upload.py를 실제로 실행해(또는 최소한 관련 픽스처/모듈 임포트만이라도) 몇 개 테스트가 실제로 깨져 있는지 먼저 정량적으로 확인 -> (2) 16차 이후 낡아진 테스트 목록 확정 -> (3) 데드코드 3개 삭제 + 대응 테스트 삭제/갱신을 한 번에 진행.
+
 ## [2026-09-14] Google Drive 연결 UI Client ID/Secret 입력란 미노출 문제 조사 (24차 계속2)
 
 ### 배경
