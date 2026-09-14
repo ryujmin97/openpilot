@@ -1,5 +1,67 @@
 # WIP
 
+## 17차 (완료 -- 코드 반영, GitHub push 완료) -- send_tmux_web() Google Drive 업로드 전환
+
+- 배경: 16차 HANDOFF 미완료 우선순위 1번. tmux 진단 전송(온로드 자동 진단, CAN
+  에러, 예외 상황, tmux_send 명령)의 "carrot/toss 선택 전송" 경로가 아직 옛
+  Carrot/Toss HTTP 업로드(session 발급 -> multipart POST)를 쓰고 있었음.
+- carrot_man.py의 send_tmux_web()을 tmux.log[+toggle_values.json]+metadata.json을
+  zip으로 묶어 gdrive_upload.upload_file_resumable()로 업로드하는 방식으로 전면
+  재작성.
+  - metadata.json에 기존 payload(_tmux_upload_payload: tmux_why, car_name,
+    git_branch 등)를 그대로 담아, Carrot/Toss 서버가 받던 진단 필드가 유실되지
+    않도록 함(Drive는 별도 DB가 없으므로 파일로 동봉).
+  - 파일명: tmux_{car_name}_{tmux_why}_{timestamp}.zip (영숫자/-/_ 외 문자는
+    _ 치환)
+  - 압축 방식은 ZIP_DEFLATED 선택(16차 대시캠 zip은 이미 압축된 h265/zstd라
+    ZIP_STORED였지만, tmux.log/json은 텍스트라 DEFLATE 이득이 있고 콤마 기기
+    CPU 부담도 미미함).
+  - 동기 메서드(send_tmux_web)에서 비동기 gdrive_upload.upload_file_resumable()을
+    호출해야 해서, 파일 내 기존 관례(carrot_navi_http_server 호출부의
+    asyncio.run() 패턴)를 그대로 따라 asyncio.run()으로 브릿지.
+  - 반환값 계약(web_response.ok / .status_code, 실패 시 None)은 호출부
+    (1255/1285/1318/1319행 등)가 그대로 재사용하므로 변경하지 않음 --
+    성공 시 SimpleNamespace(ok=True, status_code=200, drive_result=...)를
+    반환, 실패 시 기존과 동일하게 예외를 잡아 None 반환.
+  - send_tmux_carrot_logs()(Discord carrot_logs 포럼용 독립 고정 전송)는 이번
+    변경과 무관하며 손대지 않음(HANDOFF 지침대로).
+  - import 정리: create_web_upload_session_sync, tmux_web_target은 이 함수에서만
+    쓰였는데 더 이상 필요 없어 import 목록에서 제거(10절 최소 변경 원칙 -- 직접
+    관련된 dead import 제거만, 그 외 리팩터링 없음). read_web_settings/
+    selected_upload_settings는 _tmux_toss_only()가 계속 사용하므로 유지.
+
+- ⚠ [중요 교훈] diff(git apply) 방식 최초 실전 시도가 실패함:
+  - 9차 세션에서 도입한 "파일은 크지만 변경 범위가 작은 경우 unified diff 사용"
+    원칙에 따라 처음에 diff/git apply 스크립트를 전달했으나, 사용자 실행 시
+    `error: corrupt patch at ...patch:101`로 git apply --check 단계에서 실패.
+  - 원인 추정: git diff의 컨텍스트 공백 줄(빈 줄, 들여쓰기 공백)이 채팅
+    복사/붙여넣기 과정에서 손상됨(트레일링 공백 유실 등). PowerShell here-string
+    자체의 CRLF/LF 정규화로는 해결되지 않는 종류의 손상.
+  - 대응: 15/18절 원칙대로 git apply 실패 시 스크립트가 즉시 중단되어 carrot-ryu에
+    어떤 손상도 남기지 않음(HEAD는 cc734e18 그대로 유지됨을 GitHub API로 재확인).
+    강제 적용(--3way/--reject 등)은 시도하지 않음.
+  - 최종 해결: diff 대신 "문자열 치환(find & replace) 방식"으로 전환. 변경 전/후
+    블록을 통째로 here-string으로 담고, 치환 전 `[regex]::Matches(...).Count -eq 1`로
+    "정확히 1회만 매치"하는지 검증한 뒤에만 치환 실행(매치 0회/2회 이상이면 아무
+    것도 바꾸지 않고 중단) -- 이 방식이 diff보다 채팅 복사 손상에 훨씬 강함.
+  - 문자열 치환 스크립트로 재시도 -> 3개 블록 모두 1회 매치 확인 -> 치환 ->
+    py_compile 통과 -> commit/push 성공(commit 2869149, GitHub API/git ls-remote로
+    재확인 완료).
+  - [다음 세션부터 반영할 원칙 제안, 19절 절차로 사용자 승인 필요]: 9절의 diff
+    옵션을 "1순위"가 아니라 "문자열 치환으로 처리하기 어려운 경우(같은 텍스트가
+    여러 곳에 나타나 유일 매치를 만들 수 없는 대규모/분산 변경)의 대안"으로
+    재조정하는 것을 고려. 문자열 치환은 (a) 유일 매치 검증이 가능해 채팅 복사
+    손상에 강하고 (b) git apply의 컨텍스트 줄 민감도 문제가 없음. 아직 문서
+    변경은 하지 않았고, 다음 세션에 사용자 승인받아 9절을 수정할지 결정.
+- 반영 방식: 문자열 치환(위 사유로 diff에서 전환) -- import 블록 2곳 + 함수 본문
+  1곳, 총 3개 블록. 실제 carrot-ryu clone에서 각 블록 유일 매치(count=1) 확인 +
+  치환 후 py_compile 통과 확인 후 commit/push.
+- 검증: 정적 분석 + 실제 GitHub carrot-ryu에 반영 후 최신 HEAD(2869149)를
+  git ls-remote로 재확인 완료. 실제 Google Drive 업로드 테스트, 실차 검증은
+  미실시.
+- 미완료: PARAMS_REGISTRY.md에 Drive 파라미터 3종 아직 미등록(15차부터 이월,
+  16차 HANDOFF 우선순위 4). CURRENT_STATUS.md가 13차 시점에서 갱신이 멈춰 있던
+  것을 17차에서 16~17차분까지 소급 반영.
 ## 16차 (완료 -- 코드 반영 + hotfix) -- upload_jobs.py zip+Drive 재작성 + app.py 연결 + 반영 스크립트 버그 3종 발견/수정
 
 - 배경: 15차에서 만든 gdrive_upload.py가 아직 아무 데서도 호출되지 않는
