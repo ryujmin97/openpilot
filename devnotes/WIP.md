@@ -1,5 +1,25 @@
 # WIP
 
+
+## 24차 (완료 — 코드 반영 스크립트 준비, GitHub push는 사용자 실행 대기) — 화면녹화 탭에 스크린샷(.png) "사진" 스트립 추가
+
+- 배경: 실기기에서 온로드 캡처 버튼(screenshot_capture.py)으로 찍은 .png 스크린샷이 웹 로그탭 어디에도 보이지 않는다는 사용자 보고. server/features/screenrecord/catalog.py의 build_videos()가 SCREEN_RECORDING_EXTS(영상 확장자만)만 스캔해서 .png가 애초에 목록화되지 않는 것이 원인으로 확인됨.
+- 사진을 영상 목록(screenrecord.js, 가상 스크롤 적용)에 억지로 섞지 않고, 별도의 작은 비가상화 가로 스트립(screenshots.js, 신규 파일)으로 분리 구현. 사진 개수가 영상 개수보다 훨씬 적을 것으로 예상되어 가상 스크롤의 복잡도를 들일 가치가 없다고 판단.
+- 백엔드: config.py에 SCREEN_RECORDING_PHOTO_EXTS(.png/.jpg/.jpeg) 추가, catalog.py에 build_photos()/find_photo()/photo_thumbnail_path() 추가(build_videos() 로직과 의도적으로 코드 공유하지 않고 병행 구현 — 영상 목록 동작이 회귀하지 않도록), routes.py에 /api/screenrecord/photos, /api/screenrecord/photo/thumbnail/{id}, /api/screenrecord/photo/{id}, /api/screenrecord/photo/download/{id} 4개 라우트 추가.
+- 프론트엔드: screenshots.js(신규) — loadScreenshots()/renderScreenshots()/openScreenshot() 구현. index.html에 screenrecordPhotosWrap/screenrecordPhotosTitle/screenrecordPhotos 마크업 추가, style.css에 가로 스크롤 스트립 스타일 추가, runtime.js에 import + 로드 훅 4곳 + 클릭 핸들러 바인딩 추가. en/ko/zh 번역 3종에 screenrecord_photos_title/screenrecord_photos_load_failed 키 추가.
+- 검증: carrot-ryu 실제 HEAD(272834b, 23차)를 그대로 clone하여 반영 스크립트(문자열 블록 치환, Replace-Block 패턴)를 실제로 적용 -> `npm install && node build.mjs`로 실제 빌드 실행 -> `python -m py_compile`로 수정된 .py 3개 확인 -> `node --test tests/logs_tabbar_contract.test.mjs` 통과 확인. 별도의 독립 시뮬레이션(원본 파일에 동일 블록 치환을 파이썬으로 재현)으로 모든 소스 파일이 바이트 단위로 일치함을 재확인.
+- 전달 방식: 9절 규칙대로 코드 파일 여러 곳의 부분 수정이므로 diff가 아닌 문자열 블록 치환(Replace-Block) 방식으로 스크립트 구성, `.ps1` 파일 자체는 21차 규칙대로 UTF-8 BOM 포함하여 생성(`carrot_ryu_24cha_photos.ps1`). js/generated/logs.js, css/generated/logs.css, generated/asset-manifest.json 등 빌드 산출물은 스크립트 안에 손으로 담지 않고, 스크립트가 실제 `node build.mjs`를 실행해 생성하도록 함(18~20차에서 확인된 "손으로 만든 빌드 산출물이 실제 빌드 결과와 달라지는" 위험 회피).
+- 미완료: 사용자가 아직 이 스크립트를 실행하지 않은 상태(24차 세션 시작 시 carrot-ryu HEAD가 여전히 272834b/23차인 것으로 GitHub에서 직접 확인). 즉 이번 회차의 코드 변경은 스크립트 형태로만 준비되었고 실제 push는 다음 확인 필요.
+- 별도 미해결 이슈(23차 관련, 사용자 실기기 보고): Google Drive 연결 UI의 드롭다운은 "구글 드라이브"로 바뀌었으나 그 아래 Client ID/Secret 입력란과 연결 버튼이 나타나지 않음. 브라우저가 js/generated/tools.js의 이전 캐시를 물고 있을 가능성(캐시 버스팅 부재)이 유력하나 사용자의 하드 리프레시/시크릿창 확인으로 아직 미검증. 다음 세션 우선순위로 이월.
+
+## 23차 (완료 — 코드 반영, GitHub push 완료, devnotes만 소급 기록) — web settings log_upload에 Google Drive 계정 연결 UI 추가
+
+- 배경: 15~22차에 걸쳐 만든 gdrive_upload.py 백엔드(OAuth device flow, params_keys.h 등록까지 완료)에 대응하는 프론트엔드 연결 UI가 없어 사용자가 실제로 Drive 계정을 연결할 방법이 없었음. HANDOFF 미완료 우선순위 1번(15차부터 이월)에 해당.
+- carrot-ryu commit 272834b8("23cha: web settings log_upload에 Google Drive 계정 연결 UI 추가 (web-gdrive-connect)")로 이미 GitHub에 반영되어 있었음을 24차 세션 시작 시 발견(devnotes에는 22차까지만 기록되어 있어 16절 해당 괴리 사례).
+- 변경 파일(commit 272834b8 기준, GitHub에서 직접 diff 조회로 확인): web/src/features/tools/web_settings/schema.js, web/src/features/tools/web_settings/components.js(174줄 추가, 연결 버튼/Client ID·Secret 입력/인증 코드 표시 UI 구현 추정), web/src/features/tools/styles/base.css(45줄 추가), web/js/translations/{en,ko,zh}.js(각 15줄, 관련 UI 텍스트), 그리고 이에 따른 생성 산출물(tools.js/tools.css/asset-manifest.json) 갱신.
+- 24차 세션에서 실제 코드 내용을 상세 분석하지는 않음(이번 세션의 초점은 스크린샷 기능이었음) — 다음 세션에서 필요 시 components.js/schema.js 상세 리뷰.
+- 검증: 실차 검증 미실시. 실제 Drive 연결 테스트(OAuth 인증 코드 입력까지)도 미실시. 사용자가 실기기에서 확인한 결과 드롭다운은 바뀌었으나 입력란이 안 보이는 문제가 있었음(24차 항목 참고, 원인 미확정).
+
 ## 22차 (완료 — Google Drive 파라미터 등록 버그 발견 및 수정) — params_keys.h 미등록 수정 + PARAMS_REGISTRY.md 정리
 
 - 배경: HANDOFF 다음 작업 후보 중 "PARAMS_REGISTRY.md 파라미터 3종 등록"(가장 가벼운 작업으로 사용자 선택)을 진행하기 위해 gdrive_upload.py의 실제 파라미터 이름(PARAM_CLIENT_ID/PARAM_CLIENT_SECRET/PARAM_REFRESH_TOKEN = CarrotGDriveClientId/CarrotGDriveClientSecret/CarrotGDriveRefreshToken)을 GitHub에서 직접 조회하던 중, openpilot/common/params_keys.h에 이 3개가 전혀 등록되어 있지 않은 것을 발견함.
