@@ -1333,8 +1333,10 @@ class HudRenderer(Widget):
       )
 
     if route_debug_text:
+      # [30차] 사용자 요청: 글자 크기 28 -> 32, 세로 위치를 회전 아이콘
+      # 초록박스 상단(box_y+95)과 텍스트 상단이 일치하도록 이동.
       draw_text_ui_style(
-        route_debug_text, box_x + box_w - pad, box_y + 45, 28, rl.WHITE,
+        route_debug_text, box_x + box_w - pad, box_y + 95, 32, rl.WHITE,
         font=self._font_display, border_width=1.5, shadow_offset=3.0,
         align="right_top",
       )
@@ -1342,24 +1344,26 @@ class HudRenderer(Widget):
     # [28차] 도착 거리/시간을 "route=숫자" 바로 아래(한 줄 띄고), 같은
     # 우측끝맞춤 열에 배치한다. 좌측(회전 아이콘 초록박스)과는 항상 반대쪽
     # (우측)에 있으므로 겹치지 않는다.
-    # [29차] 사용자 요청으로 도착 거리/시간을 pad(24px) 안쪽이 아니라
-    # 박스 우측 경계에 거의 붙여(끝맞춤) 표시한다.
-    edge_x = box_x + box_w - 6
+    # [30차] 사용자 요청: (1) 텍스트 우측끝이 박스 테두리 밖으로 넘치지 않게
+    # 경계에서 6px가 아니라 pad(24px)만큼 안쪽으로 들이고, (2) "route=숫자"
+    # 아래 한 줄(약 40px) 띄운 위치에서 시작하도록 상단기준(right_top)으로 변경.
+    edge_x = box_x + box_w - pad
+    eta_top = box_y + 175  # route= 상단(95) + route 한 줄(~40) + 빈 줄(~40)
 
     go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
     if go_dist_text:
       draw_text_ui_style(
-        f"도착: {go_dist_text}", edge_x, box_y + 150, eta_size, rl.WHITE,
+        f"도착: {go_dist_text}", edge_x, eta_top, eta_size, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
-        align="right_bottom",
+        align="right_top",
       )
 
     eta_time_text = self._format_eta_time_text(n_go_pos_time)
     if eta_time_text:
       draw_text_ui_style(
-        eta_time_text, edge_x, box_y + 195, eta_size, rl.WHITE,
+        eta_time_text, edge_x, eta_top + 48, eta_size, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
-        align="right_bottom",
+        align="right_top",
       )
 
     # --- 중단: 회전 아이콘 + 남은 거리 (초록박스: 세로 중앙 / 가로 좌측끝맞춤) ---
