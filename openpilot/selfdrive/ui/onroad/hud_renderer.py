@@ -1328,7 +1328,7 @@ class HudRenderer(Widget):
     # 표시되어도 겹치거나 사라지지 않게 한다.
     if info["tbt_main_text"]:
       self._draw_text_left_bottom(
-        info["tbt_main_text"], box_x + pad, box_y + 55, 40, rl.WHITE,
+        info["tbt_main_text"], box_x + pad, box_y + 38, 40, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
       )
 
@@ -1342,10 +1342,14 @@ class HudRenderer(Widget):
     # [28차] 도착 거리/시간을 "route=숫자" 바로 아래(한 줄 띄고), 같은
     # 우측끝맞춤 열에 배치한다. 좌측(회전 아이콘 초록박스)과는 항상 반대쪽
     # (우측)에 있으므로 겹치지 않는다.
+    # [29차] 사용자 요청으로 도착 거리/시간을 pad(24px) 안쪽이 아니라
+    # 박스 우측 경계에 거의 붙여(끝맞춤) 표시한다.
+    edge_x = box_x + box_w - 6
+
     go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
     if go_dist_text:
       draw_text_ui_style(
-        f"도착: {go_dist_text}", box_x + box_w - pad, box_y + 150, eta_size, rl.WHITE,
+        f"도착: {go_dist_text}", edge_x, box_y + 150, eta_size, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
         align="right_bottom",
       )
@@ -1353,7 +1357,7 @@ class HudRenderer(Widget):
     eta_time_text = self._format_eta_time_text(n_go_pos_time)
     if eta_time_text:
       draw_text_ui_style(
-        eta_time_text, box_x + box_w - pad, box_y + 195, eta_size, rl.WHITE,
+        eta_time_text, edge_x, box_y + 195, eta_size, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
         align="right_bottom",
       )
@@ -1366,10 +1370,12 @@ class HudRenderer(Widget):
     x_turn_info = info["x_turn_info"]
     x_dist_to_turn = info["x_dist_to_turn"]
 
-    if x_turn_info > 0:
-      bx = box_x + pad + 80  # 초록박스 절반 폭(80)만큼 안쪽 -> 박스 좌측 끝이 pad에 맞춰짐
-      by = box_y + 190       # 초록박스(-95~+115)의 세로 중심이 박스 정중앙(200)에 오도록
+    # [29차] by(초록박스 기준선)를 sdi_descr("신호과속") 배치에도 재사용하기
+    # 위해 if 블록 밖으로 이동.
+    bx = box_x + pad + 80  # 초록박스 절반 폭(80)만큼 안쪽 -> 박스 좌측 끝이 pad에 맞춰짐
+    by = box_y + 190       # 초록박스(-95~+115)의 세로 중심이 박스 정중앙(200)에 오도록
 
+    if x_turn_info > 0:
       if info["atc_type"]:
         fill_color = rl.Color(0, 255, 0, 100) if "prepare" in info["atc_type"] else rl.GREEN
         self._draw_round_box(
@@ -1398,8 +1404,12 @@ class HudRenderer(Widget):
     # 박스 맨 아래에 배치 ---
     if info["sdi_descr"]:
       label_x = box_x + pad
-      label_y = box_y + box_h - 35
+      # [29차] 사용자 요청으로 "신호과속" 배지를 박스 맨 아래(다른 하단 상태줄과
+      # 겹쳐 보이던 위치)에서, 바로 위 회전 아이콘 초록박스(하단 경계 by+115)에
+      # 붙는 위치로 이동. 텍스트 높이(size.y)를 먼저 구해 배지 상단이 by+115에
+      # 오도록 label_y(텍스트 기준선)를 역산한다.
       size = measure_text_cached(self._font_bold, info["sdi_descr"], eta_size)
+      label_y = by + 115 + int(size.y) + 10
       badge_h = max(48, int(size.y + 13))
       self._draw_round_box(
         label_x - 10,
