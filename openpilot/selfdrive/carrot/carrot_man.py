@@ -6,13 +6,17 @@ import math
 import os
 import socket
 import struct
+import shutil
 import subprocess
+import tempfile
 import threading
 import time
+import zipfile
 import numpy as np
 import zmq
 from datetime import datetime
 import traceback
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
 from aiohttp import web
@@ -35,13 +39,12 @@ from openpilot.common.constants import CV
 from openpilot.selfdrive.carrot.carrot_serv import CarrotServ
 from openpilot.selfdrive.carrot.curve_speed import VisionCurveSpeed, curve_speed
 from openpilot.selfdrive.carrot.carrot_navi_control import CarrotNaviControl, parse_carrot_navi_control
+from openpilot.selfdrive.carrot import gdrive_upload
 from openpilot.selfdrive.carrot.server.services.web_settings import read_web_settings
 from openpilot.selfdrive.carrot.web_upload import (
   carrot_logs_web_target,
-  create_web_upload_session_sync,
   post_tmux_web,
   selected_upload_settings,
-  tmux_web_target,
 )
 
 from openpilot.common.gps import get_gps_location_service
@@ -907,27 +910,48 @@ class CarrotMan:
     return target == "toss"
 
   def send_tmux_web(self, tmux_why, send_settings=False):
+    """Upload tmux diagnostics to Google Drive as a single zip
+    (tmux.log [+ toggle_values.json] + metadata.json).
+
+    기존 Carrot/Toss "선택 전송" HTTP 업로드를 대체함(17차).
+    send_tmux_carrot_logs()(Discord carrot_logs 포럼용 독립 고정 전송)는
+    이 변경과 무관하며 그대로 둔다.
+    """
+    tmp_dir = None
     try:
-      try:
-        upload_settings = read_web_settings()
-      except Exception:
-        upload_settings = {}
       payload = self._tmux_upload_payload(tmux_why)
-      target, base_url, configured_token = selected_upload_settings(upload_settings)
-      if target == "carrot":
-        session_token = configured_token or create_web_upload_session_sync(
-          base_url, payload, requests.post, "tmux",
-        )
-      else:
-        if not configured_token:
-          raise RuntimeError("Toss upload token is not configured")
-        session_token = configured_token
-      url, headers = tmux_web_target(upload_settings, session_token)
-      return self._post_tmux_target("selected tmux upload", url, headers, payload, send_settings)
+      if send_settings:
+        self.save_toggle_values()
+
+      def build_zip(zip_path):
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+          if os.path.isfile("/data/media/tmux.log"):
+            zf.write("/data/media/tmux.log", arcname="tmux.log")
+          if send_settings and os.path.isfile("/data/toggle_values.json"):
+            zf.write("/data/toggle_values.json", arcname="toggle_values.json")
+          zf.writestr("metadata.json", json.dumps(payload, ensure_ascii=False, indent=2))
+
+      def safe_part(value):
+        text = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in str(value or ""))
+        return text[:40] or "unknown"
+
+      timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+      zip_filename = f"tmux_{safe_part(payload.get('car_name'))}_{safe_part(tmux_why)}_{timestamp}.zip"
+
+      tmp_dir = tempfile.mkdtemp(prefix="carrot_tmux_")
+      zip_path = os.path.join(tmp_dir, zip_filename)
+      build_zip(zip_path)
+
+      drive_result = asyncio.run(gdrive_upload.upload_file_resumable(zip_path, zip_filename))
+      print(f"[carrot_man] gdrive tmux upload: id={drive_result.get('id')} name={drive_result.get('name')}")
+      return SimpleNamespace(ok=True, status_code=200, drive_result=drive_result)
     except Exception as e:
       print(f"web tmux sending error...: {e}")
       traceback.print_exc()
       return None
+    finally:
+      if tmp_dir:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
   def send_tmux_carrot_logs(self, tmux_why, send_settings=False):
     """Send the independent copy consumed by the Discord carrot_logs forum."""
