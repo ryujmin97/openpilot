@@ -1,5 +1,76 @@
 # WIP
 
+## 15차 (진행 중 -- Carrotweb 구글드라이브 전환 범위 확정 + gdrive_upload.py 신규 모듈) -- web_upload.py Carrot/Toss -> Drive 2단계
+
+- 배경: 14차에서 설계 방향(zip 압축 후 Drive 업로드)까지는 정리했으나
+  tmux 진단/Discord 웹훅 처리 여부가 미결이었음. 이번 세션에서 사용자와
+  범위를 재확인
+- 1단계 - carrot-ryu 실제 구조 재확인 (codeload tarball, 리포 루트 밑에
+  `openpilot/` 서브폴더가 한 겹 더 있음 확인 -- 이후 스크립트의 파일
+  경로는 모두 `openpilot/selfdrive/carrot/...` 기준):
+  - `selfdrive/carrot/web_upload.py`(333줄): Carrot/Toss HTTP 업로드 +
+    tmux/carrot_logs 진단 전송 함수가 **한 파일에 공존**
+  - `server/features/dashcam/upload_jobs.py`(663줄): 세그먼트별 동시
+    스트리밍 업로드, 바이트 단위 진행률 추적
+  - `server/features/dashcam/upload.py`: `resolve_upload_target()`,
+    `discord_webhook_url()`/`send_discord_webhook()`(대시캠 업로드 완료
+    알림용, tmux/carrot_logs 포럼과는 별개의 또 다른 Discord 웹훅임)
+- 2단계 - **중요 구조 발견**: `log_upload_target`(carrot/toss) 설정
+  하나가 서로 다른 두 시스템에서 공유되고 있었음
+  1. 로그탭 "전송" 버튼(대시캠 세그먼트 업로드,
+     `upload_jobs.py` -> `upload.resolve_upload_target()`)
+  2. tmux 진단 전송 중 "선택 전송"(`carrot_man.py` ->
+     `send_tmux_web()` -> `selected_upload_settings()`)
+  - 반면 `send_tmux_carrot_logs()`(Discord `carrot_logs` 포럼용)는 대상
+    URL이 `tmux.carrotpilot.app`으로 고정이고 `log_upload_target`은
+    "Toss 전용이면 이 전송을 건너뛴다"는 `_tmux_toss_only()` 체크에만
+    쓰임 -- 완전히 별개는 아니지만 대상 자체는 공유하지 않음
+  - `web_settings.py`의 `LOG_UPLOAD_TARGETS = {"carrot","toss"}`,
+    `log_upload_target` enum 필드가 이 모든 것의 공통 데이터 소스
+- 3단계 - 사용자와 범위 확정 (2번의 확인 질문 거침):
+  - 로그탭 "전송" 버튼(대시캠 업로드) -> Drive: 기존 확정 유지
+  - tmux 진단 중 "carrot/toss 선택 전송"(`send_tmux_web()`) -> **이번에
+    Drive로 추가 확정**
+  - tmux 진단 중 "Discord carrot_logs 포럼용 고정 전송"
+    (`send_tmux_carrot_logs()`) -> **그대로 유지** (Drive로 바꾸지 않음,
+    Discord 봇이 소비하는 고정 엔드포인트라 구조가 다름)
+  - `log_upload_target`/`LOG_UPLOAD_TARGETS`/`web_settings.py` 스키마
+    자체는 건드리지 않기로 함(`_tmux_toss_only()`가 계속 이 값을 참조
+    하므로) -- 다만 대시캠 업로드와 `send_tmux_web()`이 모두 Drive로
+    이관되면 `log_upload_target`은 "carrot_logs 포럼 스킵 여부" 판단
+    외에는 실질적으로 안 쓰이게 됨(설계상 다소 어색하지만 최소 변경
+    원칙에 따라 이번엔 그대로 둠 -- 정리 필요성은 다음 세션 이월)
+- 4단계 - c3-ms-dev의 `server/gdrive.py`(511줄, OAuth Device
+  Authorization Grant + resumable 업로드) 재확인:
+  - codeload로 다시 받아보니 **원본(폴더 이름 자동검색, drive.file
+    스코프) 상태**였음 -- 14차에서 언급된 "폴더 ID 고정 + 전체 스코프"
+    치환은 사용자 로컬(C:\dev\ryu)에서만 확인됐고 c3-ms-dev 원격 브랜치
+    에는 반영 안 된 것으로 추정(다음 세션에서 재확인 필요, 우선순위는
+    낮음 -- carrot-ryu 포팅에는 영향 없음)
+  - carrot-ryu 이식본은 이 원본을 기준으로, 처음부터 폴더 ID 고정
+    (`DRIVE_FOLDER_ID`) + `drive`(전체) 스코프로 직접 작성함
+- 5단계 - 신규 모듈 `openpilot/selfdrive/carrot/gdrive_upload.py` 작성
+  (Claude 샌드박스에서 py_compile 통과 확인, 사용자 PC 환경 기준 검증은
+  아직):
+  - OAuth Device Flow 엔드포인트(status/device/token/disconnect) +
+    `upload_file_resumable()`(8MB 청크 resumable PUT) + job 진행률 추적
+    -- c3-ms-dev와 동일 패턴
+  - `_ensure_folder()`(이름 검색/자동생성) 대신 `_verify_folder()`(고정
+    ID 존재/휴지통/타입 검증만, 신규 생성 안 함)로 교체
+  - 위치를 `selfdrive/carrot/gdrive_upload.py`에 둔 이유: `web_upload.py`
+    와 같은 레벨에 둬야 `carrot_man.py`(server/ 밖에 위치)와
+    `server/features/dashcam/upload_jobs.py`(server/ 안에 위치) 양쪽에서
+    같은 상대 경로 부담 없이 import 가능
+  - `register(app)`은 인증/상태조회/job조회 엔드포인트만 등록. 실제
+    "업로드 시작"(zip 압축, tmux 로그 전송)은 각 호출부가
+    `upload_file_resumable()`을 직접 호출하는 방식으로 다음 세션에 연결
+    예정(아직 미연결)
+  - 반영: 9절 방식(신규 파일, PowerShell 스크립트) `apply_15_gdrive_module.ps1`
+    로 carrot-ryu 브랜치에 전달함
+- 실차 검증: 미실시(신규 모듈 작성 + 문법 검증만, 실제 업로드 동작
+  테스트 없음. `upload_jobs.py`/`carrot_man.py`와 아직 연결 전이라 단독
+  실행도 불가능한 상태)
+
 ## 13차 (완료 — 온로드 시계 좌측 화면 경계 잘림 버그 수정) — hud_renderer.py _draw_date_time() x좌표 보정
 
 - 배경: 사용자가 실제 화면 사진(2026-09-13 23:32:34 촬영)을 공유, 좌측 상단
