@@ -1,3 +1,4 @@
+import re
 import time
 import pyray as rl
 from dataclasses import dataclass
@@ -1202,14 +1203,32 @@ class HudRenderer(Widget):
         return f"{int(dist_m * 3.28084)} ft"
       return f"{dist_m / 1609.344:.1f} mi"
 
-  def _format_eta_text(self, remain_sec: int) -> str:
+  def _format_eta_time_text(self, remain_sec: int) -> str:
+    # "도착:" 라벨 없이 "N.N분(HH:MM)"만 반환 (거리 줄과 분리해 두 번째 줄에 쓰기 위함).
     if remain_sec <= 0:
       return ""
 
     # Arrival time is wall-clock based; monotonic time cannot be converted to local time.
     eta_tm = time.localtime(time.time() + remain_sec)  # noqa: TID251
     remain_min = remain_sec / 60.0
-    return f"도착: {remain_min:.1f}분({eta_tm.tm_hour:02d}:{eta_tm.tm_min:02d})"
+    return f"{remain_min:.1f}분({eta_tm.tm_hour:02d}:{eta_tm.tm_min:02d})"
+
+  _ROUTE_DEBUG_RE = re.compile(r"route=[-0-9.]+")
+
+  def _split_road_name_debug(self, road_name: str) -> tuple[str, str]:
+    # szPosRoadName에는 도로명 뒤에 carrot_serv.debugText(예: "route=12.3")가
+    # 공백으로 이어붙어 들어올 수 있다. 우측하단에 별도(우측끝맞춤)로 그리기 위해
+    # "route=..." 토큰만 분리해 내고, 나머지는 도로명 그대로 반환한다.
+    if not road_name:
+      return "", ""
+
+    match = self._ROUTE_DEBUG_RE.search(road_name)
+    if not match:
+      return road_name, ""
+
+    route_text = match.group(0)
+    remainder = (road_name[:match.start()] + road_name[match.end():]).strip()
+    return remainder, route_text
 
   def _format_go_pos_distance_text(self, dist_m: int) -> str:
     if dist_m <= 0:
@@ -1279,33 +1298,55 @@ class HudRenderer(Widget):
     if not (n_go_pos_dist > 0 and n_go_pos_time > 0):
       return
 
-    tbt_x = int(rect.x + rect.width - 800)
-    tbt_y = int(rect.y + rect.height - 250)
+    # [27차] 좌하단 디버그 박스(_draw_carrot_main_background, 장치상태 펼침 시
+    # 475x495)와 동일한 크기로 맞춘다. 우측/하단 여백(10px)은 기존 790x300
+    # 박스가 화면 우측/하단에서 떨어져 있던 간격을 그대로 유지한다.
+    box_w = 475
+    box_h = 495
+    box_x = int(rect.x + rect.width - 10 - box_w)
+    box_y = int(rect.y + rect.height - 10 - box_h)
+    pad = 24
+    eta_size = 40  # "신호과속" 라벨과 동일한 글자 크기
 
     self._draw_round_box(
-      tbt_x,
-      tbt_y - 60,
-      790,
-      300,
+      box_x,
+      box_y,
+      box_w,
+      box_h,
       rl.Color(0, 0, 0, 120),
       line_color=rl.WHITE,
-      roundness=30.0 / 300.0,
+      roundness=30.0 / box_h,
       segments=12,
       line_thickness=2,
     )
 
+    # 도로명에 carrot_serv.debugText(예: "route=12.3")가 공백으로 이어붙어
+    # 들어올 수 있으므로, 표시 직전에 분리해 별도 줄에 우측끝맞춤으로 그린다.
+    road_name_text, route_debug_text = self._split_road_name_debug(info["road_name"])
+
+    # --- 상단: 목적지/안내 제목(좌) + route=숫자 디버그(우, 우측끝맞춤) ---
+    # route=숫자는 신호과속 배지와 별도 줄(박스 상단)에 항상 그려서, 신호과속이
+    # 표시되어도 겹치거나 사라지지 않게 한다.
     if info["tbt_main_text"]:
       self._draw_text_left_bottom(
-        info["tbt_main_text"], tbt_x + 20, tbt_y - 15, 40, rl.WHITE,
+        info["tbt_main_text"], box_x + pad, box_y + 55, 40, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
       )
 
+    if route_debug_text:
+      draw_text_ui_style(
+        route_debug_text, box_x + box_w - pad, box_y + 45, 28, rl.WHITE,
+        font=self._font_display, border_width=1.5, shadow_offset=3.0,
+        align="right_top",
+      )
+
+    # --- 중단: 회전 아이콘 + 남은 거리 ---
     x_turn_info = info["x_turn_info"]
     x_dist_to_turn = info["x_dist_to_turn"]
 
     if x_turn_info > 0:
-      bx = tbt_x + 100
-      by = tbt_y + 85
+      bx = box_x + box_w // 2
+      by = box_y + 200
 
       if info["atc_type"]:
         fill_color = rl.Color(0, 255, 0, 100) if "prepare" in info["atc_type"] else rl.GREEN
@@ -1324,50 +1365,53 @@ class HudRenderer(Widget):
       if dist_text:
         draw_text_ui_style(
           dist_text,
-          bx, by + 120, 40, rl.WHITE,
+          bx, by + 110, 40, rl.WHITE,
           font=self._font_bold,
           border_width=2.0,
           shadow_offset=4.0,
           align="center_bottom",
         )
 
+    # --- 중하단: 도착 정보. "도착: 거리" 다음 줄에 "N.N분(HH:MM)" ---
+    go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
+    if go_dist_text:
+      self._draw_text_left_bottom(
+        f"도착: {go_dist_text}", box_x + pad, box_y + 350, eta_size, rl.WHITE,
+        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
+      )
+
+    eta_time_text = self._format_eta_time_text(n_go_pos_time)
+    if eta_time_text:
+      self._draw_text_left_bottom(
+        eta_time_text, box_x + pad, box_y + 395, eta_size, rl.WHITE,
+        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
+      )
+
+    # --- 하단: 신호과속(또는 도로명) 배지. route=숫자와 겹치지 않도록
+    # 박스 맨 아래에 배치 ---
     if info["sdi_descr"]:
-      label_x = tbt_x + 200
-      label_y = tbt_y + 200
-      size = measure_text_cached(self._font_bold, info["sdi_descr"], 40)
-      box_h = max(48, int(size.y + 13))
+      label_x = box_x + pad
+      label_y = box_y + box_h - 35
+      size = measure_text_cached(self._font_bold, info["sdi_descr"], eta_size)
+      badge_h = max(48, int(size.y + 13))
       self._draw_round_box(
         label_x - 10,
         label_y - int(size.y) - 2,
         int(size.x) + 20,
-        box_h,
+        badge_h,
         rl.GREEN,
-        roundness=10.0 / box_h,
+        roundness=10.0 / badge_h,
         segments=8,
         line_thickness=0,
       )
       self._draw_text_left_bottom(
-        info["sdi_descr"], label_x, label_y, 40, rl.WHITE,
+        info["sdi_descr"], label_x, label_y, eta_size, rl.WHITE,
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
       )
-    elif info["road_name"]:
+    elif road_name_text:
       self._draw_text_left_bottom(
-        info["road_name"], tbt_x + 200, tbt_y + 200, 40, rl.WHITE,
+        road_name_text, box_x + pad, box_y + box_h - 35, eta_size, rl.WHITE,
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
-      )
-
-    eta_text = self._format_eta_text(n_go_pos_time)
-    if eta_text:
-      self._draw_text_left_bottom(
-        eta_text, tbt_x + 190, tbt_y + 80, 50, rl.WHITE,
-        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
-      )
-
-    go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
-    if go_dist_text:
-      self._draw_text_left_bottom(
-        go_dist_text, tbt_x + 310, tbt_y + 130, 50, rl.WHITE,
-        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
       )
 
   def _draw_set_speed_carrot(self, rect: rl.Rectangle) -> None:
