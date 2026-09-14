@@ -17,7 +17,7 @@ WEB_LANGUAGES = {"", "en", "ko", "zh"}
 WEB_REPLAY_INSIGHTS_TABS = {"events", "graphs", "sensors", "advanced"}
 WEB_DRIVE_LAYOUT_MODES = {"split", "area_1", "area_2"}
 WEB_AUTO_UPDATE_REBOOT_MODES = {"off", "park", "disengaged"}
-LOG_UPLOAD_TARGETS = {"carrot", "toss"}
+LOG_UPLOAD_TARGETS = {"carrot", "toss", "gdrive"}
 
 # Existing settings files created before the drive-layout keys were persisted
 # should retain the former split layout. Fresh installs use WEB_SETTINGS_SPEC.
