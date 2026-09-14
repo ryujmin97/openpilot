@@ -1,5 +1,19 @@
 # WIP
 
+## 18~20차 (완료 — 코드 반영, GitHub push 완료) — api_dashcam_upload_test를 Google Drive 연결 테스트로 전환
+
+- 배경: HANDOFF 미완료 우선순위 1번(15차부터 이월). dashcam 업로드 연결 테스트 버튼(`/api/dashcam/upload/test`, routes.py의 `api_dashcam_upload_test`)이 16~17차에서 이미 Drive로 전환된 실제 업로드 경로와 달리 여전히 옛 Carrot/Toss 헬스체크(`check_web_upload_health`)를 가리키고 있었음.
+- gdrive_upload.py에 `test_connection()` 추가: `is_connected()`가 refresh_token 존재 여부만 보는 것과 달리, 실제 access_token 갱신 + 대상 폴더 조회까지 왕복해 Drive 연동이 실제로 동작하는지 확인.
+- routes.py: `api_dashcam_upload_test`를 `gdrive_upload.test_connection()` 호출로 교체, 옛 `web_upload`(check_web_upload_health/create_web_upload_session) import 및 `upload` 모듈 참조 제거.
+- test_web_upload.py: 옛 toss/carrot 대상 관련 테스트 2개를 제거하고, 라우트 유일성 1개 + Drive 연결 성공/실패 케이스 2개로 교체.
+- ⚠ [중요 교훈] 18차에서 diff/`git apply` 시도가 조용히 실패함 — 스크립트는 에러 없이 "적용 완료"로 끝났으나, 실제로는 patch 파일만 carrot-ryu에 잘못 커밋되고 의도했던 코드 변경은 전혀 반영되지 않음(정확한 근본원인은 사용자 PC를 직접 디버깅할 수 없어 확정 불가, `Apply-Patch` 함수 내부의 반복적인 `Push-Location`/`Pop-Location`이 셸 위치 추적을 꼬이게 한 것으로 추정). 17차(`corrupt patch`로 안전 중단)보다 더 나쁜, 조용히 실패하는 양상이었음.
+- 19차에서 방식을 전면 교체: diff 대신 **파일 전체 텍스트에서 블록을 통째로 찾아 `.Replace()`로 치환**(치환 전 블록이 정확히 1회만 존재하는지 검증 후 치환, 아니면 중단), `Push-Location` 대신 `git -C $TempDir`만 사용. 이 방식으로 routes.py/test_web_upload.py 반영 및 18차에서 잘못 커밋된 임시 patch 파일 3개 정리까지 정상 완료(commit a44f1580).
+- 다만 19차에서 gdrive_upload.py 하나는 Claude가 anchor 문자열을 잘못 옮겨 적어(`dict[str, Any]` vs 실제 `dict[str, dict[str, Any]]`) 매치 0회로 안전하게 중단됨 — `Replace-Block`의 "정확히 1회 아니면 중단" 안전장치가 의도대로 작동한 사례로, carrot-ryu에는 영향 없었음. 20차에서 GitHub 최신 원본과 anchor를 바이트 단위로 재대조하여 정정, 정상 반영 완료(commit ad055dd4).
+- 최종 GitHub 반영 확인: raw.githubusercontent.com으로 ad055dd4 시점의 3개 파일을 모두 직접 재조회하여 `test_connection()` 정의, routes.py import/함수 교체를 확인 완료.
+- 사용자 승인 하에 9절을 "코드 파일 부분 수정은 문자열 블록 치환을 기본으로, diff/git apply는 예외적 보조 수단으로" 개정.
+- ⚠ [별도 발견] 이번 세션은 채팅에 9차 버전의 PROJECT_INSTRUCTIONS_carrot-ryu.md를 붙여넣은 채로 시작됐으나, 실제 carrot-ryu-note의 GitHub 버전은 이미 12차까지 진행되어 있었음. 20차에서 GitHub 버전(12차) 위에 이번 변경을 반영해 정정.
+- ⚠ [WIP.md 반영 후속] 이 회차 자체가 처음 만들어진 20차 devnotes 반영 스크립트에서 `Prepend-Top` 함수에 CRLF 정규화가 빠져 있어("# WIP" marker가 `\r\n` 파일과 불일치) 실패했고, HANDOFF.md/CURRENT_STATUS.md/PROJECT_INSTRUCTIONS만 먼저 commit 450a1cd로 반영됨. 이 회차는 그 직후 별도 후속 커밋으로 반영됨.
+
 ## 17차 (완료 -- 코드 반영, GitHub push 완료) -- send_tmux_web() Google Drive 업로드 전환
 
 - 배경: 16차 HANDOFF 미완료 우선순위 1번. tmux 진단 전송(온로드 자동 진단, CAN
