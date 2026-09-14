@@ -1298,11 +1298,10 @@ class HudRenderer(Widget):
     if not (n_go_pos_dist > 0 and n_go_pos_time > 0):
       return
 
-    # [27차] 좌하단 디버그 박스(_draw_carrot_main_background, 장치상태 펼침 시
-    # 475x495)와 동일한 크기로 맞춘다. 우측/하단 여백(10px)은 기존 790x300
-    # 박스가 화면 우측/하단에서 떨어져 있던 간격을 그대로 유지한다.
+    # [28차] 사용자 요청으로 박스 높이를 495 -> 400으로 축소. 우측/하단
+    # 여백(10px)은 기존과 동일하게 유지한다.
     box_w = 475
-    box_h = 495
+    box_h = 400
     box_x = int(rect.x + rect.width - 10 - box_w)
     box_y = int(rect.y + rect.height - 10 - box_h)
     pad = 24
@@ -1340,21 +1339,44 @@ class HudRenderer(Widget):
         align="right_top",
       )
 
-    # --- 중단: 회전 아이콘 + 남은 거리 ---
+    # [28차] 도착 거리/시간을 "route=숫자" 바로 아래(한 줄 띄고), 같은
+    # 우측끝맞춤 열에 배치한다. 좌측(회전 아이콘 초록박스)과는 항상 반대쪽
+    # (우측)에 있으므로 겹치지 않는다.
+    go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
+    if go_dist_text:
+      draw_text_ui_style(
+        f"도착: {go_dist_text}", box_x + box_w - pad, box_y + 150, eta_size, rl.WHITE,
+        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
+        align="right_bottom",
+      )
+
+    eta_time_text = self._format_eta_time_text(n_go_pos_time)
+    if eta_time_text:
+      draw_text_ui_style(
+        eta_time_text, box_x + box_w - pad, box_y + 195, eta_size, rl.WHITE,
+        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
+        align="right_bottom",
+      )
+
+    # --- 중단: 회전 아이콘 + 남은 거리 (초록박스: 세로 중앙 / 가로 좌측끝맞춤) ---
+    # [28차] 기존에는 박스 가로 중앙에 배치했으나, 사용자 요청으로 좌측
+    # (상단 제목과 동일한 pad 기준선)에 맞추고, 세로는 박스 정중앙(200)에 오도록
+    # -95/+115 오프셋을 적용했다. 이 범위(95~305)는 위쪽 제목/route 줄(~79까지)
+    # 및 아래쪽 신호과속/도로명 배지(~315부터)와 겹치지 않는다.
     x_turn_info = info["x_turn_info"]
     x_dist_to_turn = info["x_dist_to_turn"]
 
     if x_turn_info > 0:
-      bx = box_x + box_w // 2
-      by = box_y + 200
+      bx = box_x + pad + 80  # 초록박스 절반 폭(80)만큼 안쪽 -> 박스 좌측 끝이 pad에 맞춰짐
+      by = box_y + 190       # 초록박스(-95~+115)의 세로 중심이 박스 정중앙(200)에 오도록
 
       if info["atc_type"]:
         fill_color = rl.Color(0, 255, 0, 100) if "prepare" in info["atc_type"] else rl.GREEN
         self._draw_round_box(
-          bx - 80, by - 90, 160, 230,
+          bx - 80, by - 95, 160, 210,
           fill_color,
           line_color=rl.BLACK,
-          roundness=15.0 / 230.0,
+          roundness=15.0 / 210.0,
           segments=8,
           line_thickness=1,
         )
@@ -1365,27 +1387,12 @@ class HudRenderer(Widget):
       if dist_text:
         draw_text_ui_style(
           dist_text,
-          bx, by + 110, 40, rl.WHITE,
+          bx, by + 95, 40, rl.WHITE,
           font=self._font_bold,
           border_width=2.0,
           shadow_offset=4.0,
           align="center_bottom",
         )
-
-    # --- 중하단: 도착 정보. "도착: 거리" 다음 줄에 "N.N분(HH:MM)" ---
-    go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
-    if go_dist_text:
-      self._draw_text_left_bottom(
-        f"도착: {go_dist_text}", box_x + pad, box_y + 350, eta_size, rl.WHITE,
-        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
-      )
-
-    eta_time_text = self._format_eta_time_text(n_go_pos_time)
-    if eta_time_text:
-      self._draw_text_left_bottom(
-        eta_time_text, box_x + pad, box_y + 395, eta_size, rl.WHITE,
-        font=self._font_bold, border_width=2.0, shadow_offset=4.0,
-      )
 
     # --- 하단: 신호과속(또는 도로명) 배지. route=숫자와 겹치지 않도록
     # 박스 맨 아래에 배치 ---
