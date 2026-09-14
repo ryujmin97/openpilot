@@ -1,6 +1,13 @@
 # WIP
 
 
+## 24차 계속 (완료 -- GitHub push 확인됨) -- carrot_ryu_24cha_photos.ps1 실행 결과 검증
+
+- 세션 초반에는 carrot-ryu HEAD가 여전히 272834b(23차)로, 24차 스크린샷 스트립 반영 스크립트가 실행되지 않은 상태였음(위 "24차" 항목 참고).
+- 세션 도중 사용자가 carrot_ryu_24cha_photos.ps1을 실행: npm 실행 정책 문제(PowerShell 스크립트 차단)를 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`로 우회 후 정상 실행. clone -> 문자열 블록 치환 반영 -> commit -> push까지 로그가 끝까지 출력됨(임시 폴더 자동 삭제 포함).
+- 5절/16절/20절 원칙에 따라 로그만으로 "완료"로 단정하지 않고, api.github.com 및 raw.githubusercontent.com으로 직접 재조회: carrot-ryu HEAD가 a7a912c1로 갱신되었고, 신규 파일 openpilot/selfdrive/carrot/web/src/features/logs/screenshots.js가 실제로 브랜치에 존재함을 확인.
+- 결론: 24차(화면녹화 탭 스크린샷 "사진" 스트립) 코드는 GitHub에 정상 반영 완료(commit a7a912c1). devnotes(HANDOFF.md/CURRENT_STATUS.md)도 이 확인 결과에 맞춰 함께 갱신.
+- 남은 작업은 위 "24차" 항목의 "미완료" 목록 중 코드 반영 자체가 아닌 나머지 항목(Drive UI 입력란 미노출 조사, 실제 Drive 연결 테스트, 실주행 재검증 등)으로 이월.
 ## 24차 (완료 — 코드 반영 스크립트 준비, GitHub push는 사용자 실행 대기) — 화면녹화 탭에 스크린샷(.png) "사진" 스트립 추가
 
 - 배경: 실기기에서 온로드 캡처 버튼(screenshot_capture.py)으로 찍은 .png 스크린샷이 웹 로그탭 어디에도 보이지 않는다는 사용자 보고. server/features/screenrecord/catalog.py의 build_videos()가 SCREEN_RECORDING_EXTS(영상 확장자만)만 스캔해서 .png가 애초에 목록화되지 않는 것이 원인으로 확인됨.
