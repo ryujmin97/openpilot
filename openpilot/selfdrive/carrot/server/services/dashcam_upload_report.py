@@ -119,7 +119,8 @@ def upload_message_lines(payload: dict[str, Any], max_results: int | None = None
   # 아니라 zip 파일 하나의 링크만 있으므로, 그 링크에 세그먼트 범위를 이어붙여
   # 만드는 "Open & Analyze" 구간 URL은 의미가 없다(오히려 깨진 링크가 됨).
   # Carrot/Toss 대상일 때만 생성한다.
-  runs = _consecutive_runs(visible_uploaded) if str(payload.get("target") or "") != "gdrive" else []  if runs:
+  runs = _consecutive_runs(visible_uploaded) if str(payload.get("target") or "") != "gdrive" else []
+  if runs:
     lines.append("### Open & Analyze")
     for run in runs:
       first_parts = _segment_parts(run[0])
