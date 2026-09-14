@@ -1,5 +1,33 @@
 # FINDINGS
 
+## [2026-09-14] Google Drive 연결 UI Client ID/Secret 입력란 미노출 문제 조사 (24차 계속2)
+
+### 배경
+- 23차(commit 272834b8)에서 web_settings에 Google Drive 연결 UI(web-gdrive-connect 컴포넌트)를 추가했으나, 사용자 실기기에서 "업로드 서버" 드롭다운은 "구글 드라이브"로 바뀌는데 그 아래 Client ID/Secret 입력란과 연결 버튼이 보이지 않는다고 보고됨(WIP.md 23~24차 참고).
+
+### 조사 1: 캐싱 가설 기각
+- server/features/static.py를 확인한 결과, index.html은 매 요청마다 Cache-Control: no-cache, no-store, must-revalidate로 서빙되고, 정적 자산(js/css)의 src/href는 요청마다 실제 파일 콘텐츠 해시(?v=<sha256>)로 재작성됨(_rewrite_index_asset_urls/_fingerprinted_asset_url). 브라우저 캐시가 낡은 번들을 계속 쓸 수 있는 구조가 아니며, 서비스 워커도 존재하지 않음(grep 결과 없음). 캐싱 가설은 기각.
+
+### 조사 2: 렌더링 로직 자체는 정상 (Node.js 시뮬레이션으로 검증)
+- schema.js: log_upload 그룹에 web_upload, web_gdrive_connect 두 항목이 정상 등록되어 있음(commit 272834b8 diff로 확인).
+- components.js: "web-gdrive-connect" 컴포넌트는 settingKeys가 비어 있어 isVisible이 항상 true. 드롭다운 선택값(target)과 무관하게 항상 렌더링되는 별도 행으로 구현되어 있음(web-upload의 필드처럼 target별 조건부 hidden이 아님).
+- 실제 소스 파일(schema.js/state.js/components.js/render.js)을 그대로 Node.js 환경에 복사해 renderWebSettingsDialogHtml()을 직접 실행한 결과:
+  - "web-gdrive-settings" 포함: true
+  - "web-upload-settings" 포함: true
+  - data-gdrive-field="client_id" input 포함: true
+  → 렌더링 함수 자체는 Client ID/Secret 입력란을 포함한 HTML을 정상적으로 생성함. 컴포넌트 등록/가시성 로직에는 문제가 없음이 실증됨.
+
+### 조사 3: 발견한 확실한 버그 -- 백엔드가 "gdrive"를 유효한 값으로 모름
+- server/services/web_settings.py: `LOG_UPLOAD_TARGETS = {"carrot", "toss"}` (20번째 줄), `_Field("log_upload_target", "enum", "carrot", choices=LOG_UPLOAD_TARGETS)`.
+- 23차에서 프론트엔드 드롭다운에 value="gdrive" 옵션을 추가했으나, 백엔드 enum choices 목록은 갱신되지 않음.
+- 영향: 사용자가 "구글 드라이브"를 선택해 저장을 시도하면, 백엔드가 "gdrive"를 무효한 enum 값으로 취급해 저장을 거부하거나 기본값("carrot")으로 되돌릴 가능성이 높음(state.js의 normalizeWebSettingValue도 동일하게 WEB_SPEC_BY_KEY의 choices를 기준으로 판단하므로 프론트엔드에서도 같은 문제가 재현됨). 이는 web-gdrive-connect 행의 렌더링과는 무관한 별개의 확실한 버그.
+- 수정 방향(미적용, 사용자 승인 대기): LOG_UPLOAD_TARGETS에 "gdrive" 추가.
+
+### 결론 및 남은 가설 (미확정)
+- "Client ID/Secret 입력란이 안 보인다"는 증상은 코드 레벨 렌더링 버그로는 재현되지 않음.
+- .web-settings-group__body{overflow:auto}로 스크롤 가능한 구조이므로, 실기기 화면에서 "업로드 서버" 드롭다운 아래로 스크롤하지 않아 못 봤을 가능성이 유력한 가설로 남음(미검증 -- 실기기에서 스크롤 확인 필요).
+- LOG_UPLOAD_TARGETS 버그는 별개로 반드시 수정이 필요하며, 사용자 승인 후 반영 예정.
+
 ## [2026-09-14] Google Drive 연동 파라미터 미등록으로 인한 UnknownKeyName 실패 (22차)
 
 ### 배경

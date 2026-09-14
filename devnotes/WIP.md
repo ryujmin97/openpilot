@@ -1,6 +1,14 @@
 # WIP
 
 
+## 24차 계속2 (완료 -- 조사만, 코드 미수정) -- Google Drive 연결 UI 입력란 미노출 문제 조사 + 리포지토리 외부 변경 사항 확인
+
+- HANDOFF 우선순위 1번(Drive UI 입력란 미노출)을 조사함. 캐싱 가설은 기각(index.html이 매 요청 no-cache로 서빙되고 정적 자산 URL이 콘텐츠 해시로 재작성됨을 코드로 확인, 서비스워커 없음).
+- 실제 소스 파일(schema.js/state.js/components.js/render.js)을 Node.js 환경에 그대로 옮겨 renderWebSettingsDialogHtml()을 직접 실행하는 시뮬레이션으로, web-gdrive-connect 컴포넌트가 Client ID/Secret 입력란을 포함해 정상적으로 HTML을 생성함을 실증. 렌더링 로직 자체에는 버그 없음.
+- 대신 server/services/web_settings.py의 LOG_UPLOAD_TARGETS = {"carrot", "toss"}에 "gdrive"가 빠져 있는 확실한 버그를 발견(23차에서 프론트엔드 드롭다운에만 옵션을 추가하고 백엔드 enum choices는 갱신 안 함). 아직 코드 수정은 하지 않음 -- 사용자 승인 대기.
+- 입력란이 안 보이는 증상 자체는 .web-settings-group__body{overflow:auto} 구조상 스크롤 필요일 가능성이 유력한 가설로 남음(실기기 확인 필요, 미검증).
+- 상세: FINDINGS.md 2026-09-14 "Google Drive 연결 UI Client ID/Secret 입력란 미노출 문제 조사" 항목 참고.
+- [리포지토리 확인] 이번 체크포인트 전에 GitHub 상태를 먼저 재확인하다가, carrot-ryu-note에 이 세션의 스크립트가 아닌 다른 경로(작성자 "Ryu <ryu@example.com>", PowerShell 스크립트 커밋의 작성자 "ryujmin97"과 다름)로 커밋 2개(7d44f2f, c7b86a0)가 더 있었음을 발견. 7d44f2f가 PROJECT_INSTRUCTIONS_carrot-ryu.md를 실수로 9차 시점 구버전으로 덮어썼고, c7b86a0이 같은 작성자에 의해 22차(98fad93) 상태로 직접 복구됨. 이 세션이 만든 24차 devnotes 커밋(33fcfcc)은 이 두 커밋 사이에 위치하며 PROJECT_INSTRUCTIONS_carrot-ryu.md를 건드리지 않아 영향 없음. 현재 문서는 22차 상태로 정상.
 ## 24차 계속 (완료 -- GitHub push 확인됨) -- carrot_ryu_24cha_photos.ps1 실행 결과 검증
 
 - 세션 초반에는 carrot-ryu HEAD가 여전히 272834b(23차)로, 24차 스크린샷 스트립 반영 스크립트가 실행되지 않은 상태였음(위 "24차" 항목 참고).

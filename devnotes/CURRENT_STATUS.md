@@ -6,7 +6,7 @@
 - carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~24차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
-- PROJECT_INSTRUCTIONS_carrot-ryu.md는 22차 버전(4절 0번 단계 보고 의무화)이 최신. 23~24차에서는 지침 문서 자체 변경 없음.
+- PROJECT_INSTRUCTIONS_carrot-ryu.md는 22차 버전(4절 0번 단계 보고 의무화)이 최신. 이 세션 중 다른 경로(작성자 "Ryu <ryu@example.com>")로 실수로 9차 구버전에 덮어써졌다가(commit 7d44f2f), 같은 작성자가 직접 22차(98fad93) 상태로 복구함(commit c7b86a0). 현재 정상.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -18,7 +18,7 @@
 7. send_tmux_web() Drive 업로드 전환(17차, commit 2869149) -- GitHub 반영됨
 8. dashcam 업로드 연결 테스트 버튼(api_dashcam_upload_test)을 Google Drive 기준으로 전환(18~20차, commit ad055dd4) -- GitHub 반영됨
 9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- GitHub 반영됨
-10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 단, 사용자 실기기에서 Client ID/Secret 입력란이 보이지 않는 문제 보고됨(원인 미확정, WIP.md 24차 참고)
+10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 단, 사용자 실기기에서 Client ID/Secret 입력란이 보이지 않는 문제 보고됨 -- 24차 계속2에서 조사, 렌더링 로직 자체는 정상 확인(시뮬레이션), 대신 백엔드 LOG_UPLOAD_TARGETS에 "gdrive" 누락 버그 발견(미수정, 승인 대기). 입력란 미노출은 스크롤 가설이 유력(미검증). 상세: FINDINGS.md 참고
 11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- GitHub 반영됨 (raw.githubusercontent.com으로 신규 파일 존재 직접 확인)
 
 ## 핵심 발견 1~8 (12차까지, 요약)
@@ -53,6 +53,9 @@ gdrive_upload.py(15차)가 사용하는 CarrotGDriveClientId/Secret/RefreshToken
 ## 핵심 발견 13 (24차) -- devnotes 기록 누락과 미반영 작업을 "이어서 진행" 요청 시 구분해야 함
 23차는 코드가 실제 GitHub에 반영되어 있었지만 devnotes만 누락된 경우였고, 24차는 처음에는(세션 시작 시점) devnotes/스크립트까지 다 준비됐지만 실제 GitHub에는 전혀 반영되지 않은 경우였다가, 세션 도중 사용자가 스크립트를 실행해 실제로 반영 완료됨(commit a7a912c1, GitHub API로 직접 재확인). "GitHub의 현재 상태를 먼저 직접 확인"(3절/16절)하지 않으면 두 상태를 구분할 수 없다는 것이 이번 세션에서 실증됨.
 
+## 핵심 발견 14 (24차 계속2) -- Google Drive 연결 UI 입력란 미노출: 백엔드 LOG_UPLOAD_TARGETS에 "gdrive" 누락
+23차에서 프론트엔드 드롭다운에만 value="gdrive" 옵션을 추가하고 server/services/web_settings.py의 LOG_UPLOAD_TARGETS = {"carrot", "toss"}는 갱신하지 않아, "gdrive" 선택이 백엔드에서 유효하지 않은 enum 값으로 취급됨. Client ID/Secret 입력란(web-gdrive-connect 컴포넌트) 자체의 렌더링 로직은 Node.js 시뮬레이션으로 정상 확인됨 -- 실기기에서 안 보인다는 증상은 렌더링 버그가 아니라 스크롤(.web-settings-group__body{overflow:auto}) 때문일 가능성이 유력(미검증). LOG_UPLOAD_TARGETS 수정은 사용자 승인 대기 중, 아직 미적용. 상세: FINDINGS.md 2026-09-14 항목.
+
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: Drive UI 입력란 미노출 원인 조사, 실제 Drive 연결 테스트(사용자 액션 필요), docs 갱신, 코드 수정 11건 전부 실주행 재검증, 모델 셀렉터 코드 분석
+- 다음 작업: LOG_UPLOAD_TARGETS "gdrive" 추가(승인 대기, FINDINGS.md 참고), 실기기 스크롤 확인, 실제 Drive 연결 테스트(사용자 액션 필요), docs 갱신, 코드 수정 11건 전부 실주행 재검증, 모델 셀렉터 코드 분석
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM
