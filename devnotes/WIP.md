@@ -1,6 +1,35 @@
 # WIP
 
 
+## 36차 (완료 -- 화면녹화 탭 업로드 UI 구현 + 버그 수정 3건) -- 35차 스펙 반영
+
+35차에서 확정된 스펙(화면녹화 탭 체크박스/전체선택/다운로드/전송)을 구현하고, 함께 발견됐던 버그 2건과 UX 문제 1건을 같이 수정함.
+
+완료:
+- screenrecord.js: 선택 상태(Set), 행별 체크박스 + 전송 버튼, 상단 툴바(전체선택/선택다운로드/선택전송), 업로드 확인/결과 다이얼로그, 동기 순차 업로드(개별 파일, 사용자 확정 스펙), <a download> 순차 클릭 방식 다운로드(팝업 차단 회피), 새로고침 시 사라진 파일 선택 자동 정리.
+- runtime.js: 체크박스 change/전송 버튼 click 위임, 신규 screenrecordToolbar 클릭 위임(전체선택/선택다운로드/선택전송).
+- index.html: screenrecordToolbarWrap/screenrecordToolbar 마크업 추가.
+- style.css: .screenrecord-toolbar-wrap 패딩 규칙 추가(체크박스/버튼은 기존 클래스 재사용).
+- server/features/screenrecord/routes.py: POST /api/screenrecord/upload 신규 -- gdrive_upload.upload_file_resumable()을 파일별 순차 호출, job/폴링 없이 결과 배열 반환.
+- js/translations/{ko,en,zh}.js: download_selected/screenrecord_upload/no_selected_recordings 3개 키 추가.
+- dashcam.js: "당근서버" 라벨 오표시 버그 수정 -- dashcamUploadConfirmHtml() targetLabel 분기에 gdrive 케이스 추가(35차 원인 특정, 이번 세션에 수정).
+- runtime.js logsMenuChoices(): 햄버거 메뉴 "최근 로그 업로드" 항목을 화면녹화 탭에서 숨김 처리(사용자 확정 -- 대시캠 탭에서는 그대로 유지). "항상 대시캠 세그먼트만 업로드"하는 설계 문제(35차 발견)에 대한 사용자 결정 반영.
+- npm install && node build.mjs로 esbuild 번들(js/generated/logs.js, css/generated/logs.css, generated/asset-manifest.json) 재생성 확인, npm test 737/737 통과 확인(이전 세션에서 중단됐던 빌드 검증을 이번 세션에서 완료).
+
+검증: 정적 문법 검사(node --check) + 빌드(node build.mjs) + 전체 테스트(npm test, 737/737 pass) 통과. 실차 검증: 미실시.
+
+주의사항:
+- 이 회차는 직전 세션(도구 호출 한도로 중단, carrot-ryu에 커밋된 적 없음)에서 로컬로만 작성됐던 코드를 이어받아, 새 세션에서 GitHub carrot-ryu(당시 HEAD 9fdefb3d) 위에 다시 clone하여 재검증(문법/빌드/테스트)까지 마친 뒤 반영한 것. 커밋 히스토리 불연속은 없음.
+- 생성 번들(js/generated/*, css/generated/*, generated/asset-manifest.json)은 기기가 소스가 아닌 이 파일들을 직접 서빙하므로 소스와 함께 커밋이 필수 -- 코드 반영 스크립트가 npm install && node build.mjs를 실행해 자동 재생성 후 커밋함.
+
+다음 세션 후보:
+- Drive 폴더 2개 생성 원인 확정 조사(우선순위 낮음)
+- 이번 세션 변경사항(화면녹화 업로드, 라벨 수정, 햄버거 메뉴) 실기기 검증
+- 34차 UI 변경 실기기 재확인, 28~30차 레이아웃 실기기 재검증
+- test_web_upload.py 실행 + 데드코드 3개 정리
+- docs/carrot_web_upload.md 갱신
+- carrot-ms 모델 셀렉터 코드 분석 착수
+
 ## 35차 (진행 중 -- 코드 변경 없음, 조사/스펙 확정만) -- 화면녹화 탭 업로드 기능 조사 및 신규 스펙 확정
 
 - 사용자가 실기기 스크린샷 3장(대시캠 탭 "로그 전송" 다이얼로그 1세그먼트/10.8MB, 5세그먼트/51.5MB, 화면녹화 탭 "화면녹화 기록이 없습니다" 화면)과 Drive "내 드라이브"에 "CarrotWeb Logs" 폴더가 2개 생성된 스크린샷을 제보. 이를 바탕으로 32차 Drive 연동 이후 실기기 첫 검증 결과를 코드 조사로 분석함.
