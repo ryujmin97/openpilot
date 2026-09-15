@@ -137,6 +137,53 @@ async def api_screenrecord_upload(request: web.Request) -> web.Response:
   })
 
 
+async def api_screenrecord_photo_upload(request: web.Request) -> web.Response:
+  """Upload selected screenshots to Google Drive.
+
+  Mirrors api_screenrecord_upload() (synchronous, per-file sequential, no
+  zip/job) against find_photo() instead of find_file(), since screenshots
+  are already single small PNG files.
+  """
+  try:
+    body = await request.json()
+  except Exception:
+    body = {}
+  ids = body.get("ids")
+  if not isinstance(ids, list):
+    one = body.get("id")
+    ids = [one] if one else []
+  ids = [str(item).strip() for item in ids if str(item or "").strip()]
+  if not ids:
+    return web.json_response({"ok": False, "error": "missing ids"}, status=400)
+
+  results: list[dict] = []
+  for file_id_in in ids:
+    try:
+      path = await asyncio.to_thread(find_photo, file_id_in)
+      name = os.path.basename(path)
+      drive_result = await gdrive_upload.upload_file_resumable(path, name)
+      results.append({
+        "id": file_id_in,
+        "name": name,
+        "ok": True,
+        "driveFileId": drive_result.get("id"),
+        "webViewLink": drive_result.get("webViewLink"),
+      })
+    except web.HTTPException as e:
+      results.append({"id": file_id_in, "ok": False, "error": e.text or e.reason})
+    except Exception as e:
+      results.append({"id": file_id_in, "ok": False, "error": str(e)})
+
+  uploaded = sum(1 for item in results if item.get("ok"))
+  return web.json_response({
+    "ok": uploaded == len(results),
+    "uploaded": uploaded,
+    "total": len(results),
+    "target": "gdrive",
+    "results": results,
+  })
+
+
 _photo_cache_lock = threading.Lock()
 _photo_cache = {"time": 0.0, "photos": []}
 
@@ -220,4 +267,5 @@ def register(app: web.Application) -> None:
   app.router.add_get("/api/screenrecord/photo/thumbnail/{file_id}", api_screenrecord_photo_thumbnail)
   app.router.add_get("/api/screenrecord/photo/{file_id}", api_screenrecord_photo)
   app.router.add_get("/api/screenrecord/photo/download/{file_id}", api_screenrecord_photo_download)
+  app.router.add_post("/api/screenrecord/photo/upload", api_screenrecord_photo_upload)
 

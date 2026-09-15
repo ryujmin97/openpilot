@@ -48,7 +48,15 @@ import {
   toggleScreenrecordSelection,
   uploadScreenrecordVideos,
 } from "./screenrecord.js";
-import { loadScreenshots, openScreenshot } from "./screenshots.js";
+import {
+  downloadScreenshots,
+  loadScreenshots,
+  openScreenshot,
+  screenshotsSelectedPhotos,
+  toggleScreenshotSelectAll,
+  toggleScreenshotSelection,
+  uploadScreenshots,
+} from "./screenshots.js";
 
 // Logs page — shared infra used by both the Dashcam and Screen Recording tabs.
 // Owns: tab state, scroll persistence, lazy-image observer, generic helpers,
@@ -985,8 +993,38 @@ function bindLogsPage() {
     photosHost.addEventListener("click", (ev) => {
       const actionEl = ev.target?.closest?.("[data-action]");
       if (!actionEl) return;
-      if (actionEl.dataset.action === "view-screenshot") {
-        openScreenshot(actionEl.dataset.id || "");
+      const action = actionEl.dataset.action;
+      const id = actionEl.dataset.id || "";
+      if (action === "view-screenshot") {
+        openScreenshot(id);
+      } else if (action === "download-screenshot") {
+        ev.stopPropagation();
+        if (id) downloadScreenshots([id]);
+      } else if (action === "upload-screenshot") {
+        ev.stopPropagation();
+        if (id) uploadScreenshots([id]).catch(() => {});
+      }
+    });
+    photosHost.addEventListener("change", (ev) => {
+      const input = ev.target;
+      if (!input?.matches?.('input[data-action="select-screenshot"]')) return;
+      toggleScreenshotSelection(input.dataset.id || "", input.checked);
+    });
+  }
+
+  const screenshotsToolbar = document.getElementById("screenshotsToolbar");
+  if (screenshotsToolbar && screenshotsToolbar.dataset.bound !== "1") {
+    screenshotsToolbar.dataset.bound = "1";
+    screenshotsToolbar.addEventListener("click", (ev) => {
+      const actionEl = ev.target?.closest?.("[data-action]");
+      if (!actionEl || actionEl.disabled) return;
+      const action = actionEl.dataset.action;
+      if (action === "select-all-screenshots") {
+        toggleScreenshotSelectAll(actionEl.dataset.selected === "1");
+      } else if (action === "download-selected-screenshots") {
+        downloadScreenshots(screenshotsSelectedPhotos().map((photo) => photo.id));
+      } else if (action === "upload-selected-screenshots") {
+        uploadScreenshots(screenshotsSelectedPhotos().map((photo) => photo.id)).catch(() => {});
       }
     });
   }
