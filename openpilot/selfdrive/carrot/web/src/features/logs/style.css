@@ -70,6 +70,33 @@
   border: 1px solid color-mix(in srgb, var(--md-outline-var) 36%, transparent);
 }
 
+.logs-refresh {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.logs-refresh__button {
+  width: var(--menu-trigger-size);
+  height: var(--menu-trigger-size);
+  min-height: var(--menu-trigger-size);
+  padding: 0;
+}
+
+.logs-refresh-icon {
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+  transition: transform 0.5s ease;
+}
+
+.logs-refresh__button.is-spinning .logs-refresh-icon {
+  animation: logs-refresh-spin 0.6s linear;
+}
+
+@keyframes logs-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .logs-menu {
   flex: 0 0 auto;
   align-self: center;
@@ -1421,7 +1448,8 @@
     --logs-tab-font-size: 12.5px;
   }
 
-  .logs-menu__button {
+  .logs-menu__button,
+  .logs-refresh__button {
     min-height: 38px;
   }
 
