@@ -7,7 +7,8 @@
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~30차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
 - PROJECT_INSTRUCTIONS_carrot-ryu.md는 27차 버전(core.autocrlf=false clone 기본화 + PowerShell 실행정책 -Force)이 최신.
-- **[30차 신규]** 29차 HANDOFF.md가 "미반영"으로 잘못 기록했던 29~30차 코드 변경이 실제로는 GitHub에 이미 반영돼 있었음을 확인, devnotes(WIP/HANDOFF/CURRENT_STATUS/FINDINGS)를 실제 HEAD 기준으로 동기화함. 상세: FINDINGS.md 2026-09-15(30차) 항목.
+- **[30차]** 29차 HANDOFF.md가 "미반영"으로 잘못 기록했던 29~30차 코드 변경이 실제로는 GitHub에 이미 반영돼 있었음을 확인, devnotes(WIP/HANDOFF/CURRENT_STATUS/FINDINGS)를 실제 HEAD 기준으로 동기화함. 상세: FINDINGS.md 2026-09-15(30차) 항목.
+- **[31차 신규]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 코드 변경 없이 사용자에게 재설계 방향 3가지 제시, 결정 대기 중. 상세: FINDINGS.md 2026-09-15(31차) 항목, HANDOFF.md 미완료 1번.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -19,7 +20,7 @@
 7. send_tmux_web() Drive 업로드 전환(17차, commit 2869149) -- GitHub 반영됨
 8. dashcam 업로드 연결 테스트 버튼(api_dashcam_upload_test)을 Google Drive 기준으로 전환(18~20차, commit ad055dd4) -- GitHub 반영됨
 9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- GitHub 반영됨
-10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 실기기에서 Client ID/Secret 입력란이 계속 안 보이는 문제 진행 중(26차까지 원인 미확정, 핵심 발견 16 참고).
+10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 실기기에서 Client ID/Secret 입력란이 계속 안 보이는 문제 진행 중(26차까지 원인 미확정, 핵심 발견 16 참고). **[31차]** 이와 별개로 Device Authorization Grant 자체가 전체 drive 스코프를 차단하는 근본 문제 발견(핵심 발견 19), 재설계 방향 결정 대기 중.
 11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- GitHub 반영됨
 12. LOG_UPLOAD_TARGETS "gdrive" 누락 수정(25차, commit d338afb7) -- GitHub 반영됨
 13. 우측하단 경로안내 박스 475x495 확대 + route=숫자 디버그 분리 표시 + 도착정보 2줄 표기(27차, commit 5f5e49d0) -- GitHub 반영됨
@@ -69,6 +70,9 @@ git clone에 --config core.autocrlf=false 옵션 추가 + CRLF->LF 정규화 안
 
 ## 핵심 발견 18 (30차) -- HANDOFF.md 미반영 기록과 실제 GitHub 상태 불일치
 29차 HANDOFF.md가 "미반영"으로 기록했던 레이아웃 변경(29차)이 실제로는 반영돼 있었고, 그 위에 30차 커밋까지 추가로 진행돼 있었음. "코드 반영"과 "devnotes 갱신"이 서로 다른 세션에서 이루어지며 갱신이 누락된 사례. 4절 0~3번 절차를 빠짐없이 따른 결과 이번 세션에서 스스로 발견/정정됨. 상세: FINDINGS.md 2026-09-15(30차) 항목.
+
+## 핵심 발견 19 (31차) -- Google Drive 연동 설계가 Device Authorization Grant의 스코프 제약과 근본적으로 충돌
+Google은 OAuth Device Authorization Grant(기기 인증 흐름)에서 전체 Drive 스코프(auth/drive)를 클라이언트 유형/동의 화면 설정과 무관하게 정책적으로 차단하고 있음(다수 독립 개발자 사례로 확인, Google 공식 문서 명시 출처는 못 찾음). gdrive_upload.py(15차)가 고정 폴더 ID 접근을 위해 의도적으로 넓힌 전체 drive 스코프가 바로 이 제약과 충돌하는 조합이었음. drive.file+폴더자동생성 복귀 / 표준 Authorization Code Flow 전면 재설계 / Drive 자체 대체, 3가지 대안을 사용자에게 제시하고 결정 대기 중. 상세: FINDINGS.md 2026-09-15(31차) 항목.
 
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
 - 다음 작업: (최우선) 28~30차 레이아웃 실기기 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, 화면녹화 전송 다이얼로그 "당근서버" 라벨 하드코딩 조사, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, 실제 Drive 연결 테스트(사용자 액션 필요), docs 갱신, 코드 수정 16건 전부 실주행 재검증, 모델 셀렉터 코드 분석

@@ -1,6 +1,24 @@
 # FINDINGS
 
 
+## 2026-09-15 (31차) -- Google Drive 연동(15차~) 설계가 Device Authorization Grant의 스코프 제약과 근본적으로 충돌함
+
+**증상**: 실기기에서 "웹 설정 > 로그 업로드" 화면의 Google Drive 연결(Device Authorization Grant, gdrive_upload.py)이 클라이언트 ID/보안 비밀번호를 올바르게 입력하고 클라이언트 유형(TV 및 제한된 입력이 있는 기기)과 동의 화면 스코프 등록까지 정상인 상태에서도 "Invalid device flow scope: https://www.googleapis.com/auth/drive" 에러로 항상 실패함.
+
+**조사 경과**: (1) 클라이언트 ID 형식 문제 -> 배제(재입력 후에도 동일), (2) UI 안내 문구(ko.js)가 요구 클라이언트 유형("데스크톱 앱 유형")을 실제 요구사항("TV 및 제한된 입력이 있는 기기")과 다르게 안내하는 버그 발견했으나 -> 사용자가 이미 올바른 유형으로 발급받아 적용했다고 확인되어 배제, (3) 동의 화면 스코프 미등록 -> 사용자 확인으로 배제.
+
+**확정 원인**: 코드 조사가 아닌 외부 사례 조사로 확인됨 -- Google은 OAuth 2.0 Device Authorization Grant(RFC 8628, "TV 및 제한된 입력이 있는 기기" 흐름)에서 전체 Google Drive 스코프(https://www.googleapis.com/auth/drive)의 사용을 수년 전부터 정책적으로 차단하고 있음. 이는 클라이언트 유형/동의 화면 설정과 무관하게 Google 인증서버 단에서 스코프 자체를 거부하는 것으로, 사용자 측 설정으로는 우회 불가능함. (Calendar 등 다른 API 스코프는 동일 device flow에서 정상 동작하는 것으로 보아, Drive 전체 스코프 특유의 제약으로 판단. 다만 Google 공식 문서에서 이 제약을 명시적으로 문서화한 출처는 못 찾았고, 다수의 독립적인 개발자 보고 사례로 확인한 것임 -- 완전히 공식적으로 확정된 사실은 아니라는 점은 유의.)
+
+**설계 충돌**: gdrive_upload.py(15차)는 c3-ms-dev 원본의 drive.file(비민감) 스코프 + _ensure_folder()(폴더 자동 생성) 방식을, "이미 만들어둔 고정 폴더(DRIVE_FOLDER_ID)에 ID로 바로 접근"하기 위해 의도적으로 전체 drive 스코프 + _verify_folder()(존재 확인만) 방식으로 변경했음(코드 주석에 사유 명시). 이 변경이 이번에 확인된 Google의 device flow 스코프 제약과 정면으로 충돌하는 조합이었던 것으로 보이며, 15차 시점에는 이 제약이 검증되지 않은 채 설계에 반영된 것으로 추정됨.
+
+**미해결(다음 세션 결정 필요)**: 사용자에게 3가지 대안 제시함 --
+1. drive.file 스코프 + 폴더 자동 생성 방식(c3-ms-dev 원본)으로 복귀. Device flow 유지 가능성 높으나 실제 검증 안 됨. 기존에 미리 만들어둔 폴더 재사용 불가(앱이 새 폴더를 만들게 됨).
+2. Device flow를 버리고 표준 Authorization Code Flow(콤마 기기 자체 웹서버가 redirect URI를 로컬 네트워크로 수신하는 구조)로 전면 재설계 -- 작업량 큼, LAN IP/포트 고정 문제 등 새 이슈 예상.
+3. Google Drive 자체를 다른 저장 수단으로 대체.
+사용자 결정 대기 중.
+
+**부가 발견(별도 수정 필요, 이번 세션 미수정)**: web/js/translations/ko.js의 web_gdrive_client_id_desc 문구가 "Google Cloud OAuth 클라이언트 ID (데스크톱 앱 유형)"으로 돼 있으나, 실제 필요한 유형은 "TV 및 제한된 입력이 있는 기기"임(gdrive_upload.py 주석과 불일치). 이번 에러의 직접 원인은 아니었으나(사용자가 이미 올바른 유형으로 발급받음), 다른 사용자/향후 재시도 시 혼란을 줄 수 있는 명백한 버그이므로 다음 세션에서 문구 수정 필요.
+
 ## 2026-09-15 (30차) — HANDOFF.md 미반영 기록과 실제 GitHub 상태 불일치
 
 **증상**: 29차 세션이 작성한 HANDOFF.md에는 "사용자가 코드 반영 스크립트를 아직 실행하지 않음 — 실행 전까지 이 레이아웃 변경은 GitHub에 반영된 것이 아님"이라고 명시돼 있었음. 그런데 30차 세션 시작 시 4절 절차(0~3번)를 따라 carrot-ryu 최신 커밋을 직접 조회한 결과, 29차 커밋(67a8e10)뿐 아니라 그 이후의 30차 커밋(34bb41bc)까지 이미 GitHub에 push돼 있는 상태였음. CURRENT_STATUS.md 역시 27차(5f5e49d0) 기준에서 갱신되지 않은 채 남아 있었음.

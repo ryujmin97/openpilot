@@ -1,6 +1,20 @@
 # WIP
 
 
+## 31차 (진행 중 -- 코드 변경 없음, Google Drive 연동 설계 근본 제약 발견) -- OAuth 연결 실패 원인 조사: Device Flow가 Drive 스코프를 구조적으로 차단
+
+- 사용자가 실기기에서 "웹 설정 > 로그 업로드" Google Drive 연결을 시도하며 스크린샷 3장 제공. 순서대로 (1) 클라이언트 ID에 "http://"가 붙은 값 입력 + "Google Drive가 연결되어 있지 않습니다"/OAuth client not found 화면, (2) 클라이언트 보안 비밀번호까지 입력 후 "The OAuth client was not found." 에러, (3) 정상 형식의 Client ID로 재시도 후 "Invalid device flow scope: https://www.googleapis.com/auth/drive" 에러.
+- 1차 가설(클라이언트 ID 값 자체의 형식 문제) 확인 시도 -> 사용자가 이미 정상 형식으로 재입력했음에도 동일 계열 에러 지속.
+- 2차 가설: ko.js 번역 문구(web_gdrive_client_id_desc, 23차 추가)가 "데스크톱 앱 유형"이라고 안내하지만, gdrive_upload.py 설계 주석(15차)은 "TV 및 제한된 입력이 있는 기기" 유형을 필수로 요구함 -> UI 문구가 실제 요구사항과 다른 버그로 확인. 다만 사용자는 이미 올바른 유형(TV/제한된 기기)으로 발급받아 적용했다고 확인 -> 이 불일치가 이번 에러의 직접 원인은 아님.
+- 3차 가설: OAuth 동의 화면(Data Access)에 auth/drive 스코프가 실제 등록됐는지 확인 요청 -> 사용자 확인 결과 이미 등록돼 있음 -> 배제.
+- 4차(확정): 웹 검색으로 독립된 다수 개발자 사례를 확인한 결과, Google이 OAuth Device Authorization Grant(기기 인증 흐름) 자체에서 전체 Drive 스코프(https://www.googleapis.com/auth/drive)를 수년째 구조적으로 차단하고 있음을 확인함(클라이언트 유형, 동의 화면 스코프 등록 여부와 무관하게 항상 거부됨). Calendar 등 다른 API 스코프는 동일 흐름에서 정상 동작하는 것으로 보아, Drive 전체 스코프 특유의 제약으로 판단.
+- 설계 충돌 확인: gdrive_upload.py(15차)는 원래 drive.file(비민감) 스코프를 쓰다가, 사용자가 미리 만들어둔 고정 폴더(DRIVE_FOLDER_ID)에 ID로 직접 접근하기 위해 의도적으로 전체 drive 스코프로 넓혔음(주석에 명시). 이 설계 변경이 바로 device flow에서 차단되는 조합이었음 -> 현재 설계로는 애초에 성공할 수 없는 구조였던 것으로 확인됨.
+- 사용자에게 3가지 대안 제시, 결정 대기 중(상세 내용은 FINDINGS.md 참고):
+  1. drive.file 스코프로 되돌리고 폴더를 앱이 직접 생성하는 방식(c3-ms-dev 원본 _ensure_folder())으로 복귀 -- device flow 유지 가능성 높으나 미검증, 기존에 만들어둔 폴더는 사용 불가.
+  2. Device flow를 포기하고 표준 Authorization Code Flow(콤마 기기 자체 웹서버가 redirect URI 수신)로 전면 재설계.
+  3. Google Drive 대신 다른 저장 수단으로 전환.
+- 이번 세션은 조사만 진행, 코드/carrot-ryu 커밋 없음. carrot-ryu HEAD는 30차와 동일(34bb41bc).
+
 ## 30차 (완료 — 코드 수정 1건 GitHub 반영 완료) — 경로안내 박스 route=/도착 텍스트 위치 재조정
 
 - 사용자 요청: (1) "route=숫자" 글자 크기를 28→32로 키우고, 세로 위치를 회전 아이콘 초록박스 상단(box_y+95)과 텍스트 상단이 맞도록 이동. (2) "도착:"/ETA 텍스트가 박스 우측 경계(edge_x = box_x+box_w-6)를 넘어 삐져나오는 문제를 pad(24px)만큼 안쪽으로 들여 해결. (3) 위 변경에 맞춰 도착/ETA 텍스트를 route= 한 줄 아래(eta_top = box_y+175)에서 상단기준(right_top)으로 다시 배치.
