@@ -1,6 +1,14 @@
 # WIP
 
 
+## 40차 계속 (완료 -- 경로안내 박스 상하 여백 실기기 검증 + 39cha-fix push 재확인)
+
+직전 40차 HANDOFF.md가 "fix_carrot_ryu_39cha.ps1 미실행"으로 남겨뒀던 1순위 미완료 항목을 이번 세션에서 재확인: `git ls-remote`로 carrot-ryu HEAD가 `bdde832654a6...`임을 확인하고, `github.com/.../commit/bdde8326....patch`로 커밋 메시지("39cha-fix: import missing formatRelativeEpoch in screenshots.js")와 변경 파일(screenshots.js/logs.js/asset-manifest.json)을 직접 조회해 실제 반영을 확인(16절, API rate limit로 REST 엔드포인트가 막혀 ls-remote+patch 조합으로 우회).
+
+이어서 사용자가 제공한 실기기 스크린샷(제네시스 DH 2015, 20:14:25 캡처)으로 27차 이후 계속 이월되던 "우측하단 경로안내 박스 상하 여백" 항목을 처음으로 실기기에서 확인. "교차로"(제목) → 회전아이콘/895m → "도착: 286.1km" → "193.6분(23:28)" → "용산2로" 순서가 27차 설계대로 나타났고, 34차 `content_shift_y=20` 적용 이후 상단/하단 여백이 균등하게 보임(12절, 이 항목의 첫 실차 검증 사례).
+
+미확인: 사진 업로드 UI(체크박스/전체선택/다운로드/전송) 자체 동작은 이 스크린샷에 나타나지 않아 별도 확인 필요(39cha-fix가 실제로 크래시를 해소했는지도 미확인, 다음 세션 최우선 이월).
+
 ## 40차 (완료 -- 39차 사진 업로드 UI 실기기 크래시 원인 규명 및 수정: formatRelativeEpoch import 누락)
 
 사용자가 39차 코드 반영 후 실기기에서 "구현안됨"(체크박스/툴바 없이 예전 가로 썸네일만 보임)이라고 보고. 우선 GitHub carrot-ryu HEAD를 확인해 39차 커밋(`797fca2e`)이 정상 push됐음을 확인했고, 사용자가 디바이스에서 `git rev-parse HEAD`/`git status`/`git branch --show-current`를 직접 실행한 결과도 `797fca2e`·clean·`carrot-ryu`로 일치 -- 즉 코드 반영 자체는 문제 없었음. 사용자가 화면을 다시 캡처해 보낸 스크린샷에서 실제 에러 토스트 `formatRelativeEpoch is not defined`를 확인하며 진짜 원인을 특정.
