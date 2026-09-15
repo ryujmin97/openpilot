@@ -1,6 +1,19 @@
 # WIP
 
 
+## 40차 (완료 -- 39차 사진 업로드 UI 실기기 크래시 원인 규명 및 수정: formatRelativeEpoch import 누락)
+
+사용자가 39차 코드 반영 후 실기기에서 "구현안됨"(체크박스/툴바 없이 예전 가로 썸네일만 보임)이라고 보고. 우선 GitHub carrot-ryu HEAD를 확인해 39차 커밋(`797fca2e`)이 정상 push됐음을 확인했고, 사용자가 디바이스에서 `git rev-parse HEAD`/`git status`/`git branch --show-current`를 직접 실행한 결과도 `797fca2e`·clean·`carrot-ryu`로 일치 -- 즉 코드 반영 자체는 문제 없었음. 사용자가 화면을 다시 캡처해 보낸 스크린샷에서 실제 에러 토스트 `formatRelativeEpoch is not defined`를 확인하며 진짜 원인을 특정.
+
+원인: 39차에서 신규 작성된 `screenshots.js`가 `runtime.js`의 `formatRelativeEpoch`를 import하지 않음(같은 패턴을 쓰는 `dashcam.js`/`screenrecord.js`는 정상 import). 사진 행 렌더링 중 `ReferenceError`가 발생해 목록 전체가 비어버리고 에러 토스트만 노출되는 것이 실제 증상이었음 -- 디바이스/캐시/빌드 반영 문제가 아니라 순수 코드 버그.
+
+수정: `screenshots.js` import문에 `formatRelativeEpoch` 1개 식별자만 추가(1줄 변경). 이 저장소를 별도로 shallow clone해 로컬에서 직접 수정 → `npm install` → `node build.mjs`로 재빌드 → `py_compile`(hud_renderer.py, routes.py) 통과, `node --check` 통과, `npm test` 737/737 통과 확인. 재빌드로 `js/generated/logs.js`(esbuild가 import 추가로 인해 파일 전역의 축약 식별자를 재배정 -- 문자열 블록 치환이 아닌 전체 교체로 처리) 및 `generated/asset-manifest.json`(logs.runtime 해시 1줄만 변경, anchor 치환)이 함께 변경됨.
+
+반영: `screenshots.js`/`asset-manifest.json`은 1줄 anchor 치환(카운트=1 검증 포함), `logs.js`는 전체 교체 방식의 PowerShell 스크립트(`fix_carrot_ryu_39cha.ps1`, UTF-8 BOM, `--config core.autocrlf=false`, 임시폴더 자동삭제 포함)로 준비해 사용자에게 전달. **이번 세션 종료 시점까지 사용자가 스크립트를 실행하지 않았으므로, 다음 세션은 carrot-ryu 최신 commit이 이 수정 커밋으로 갱신됐는지 반드시 재확인할 것(16절 원칙).**
+
+교훈: "코드/디바이스 반영 문제로 보이는 증상"이 실제로는 반영과 무관한 순수 JS 런타임 에러일 수 있음 -- 반영 상태(git HEAD/status)를 아무리 정밀하게 검증해도 실제 브라우저 에러 메시지를 직접 확인하기 전까지는 근본 원인을 알 수 없었음. 다음부터 "화면이 예전 그대로다"류 보고를 받으면, 반영 상태 확인과 별개로 최대한 빨리 실제 에러 화면 캡처를 요청하는 것이 효율적.
+
+
 ## 39차 (완료 -- 코드 반영, 실기기 검증은 다음 세션 이월) -- 화면녹화 탭 사진 업로드 UI 신규 구현 + 경로안내 박스 상하 여백 통일
 
 사용자가 38차 미확인 항목("화면녹화 탭 업로드 UI 자체 동작")의 의도를 정정: 녹화본이 아니라 화면캡쳐 사진 업로드를 원했던 것. 사진 목록에 체크박스(앞)/다운로드+전송 버튼(뒤), 목록 상단에 전체선택/다운로드/전송 툴바를 신규 요청. 추가로 34차에서 이월됐던 경로안내 박스 상하 여백 불균형(제목 위 여백은 넉넉한데 하단 배지가 경계에 닿음)도 함께 요청.
