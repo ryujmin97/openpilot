@@ -1,6 +1,32 @@
 # WIP
 
 
+## 39차 (완료 -- 코드 반영, 실기기 검증은 다음 세션 이월) -- 화면녹화 탭 사진 업로드 UI 신규 구현 + 경로안내 박스 상하 여백 통일
+
+사용자가 38차 미확인 항목("화면녹화 탭 업로드 UI 자체 동작")의 의도를 정정: 녹화본이 아니라 화면캡쳐 사진 업로드를 원했던 것. 사진 목록에 체크박스(앞)/다운로드+전송 버튼(뒤), 목록 상단에 전체선택/다운로드/전송 툴바를 신규 요청. 추가로 34차에서 이월됐던 경로안내 박스 상하 여백 불균형(제목 위 여백은 넉넉한데 하단 배지가 경계에 닿음)도 함께 요청.
+
+완료:
+- `screenshots.js` 전면 재작성 -- 기존 썸네일 전용 가로 스트립(클릭 시 원본 열기만 가능)을 `screenrecord.js`(영상 목록) 컨벤션과 동일한 세로 행(row) 목록으로 교체. 행별 체크박스(`select-screenshot`) + 다운로드/전송 버튼, 선택 상태(Set) 관리, 전체선택/선택다운로드/선택전송 툴바, 업로드 확인/결과 다이얼로그, 다운로드는 `<a download>` 순차 클릭 방식(팝업 차단 회피, screenrecord와 동일 패턴).
+- `runtime.js` -- `screenshots.js` import 확장(downloadScreenshots/uploadScreenshots/screenshotsSelectedPhotos/toggleScreenshotSelectAll/toggleScreenshotSelection 추가), 사진 목록 click/change 위임에 download-screenshot/upload-screenshot/select-screenshot 핸들러 추가, 신규 `screenshotsToolbar` click 위임(전체선택/선택다운로드/선택전송) 추가.
+- `index.html` -- `screenshotsToolbarWrap`/`screenshotsToolbar` 마크업 추가(screenrecordToolbar와 동일 구조, `dashcam-selection-row` 클래스 재사용).
+- `style.css` -- `.screenrecord-photos`를 가로 썸네일 스트립(overflow-x)에서 세로 행 리스트(overflow-y, flex-column)로 전환, `.screenrecord-photos-wrap`에 `max-height: 46vh` + 내부 스크롤 적용(사진이 많아도 영상 목록을 화면 밖으로 밀어내지 않도록), 이제 안 쓰는 `.screenrecord-photo`/`.screenrecord-photo:hover`/`.screenrecord-photo img`(구 썸네일 버튼) 규칙 삭제.
+- `js/translations/{ko,en,zh}.js` -- `screenshot_upload`, `no_selected_photos` 2개 키 추가(3개 언어).
+- `server/features/screenrecord/routes.py` -- `POST /api/screenrecord/photo/upload` 신규 엔드포인트 추가. 기존 `api_screenrecord_upload()`(영상용)를 `find_photo()` 기준으로 그대로 미러링(동기, 파일별 순차, job/폴링 없음). 라우터에 등록.
+- `openpilot/selfdrive/ui/onroad/hud_renderer.py` -- `_draw_turn_info_hud()`에 `content_shift_y = 20` 상수 도입, 제목/route=숫자/도착 거리·시간/회전아이콘(따라서 신호과속·도로명 배지까지 연쇄) 기준 y좌표 4곳에서 이 값을 일괄로 뺌. 요소 간 상대 간격(95/175/190 등)은 그대로 유지한 채 절대 기준선만 위로 이동. 실기기에서 여백이 여전히 안 맞으면 이 상수 하나만 조정하면 되도록 주석에 명시.
+
+검증:
+- `python3 -m py_compile`(hud_renderer.py, routes.py) 통과.
+- `node --check`(runtime.js, screenshots.js, ko/en/zh.js) 통과.
+- `npm install && node build.mjs`로 생성 번들(`js/generated/logs.js`, `css/generated/logs.css`, `generated/asset-manifest.json`) 재생성 확인.
+- `npm test` 737/737 통과.
+- 반영 전 사전 검증: 코드 반영 스크립트를 별도 클론(HEAD `c01d9ec`, 37차와 동일)에 대해 Python으로 anchor 로직을 재현해 시뮬레이션 실행, 문자열 anchor 17곳 모두 정확히 1회 매치 확인 후 실제로 적용 → py_compile/node --check/build/npm test까지 전부 재확인(9절 사전 dry-run, 새 세션에서 재검증).
+- 실차/실기기 검증: 미실시(12절 원칙) -- 사진 업로드 UI 자체 동작(선택/전송/다운로드)과 경로안내 박스 여백 실측은 다음 세션 이월.
+
+주의사항:
+- `.screenrecord-photo`(단수, 구 썸네일 버튼) 클래스는 완전히 삭제됨. 사진 행은 이제 `.screenrecord-row`(영상 목록과 공유)를 그대로 재사용하므로 별도 CSS 스타일링이 필요 없었음.
+- `content_shift_y`는 `_draw_turn_info_hud()` 지역 상수이며 Params 등 외부 설정이 아님 -- 실기기에서 상하 여백을 추가로 조정하려면 코드 값(현재 20)을 바꿔야 함.
+
+
 ## 38차 (완료 -- 36차/37차/34차 실기기 검증 1차 진행, 일부 확인/일부 이월) -- 사용자 제보 스크린샷 9장 분석
 
 사용자가 실기기 스크린샷 9장(온로드 HUD 1장, 대시캠 탭 로그 전송 플로우 3장, 화면녹화 탭/도구 탭/햄버거 메뉴 3장, 구글드라이브 앱 2장)을 제공. 37차 HANDOFF 미완료 1번(36차 변경사항 실기기 검증)과 4번(34차 UI 실기기 재확인)을 함께 검증. 코드 변경 없음, devnotes만 갱신.
