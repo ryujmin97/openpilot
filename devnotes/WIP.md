@@ -1,6 +1,16 @@
 # WIP
 
 
+## 43차 (완료 -- devnotes/실제 상태 괴리 확인 + HANDOFF·CURRENT_STATUS 42차 기준 정리)
+
+사용자가 "지침을 전체 읽고 다시" + "레포도 다시 읽고" 요청 -> 4절 0~3번 절차(지침 문서 -> HANDOFF -> CURRENT_STATUS -> carrot-ryu 최신 commit)를 처음부터 재수행. 그 과정에서 이 대화가 몰랐던 41차(로그탭 새로고침 아이콘)·42차(온로드 원형 녹화 버튼)가 다른 세션에 의해 이미 push 완료돼 있음을 발견했으나, HANDOFF.md/WIP.md 본문은 여전히 "push 미실시"로 남아있는 괴리를 확인(16절 사례, 핵심 발견 27로 CURRENT_STATUS.md에 기록).
+
+검증 방법: `git ls-remote`로 carrot-ryu(`4f81ab75`)·carrot-ryu-note(`8bbc7c82`) HEAD 확인 -> commit patch로 메시지/변경 파일 확인 -> raw.githubusercontent.com으로 실제 파일 내용까지 재조회(index.html의 `#logsRefreshButton`, hud_renderer.py의 `RecordButton` 배선 5곳) -- 텍스트 문구가 아니라 실제 파일 내용으로 반영을 확인함.
+
+반영: CURRENT_STATUS.md(carrot-ryu HEAD 줄, 41차/42차 bullet, 코드 수정 현황 24~25번, 다음 작업 순서, 핵심 발견 27)와 HANDOFF.md(전체)를 42차 기준으로 바로잡음. 코드 변경은 없음, devnotes만 갱신.
+
+교훈: 코드 push와 devnotes push가 시간차를 두고 이루어지는 세션 구조상, devnotes 스크립트 작성 시점의 "미확인" 문구가 이후 실제로 반영된 뒤에도 갱신되지 않은 채 남을 수 있음. 다음 세션은 devnotes 텍스트를 그대로 믿지 말고 항상 `git ls-remote`부터 재확인할 것.
+
 ## 42차 (코드 작성 완료 -- 반영 스크립트 실행 대기 -- 온로드 화면에 원형 녹화(Record) 버튼 추가)
 
 사용자 요청: 온로드 화면의 스크린샷 캡쳐 버튼 옆에 동그라미 모양 녹화 버튼을 추가. 한 번 누르면 빨간색으로 점등(녹화 중), 다시 누르면 빨간색이 꺼지고 투명 원(대기 중)으로 표시.

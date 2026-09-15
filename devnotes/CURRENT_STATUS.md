@@ -2,7 +2,7 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `bdde832654a6...` (39cha-fix: screenshots.js formatRelativeEpoch import 누락 수정) -- `git ls-remote` + commit patch로 40차 계속 세션에서 직접 재확인 완료. 39차(화면녹화 탭 사진 업로드 UI + 경로안내 박스 여백)와 40차 버그 수정 모두 반영됨.
+- carrot-ryu HEAD: `4f81ab7585847c71beb01ee8c5ee50d720f72b61` (42차: 온로드 원형 녹화 버튼) -- `git ls-remote` + commit patch로 43차 세션에서 직접 재확인. 41차(로그탭 새로고침 아이콘)와 42차(녹화 버튼)까지 모두 반영됨을 파일 내용으로도 재확인(index.html의 #logsRefreshButton, hud_renderer.py의 RecordButton 배선).
 - carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
@@ -17,7 +17,9 @@
 - **[38차 신규]** 사용자가 제공한 실기기 스크린샷 9장으로 36차 변경사항과 34차 UI를 1차 실기기 검증(코드 변경 없음, devnotes만 갱신). 당근서버 라벨 버그 수정, 햄버거 메뉴 화면녹화 탭 분기, 34차 도착 텍스트 겹침 해소, Drive 폴더 단일화 정황은 확인됨. 화면녹화 탭 업로드 UI 자체 동작(녹화본 부재로 미확인), 37차 락의 실제 동시성 재현(수 분 간격 업로드라 직접 증거 아님), 34차 도로명-신호과속 같은 줄 배치(신호과속 배지 미출현으로 판단 보류)는 이월. push 직후 raw.githubusercontent.com 브랜치-head 캐시 지연이 재현됨(핵심 발견 21과 동일 패턴, 아래 핵심 발견 25 참고). 상세: FINDINGS.md 2026-09-15(38차) 항목.
 - **[39차 신규]** 38차에서 미확인이던 "화면녹화 탭 업로드 UI"의 실제 의도가 녹화본이 아닌 온로드 캡쳐 사진이었음을 확인, 사진 목록에 체크박스/다운로드/전송(행별 + 상단 전체선택 툴바) UI 신규 구현. 34차 이월분인 경로안내 박스 상하 여백 불균형도 `content_shift_y` 상수로 함께 수정. py_compile/node --check/build/npm test(737/737) 전부 통과, 별도 세션에서 스크립트 로직을 독립적으로 재현해 재검증까지 완료. 이 재검증 과정에서 이전 세션이 만든 반영 스크립트의 9절·18절 필수 규칙 위반 3건(core.autocrlf=false 누락, .ps1 UTF-8 BOM 누락, 임시폴더 미삭제)을 발견해 수정. 실기기 검증은 다음 세션 이월. 상세: HANDOFF.md 39차 참고.
 - **[40차 계속]** 39cha-fix push(`bdde8326`)를 `git ls-remote`+commit patch로 직접 재확인. 이어서 사용자 제공 실기기 스크린샷으로 27차 이후 이월되던 경로안내 박스 상하 여백 항목을 처음으로 실차 검증(12절) -- "교차로" 제목/회전아이콘/895m/도착거리/ETA/도로명 순서와 여백 모두 정상 확인. 사진 업로드 UI 자체의 정상 동작은 이 스크린샷에 없어 여전히 미확인, 다음 세션 최우선 이월.
-- **[41차 신규]** carrotweb 로그탭에 새로고침 아이콘 추가(대시캠/화면녹화 탭바와 hamburger 메뉴 사이). index.html/style.css/runtime.js 수정 + npm install && npm run build로 생성 번들 3종 재생성, node --check/npm test(32개) 통과까지 확인. **이번 세션 종료 시점까지 사용자가 반영 스크립트를 실행하지 않아 carrot-ryu HEAD는 여전히 `bdde8326`(39cha-fix) -- 다음 세션은 push 여부부터 재확인할 것.**
+- **[41차]** carrotweb 로그탭에 새로고침 아이콘 추가(대시캠/화면녹화 탭바와 hamburger 메뉴 사이). index.html/style.css/runtime.js 수정 + npm install && npm run build로 생성 번들 3종 재생성, node --check/npm test(32개) 통과까지 확인. **43차에서 실제 push 반영을 재확인함(commit da6ad815, index.html에 #logsRefreshButton 존재 확인).** 실기기 검증은 아직 미실시.
+- **[42차]** 온로드 화면(디바이스 UI)에 스크린샷 버튼 옆 원형 녹화 버튼 추가(record_button.py 신규 + hud_renderer.py 5곳 수정). 41차와 세션 번호가 겹쳐(같은 시기 다른 세션이 각자 41차로 준비) 42차로 재번호. **43차에서 실제 push 반영을 재확인함(commit 4f81ab75, hud_renderer.py의 RecordButton 배선 확인).** 실기기 검증은 아직 미실시.
+- **[43차 신규]** 지침 문서(27차) 및 레포 전체를 재확인하는 과정에서, 다른 세션이 이미 41~42차를 push 완료했음에도 HANDOFF.md/CURRENT_STATUS.md 텍스트에는 "push 미실시"로 남아있던 devnotes-실제상태 괴리(16절 사례)를 발견하고 이 파일들을 42차 기준으로 바로잡음(코드 변경 없음, devnotes만 갱신).
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -43,7 +45,8 @@
 21. gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정(37차, 커밋 해시는 스크립트 실행 로그의 git push 출력 참고) -- 반영 여부 GitHub API/commit diff로 재확인 완료, 목 테스트로 검증. 38차 실기기 검증: Drive 폴더 1개만 생성됨을 확인했으나 시간 간격이 있는 업로드라 동시성 레이스의 직접 재현은 아님(정황상 일치 수준).
 22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- GitHub 반영 확인됨. 경로안내 박스 여백은 40차 계속에서 실기기 검증 완료(스크린샷). 사진 업로드 UI 자체 동작은 여전히 실기기 검증 대기.
 23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- GitHub 반영 확인됨(`git ls-remote` + commit patch). 39차 사진 업로드 UI 크래시의 실제 원인 수정, 실기기 검증(에러 해소 여부)은 다음 세션 이월.
-24. carrotweb 로그탭 새로고침 아이콘 추가(41차, 코드/빌드/테스트는 완료, 커밋 해시는 아직 없음 -- 사용자가 add_logs_refresh_button_41cha.ps1을 실행해야 실제 반영됨) -- **push 미실시, 다음 세션 최우선 확인 대상**.
+24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- GitHub 반영 확인됨(43차, `git ls-remote` + commit patch + index.html 파일 내용 직접 재조회). 실기기 검증 대기.
+25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- GitHub 반영 확인됨(43차, 동일 방식). 실기기 검증 대기(버튼 위치/점등·소등/실제 녹화 파일 생성).
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
@@ -112,6 +115,9 @@ gdrive_upload.py의 _ensure_folder()가 캐시확인/이름검색/생성/캐시�
 ## 핵심 발견 26 (39차) -- 다른 세션이 만든 반영 스크립트도 실행 전 9절·18절 필수 규칙 위반 여부를 재검증해야 함
 39차 코드 작업(사진 업로드 UI, 경로안내 박스 여백) 자체는 직전 세션에서 정적 검증까지 마쳤으나, 무료 사용량 한도로 carrot-ryu 반영 스크립트(.ps1) 전달 전에 세션이 종료됨. 이어받은 세션에서 그 스크립트를 실행하기 전 재검증한 결과, 9절·18절에 이미 문서화된 필수 규칙 3건이 지켜지지 않은 상태였음을 발견: (1) `git clone`에 `--config core.autocrlf=false`(27차) 누락, (2) 한글 포함 `.ps1` 파일 자체의 UTF-8 BOM(21차) 누락, (3) 스크립트 종료 시 임시 폴더를 삭제하지 않고 사용자에게 수동 삭제를 안내(18절 금지 항목). 스크립트의 문자열 치환(anchor) 로직 자체는 GitHub 최신 클론에 대해 파이썬으로 재현했을 때 17곳 모두 정확히 1회 매치로 문제없었음. 즉 "코드 변경 내용"은 정확했으나 "전달 형식"이 규칙을 어긴 경우로, 22차 핵심 발견(지침 문서 미조회)과 유사하게 "직전 세션이 규칙을 몰라서"가 아니라 "규칙 준수 여부를 전달 직전에 재확인하지 않아서" 발생한 사례. 세 가지 위반을 모두 수정한 뒤 최종 스크립트를 전달함.
 
+## 핵심 발견 27 (43차) -- devnotes 텍스트가 실제 push 완료 상태를 반영하지 못한 채로 세션이 종료된 사례
+41차·42차 세션은 코드/devnotes 스크립트를 만들어 전달한 뒤, 사용자가 실행해 실제로 GitHub에 push까지 완료됐음(carrot-ryu commit da6ad815, 4f81ab75; carrot-ryu-note commit 8bbc7c82)에도, HANDOFF.md/WIP.md 본문 텍스트 자체는 "push 미실시"/"실행 여부 확인 필요"로 남아있었음 -- devnotes를 push하는 시점과 코드 push 확인 시점 사이에 세션이 종료되며 문서 갱신이 누락된 것으로 추정. 43차에서 4절 0~3번 절차(지침 재조회 -> HANDOFF -> CURRENT_STATUS -> git ls-remote)를 처음부터 다시 수행하는 과정에서 `git ls-remote` + commit patch + 파일 내용 직접 재조회로 실제 반영 사실을 확인하고 문서를 바로잡음. 핵심 발견 18(30차)과 유사한 패턴이 반복됨 -- "코드 반영"과 "devnotes 갱신"이 다른 시점/세션에서 이루어질 수 있으므로, 매 세션 시작 시 devnotes 텍스트만으로 상태를 단정하지 말고 GitHub 실제 커밋을 항상 재확인해야 함(16절).
+
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: 사진 업로드 UI(39cha-fix) 실기기 검증(최우선, 경로안내 박스 여백은 40차 계속에서 완료), 화면녹화 탭 "영상" 업로드 UI 실기기 검증(녹화본 확보 후), 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 23건 전부 실주행 재검증, 모델 셀렉터 코드 분석
+- 다음 작업: 42차 원형 녹화 버튼 실기기 검증(최우선, 위치/점등·소등/실제 녹화 파일 생성), 41차 로그탭 새로고침 아이콘 실기기 검증, 사진 업로드 UI(39cha-fix) 실기기 검증(경로안내 박스 여백은 40차 계속에서 완료), 화면녹화 탭 "영상" 업로드 UI 실기기 검증(42차로 녹화 버튼이 생겼으니 녹화본 직접 확보 가능), 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 25건 전부 실주행 재검증, 모델 셀렉터 코드 분석
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM
