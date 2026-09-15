@@ -1,6 +1,20 @@
 # WIP
 
 
+## 32차 (devnotes 사후 정리 -- 코드 반영은 이미 GitHub에 완료된 상태로 확인) -- Google Drive drive.file 스코프 + 폴더 자동생성 복귀
+
+- 세션 시작 시 4절 0~3번 절차로 carrot-ryu 최신 커밋을 확인한 결과, `c704371a`(부모 `34bb41bc`, 메시지: `32cha: gdrive drive.file scope + folder auto-create revert (c3-ms-dev, 31cha device-flow block fix)`)가 이미 GitHub에 반영돼 있었음. 이 커밋에 대한 devnotes(WIP/HANDOFF/CURRENT_STATUS)는 남아있지 않아, 이번 세션에서 `github.com/.../commit/<sha>.diff`로 실제 변경 내용을 직접 조회해 사후 정리함(16절 상황, 24차·30차와 유사한 "코드 반영과 devnotes 갱신이 다른 시점에 이루어진" 사례).
+- 이 커밋은 31차(FINDINGS 핵심 발견 19)에서 사용자에게 제시한 3가지 대안 중 **(a) drive.file 스코프 + 폴더 자동생성 방식(c3-ms-dev 원본)으로 복귀**를 선택해 반영한 것으로 보임.
+- 변경 파일: `openpilot/selfdrive/carrot/gdrive_upload.py` 1개뿐(diff로 확인).
+- 변경 내용:
+  1. `DRIVE_SCOPE`: `.../auth/drive`(전체) -> `.../auth/drive.file`(비민감, 앱이 만든 파일만 접근).
+  2. 고정 `DRIVE_FOLDER_ID` 상수 제거, `DRIVE_FOLDER_NAME = "CarrotWeb Logs"` 신설.
+  3. `_verify_folder()`(ID로 존재/휴지통/타입만 확인) -> `_ensure_folder()`(이름으로 검색, 없으면 생성)로 교체.
+  4. `_folder_verified_cache` 구조 변경: `{"ok": bool}` -> `{"id": str|None}`.
+  5. `api_gdrive_status` 응답에서 `folder_id` 필드 제거(고정 ID 개념 자체가 없어짐).
+  6. 파일 상단 docstring을 새 설계(31차 근거, drive.file 복귀 사유, 폴더 자동생성 동작)에 맞춰 갱신.
+- 31차에서 확인된 "Device Authorization Grant가 전체 drive 스코프를 정책적으로 차단"하는 제약(핵심 발견 19)을 정면으로 우회하는 방향.
+- 실차/실기기 검증: 미실시. 실제 Drive 연결 버튼을 눌러 새 폴더가 정상 생성/재사용되는지는 아직 확인되지 않음 -- 기존에 만들어둔 폴더(구 DRIVE_FOLDER_ID)는 이제 사용되지 않고, 앱이 "CarrotWeb Logs"라는 새 폴더를 자동 생성/검색하는 구조로 바뀌었으므로 반드시 실사용 테스트 필요.
 ## 31차 (진행 중 -- 코드 변경 없음, Google Drive 연동 설계 근본 제약 발견) -- OAuth 연결 실패 원인 조사: Device Flow가 Drive 스코프를 구조적으로 차단
 
 - 사용자가 실기기에서 "웹 설정 > 로그 업로드" Google Drive 연결을 시도하며 스크린샷 3장 제공. 순서대로 (1) 클라이언트 ID에 "http://"가 붙은 값 입력 + "Google Drive가 연결되어 있지 않습니다"/OAuth client not found 화면, (2) 클라이언트 보안 비밀번호까지 입력 후 "The OAuth client was not found." 에러, (3) 정상 형식의 Client ID로 재시도 후 "Invalid device flow scope: https://www.googleapis.com/auth/drive" 에러.

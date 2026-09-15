@@ -1,6 +1,16 @@
 # FINDINGS
 
 
+## 2026-09-15 (32차) -- drive.file 스코프 + 폴더 자동생성 복귀로 31차 근본 원인(핵심 발견 19) 우회 반영
+
+**배경**: 31차(핵심 발견 19)에서 Google Device Authorization Grant가 전체 drive 스코프를 정책적으로 차단한다는 근본 원인이 확인되어, 사용자에게 3가지 대안(① drive.file+폴더자동생성 복귀, ② Authorization Code Flow 전면 재설계, ③ Drive 대체)을 제시하고 결정을 기다리는 상태로 세션이 종료됨.
+
+**진행**: 커밋 `c704371a`(메시지에 `31cha device-flow block fix`로 명시)로 대안 ①이 선택·반영됨을 이번 세션에서 GitHub 커밋 로그/diff 직접 조회로 확인함. `gdrive_upload.py`의 스코프를 `drive` -> `drive.file`로 좁히고, 고정 `DRIVE_FOLDER_ID` 접근 방식을 c3-ms-dev 원본과 동일한 "이름으로 폴더 검색, 없으면 자동생성"(`_ensure_folder`) 방식으로 되돌림.
+
+**미해결/주의**:
+1. 이 변경 자체가 실제로 device flow에서 정상 동작하는지(31차에서 겪은 `Invalid device flow scope` 에러가 실제로 사라지는지)는 아직 실기기로 검증되지 않음 -- drive.file 스코프가 device flow에서 허용된다는 것은 외부 사례 기반 추정이었지 이 프로젝트에서 직접 확인된 사실은 아님(31차 FINDINGS 단서 참고).
+2. 기존에 사용자가 미리 만들어둔 폴더(구 DRIVE_FOLDER_ID)는 더 이상 쓰이지 않고, 앱이 "CarrotWeb Logs"라는 새 폴더를 자동으로 만들게 되므로, 기존 폴더에 쌓여있던 파일과 새 폴더가 분리됨(필요시 사용자가 수동으로 옮겨야 함 -- devnotes에는 이 이관에 대한 언급이나 조치가 없음, 다음 세션에서 사용자에게 안내 필요).
+3. 이번 커밋에 대한 세션별 WIP/HANDOFF 기록이 남아있지 않아, 실제로 어떤 경로(세션/스크립트/직접 웹 편집)로 이 커밋이 만들어졌는지는 devnotes만으로는 알 수 없음 -- 다음에 유사한 "기록 없는 반영"이 발견되면 16절 원칙대로 우선 GitHub 실제 상태를 기준으로 진행.
 ## 2026-09-15 (31차) -- Google Drive 연동(15차~) 설계가 Device Authorization Grant의 스코프 제약과 근본적으로 충돌함
 
 **증상**: 실기기에서 "웹 설정 > 로그 업로드" 화면의 Google Drive 연결(Device Authorization Grant, gdrive_upload.py)이 클라이언트 ID/보안 비밀번호를 올바르게 입력하고 클라이언트 유형(TV 및 제한된 입력이 있는 기기)과 동의 화면 스코프 등록까지 정상인 상태에서도 "Invalid device flow scope: https://www.googleapis.com/auth/drive" 에러로 항상 실패함.
