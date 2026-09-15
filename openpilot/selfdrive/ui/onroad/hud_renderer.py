@@ -1349,11 +1349,16 @@ class HudRenderer(Widget):
     # 아래 한 줄(약 40px) 띄운 위치에서 시작하도록 상단기준(right_top)으로 변경.
     edge_x = box_x + box_w - pad
     eta_top = box_y + 175  # route= 상단(95) + route 한 줄(~40) + 빈 줄(~40)
+    # [33차] 사용자 요청: "도착:" 거리/시간 텍스트가 회전 아이콘 초록박스와
+    # 겹쳐 보여, 이 두 줄만 별도로 글자 크기를 40 -> 32로 줄임(폭이 줄어
+    # 겹침 해소). eta_size(40)는 신호과속 배지/도로명/회전거리 등 다른
+    # 요소에 그대로 유지한다.
+    arrival_size = 32
 
     go_dist_text = self._format_go_pos_distance_text(n_go_pos_dist)
     if go_dist_text:
       draw_text_ui_style(
-        f"도착: {go_dist_text}", edge_x, eta_top, eta_size, rl.WHITE,
+        f"도착: {go_dist_text}", edge_x, eta_top, arrival_size, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
         align="right_top",
       )
@@ -1361,7 +1366,7 @@ class HudRenderer(Widget):
     eta_time_text = self._format_eta_time_text(n_go_pos_time)
     if eta_time_text:
       draw_text_ui_style(
-        eta_time_text, edge_x, eta_top + 48, eta_size, rl.WHITE,
+        eta_time_text, edge_x, eta_top + 48, arrival_size, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
         align="right_top",
       )
@@ -1430,8 +1435,13 @@ class HudRenderer(Widget):
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
       )
     elif road_name_text:
+      # [33차] 사용자 요청: 도로명 텍스트가 박스 아래 경계를 벗어나 보임 ->
+      # 신호과속 배지와 동일한 기준선(회전 아이콘 초록박스 하단 by+115
+      # 기준)으로 y위치를 맞춰 박스 안쪽, 신호과속 문구와 같은 줄에 오도록 변경.
+      size = measure_text_cached(self._font_bold, road_name_text, eta_size)
+      label_y = by + 115 + int(size.y) + 10
       self._draw_text_left_bottom(
-        road_name_text, box_x + pad, box_y + box_h - 35, eta_size, rl.WHITE,
+        road_name_text, box_x + pad, label_y, eta_size, rl.WHITE,
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
       )
 
