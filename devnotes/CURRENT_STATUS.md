@@ -6,7 +6,7 @@
 - carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
-- PROJECT_INSTRUCTIONS_carrot-ryu.md는 22차 버전(4절 0번 단계 보고 의무 추가)이 최신.
+- PROJECT_INSTRUCTIONS_carrot-ryu.md는 27차 버전(9절 core.autocrlf=false clone 기본화 + PowerShell 실행정책 우회 -Force)이 최신. 43차 devnotes에는 22차로 잘못 기록돼 있었음 -- 44차에서 재조회해 정정.
 - **[31차]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 3가지 대안 제시, 결정 대기 상태로 세션 종료.
 - **[32차]** 31차 대안 중 (a) drive.file 스코프+폴더 자동생성 복귀가 커밋 c704371a로 반영됨을 확인(세션 기록 없이 반영된 것을 사후 diff로 정리). 실기기 연결 테스트는 아직 미실시.
 - **[33차]** 32차 HANDOFF 미완료 3번(ko.js 문구 버그)을 commit 789667f7로 수정. raw.githubusercontent.com 캐시 지연 현상 관찰(FINDINGS 33차).
@@ -20,6 +20,7 @@
 - **[41차]** carrotweb 로그탭에 새로고침 아이콘 추가(대시캠/화면녹화 탭바와 hamburger 메뉴 사이). index.html/style.css/runtime.js 수정 + npm install && npm run build로 생성 번들 3종 재생성, node --check/npm test(32개) 통과까지 확인. **43차에서 실제 push 반영을 재확인함(commit da6ad815, index.html에 #logsRefreshButton 존재 확인).** 실기기 검증은 아직 미실시.
 - **[42차]** 온로드 화면(디바이스 UI)에 스크린샷 버튼 옆 원형 녹화 버튼 추가(record_button.py 신규 + hud_renderer.py 5곳 수정). 41차와 세션 번호가 겹쳐(같은 시기 다른 세션이 각자 41차로 준비) 42차로 재번호. **43차에서 실제 push 반영을 재확인함(commit 4f81ab75, hud_renderer.py의 RecordButton 배선 확인).** 실기기 검증은 아직 미실시.
 - **[43차 신규]** 지침 문서(27차) 및 레포 전체를 재확인하는 과정에서, 다른 세션이 이미 41~42차를 push 완료했음에도 HANDOFF.md/CURRENT_STATUS.md 텍스트에는 "push 미실시"로 남아있던 devnotes-실제상태 괴리(16절 사례)를 발견하고 이 파일들을 42차 기준으로 바로잡음(코드 변경 없음, devnotes만 갱신).
+- **[44차 신규]** 사용자가 제공한 42차 녹화 버튼/41차 새로고침 아이콘 실기기 검증 스크린샷을 근거로 버그 3건을 코드 조사 후 수정: (1) `screenshots.js`의 `formatLogBytes` import 누락으로 사진 목록 렌더가 통째로 중단되던 문제(39cha-fix와 같은 파일의 두번째 미스), (2) `delete_all_videos`가 스크린샷 폴더는 안 지우던 문제(`SCREEN_RECORDING_DIRS` 기준으로 통일), (3) 녹화 버튼이 색만 바뀌고 깜빡이지 않던 것을 `_blink_timer` 재사용으로 개선. 반영 스크립트 작성 후 실제 저장소 경로가 `selfdrive/...`가 아니라 `openpilot/selfdrive/...`(레포 루트에 `openpilot` 서브디렉터리가 한 겹 더 있음)임을 실제 `git clone` 리허설로 재확인, 스크립트 경로를 수정해 반영 스크립트 실행 대기.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -47,6 +48,9 @@
 23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- GitHub 반영 확인됨(`git ls-remote` + commit patch). 39차 사진 업로드 UI 크래시의 실제 원인 수정, 실기기 검증(에러 해소 여부)은 다음 세션 이월.
 24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- GitHub 반영 확인됨(43차, `git ls-remote` + commit patch + index.html 파일 내용 직접 재조회). 실기기 검증 대기.
 25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- GitHub 반영 확인됨(43차, 동일 방식). 실기기 검증 대기(버튼 위치/점등·소등/실제 녹화 파일 생성).
+26. screenshots.js formatLogBytes import 누락 수정(44차, 커밋 해시는 반영 스크립트 실행 로그 참고) -- 사진 목록 렌더 크래시 근본수정, 반영 스크립트 실행 대기.
+27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- 스크린샷 폴더 미삭제 문제 수정, 반영 스크립트 실행 대기.
+28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- 녹화 중 깜빡임 효과 추가, 반영 스크립트 실행 대기.
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
@@ -118,6 +122,12 @@ gdrive_upload.py의 _ensure_folder()가 캐시확인/이름검색/생성/캐시�
 ## 핵심 발견 27 (43차) -- devnotes 텍스트가 실제 push 완료 상태를 반영하지 못한 채로 세션이 종료된 사례
 41차·42차 세션은 코드/devnotes 스크립트를 만들어 전달한 뒤, 사용자가 실행해 실제로 GitHub에 push까지 완료됐음(carrot-ryu commit da6ad815, 4f81ab75; carrot-ryu-note commit 8bbc7c82)에도, HANDOFF.md/WIP.md 본문 텍스트 자체는 "push 미실시"/"실행 여부 확인 필요"로 남아있었음 -- devnotes를 push하는 시점과 코드 push 확인 시점 사이에 세션이 종료되며 문서 갱신이 누락된 것으로 추정. 43차에서 4절 0~3번 절차(지침 재조회 -> HANDOFF -> CURRENT_STATUS -> git ls-remote)를 처음부터 다시 수행하는 과정에서 `git ls-remote` + commit patch + 파일 내용 직접 재조회로 실제 반영 사실을 확인하고 문서를 바로잡음. 핵심 발견 18(30차)과 유사한 패턴이 반복됨 -- "코드 반영"과 "devnotes 갱신"이 다른 시점/세션에서 이루어질 수 있으므로, 매 세션 시작 시 devnotes 텍스트만으로 상태를 단정하지 말고 GitHub 실제 커밋을 항상 재확인해야 함(16절).
 
+## 핵심 발견 28 (44차) -- 사진 목록 미표시와 delete_all_videos 범위 누락, 두 버그의 공통 패턴: 코드 재사용 시 참조 대상 목록이 갱신 안 됨
+(1) `screenshots.js`가 `formatLogBytes()`를 쓰면서 39cha-fix(40차) 때 고친 `formatRelativeEpoch`처럼 import를 안 해놔서, 사진 행을 그리는 순간 ReferenceError로 목록 렌더 전체가 중단됨(39cha-fix가 그때 이 파일의 다른 누락 import까지는 점검하지 않았던 사각지대). (2) `delete_all_videos`(dispatcher.py 비동기/동기 두 구현)는 `/data/media/0/videos` 하나만 하드코딩돼 있었는데, 스크린샷은 별도 폴더(`SCREEN_RECORDING_DIRS[1]`, `/data/media/0/screenrecord`)에 저장되도록 설계돼 있어 삭제 범위에서 누락됨. 두 버그 모두 "실제 데이터가 있는 곳/실제로 필요한 참조"가 원래 구현 시점 이후 넓어졌는데 관련 코드(import 목록, 하드코딩된 경로)가 함께 갱신되지 않은 동일 패턴. 앞으로 같은 파일/기능을 다시 건드릴 때는 그 파일이 실제로 참조·순회하는 대상 목록(import 대상, 폴더 목록 등)이 현재 설계와 일치하는지 먼저 grep으로 교차 확인할 것.
+
+## 핵심 발견 29 (44차) -- 반영 스크립트의 상대경로 가정이 실제 레포 구조(레포 루트에 openpilot 서브디렉터리)와 어긋났던 사례
+44차에서 만든 코드 반영 스크립트의 Replace-Block 대상 경로를 처음에 `selfdrive/carrot/...` 식으로 레포 루트 기준으로 작성했으나, ryujmin97/openpilot 레포는 루트에 `carrot`(툴킹 관련)과 `openpilot`(실제 콤마 openpilot 코드, `selfdrive`가 이 안에 있음) 두 서브디렉터리가 공존하는 구조라, 실제로는 `openpilot/selfdrive/carrot/...`가 맞는 경로였음. `git clone` 리허설(임시 폴더에 실제 clone 후 대상 파일 존재 확인)로 스크립트 실행 전에 발견/수정함 -- 만약 그대로 전달됐다면 Replace-Block이 `FileNotFoundException`으로 즉시 중단됐을 것(9절의 "1회 매치 아니면 중단" 방어선 이전 단계에서 실패하므로 데이터 손상 위험은 없었으나, 사용자가 원인 모를 에러를 마주쳤을 것). 앞으로 새로운 코드 반영 스크립트를 만들 때는 anchor 매치 카운트뿐 아니라 대상 경로 자체도 실제 `git clone` 결과로 먼저 확인할 것(6절과 연계, 특히 세션 사이 로컬 작업 디렉터리가 초기화되는 이 환경에서는 이전 세션이 사용한 상대경로 표기를 그대로 재사용하지 말 것).
+
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: 42차 원형 녹화 버튼 실기기 검증(최우선, 위치/점등·소등/실제 녹화 파일 생성), 41차 로그탭 새로고침 아이콘 실기기 검증, 사진 업로드 UI(39cha-fix) 실기기 검증(경로안내 박스 여백은 40차 계속에서 완료), 화면녹화 탭 "영상" 업로드 UI 실기기 검증(42차로 녹화 버튼이 생겼으니 녹화본 직접 확보 가능), 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 25건 전부 실주행 재검증, 모델 셀렉터 코드 분석
+- 다음 작업: 44차 반영 스크립트 실행 확인(최우선) + 3건(사진목록/전체삭제/녹화버튼 깜빡임) 실기기 재검증, 41차 로그탭 새로고침 아이콘 실기기 검증, 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 28건 전부 실주행 재검증, carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고)
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM

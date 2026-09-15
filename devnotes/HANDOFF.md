@@ -1,51 +1,49 @@
 # HANDOFF
 
-Worker: Claude (43차 -- devnotes/실제 상태 괴리 확인 + HANDOFF·CURRENT_STATUS 42차 기준 정리)
+Worker: Claude (44차 -- 실기기 버그 3건 수정: 사진목록 크래시/전체삭제 범위/녹화버튼 깜빡임)
 Date: 2026-09-16
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: 4f81ab7585847c71beb01ee8c5ee50d720f72b61, 42차 온로드 원형 녹화 버튼. 이번 세션 코드 변경 없음)
+Code Branch: carrot-ryu (base: 4f81ab7585847c71beb01ee8c5ee50d720f72b61, 42차 온로드 원형 녹화 버튼. 이번 세션 반영 스크립트 작성 완료, 사용자 실행 대기)
 Note Branch: carrot-ryu-note (이 커밋으로 devnotes 갱신)
-carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 체크포인트 이후 신규 23건 확인, WIP_SYNC.md에 40차 체크포인트로 기록 예정(사용자 실행 대기)
+carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 체크포인트 이후 신규 23건 확인, WIP_SYNC.md 40차 체크포인트 반영 스크립트 실행 여부 미확인(다음 세션 확인 필요)
 
 작업:
-지침 재확인(사용자 요청)을 계기로 4절 0~3번 절차(지침 문서 -> HANDOFF -> CURRENT_STATUS -> carrot-ryu 최신 commit)를 처음부터 다시 수행. 그 과정에서 이 대화가 인지하지 못했던 41차(로그탭 새로고침 아이콘)·42차(온로드 원형 녹화 버튼) 작업이 다른 세션에 의해 이미 GitHub에 push 완료돼 있음을 발견. 다만 HANDOFF.md/WIP.md 본문 텍스트는 여전히 "push 미실시"/"확인 필요"로 남아있어 devnotes와 실제 상태 사이 괴리가 있었음(16절 사례, 핵심 발견 27로 기록). git ls-remote + commit patch + 파일 내용(index.html의 #logsRefreshButton, hud_renderer.py의 RecordButton 배선) 직접 재조회로 실제 반영을 확인한 뒤, HANDOFF.md/CURRENT_STATUS.md를 42차 기준으로 바로잡음.
+사용자가 제공한 42차 녹화 버튼/41차 새로고침 아이콘 실기기 검증 스크린샷(및 화면녹화 파일 전송 성공 확인)을 검토하던 중, 화면녹화 탭 체크박스 선택 시 `formatLogBytes is not defined` 크래시를 신규 발견. 이어서 사용자 요청("delete all videos 누르면 사진까지 삭제되게")과 녹화 버튼 깜빡임 여부 질의응답을 거쳐 총 3건을 코드 조사 후 수정. 코드 반영 스크립트 작성 과정에서 이전 세션이 가정한 파일 경로(`selfdrive/...`)가 실제 레포 구조(`openpilot/selfdrive/...`)와 다름을 `git clone` 리허설로 발견해 수정.
 
 완료:
-- carrot-ryu HEAD 재확인: `4f81ab7585847c71beb01ee8c5ee50d720f72b61`(42차: add onroad record button). commit patch로 메시지·변경 파일(hud_renderer.py) 확인.
-- carrot-ryu-note HEAD 재확인: `8bbc7c82639941e6ef213167d1b2118e3c449dc0`(42차 devnotes: onroad record button). commit patch로 변경 파일(HANDOFF.md/WIP.md) 확인.
-- 41차 반영 파일 내용 직접 재조회: `openpilot/selfdrive/carrot/web/index.html`에 `#logsRefreshButton` 존재 확인.
-- 42차 반영 파일 내용 직접 재조회: `openpilot/selfdrive/ui/onroad/record_button.py` 존재(HTTP 200) + `hud_renderer.py`에 `RecordButton` import/필드/인스턴스화/렌더 배치/`user_interacting()` 포함 5곳 전부 확인.
-- CURRENT_STATUS.md: carrot-ryu HEAD 줄을 42차 기준으로 정정, 41차 bullet의 "push 미실시" 문구 정정, 42차 bullet 신규 추가, 43차(이번 세션) bullet 추가, 코드 수정 현황에 24번(41차) 문구 정정 + 25번(42차) 신규 추가, "다음 작업" 목록 최우선 순서 재정렬, 핵심 발견 27(devnotes-실제상태 괴리) 신규 추가.
-- HANDOFF.md: 이 파일 자체를 43차 기준으로 전체 교체.
+- 원인 확정 3건 (FINDINGS.md 2026-09-16(44차) 항목, 핵심 발견 28 참고):
+  1. `openpilot/selfdrive/carrot/web/src/features/logs/screenshots.js` -- `formatLogBytes` import 누락으로 사진 목록 렌더가 통째로 중단(39cha-fix, 40차의 같은 파일 `formatRelativeEpoch` 누락 수정 때 점검 범위 밖이었음). import문에 `formatLogBytes` 추가.
+  2. `openpilot/selfdrive/carrot/server/features/tools/dispatcher.py` -- `delete_all_videos`(비동기 682번째 줄 + 동기 1164번째 줄) 둘 다 `/data/media/0/videos` 폴더만 하드코딩돼 캡쳐 사진(`/data/media/0/screenrecord`)을 안 지웠음. `config.py`의 `SCREEN_RECORDING_DIRS`(영상+사진 후보 폴더 7개 전체) 기준으로 확장.
+  3. `openpilot/selfdrive/ui/onroad/record_button.py` + `openpilot/selfdrive/ui/onroad/hud_renderer.py` -- 녹화 버튼이 색만 바뀌고 깜빡이지 않던 것을(42차 의도된 구현, 버그 아님) `hud_renderer.py`의 기존 `_blink_timer`를 재사용해 `set_blink_phase()`로 배선, 녹화 중일 때만 채움/테두리 번갈아 그리도록 개선.
+- 반영 스크립트(`44cha_carrot_ryu_fixes.ps1`) 작성: Replace-Block 앵커 5곳을 최신 GitHub HEAD(`4f81ab75`)에서 Python으로 재현해 전부 정확히 1회 매치 확인, `py_compile`(dispatcher.py/hud_renderer.py/record_button.py)·`node --check`(screenshots.js) 통과.
+- **[중요]** 스크립트 초안의 대상 경로가 `selfdrive/...`(레포 루트 기준 가정)로 잘못돼 있던 것을, 실제 `git clone --branch carrot-ryu --config core.autocrlf=false`로 임시 폴더에 리허설 클론해 발견/수정(정확한 경로: `openpilot/selfdrive/...`, 레포 루트에 `openpilot`/`carrot` 두 서브디렉터리가 공존하는 구조). 수정 후 클론 결과에서 4개 대상 파일 전부 존재 확인(핵심 발견 29 참고).
+- devnotes 갱신: WIP.md 44차 신규 회차 추가, FINDINGS.md 44차 항목 추가(핵심 발견 28·29), CURRENT_STATUS.md 44차 bullet + 코드 수정 현황 26~28번 + PROJECT_INSTRUCTIONS 버전 정정(22차→27차) + 다음 작업 목록 갱신, 이 파일(HANDOFF.md) 44차 기준 전체 교체.
 
 미완료 (다음 세션 이월):
-1. [최우선] 42차 원형 녹화 버튼 실기기 검증 -- 스크린샷 버튼 오른쪽(간격 30px) 위치가 화면 밖으로 벗어나지 않는지, 클릭 시 실제 빨간 원 점등/소등이 정상 동작하는지, 실제 녹화 파일이 생성되는지.
-2. [이월, 41차] 로그탭 새로고침 아이콘 실기기 검증(위치, 클릭 반응, 회전 애니메이션, 대시캠/화면녹화 각 탭에서 실제 목록 재조회 여부).
-3. [이월] 사진 업로드 UI(체크박스/전체선택/다운로드/전송)가 `bdde8326`(39cha-fix) 반영 후 에러 없이 정상 렌더링되는지 실기기 재확인.
-4. [이월] 화면녹화 탭 "영상" 업로드 UI(36차) 실기기 검증 -- 42차로 녹화 버튼이 생겼으니 다음 세션에 직접 녹화본 확보 가능.
-5. [이월] 37차 락 수정의 실제 동시성(거의 동시 호출) 재현 검증.
-6. [이월] 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 배지가 나타나는 구간에서).
-7. [이월] 28~30차 레이아웃 정밀 재검증(육안 확인만 완료).
-8. [이월] 실차 재검증(8~42차 코드 변경 전부, 12절 원칙) -- 계속 이월.
-9. [이월] 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부.
-10. [이월] test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신.
-11. [이월] docs/carrot_web_upload.md 갱신(Drive 기준).
-12. [이월] run_upload_segments() 설계 변경 실사용 문제 없는지 재확인.
-13. [이월] carrot-ms 모델 셀렉터 코드 분석 착수(6차 이후 계속 미착수). 40차 체크포인트(7차 이후 신규 23건, 그중 Cinque v2 eGPU 3건)가 WIP_SYNC.md 반영 스크립트 실행 대기 중.
-14. [이월] `devnotes_40cha_wipsync_checkpoint.ps1` 실행 여부 확인 -- 아직 반영 안 됐다면 재전달 필요.
+1. [최우선] `44cha_carrot_ryu_fixes.ps1` 사용자 실행 확인 -- carrot-ryu에 실제 push됐는지 `git ls-remote`+commit patch로 재확인.
+2. [최우선, 1번 완료 후] 이번 3건 실기기 재검증: (a) 화면녹화 탭에서 파일 체크박스 선택 시 사진 목록이 크래시 없이 정상 렌더되는지, (b) "delete all videos" 실행 시 스크린샷(.png)까지 함께 삭제되는지, (c) 녹화 버튼이 녹화 중에만 실제로 깜빡이는지(정지 시 기존처럼 정지 상태 유지).
+3. [이월, 41차] 로그탭 새로고침 아이콘 실기기 검증(위치, 클릭 반응, 회전 애니메이션, 대시캠/화면녹화 각 탭에서 실제 목록 재조회 여부).
+4. [이월] 37차 락 수정의 실제 동시성(거의 동시 호출) 재현 검증.
+5. [이월] 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 배지가 나타나는 구간에서).
+6. [이월] 28~30차 레이아웃 정밀 재검증(육안 확인만 완료).
+7. [이월] 실차 재검증(8~44차 코드 변경 전부, 12절 원칙) -- 계속 이월.
+8. [이월] 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부.
+9. [이월] test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신.
+10. [이월] docs/carrot_web_upload.md 갱신(Drive 기준).
+11. [이월] run_upload_segments() 설계 변경 실사용 문제 없는지 재확인.
+12. [이월] carrot-ms 모델 셀렉터 코드 분석 착수(6차 이후 계속 미착수). WIP_SYNC.md 40차 체크포인트(신규 23건, Cinque v2 eGPU 3건 포함) 반영 스크립트 실행 여부부터 확인 필요.
 
-검증: `git ls-remote` + commit patch + raw.githubusercontent.com 파일 내용 직접 재조회로 41차·42차 실제 반영을 확인(16절). 이번 세션은 devnotes 텍스트만 정정, 코드 변경 없음. **실차 검증은 전부 미실시**(12절) -- 특히 42차 녹화 버튼과 41차 새로고침 아이콘은 코드 반영만 확인됐을 뿐 실기기에서 한 번도 확인된 적 없음.
+검증: Replace-Block 앵커 5곳 Python 시뮬레이션 1회 매치 확인 + `py_compile`/`node --check` 통과 + `git clone` 리허설로 대상 경로 존재 확인. **실차/실기기 검증은 전부 미실시**(12절) -- 이번 3건은 스크립트조차 아직 실행 전이므로 코드 반영 자체도 미확인 상태.
 
 주의사항:
-- **devnotes-실제상태 괴리 재발 방지**: 코드 스크립트와 devnotes 스크립트를 순차로 전달/실행하는 세션에서는, devnotes 스크립트를 만드는 시점에 코드 push가 아직 미확인이었더라도 이후 실제로 push됐을 수 있다. 다음 세션은 HANDOFF.md/WIP.md 문구를 그대로 믿지 말고 항상 `git ls-remote`로 최신 HEAD부터 재확인할 것(4절 0~3번, 16절).
-- 42차 record_button.py는 screenshot_button.py와 동일하게 독립 클릭 콜백을 갖는 위젯이라 사이드바 토글(단일 탭) 영역과 겹치지 않도록 `user_interacting()`에 포함돼 있으나, 실기기에서 버튼 판정 영역이 실제로 안 겹치는지는 미검증.
-- 41차/42차는 서로 다른 파일(index.html/style.css/runtime.js vs record_button.py/hud_renderer.py)이라 충돌 없이 둘 다 반영됨.
+- **경로 가정 재사용 금지**: 이 환경은 세션 사이 로컬 작업 디렉터리가 초기화되므로, 이전 세션이 검증에 썼던 파일 경로/디렉터리 구조를 그대로 신뢰하지 말고 매 세션 `git clone` 리허설로 재확인할 것(44차에서 실제로 `selfdrive/...` vs `openpilot/selfdrive/...` 불일치를 발견, 핵심 발견 29).
+- raw.githubusercontent.com 개별 파일 조회가 이번 세션 초반 일부 경로에서 404를 반환했는데, 이는 캐시 지연(핵심 발견 21/25)이 아니라 경로 자체가 틀렸던 것으로 확인됨 -- 404가 나면 캐시 지연으로 넘겨짚지 말고 경로 자체(레포 루트 구조)부터 재검증할 것.
+- 44차 3건은 서로 다른 파일(screenshots.js / dispatcher.py / record_button.py+hud_renderer.py)이라 충돌 없이 한 커밋에 모두 반영됨.
 - WIP_SYNC.md 40차 체크포인트(carrot-ms 신규 23건, Cinque v2 eGPU 3건 포함) 반영 스크립트가 아직 실행 확인이 안 된 상태로 남아있을 수 있음 -- 다음 세션 확인 필요.
 
 다음 작업 후보:
-1. 42차 원형 녹화 버튼 실기기 검증(최우선)
-2. 41차 로그탭 새로고침 아이콘 실기기 검증
-3. 사진 업로드 UI(39cha-fix) 실기기 검증
-4. 화면녹화 탭 "영상" 업로드 UI 실기기 검증(녹화본 확보 후)
-5. WIP_SYNC.md 40차 체크포인트 반영 확인 + carrot-ms 신규 23건 중 모델 셀렉터 3건 cherry-pick 검토 착수
-6. 37차 락 수정 동시성 재현 검증
+1. 44cha_carrot_ryu_fixes.ps1 실행 확인(최우선)
+2. 이번 3건(사진목록 크래시/전체삭제 범위/녹화버튼 깜빡임) 실기기 재검증
+3. 41차 로그탭 새로고침 아이콘 실기기 검증
+4. WIP_SYNC.md 40차 체크포인트 반영 확인 + carrot-ms 신규 23건 중 모델 셀렉터 3건 cherry-pick 검토 착수
+5. 37차 락 수정 동시성 재현 검증

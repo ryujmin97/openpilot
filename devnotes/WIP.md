@@ -1,5 +1,22 @@
 # WIP
 
+## 44차 (진행 중 -- 실기기 버그 3건 수정 + 반영 스크립트 경로 오류 사전 발견/수정) -- 사진목록 크래시/전체삭제 범위/녹화버튼 깜빡임
+
+사용자가 제공한 42차 녹화 버튼·41차 새로고침 아이콘 실기기 검증 스크린샷(녹화 시작/종료, 화면녹화 파일 생성/전송 성공)을 검토하던 중 신규 버그 발견 및 요청 2건이 추가됨:
+
+1. **사진 목록 크래시**: 화면녹화 탭에서 파일을 체크박스로 선택하는 순간 `formatLogBytes is not defined` 토스트 발생. 코드 조사 결과 `selfdrive/carrot/web/src/features/logs/screenshots.js`가 `formatLogBytes()`를 62번째 줄(개별 항목 크기)과 162번째 줄(선택 합계 크기)에서 쓰면서 `./runtime.js` import문에는 누락돼 있었음(39cha-fix, 40차에서 같은 파일의 `formatRelativeEpoch` 누락은 고쳤으나 `formatLogBytes` 누락은 그때 못 잡음). `dashcam.js`/`screenrecord.js`는 정상적으로 import 중. 수정: import문에 `formatLogBytes` 한 항목 추가.
+2. **사용자 요청**: 도구탭 "delete all videos"를 누르면 영상과 사진(캡쳐 스크린샷)까지 함께 삭제되게 해달라. 코드 조사 결과 `dispatcher.py`의 `delete_all_videos` 액션이 비동기(682번째 줄)/동기(1164번째 줄) 두 곳 모두 `/data/media/0/videos` 폴더 하나만 하드코딩돼 있었음. 반면 캡쳐 사진(.png)은 `screenshot_capture.py`에서 `SCREEN_RECORDING_DIRS[1]`(`/data/media/0/screenrecord`)에 저장됨 -- 영상/사진이 서로 다른 폴더라 기존 로직은 사진 폴더를 건드리지 않았음. 수정: 두 곳 모두 `config.py`에 이미 정의된 `SCREEN_RECORDING_DIRS`(영상+사진 후보 폴더 7개 전체, `catalog.py`가 실제 목록 조회에 쓰는 것과 동일한 소스) 기준으로 변경.
+3. **녹화 버튼 깜빡임 없음**: 사용자 설명("평상시 흰색테두리, 누르면 빨간색으로 채워짐, 깜빡이지는 않음, 다시 누르면 흰 테두리로 복귀")을 코드로 재확인한 결과 정확히 그대로 구현돼 있었고(42차), 깜빡임 로직 자체가 없어 "실제 녹화 중"이라는 느낌이 안 드는 것이 원인이었음. `hud_renderer.py`가 카메라 감지/CPU·메모리 과열 경고에 이미 쓰고 있는 `_blink_timer` 프레임 카운터를 재사용해, `record_button.py`에 `set_blink_phase()`를 추가하고 녹화 중일 때만 채움/테두리를 번갈아 그리도록 수정(녹화 안 할 때는 42차와 동일하게 유지).
+
+3건 모두 최신 GitHub 재조회 후 Replace-Block 앵커 1회 매치 확인, py_compile/`node --check` 통과.
+
+**[중요, 세션 재개 시 발견]** 이 세션은 이전 세션(스크립트까지 완성한 상태)을 이어받아 시작했으나, 이 환경의 로컬 작업 디렉터리가 세션 사이 초기화되는 특성상 이전 세션이 검증에 썼던 경로 가정을 그대로 신뢰하지 않고 `git clone` 전체 리허설로 처음부터 재검증함. 그 결과 **이전 세션이 작성한 Replace-Block 대상 경로가 `selfdrive/...`로 돼 있었는데, 실제 ryujmin97/openpilot 레포는 루트에 `openpilot` 서브디렉터리가 한 겹 더 있어 정확한 경로는 `openpilot/selfdrive/...`임을 발견**(핵심 발견 29 참고). 만약 그대로 전달됐다면 사용자가 스크립트를 실행하는 순간 `FileNotFoundException`으로 실패했을 것 -- 경로를 수정한 뒤 앵커 매치(전부 1회)와 `py_compile`/`node --check`를 다시 통과시키고, 최종적으로 실제 `git clone`으로 대상 파일 존재까지 확인함.
+
+수정 파일: `openpilot/selfdrive/carrot/web/src/features/logs/screenshots.js`, `openpilot/selfdrive/carrot/server/features/tools/dispatcher.py`, `openpilot/selfdrive/ui/onroad/hud_renderer.py`, `openpilot/selfdrive/ui/onroad/record_button.py`(전체 교체).
+
+미완료: carrot-ryu 반영 스크립트(`44cha_carrot_ryu_fixes.ps1`) 사용자 실행 대기. 실행 후 3건 모두 실기기 재검증 필요(사진 목록이 크래시 없이 뜨는지, delete all videos가 사진까지 지우는지, 녹화 중 버튼이 실제로 깜빡이는지).
+
+
 
 ## 43차 (완료 -- devnotes/실제 상태 괴리 확인 + HANDOFF·CURRENT_STATUS 42차 기준 정리)
 

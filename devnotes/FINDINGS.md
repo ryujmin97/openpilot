@@ -1,5 +1,32 @@
 # FINDINGS
 
+## 2026-09-16 (44차) -- 사진 목록 렌더 크래시(formatLogBytes 미import) / delete_all_videos 폴더 범위 누락 / 녹화 버튼 깜빡임 부재, 원인 확정 및 수정
+
+### 증상 1: 화면녹화 탭에서 파일 체크박스 선택 시 `formatLogBytes is not defined` 토스트
+- 재현조건: 화면녹화 탭 -> 파일 체크박스 선택(스크린샷 5 참고).
+- 호출흐름: 체크박스 선택 -> 선택 합계 크기 표시 로직(screenshots.js 162번째 줄, `formatLogBytes(totalBytes)`) 호출 -> `formatLogBytes`가 스코프에 없어 ReferenceError.
+- 원인: `screenshots.js` 3번째 줄 import문에 `formatLogBytes`가 빠져 있었음(`formatRelativeEpoch`, `hydrateLogsLazyImages`, `isLogsPageActive`, `unobserveLogsLazyImages`만 import). `runtime.js` 256번째 줄에 정의, 1108번째 줄에 export돼 있고 `dashcam.js`/`screenrecord.js`는 정상 import 중이라 이 파일만의 누락.
+- 39cha-fix(40차, commit bdde8326)에서 같은 파일의 `formatRelativeEpoch` 누락은 고쳤으나, 같은 파일에 있던 `formatLogBytes` 누락은 그때 점검 범위 밖이었음(개별 항목 렌더 62번째 줄에서도 쓰여 사진 목록 자체가 렌더되지 않는, 단순 "합계 표시 오류"보다 더 근본적인 문제였음).
+- 수정: import문에 `formatLogBytes` 추가. (44차 코드 반영 스크립트, 아직 사용자 실행 대기)
+
+### 증상 2 (사용자 요청): "delete all videos"가 캡쳐 사진을 지우지 않음
+- 재현조건: 도구탭 -> User/System -> delete all videos.
+- 원인: `dispatcher.py`의 `delete_all_videos` 액션(비동기 job 처리 682번째 줄, 동기 REST 처리 1164번째 줄) 둘 다 `paths = ["/data/media/0/videos"]` 하드코딩. 캡쳐 사진(.png)은 `screenshot_capture.py`가 `SCREEN_RECORDING_DIRS[1]`(`/data/media/0/screenrecord`)에 저장하도록 설계돼 있어, 영상 폴더만 도는 기존 로직이 사진 폴더를 건드리지 못함.
+- 수정: 두 곳 모두 `config.py`의 `SCREEN_RECORDING_DIRS`(영상+사진 후보 폴더 7개 전체, `catalog.py`가 실제 파일 목록 조회에도 쓰는 동일 소스) 기준으로 변경. import문에 `SCREEN_RECORDING_DIRS` 추가.
+
+### 증상 3: 녹화 버튼이 색만 바뀌고 깜빡이지 않음
+- 사용자 설명(직접 질의응답으로 확인): "평상시 흰색테두리 정상, 누르면 빨간색으로 채워짐, 깜박이지는 않음, 또 누르면 다시 흰색테두리 투명으로 복귀".
+- 코드 확인 결과 사용자 설명과 정확히 일치하는 구현이었음(42차 `record_button.py`) -- 버그가 아니라 "깜빡임 로직 자체가 없음"이 원인.
+- 수정: `hud_renderer.py`가 카메라 감지/CPU·메모리 과열 경고 표시에 이미 쓰는 `_blink_timer`(0~15 순환 프레임 카운터, 189번째 줄 초기화·1465번째 줄 증가) 재사용. `record_button.py`에 `set_blink_phase(on: bool)` 메서드를 추가하고, `hud_renderer.py`의 렌더 호출 직전에 `self._record_button.set_blink_phase(self._blink_timer <= 8)`를 배선. 녹화 중일 때만 채움/테두리를 번갈아 그리고, 녹화 안 할 때는 42차와 동일(흰 테두리, 안 깜빡임).
+
+### 공통 패턴 (핵심 발견 28 참고)
+증상 1·2 모두 "실제 참조/순회 대상이 원래 구현 이후 넓어졌는데, 코드(import 목록/하드코딩 경로)가 함께 갱신되지 않음"이라는 동일한 패턴. 42차 이후 반복적으로 같은 파일을 건드리게 되므로, 이후 이 파일들을 다시 수정할 때는 grep으로 실제 참조 대상 목록이 현재 설계와 일치하는지 먼저 교차 확인할 것.
+
+### 반영 스크립트 경로 오류 사전 발견 (핵심 발견 29 참고)
+44차 반영 스크립트를 준비하며 대상 파일 경로를 `selfdrive/...`(레포 루트 기준으로 가정)로 초안 작성했으나, `git clone` 전체 리허설로 재검증한 결과 ryujmin97/openpilot 레포 루트에는 `openpilot`(실제 콤마 코드, `selfdrive`가 그 안에 있음)과 `carrot` 두 서브디렉터리가 공존하는 구조임을 확인 -- 정확한 경로는 `openpilot/selfdrive/...`. anchor 매치(Python 시뮬레이션, 전부 1회) 뿐 아니라 스크립트가 clone하는 실제 디렉터리 구조에서 대상 파일 존재 여부까지 `git clone`으로 재확인한 뒤 스크립트를 완성함(9절/6절 원칙 확장 적용).
+
+검증: `py_compile`(dispatcher.py, hud_renderer.py, record_button.py) + `node --check`(screenshots.js) 통과. Replace-Block 앵커 5곳 전부 최신 GitHub HEAD(`4f81ab75`) 기준 정확히 1회 매치 확인(Python 시뮬레이션). 실제 `git clone` 리허설로 대상 파일 경로 존재 확인. **실차/실기기 검증은 미실시**(12절) -- 스크립트 실행 후 다음 세션에서 진행.
+
 
 ## 2026-09-15 (38차) -- raw.githubusercontent.com 브랜치-head 캐시 지연 재현(핵심 발견 21 재확인) 및 실기기 검증 상세 근거
 
