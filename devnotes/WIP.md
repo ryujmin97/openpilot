@@ -1,6 +1,16 @@
 # WIP
 
 
+## 40차 계속2 (완료 -- devnotes 반영 스크립트 here-string 종료 버그로 인한 조용한 실패 수정)
+
+직전 "40차 계속" 반영 스크립트를 실행한 뒤 `git ls-remote` + commit patch로 재확인하는 과정(16절)에서, `HANDOFF.md`가 완전히 빈 파일(0바이트)로 덮어써졌고 `CURRENT_STATUS.md`는 전혀 갱신되지 않은 채 옛 내용 그대로 남아있음을 발견.
+
+원인: PowerShell here-string(`@'...'@`)은 종료 마커 `'@`가 반드시 줄 맨 앞에 와야 인식되는데, `CURRENT_STATUS.md` 내용을 담은 here-string이 줄바꿈 없이 끝나 `'@`가 이전 줄 텍스트 끝에 바로 붙어버림. PowerShell이 이를 종료로 인식하지 못해, 그 뒤에 이어지는 실제 스크립트 코드(`[System.IO.File]::WriteAllText($StatusPath, ...)` 호출부터 `$HandoffNew = @'` 변수 대입, HANDOFF.md 전체 내용, 그다음 here-string의 정상 종료 마커까지)를 전부 "문자열 리터럴"로 통째로 삼켜버림. 그 결과 (1) `CURRENT_STATUS.md`를 실제로 쓰는 코드 자체가 문자열 안에 파묻혀 실행되지 않아 파일이 그대로 남았고, (2) `$HandoffNew` 변수가 끝내 정의되지 않은 채(`$null`) `HANDOFF.md`에 써져 빈 파일이 됨. 에러 없이 `git commit`/`git push`까지 정상 진행되어 "Push complete"로 보고됨 -- 18절이 경계해온 "조용한 실패" 패턴의 새로운 변종.
+
+수정: devnotes 반영 스크립트를 생성할 때 here-string에 담기는 모든 내용 블록이 줄바꿈으로 끝나도록 보장하는 절차를 추가(내용 끝에 개행이 없으면 자동 추가). 이번 세션에서 이 방식으로 재생성한 스크립트로 `HANDOFF.md`를 복구하고 `CURRENT_STATUS.md`를 실제로 갱신함.
+
+교훈: 9절의 anchor 1회매치 검증처럼, here-string으로 파일 전체를 교체하는 "전체 교체형" 작업도 실행 전에 "내용이 줄바꿈으로 끝나는지"를 기계적으로 검증할 필요가 있음. 이 문제는 anchor 매칭 문제(20차 핵심 발견)나 인코딩 문제(21차)와는 다른, PowerShell here-string 구문 자체의 함정이라 별도로 기록.
+
 ## 40차 계속 (완료 -- 경로안내 박스 상하 여백 실기기 검증 + 39cha-fix push 재확인)
 
 직전 40차 HANDOFF.md가 "fix_carrot_ryu_39cha.ps1 미실행"으로 남겨뒀던 1순위 미완료 항목을 이번 세션에서 재확인: `git ls-remote`로 carrot-ryu HEAD가 `bdde832654a6...`임을 확인하고, `github.com/.../commit/bdde8326....patch`로 커밋 메시지("39cha-fix: import missing formatRelativeEpoch in screenshots.js")와 변경 파일(screenshots.js/logs.js/asset-manifest.json)을 직접 조회해 실제 반영을 확인(16절, API rate limit로 REST 엔드포인트가 막혀 ls-remote+patch 조합으로 우회).
