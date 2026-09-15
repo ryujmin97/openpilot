@@ -1,45 +1,44 @@
 # HANDOFF
 
-Worker: Claude (36차 -- 화면녹화 탭 업로드 UI 구현 + 버그 3건 수정, 코드 커밋 진행)
+Worker: Claude (37차 -- gdrive_upload.py Drive 폴더 중복생성 레이스컨디션 수정, 코드 커밋 진행)
 Date: 2026-09-15
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (이 커밋으로 갱신 -- 이전 HEAD 9fdefb3d 위에 반영. 정확한 새 커밋 해시는 코드 반영 스크립트 실행 로그의 git push 출력 참고, 다음 세션은 GitHub API로 재확인할 것)
+Code Branch: carrot-ryu (이 커밋으로 갱신 -- 이전 HEAD 0835b059 위에 반영. 정확한 새 커밋 해시는 코드 반영 스크립트 실행 로그의 git push 출력 참고, 다음 세션은 GitHub API로 재확인할 것)
 Note Branch: carrot-ryu-note (이 커밋으로 devnotes 갱신)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 세션과 동일, 신규 커밋 없음(이번 세션에서도 재확인하지 않음)
 
 작업:
-35차에서 사용자가 확정한 화면녹화 탭 업로드 스펙(체크박스/전체선택/다운로드/전송)을 구현하고, 함께 발견됐던 "당근서버" 라벨 오표시 버그와 햄버거 메뉴 설계 문제를 같이 수정함. 직전 세션(도구 호출 한도로 중단, carrot-ryu에 커밋 없음)에서 로컬로만 작성됐던 코드를 이번 세션이 이어받아, GitHub 최신 상태 위에 다시 clone한 뒤 문법 검사/빌드/전체 테스트까지 마치고 반영함.
+36차 HANDOFF의 미완료 이월 목록 중 2번(Drive 폴더 2개 생성 원인 확정 조사)을 사용자 요청으로 1번(화면녹화 탭 실기기 검증)보다 먼저 진행함. 35차 핵심 발견 23 증상 4("추정, 미확정")의 실제 원인을 코드 조사로 확정하고 최소 수정(옵션 a, 인프로세스 락)으로 고침.
 
 완료:
-- screenrecord.js: 선택 상태(Set), 체크박스, 전체선택/선택다운로드/선택전송 툴바, 업로드 확인/결과 다이얼로그, 동기 순차 업로드, <a download> 순차 클릭 다운로드, 새로고침 시 선택 정리.
-- runtime.js: 관련 이벤트 위임 배선 + logsMenuChoices()에서 화면녹화 탭일 때 "최근 로그 업로드" 섹션 숨김(사용자 확정).
-- index.html/style.css: 툴바 마크업/스타일 추가.
-- server/features/screenrecord/routes.py: POST /api/screenrecord/upload 신규(gdrive_upload.upload_file_resumable 재사용, 파일별 순차 처리, job/폴링 없음).
-- js/translations/{ko,en,zh}.js: 신규 키 3개(download_selected, screenrecord_upload, no_selected_recordings) 추가.
-- dashcam.js: dashcamUploadConfirmHtml() targetLabel 분기에 gdrive 케이스 추가 -- "당근서버" 오표시 버그 수정(35차 핵심 발견 23 원인).
-- 빌드 검증: npm install && node build.mjs로 js/generated/logs.js, css/generated/logs.css, generated/asset-manifest.json 재생성 확인, npm test 737/737 pass. 반영 스크립트가 이 빌드 단계를 포함해 생성 번들도 함께 커밋함.
+- gdrive_upload.py: 원인 확정 -- `_ensure_folder()`가 캐시확인/검색/생성/캐시기록을 락 없이 수행하는 TOCTOU 레이스. 대시캠 탭 전송과 햄버거 메뉴 "최근 로그 업로드"가 서로 다른 asyncio task로 거의 동시에 이 함수를 호출하면 둘 다 캐시 미스로 판단해 폴더를 중복 생성할 수 있음(300초 캐시 만료가 아니라 첫 호출의 API 왕복이 끝나기 전의 좁은 레이스 윈도우 문제).
+- gdrive_upload.py: 모듈 레벨 `_folder_lock = asyncio.Lock()` 추가, `_ensure_folder()` 본문 전체를 이 락으로 감싸도록 수정(문자열 블록 치환 3곳: import 추가/전역 상태 변수 추가/함수 본문 교체).
+- 검증: `python3 -m py_compile` 통과. 목(mock) 기반 동시성 테스트를 직접 작성해 실행 -- 수정 전 코드는 실제로 폴더 생성 API가 2번 호출되는 것을 재현했고(버그 재현 성공), 수정 후 코드는 1번만 호출됨을 확인(수정 확인). 상세: FINDINGS.md 2026-09-15(37차) 항목.
+- 사용자와 논의해 근본 수정(폴더 id를 Params에 영구 저장, 프로세스 경계까지 보호)은 이번 세션 범위 밖으로 명시적으로 결정하고 최소 수정만 반영.
 
-미완료 (다음 세션 이월):
-1. 이번 세션 변경사항(화면녹화 업로드/다운로드, 라벨 수정, 햄버거 메뉴 탭별 분기) 실기기 검증 -- 아직 미실시.
-2. Drive 폴더 2개 생성 원인 확정 조사(35차 핵심 발견 23 항목 4, 우선순위 낮음).
-3. [이월] 34차 UI 변경(도착 텍스트 32px, 도로명 위치) 실기기 재확인.
-4. [이월] 28~30차 레이아웃 실기기 재검증.
-5. 실차 재검증(8~36차 코드 변경 전부, 12절 원칙).
-6. 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부(26차부터 이월).
-7. test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신(25차부터 이월).
-8. docs/carrot_web_upload.md 갱신(Drive 기준)(15차부터 이월).
-9. run_upload_segments() 설계 변경 실사용 문제 없는지 재확인(16차부터 이월).
-10. carrot-ms 모델 셀렉터 코드 분석 착수(6차 이후 계속 미착수).
+미완료 (다음 세션 이월, 36차에서 이월된 항목 포함):
+1. [36차 이월, 이번 세션 보류] 36차 변경사항(화면녹화 업로드/다운로드, 라벨 수정, 햄버거 메뉴 탭별 분기) 실기기 검증 -- 아직 미실시. 사용자가 "1번은 나중에"로 순서를 미룸.
+2. [37차 완료, 실기기 검증만 남음] 이번 세션 수정(gdrive 폴더 중복생성 락)의 실기기 재현/해소 확인 -- 목 테스트만 했고 실제 Drive/실기기 검증은 미실시.
+3. [37차 신규, 우선순위 낮음, 필요시에만] 근본 수정(폴더 id Params 영구 저장, 프로세스 경계 보호) -- 이번 세션에서 범위 밖으로 확정됨. 실기기에서 폴더 중복 생성이 다시 보고되면 재검토.
+4. [이월] 34차 UI 변경(도착 텍스트 32px, 도로명 위치) 실기기 재확인.
+5. [이월] 28~30차 레이아웃 실기기 재검증.
+6. 실차 재검증(8~37차 코드 변경 전부, 12절 원칙).
+7. 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부(26차부터 이월).
+8. test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신(25차부터 이월).
+9. docs/carrot_web_upload.md 갱신(Drive 기준)(15차부터 이월).
+10. run_upload_segments() 설계 변경 실사용 문제 없는지 재확인(16차부터 이월).
+11. carrot-ms 모델 셀렉터 코드 분석 착수(6차 이후 계속 미착수).
 
-검증: node --input-type=module --check(전 JS 파일), python3 -m py_compile(routes.py), node build.mjs(esbuild 번들 재생성 성공), npm test(737/737 pass). 실기기 검증: 미실시.
+검증: python3 -m py_compile(gdrive_upload.py), 목 기반 동시성 테스트(asyncio.gather + 가짜 지연 세션으로 _ensure_folder() 동시 호출, 수정 전/후 비교). 실기기 검증: 미실시.
 
 주의사항:
-- 코드 반영 스크립트는 clone 직후 npm install && node build.mjs를 실행해 생성 번들(js/generated/logs.js 등)을 직접 재생성한 뒤 커밋한다 -- 이 저장소는 기기가 소스가 아닌 생성된 번들을 직접 서빙하므로(web/.gitignore 주석 참고) 생성 번들 커밋 누락 시 실제 동작에 반영되지 않는다.
+- 이번 수정은 Python 백엔드 파일(gdrive_upload.py)만 변경했으므로, 36차와 달리 npm install/node build.mjs 같은 프론트엔드 빌드 단계는 필요 없음(변경 파일이 web/ 하위가 아님).
+- _folder_lock은 프로세스 내부에서만 유효함을 다음 세션도 계속 인지할 것 -- carrot_man.py(별도 프로세스)의 send_tmux_web() 경로는 이 락으로 보호되지 않음(FINDINGS.md 37차 "남은 한계" 참고).
 - 다음 세션 시작 시 4절 3번 단계(carrot-ryu 최신 commit 확인)에서 이번 세션 커밋(위 Code Branch 필드)이 실제로 존재하는지 GitHub API로 재확인할 것 -- 사용자가 스크립트를 아직 실행하지 않았을 가능성을 배제하지 말 것(5절/16절 원칙).
 
 다음 작업 후보:
-1. 이번 세션 변경사항 실기기 검증(화면녹화 업로드/다운로드, 라벨, 햄버거 메뉴)
-2. Drive 폴더 2개 생성 원인 확정 조사
+1. 36차 변경사항 실기기 검증(화면녹화 업로드/다운로드, 라벨, 햄버거 메뉴) -- 사용자가 미룬 항목, 준비되면 진행
+2. 37차 수정(gdrive 폴더 중복생성 락) 실기기 재검증
 3. 34차/28~30차 레이아웃 실기기 재검증
 4. test_web_upload.py 실행 + 데드코드 정리
 5. carrot-ms 모델 셀렉터 코드 분석 착수

@@ -1,6 +1,31 @@
 # FINDINGS
 
 
+## 2026-09-15 (37차) -- Drive 폴더 2개 생성(핵심 발견 23 증상 4) 원인 확정: _ensure_folder() TOCTOU 레이스 컨디션
+
+**배경**: 35차에서 사용자가 Google Drive "내 드라이브"에 "CarrotWeb Logs" 폴더가 2개 생성된 것을 스크린샷으로 제보(증상 4). 당시 코드 조사로 `_ensure_folder()`의 300초 캐시와 이름검색/자동생성 흐름을 확인했으나, "300초 이상 간격" 또는 "Drive Files.list의 eventual consistency 지연" 중 어느 쪽이 실제 원인인지는 호출 시각을 알 수 없어 확정하지 못하고 "우선순위 낮음, 미확정"으로 이월했음.
+
+**원인 확정**: `gdrive_upload.py`(294~331행, 37차 수정 전 기준) `_ensure_folder()`의 순서는 다음과 같음.
+```
+① cache_age/cached_id 확인 -> 캐시 유효하면 즉시 반환
+② (캐시 미스) Drive Files.list(name='CarrotWeb Logs')로 검색  <- 여기서 API 왕복 대기
+③ 검색 결과 없으면 Files.create()로 새 폴더 생성            <- 여기서도 API 왕복 대기
+④ 생성/검색된 id를 _folder_verified_cache에 기록
+```
+①~④ 사이에 어떤 형태의 락(lock)도 없음. 즉 두 호출이 ①을 거의 동시에 통과하면(둘 다 캐시 미스), 첫 호출이 아직 ②~③의 API 왕복(보통 수백ms)을 끝내지 못한 상태에서 두 번째 호출도 ②를 실행하게 되고, 이 시점엔 아직 폴더가 존재하지 않으므로 두 호출 모두 files.list에서 빈 배열을 받아 각자 ③에서 폴더를 생성함. 즉 300초 캐시 만료나 Drive API의 eventual consistency와는 무관하게, **캐시가 채워지기 전의 좁은 레이스 윈도우**만으로 재현 가능한 결정론적 버그임.
+
+**두 호출이 실제로 어떻게 겹쳤는가**: 35차 증상 1(대시캠 탭 개별/그룹 전송)과 증상 3(햄버거 메뉴 "최근 로그 업로드")은 둘 다 `server/features/dashcam/upload_jobs.py`의 `run_upload_segments()`를 거쳐 `gdrive_upload.upload_file_resumable()` -> `_ensure_folder()`를 호출하며, 각 요청은 `asyncio.create_task(run_job(job))`(upload_jobs.py:315)로 서로 독립된 백그라운드 job이 됨. 두 UI 요소(대시캠 탭 전송 버튼, 전역 햄버거 메뉴)는 서로를 비활성화하지 않으므로, 사용자가 짧은 시간 안에 둘 다 눌렀다면(35차 세션에서 여러 증상을 연달아 테스트하던 정황과 부합) 두 job이 겹쳐 실행되며 위 레이스가 그대로 발생할 수 있음.
+
+**재현 및 수정 검증(목 테스트)**: 실제 aiohttp/Drive API 없이, `session.get`/`session.post`를 50ms 지연 후 응답하는 가짜 객체로 교체하고 `asyncio.gather`로 `_ensure_folder()`를 동시에 2번 호출하는 스크립트를 작성해 실행함.
+- 수정 전 코드(GitHub 현재 버전, commit 0835b059 기준): 폴더 생성 API가 2번 호출됨(`create_calls: ['CarrotWeb Logs', 'CarrotWeb Logs']`) -- 버그 재현 성공.
+- 수정 후 코드(37차, `_folder_lock` 추가): 폴더 생성 API가 1번만 호출되고(`create_calls: ['CarrotWeb Logs']`), 두 호출 모두 동일한 folder_id를 반환함 -- 수정 확인.
+이 테스트는 aiohttp/openpilot.common.params 등 외부 의존성을 최소 스텁으로 대체한 것으로, 실제 Google Drive API나 실기기 환경을 사용하지 않았다는 한계가 있음(정적/목 검증 수준, 실차 검증 아님).
+
+**수정**: `gdrive_upload.py`에 모듈 레벨 `_folder_lock = asyncio.Lock()`을 추가하고, `_ensure_folder()`의 캐시확인~검색~생성~캐시기록 전체를 `async with _folder_lock:`으로 감쌈(문자열 블록 치환, 20차 기본 방식).
+
+**남은 한계(의도적으로 범위 밖, 사용자 승인)**: `carrot_man.py`의 `send_tmux_web()`(945행)은 웹서버(`server/app.py`)와 별도 프로세스에서 `asyncio.run()`으로 실행됨. 프로세스가 다르면 `_folder_lock`과 `_folder_verified_cache` 모두 프로세스별로 독립된 메모리이므로, 이번 수정으로는 "웹서버 쪽 업로드"와 "carrot_man.py의 tmux 진단정보 전송"이 우연히 겹치는 교차 프로세스 레이스까지는 막지 못함. 근본 해결책은 최초 생성된 folder_id를 `CarrotGDriveFolderId` 같은 신규 Params 키에 영구 저장해 두 프로세스가 공유하는 방식(22차에 등록한 Client ID/Secret/RefreshToken과 동일 패턴)이며, 사용자와 논의 후 이번 세션에서는 최소 수정(인프로세스 락)만 반영하기로 확정함. 근본 수정이 필요해지면(예: 실기기에서 폴더가 다시 중복 생성되는 사례가 재현되면) 이 옵션을 재검토할 것.
+
+**교훈**: "추정, 미확정"으로 이월했던 항목도 실제 코드의 동시성 구조(락 유무, 호출 경로가 별도 asyncio task로 갈라지는지)를 직접 추적하면 결정론적으로 확정할 수 있는 경우가 있음. 특히 Google API의 "eventual consistency"처럼 외부 요인으로 돌리기 쉬운 증상일수록, 자체 코드에 동시성 제어가 있는지부터 먼저 확인할 가치가 있음.
 ## 2026-09-15 (35차) -- Drive 업로드 관련 실기기 이슈 3건 원인 특정 + 화면녹화 탭 신규 스펙 확정
 
 **배경**: 32차(drive.file+폴더자동생성)가 실기기에서 실제로 동작해 Drive 연결 자체는 성공했다고 사용자가 확인함(핵심 발견 20 이후 첫 실기기 결과). 다만 사용자가 스크린샷 3장 + Drive 폴더 중복 스크린샷으로 예상 밖의 동작 4가지를 제보.
