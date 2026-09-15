@@ -1,6 +1,40 @@
 # WIP
 
 
+## 41차 (완료 -- 코드 작성/빌드/테스트, push 및 실기기 검증은 다음 세션 이월) -- carrotweb 로그탭 새로고침 아이콘 추가
+
+사용자 요청: 로그탭에서 대시캠/화면녹화 탭바(`#logsTabs`)와 hamburger 메뉴(`#logsMenu`) 사이에 새로고침 아이콘 버튼을 추가하고, 누르면 현재 화면 내용이 새로고침되도록.
+
+완료:
+- `index.html`: `#logsTabs`와 `#logsMenu` 사이에 `#logsRefreshButton`(원형 화살표 SVG) 마크업 삽입. Replace-Block anchor 1회 매치 확인.
+- `style.css`: `.logs-refresh`/`.logs-refresh__button`/`.logs-refresh-icon` 추가(기존 `.logs-menu__button`과 동일한 `--menu-trigger-size` 박스 크기 공유), 클릭 시 0.6s 회전 애니메이션(`is-spinning` 클래스), 저해상도(<=620px) 미디어쿼리의 `min-height: 38px` 규칙에도 `.logs-refresh__button` 함께 반영.
+- `runtime.js`: `refreshActiveLogsTab()`(활성 탭이 화면녹화면 `loadScreenrecordVideos()`+`loadScreenshots()`, 대시캠이면 `loadDashcamRoutes()`를 모두 non-silent 기본 옵션으로 재호출 -- 즉 목록을 처음부터 다시 조회) + `bindLogsRefresh()`(클릭 중 버튼 disable, `is-spinning` 토글) 추가, `bindLogsPage()` 초기화부에 `bindLogsRefresh()` 호출 삽입.
+- 빌드 산출물 재생성: `npm install && npm run build`(`node build.mjs`)로 `js/generated/logs.js`/`css/generated/logs.css`/`generated/asset-manifest.json` 3종을 함께 갱신 -- 소스만 바꾸고 번들을 안 바꾸면 실기기에는 반영되지 않으므로 필수(9절).
+
+검증:
+- 5개 Replace-Block anchor(index.html 1, style.css 2, runtime.js 2) 모두 carrot-ryu 최신 clone(`bdde8326` 기준) 대상 파이썬 재현으로 정확히 1회 매치 확인.
+- `node --check`로 `runtime.js`/`js/generated/logs.js` 문법 확인(PASS).
+- `npm test`(logs_tabbar_contract 4개 포함, 로그/대시캠/화면녹화/스크린샷 관련 32개) 전부 pass.
+- 별도의 신선한 clone에 동일 Replace-Block 로직과 `npm install && npm run build`를 처음부터 재현해, 스크립트로 전달할 최종 파일이 최초 작업본과 바이트 단위로 동일함을 확인(39차 핵심 발견 26 이후 습관).
+- **carrot-ryu push 자체는 이 세션 종료 시점까지 사용자가 아직 실행하지 않음 -- 다음 세션은 반드시 GitHub에서 실제 반영 여부부터 재확인할 것(5절/16절).**
+
+미완료 (다음 세션 이월):
+1. [신규, 최우선] `add_logs_refresh_button_41cha.ps1` 실행(push) 여부 GitHub에서 직접 재확인 -- carrot-ryu HEAD가 41차 커밋으로 갱신됐는지 `git ls-remote`+commit patch로 확인.
+2. [신규] 새로고침 아이콘 실기기 검증: 위치(탭바-hamburger 사이)가 의도대로 보이는지, 클릭 시 회전 애니메이션과 실제 목록 재조회(대시캠/화면녹화 각각)가 정상 동작하는지.
+3. [이월] 사진 업로드 UI(체크박스/전체선택/다운로드/전송)가 `bdde8326`(39cha-fix) 반영 후 에러 없이 정상 렌더링되는지 실기기 재확인.
+4. [이월] 화면녹화 탭 "영상" 업로드 UI(36차 구현분) 자체 동작 검증 -- 실제 화면녹화 파일 확보 후 재검증 필요.
+5. [이월] 37차 락 수정의 실제 동시성(거의 동시 호출) 재현 검증.
+6. [이월] 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 배지가 나타나는 구간에서).
+7. [이월] 28~30차 레이아웃 정밀 재검증(육안 확인만 완료).
+8. [이월] 실차 재검증(8~41차 코드 변경 전부, 12절 원칙) -- 계속 이월.
+9. [이월] 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부.
+10. [이월] test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신.
+11. [이월] docs/carrot_web_upload.md 갱신(Drive 기준).
+12. [이월] run_upload_segments() 설계 변경 실사용 문제 없는지 재확인.
+13. [이월] carrot-ms 모델 셀렉터 코드 분석 착수(6차 이후 계속 미착수).
+
+교훈: 이번 요청은 코드 변경 자체는 작았지만(마크업 1곳, CSS 2곳, JS 2곳) esbuild 번들(`js/generated/logs.js`, 110KB+)을 텍스트로 직접 전달하는 대신 스크립트가 clone 직후 `npm install && npm run build`를 실행해 번들을 그 자리에서 재생성하도록 구성함 -- 39차(`.gitignore` 주석: "device serves this source tree directly and does not run Node at startup")에서 확인된 대로 생성 번들은 커밋되어야 하지만, 전달 스크립트 자체가 무겁게 그 내용을 내장할 필요는 없다는 것이 이번에 실증됨. 향후 esbuild 번들이 걸리는 변경은 이 패턴(소스만 Replace-Block, 번들은 스크립트 내 `npm run build`로 생성 후 커밋)을 기본으로 고려할 것.
+
 ## 40차 계속2 (완료 -- devnotes 반영 스크립트 here-string 종료 버그로 인한 조용한 실패 수정)
 
 직전 "40차 계속" 반영 스크립트를 실행한 뒤 `git ls-remote` + commit patch로 재확인하는 과정(16절)에서, `HANDOFF.md`가 완전히 빈 파일(0바이트)로 덮어써졌고 `CURRENT_STATUS.md`는 전혀 갱신되지 않은 채 옛 내용 그대로 남아있음을 발견.
