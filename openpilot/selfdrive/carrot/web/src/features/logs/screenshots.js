@@ -1,6 +1,6 @@
 "use strict";
 
-import { formatRelativeEpoch, hydrateLogsLazyImages, isLogsPageActive, unobserveLogsLazyImages } from "./runtime.js";
+import { formatLogBytes, formatRelativeEpoch, hydrateLogsLazyImages, isLogsPageActive, unobserveLogsLazyImages } from "./runtime.js";
 
 // Logs page — Screen Recording tab, "Photos" list.
 //

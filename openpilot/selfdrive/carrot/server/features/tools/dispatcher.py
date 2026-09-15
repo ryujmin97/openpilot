@@ -27,7 +27,7 @@ from openpilot.common.async_process import prepare_repo, run_locked_thread
 from openpilot.common.repo_update import RepoBusyError, child_lock_kwargs, repo_lock
 from openpilot.system.hardware import HARDWARE
 
-from ...config import PARAMS_BACKUP_PATH
+from ...config import PARAMS_BACKUP_PATH, SCREEN_RECORDING_DIRS
 from ...services.auto_update import clear_recovered_git_ref_error
 from ...services.git_config import prepare_git_pull, repair_git_config
 from ...services.git_state import did_git_pull_update, write_git_pull_time
@@ -682,7 +682,7 @@ async def _run_tool_job(job: Dict[str, Any]) -> None:
     if action == "delete_all_videos":
       jobs.progress(job, message="delete videos", current=1, total=1)
       deleted = 0
-      for path in ["/data/media/0/videos"]:
+      for path in SCREEN_RECORDING_DIRS:
         if not os.path.isdir(path):
           continue
         for fn in glob.glob(os.path.join(path, "*")):
@@ -1162,7 +1162,7 @@ async def _dispatch_sync(request: web.Request, body: Dict[str, Any]) -> web.Resp
       return web.json_response({"ok": True, "out": out_all.strip(), "summary_key": "git_result_reset_repo_checkout_done", "summary_vars": {"branch": branch}, "empty_output": not out_all.strip()})
 
     if action == "delete_all_videos":
-      paths = ["/data/media/0/videos"]
+      paths = list(SCREEN_RECORDING_DIRS)
       deleted = 0
       for pth in paths:
         if not os.path.isdir(pth):

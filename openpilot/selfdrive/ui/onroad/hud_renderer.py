@@ -309,6 +309,7 @@ class HudRenderer(Widget):
     record_size = UI_CONFIG.record_button_size
     record_x = shot_x + shot_size + UI_CONFIG.record_button_gap
     record_y = shot_y + (shot_size - record_size) / 2
+    self._record_button.set_blink_phase(self._blink_timer <= 8)
     self._record_button.render(rl.Rectangle(record_x, record_y, record_size, record_size))
 
     if self._plot_renderer is None:
