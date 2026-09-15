@@ -1,3 +1,13 @@
+## 45차 -- 44차 소스 수정은 맞았으나 생성 번들(js/generated/logs.js)이 재생성되지 않아 크래시가 실기기에 그대로 남아있던 문제 발견/수정
+
+사용자가 44차 스크립트 실행 후에도 실기기에서 `formatLogBytes is not defined`가 그대로 재현된다고 제보. GitHub의 carrot-ryu HEAD(commit e2f35619, 44차)를 직접 조회해 보니 `screenshots.js` 소스에는 `formatLogBytes` import가 정상적으로 추가돼 있었지만, 같이 커밋된 `js/generated/logs.js` 번들 안에는 `formatLogBytes` 함수 정의가 없고 호출부만 미해석 외부 참조로 그대로 남아있음을 확인(esbuild가 번들링/이름축약을 못 하고 원문 그대로 남겨둔 상태 -- 정상적으로 번들되면 다른 로컬 함수들처럼 짧은 이름으로 축약되어 원문에 `formatLogBytes` 리터럴이 아예 남지 않아야 함). 즉 44차 세션이 소스 파일은 정확히 고쳤지만, 그 위에서 `npm install && node build.mjs`를 실행해 생성 번들을 다시 만드는 단계를 건너뛴 채 예전(깨진) 번들 그대로 커밋한 것이 원인.
+
+동일 소스로 직접 `npm install && node build.mjs`를 실행해 재현: 재생성된 번들에서는 `formatLogBytes` 호출부가 로컬 함수와 정상적으로 결합/축약되어(리터럴 `formatLogBytes` 문자열이 0회로 사라짐, 축약된 다른 로컬 함수들과 동일 패턴), `node --test tests/**/*.test.mjs` 737/737 통과 확인. 재생성 전후 diff는 `js/generated/logs.js`와 `generated/asset-manifest.json`(해시값 한 줄) 딱 2개 파일로 한정됨 -- 수동 코드 수정은 없고 순수 빌드 재실행 결과.
+
+반영 스크립트(`45cha_rebuild_bundle_carrot_ryu.ps1`)는 이번엔 Replace-Block 문자열 치환이 아니라, 사용자 PC에서 `git clone`(임시 폴더) 후 그 자리에서 실제로 `npm install && node build.mjs`를 실행하고 변경된 생성 파일만 커밋/push하는 방식으로 작성함(9절 "코드 파일" 유형 중 신규/전면 재작성에 해당하되, Claude가 완성 파일을 만들어 전달하는 대신 빌드 과정 자체를 스크립트가 재현하도록 함 -- 100KB 넘는 압축 번들을 문자열로 스크립트에 박아넣는 것보다 안전하고, 진짜 소스인 build.mjs/esbuild 결과를 그대로 신뢰할 수 있음). 스크립트는 빌드 후 `git status`로 변경 파일 목록을 확인해 `js/generated/`, `css/generated/`, `generated/asset-manifest.json` 범위 밖의 변경이 섞이면 커밋하지 않고 중단하도록 방어장치를 넣음(15절 강제 진행 금지 원칙).
+
+미완료: 스크립트 사용자 실행 대기 -> 실행 후 push 반영을 `git ls-remote`+commit patch로 재확인, 이어서 사진 목록 렌더가 실제로 크래시 없이 뜨는지 실기기 재검증(44차 미완료 항목 1~2번과 동일 검증이 이제야 가능).
+
 # WIP
 
 ## 44차 (진행 중 -- 실기기 버그 3건 수정 + 반영 스크립트 경로 오류 사전 발견/수정) -- 사진목록 크래시/전체삭제 범위/녹화버튼 깜빡임

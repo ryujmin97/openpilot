@@ -773,3 +773,5 @@
   get_a_change_cost, set_weights, 60~343행)
 - openpilot/selfdrive/carrot/carrot_functions.py (jerk_factor 결정부, 220~263행)
 - carrot-wip/carrot-ryu HEAD: bb0e18bb8c09422fcd50dcf25c17e0d5c75072b1 (변경 없음)
+## 핵심 발견 30 (45차) -- "소스 파일 수정 완료"와 "생성 번들에 반영 완료"는 서로 다른 사실이며, 코드 리뷰만으로는 후자를 확인할 수 없다
+44차에서 `screenshots.js` 소스에 누락된 import를 정확히 추가하고, 그 diff를 Replace-Block 앵커 매치/`node --check`로까지 검증했음에도 실기기 크래시가 재현됐다. 원인은 소스 수정 자체가 아니라, 그 수정을 반영한 뒤 `npm install && node build.mjs`로 생성 번들(`js/generated/logs.js`)을 다시 만드는 단계가 빠진 것이었다. 이 프로젝트는 기기가 Node를 띄우지 않고 커밋된 번들을 그대로 서빙하므로(레포 `.gitignore` 주석에 명시), 소스와 번들 중 하나라도 어긋나면 소스 리뷰나 `node --check`(문법 검사일 뿐 번들링 여부는 검증 안 함)로는 절대 못 잡는다. 확인 방법은 실제로 번들을 열어 문제의 식별자가 (a) 로컬 함수처럼 다른 이름으로 축약돼 있는지, 또는 (b) 원문 그대로 남아 미해석 외부 참조로 취급됐는지를 직접 보는 것뿐이다(원문 그대로 남아있으면 100% 번들링 실패 신호). 앞으로 `js/`, `css/` 아래 소스 파일을 고치는 모든 변경은 커밋 전 `npm install && node build.mjs`를 실제로 실행해 생성 산출물까지 diff로 확인하고, 그 생성 파일을 소스와 같은 커밋에 함께 넣을 것. 44차처럼 "소스만 고치고 번들은 그대로"인 상태로 커밋하면 겉보기엔 정상 diff처럼 보여도 실기기에서는 아무 효과가 없다.
