@@ -35,13 +35,18 @@ import {
   uploadRecentDashcamSegments,
 } from "./dashcam.js";
 import {
+  downloadScreenrecordVideos,
   loadScreenrecordVideos,
   openScreenrecordPlayer,
   renderScreenrecordVideos,
   scheduleScreenrecordWindowRender,
   screenrecordApiPath,
+  screenrecordSelectedVideos,
   screenrecordShouldLoadMore,
   screenrecordState,
+  toggleScreenrecordSelectAll,
+  toggleScreenrecordSelection,
+  uploadScreenrecordVideos,
 } from "./screenrecord.js";
 import { loadScreenshots, openScreenshot } from "./screenshots.js";
 
@@ -121,7 +126,7 @@ function syncLogsMenu() {
 // Built on open so sort state and translations are always current.
 function logsMenuChoices() {
   const sort = typeof dashcamSortDirection === "function" ? dashcamSortDirection() : "asc";
-  return [
+  const choices = [
     { heading: getUIText("logs_sort", "Sort") },
     {
       label: getUIText("sort_ascending", "Sort: ascending"),
@@ -133,12 +138,21 @@ function logsMenuChoices() {
       value: `${LOGS_MENU_SORT}:desc`,
       selected: sort === "desc",
     },
-    { heading: getUIText("recent_log_upload", "Upload recent logs") },
-    ...LOGS_RECENT_UPLOAD_LIMITS.map((count) => ({
-      label: getUIText("upload_recent_logs", "Upload recent {count}", { count }),
-      value: `${LOGS_MENU_UPLOAD}:${count}`,
-    })),
   ];
+  // "Upload recent logs" always uploads dashcam segments regardless of the
+  // active tab. The screen recording tab now has its own select/upload
+  // toolbar, so surfacing this dashcam-only shortcut there would upload the
+  // wrong content; hide it while that tab is active (dashcam tab keeps it).
+  if (logsActiveTab !== "screen") {
+    choices.push(
+      { heading: getUIText("recent_log_upload", "Upload recent logs") },
+      ...LOGS_RECENT_UPLOAD_LIMITS.map((count) => ({
+        label: getUIText("upload_recent_logs", "Upload recent {count}", { count }),
+        value: `${LOGS_MENU_UPLOAD}:${count}`,
+      })),
+    );
+  }
+  return choices;
 }
 
 async function runLogsMenuAction(selected) {
@@ -930,11 +944,37 @@ function bindLogsPage() {
     screenHost.addEventListener("click", (ev) => {
       const actionEl = ev.target?.closest?.("[data-action]");
       if (!actionEl) return;
-      if (actionEl.dataset.action === "download-screenrecord") {
-        const id = actionEl.dataset.id || "";
+      const action = actionEl.dataset.action;
+      const id = actionEl.dataset.id || "";
+      if (action === "download-screenrecord") {
         if (id) window.open(screenrecordApiPath("download", id), "_blank", "noopener");
-      } else if (actionEl.dataset.action === "play-screenrecord") {
-        openScreenrecordPlayer(actionEl.dataset.id || "", actionEl.dataset.name || "");
+      } else if (action === "upload-screenrecord") {
+        ev.stopPropagation();
+        if (id) uploadScreenrecordVideos([id]).catch(() => {});
+      } else if (action === "play-screenrecord") {
+        openScreenrecordPlayer(id, actionEl.dataset.name || "");
+      }
+    });
+    screenHost.addEventListener("change", (ev) => {
+      const input = ev.target;
+      if (!input?.matches?.('input[data-action="select-screenrecord"]')) return;
+      toggleScreenrecordSelection(input.dataset.id || "", input.checked);
+    });
+  }
+
+  const screenToolbar = document.getElementById("screenrecordToolbar");
+  if (screenToolbar && screenToolbar.dataset.bound !== "1") {
+    screenToolbar.dataset.bound = "1";
+    screenToolbar.addEventListener("click", (ev) => {
+      const actionEl = ev.target?.closest?.("[data-action]");
+      if (!actionEl || actionEl.disabled) return;
+      const action = actionEl.dataset.action;
+      if (action === "select-all-screenrecord") {
+        toggleScreenrecordSelectAll(actionEl.dataset.selected === "1");
+      } else if (action === "download-selected-screenrecord") {
+        downloadScreenrecordVideos(screenrecordSelectedVideos().map((video) => video.id));
+      } else if (action === "upload-selected-screenrecord") {
+        uploadScreenrecordVideos(screenrecordSelectedVideos().map((video) => video.id)).catch(() => {});
       }
     });
   }

@@ -1169,6 +1169,11 @@
   border-bottom: 1px solid color-mix(in srgb, var(--md-outline-var) 40%, transparent);
 }
 
+.screenrecord-toolbar-wrap {
+  flex: 0 0 auto;
+  padding: 10px var(--logs-content-inline) 4px;
+}
+
 .screenrecord-photos-wrap[hidden] {
   display: none;
 }

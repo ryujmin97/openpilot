@@ -6,6 +6,8 @@ import time
 
 from aiohttp import web
 
+from openpilot.selfdrive.carrot import gdrive_upload
+
 from ...config import SCREEN_RECORDING_DIRS
 from .catalog import build_photos, build_videos, find_file, find_photo, photo_thumbnail_path, thumbnail_path
 
@@ -83,6 +85,56 @@ async def api_screenrecord_download(request: web.Request) -> web.StreamResponse:
       "Content-Disposition": f'attachment; filename="{safe_filename or "screenrecord"}"',
     },
   )
+
+
+async def api_screenrecord_upload(request: web.Request) -> web.Response:
+  """Upload selected screen recordings to Google Drive.
+
+  Deliberately synchronous and per-file sequential (no zip, no job/polling):
+  unlike dashcam segments (many small qcamera/rlog files bundled into one
+  zip), each screen recording is already a single video file, and the
+  request is expected to cover only a handful of them at a time. This trades
+  away cancel support and a live progress bar for a much smaller surface
+  area than dashcam's upload_jobs.py.
+  """
+  try:
+    body = await request.json()
+  except Exception:
+    body = {}
+  ids = body.get("ids")
+  if not isinstance(ids, list):
+    one = body.get("id")
+    ids = [one] if one else []
+  ids = [str(item).strip() for item in ids if str(item or "").strip()]
+  if not ids:
+    return web.json_response({"ok": False, "error": "missing ids"}, status=400)
+
+  results: list[dict] = []
+  for file_id_in in ids:
+    try:
+      path = await asyncio.to_thread(find_file, file_id_in)
+      name = os.path.basename(path)
+      drive_result = await gdrive_upload.upload_file_resumable(path, name)
+      results.append({
+        "id": file_id_in,
+        "name": name,
+        "ok": True,
+        "driveFileId": drive_result.get("id"),
+        "webViewLink": drive_result.get("webViewLink"),
+      })
+    except web.HTTPException as e:
+      results.append({"id": file_id_in, "ok": False, "error": e.text or e.reason})
+    except Exception as e:
+      results.append({"id": file_id_in, "ok": False, "error": str(e)})
+
+  uploaded = sum(1 for item in results if item.get("ok"))
+  return web.json_response({
+    "ok": uploaded == len(results),
+    "uploaded": uploaded,
+    "total": len(results),
+    "target": "gdrive",
+    "results": results,
+  })
 
 
 _photo_cache_lock = threading.Lock()
@@ -163,6 +215,7 @@ def register(app: web.Application) -> None:
   app.router.add_get("/api/screenrecord/thumbnail/{file_id}", api_screenrecord_thumbnail)
   app.router.add_get("/api/screenrecord/video/{file_id}", api_screenrecord_video)
   app.router.add_get("/api/screenrecord/download/{file_id}", api_screenrecord_download)
+  app.router.add_post("/api/screenrecord/upload", api_screenrecord_upload)
   app.router.add_get("/api/screenrecord/photos", api_screenrecord_photos)
   app.router.add_get("/api/screenrecord/photo/thumbnail/{file_id}", api_screenrecord_photo_thumbnail)
   app.router.add_get("/api/screenrecord/photo/{file_id}", api_screenrecord_photo)
