@@ -1,40 +1,42 @@
 # HANDOFF
 
-Worker: Claude (33차 -- ko.js 문구 수정 반영, devnotes 갱신)
+Worker: Claude (34차 -- 경로안내 박스 UI 수정 2건 GitHub 반영 완료)
 Date: 2026-09-15
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (HEAD: 789667f7, 33차 "fix ko.js gdrive client id type desc")
+Code Branch: carrot-ryu (HEAD: 9fdefb3d, 34차 "hud route box - arrival text size 32, road name moved inside box", 부모 789667f7/33차)
 Note Branch: carrot-ryu-note (이 커밋으로 devnotes 갱신)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 세션과 동일, 신규 커밋 없음 (이번 세션에서도 재확인하지 않음)
 
 작업:
-32차 HANDOFF.md 미완료 3번(ko.js의 web_gdrive_client_id_desc 문구 버그, 31차부터 이월)을 소규모 문자열 치환으로 수정하고 GitHub에 반영. 반영 직후 raw.githubusercontent.com 캐시 지연으로 재조회 시 이전 내용이 보이는 현상을 겪어, github.com commit diff 엔드포인트로 교차 검증해 실제 반영을 확정함. WIP.md/FINDINGS.md/HANDOFF.md/CURRENT_STATUS.md를 33차 상태로 갱신.
+사용자가 실기기 스크린샷으로 두 가지 레이아웃 문제를 제보: (1) 도착 거리/시간 문구가 회전 아이콘 초록박스와 겹침, (2) 일반도로 도로명 문구가 박스 아래 경계를 벗어남. hud_renderer.py에서 원인을 확인한 뒤 문자열 블록 치환으로 수정하고, 반영 전후 raw 내용을 직접 재조회해 검증함. 세션 도중 변경 전/후 UI 미리보기(모형)도 제공.
 
 완료:
-- ko.js web_gdrive_client_id_desc 문구 수정(commit 789667f7), "데스크톱 앱 유형" -> "TV 및 제한된 입력이 있는 기기 유형".
-- WIP.md 33차 항목, FINDINGS.md 2026-09-15(33차) raw.githubusercontent.com 캐시 지연 현상 기록.
-- HANDOFF.md/CURRENT_STATUS.md 33차 기준 갱신(이번 커밋).
+- "도착:"/도착 시각 텍스트 전용 글자크기(arrival_size=32) 도입, 40->32로 축소해 회전아이콘 초록박스와의 겹침 해소.
+- 일반도로 도로명 텍스트 y좌표를 신호과속 배지와 동일한 계산식(by+115 기준)으로 변경, 박스 안쪽/신호과속과 같은 줄에 오도록 수정.
+- commit 9fdefb3d, 반영 전 anchor 1회매치 사전확인 + 반영 후 raw/diff 재조회 및 py_compile 검증 완료.
+- WIP.md 34차 항목, FINDINGS.md 2026-09-15(34차) 세션번호 충돌 관찰 기록.
 
 미완료 (다음 세션 최우선, 이월):
 1. [최우선, 이월] 32차 Drive 연결(drive.file 스코프+폴더 자동생성) 실기기 연결 테스트 -- 여전히 미실시.
-2. [이월] 기존 폴더(구 DRIVE_FOLDER_ID)와 32차 이후 자동생성되는 새 폴더("CarrotWeb Logs") 파일 이관 필요 여부 사용자 확인 필요.
-3. 28~30차 레이아웃 변경 실기기 재검증 (29차부터 이월)
-4. 실차 재검증(8~33차 코드 변경 전부 이월, 12절 원칙)
-5. 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부 (26차부터 이월)
-6. 화면녹화 전송 다이얼로그 "당근서버" 라벨 하드코딩 여부 코드 조사 (26차 발견, 미착수)
-7. test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신 (25차부터 이월)
-8. docs/carrot_web_upload.md 갱신 (Drive 기준) (15차부터 이월)
-9. run_upload_segments() 설계 변경 실사용 문제 없는지 재확인 (16차부터 이월)
-10. carrot-ms 모델 셀렉터 코드 분석 착수 (6차 이후 계속 미착수)
-11. [신규, FINDINGS 33차 참고] 16절/20절에 raw.githubusercontent.com 캐시 지연 관련 단서 추가 여부 -- 사용자 승인 필요(19절 절차 대상).
+2. [신규, 34차] 이번 UI 수정(도착 텍스트 32px, 도로명 위치) 실기기 재확인 필요 -- 정적 코드 리뷰만 했고 실기기 스크린샷 검증 없음.
+3. [이월] 기존 폴더(구 DRIVE_FOLDER_ID)와 32차 이후 자동생성되는 새 폴더("CarrotWeb Logs") 파일 이관 필요 여부 사용자 확인 필요.
+4. 28~30차 레이아웃 변경 실기기 재검증 (29차부터 이월)
+5. 실차 재검증(8~34차 코드 변경 전부 이월, 12절 원칙)
+6. 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부 (26차부터 이월)
+7. 화면녹화 전송 다이얼로그 "당근서버" 라벨 하드코딩 여부 코드 조사 (26차 발견, 미착수)
+8. test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신 (25차부터 이월)
+9. docs/carrot_web_upload.md 갱신 (Drive 기준) (15차부터 이월)
+10. run_upload_segments() 설계 변경 실사용 문제 없는지 재확인 (16차부터 이월)
+11. carrot-ms 모델 셀렉터 코드 분석 착수 (6차 이후 계속 미착수)
 
-검증: 코드 변경은 텍스트 문구 1줄뿐(정적 안내 문구, 로직 영향 없음). 실차/실기기 검증: 미실시.
+검증: 코드 변경 2곳 모두 push 직후 commit-pinned raw URL로 실제 내용 재조회해 정상 반영 확인, py_compile 문법 검사 통과. 실차/실기기 검증: 미실시(12절 원칙).
 
 주의사항:
-- raw.githubusercontent.com이 쿼리스트링 캐시버스터를 붙여도 한동안 이전 내용을 반환하는 사례가 이번에 재현됨(FINDINGS 33차). 다음 세션에서 "재조회했는데 반영이 안 된 것처럼 보이면" 곧바로 "미반영"으로 단정하지 말고, 먼저 github.com commit diff 엔드포인트로 교차 검증할 것.
+- 이번 세션은 시작 시 32차까지만 인지한 상태로 작업해 코드 주석/커밋 메시지에 [33차]로 표기했으나, 실제로는 그 사이 33차(ko.js, 789667f7)가 이미 진행돼 있어 devnotes상 회차는 34차로 정정 기록함(FINDINGS 34차 참고). 코드에 이미 커밋된 [33차] 주석 표기 자체는 임의로 재작성하지 않음.
+- 다음 세션은 이번 34차 UI 변경(도착 텍스트 크기, 도로명 위치)이 실기기에서 실제로 겹침/벗어남 없이 보이는지부터 확인할 것.
 
 다음 작업 후보:
-1. 32차 Drive 연결 실기기 테스트 결과 확인(최우선, 사용자 액션 필요)
-2. 28~30차 레이아웃 실기기 재확인
-3. carrot-ms 모델 셀렉터 코드 분석 착수
-4. (선택) 16절/20절에 raw.githubusercontent.com 캐시 지연 단서 추가할지 사용자에게 확인
+1. 34차 UI 변경 실기기 확인
+2. 32차 Drive 연결 실기기 테스트 결과 확인
+3. 28~30차 레이아웃 실기기 재확인
+4. carrot-ms 모델 셀렉터 코드 분석 착수
