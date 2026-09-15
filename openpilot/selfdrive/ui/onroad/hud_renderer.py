@@ -6,6 +6,7 @@ from openpilot.common.constants import CV
 from openpilot.selfdrive.carrot.deceleration_source import deceleration_source_presentation
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.onroad.screenshot_button import ScreenshotButton
+from openpilot.selfdrive.ui.onroad.record_button import RecordButton
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.hardware.usbgpu import usbgpu_badge_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
@@ -32,6 +33,8 @@ class UIConfig:
   border_size: int = 30
   button_size: int = 192
   screenshot_button_size: int = 140
+  record_button_size: int = 140
+  record_button_gap: int = 30
   set_speed_width_metric: int = 200
   set_speed_width_imperial: int = 172
   set_speed_height: int = 204
@@ -160,6 +163,7 @@ class HudRenderer(Widget):
 
     self._exp_button = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
     self._screenshot_button = ScreenshotButton(UI_CONFIG.screenshot_button_size)
+    self._record_button = RecordButton(UI_CONFIG.record_button_size)
 
     self._txt_speed_bg = gui_app.texture('images/speed_bg.png')
 
@@ -302,6 +306,11 @@ class HudRenderer(Widget):
     shot_y = rect.y + rect.height - UI_CONFIG.border_size - shot_size
     self._screenshot_button.render(rl.Rectangle(shot_x, shot_y, shot_size, shot_size))
 
+    record_size = UI_CONFIG.record_button_size
+    record_x = shot_x + shot_size + UI_CONFIG.record_button_gap
+    record_y = shot_y + (shot_size - record_size) / 2
+    self._record_button.render(rl.Rectangle(record_x, record_y, record_size, record_size))
+
     if self._plot_renderer is None:
       self._plot_renderer = PlotRenderer()
     self._plot_renderer.draw(rect, self._font_display, self._show_plot_mode)
@@ -312,7 +321,7 @@ class HudRenderer(Widget):
     self._draw_cruise_speed_animation(rect)
 
   def user_interacting(self) -> bool:
-    return self._exp_button.is_pressed or self._screenshot_button.is_pressed
+    return self._exp_button.is_pressed or self._screenshot_button.is_pressed or self._record_button.is_pressed
 
   def _draw_egpu_badge(self, rect: rl.Rectangle) -> None:
     # Keep runtime state visible while the shared USB hub re-enumerates; a
