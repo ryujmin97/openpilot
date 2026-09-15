@@ -1,6 +1,13 @@
 # WIP
 
 
+## 33차 (완료 -- 코드 수정 1건 GitHub 반영 완료) -- ko.js Google Drive 클라이언트 유형 안내 문구 수정
+
+- 32차 HANDOFF.md 미완료 3번(31차부터 이월된 버그): ko.js의 `web_gdrive_client_id_desc`가 "데스크톱 앱 유형"으로 안내하지만, gdrive_upload.py 주석/실제 요구사항은 "TV 및 제한된 입력이 있는 기기" 유형임을 수정.
+- 변경 파일: `openpilot/selfdrive/carrot/web/js/translations/ko.js` 1곳(584번째 줄), commit `789667f7`(부모 `c704371a`, 32차).
+- 반영 방식: 소규모 문자열 치환(9절), 치환 전 원본 라인이 파일 내 정확히 1회 매치되는지 확인 후 진행.
+- **검증 관련 신규 관찰**: `github.com/.../commit/789667f7.diff`로는 즉시 정상 반영이 확인됐으나, `raw.githubusercontent.com`은 `?nocache=<timestamp>` 쿼리를 붙여도 한동안 수정 전 내용을 계속 반환함(캐시 지연). 상세: FINDINGS.md 2026-09-15(33차) 항목.
+- 실차/실기기 검증: 미실시(UI 안내 문구 텍스트 변경, 우선순위는 낮음 -- 필요 시 다음 실기기 검증 때 함께 확인).
 ## 32차 (devnotes 사후 정리 -- 코드 반영은 이미 GitHub에 완료된 상태로 확인) -- Google Drive drive.file 스코프 + 폴더 자동생성 복귀
 
 - 세션 시작 시 4절 0~3번 절차로 carrot-ryu 최신 커밋을 확인한 결과, `c704371a`(부모 `34bb41bc`, 메시지: `32cha: gdrive drive.file scope + folder auto-create revert (c3-ms-dev, 31cha device-flow block fix)`)가 이미 GitHub에 반영돼 있었음. 이 커밋에 대한 devnotes(WIP/HANDOFF/CURRENT_STATUS)는 남아있지 않아, 이번 세션에서 `github.com/.../commit/<sha>.diff`로 실제 변경 내용을 직접 조회해 사후 정리함(16절 상황, 24차·30차와 유사한 "코드 반영과 devnotes 갱신이 다른 시점에 이루어진" 사례).

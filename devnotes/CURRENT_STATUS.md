@@ -2,14 +2,14 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: c704371a (32차, gdrive drive.file 스코프+폴더 자동생성 복귀, GitHub 커밋 로그/diff 직접 재조회로 확인)
+- carrot-ryu HEAD: 789667f7 (33차, ko.js gdrive 클라이언트 유형 문구 수정, github.com commit diff로 확인 -- raw.githubusercontent.com은 캐시 지연으로 재조회 시 이전 내용이 보일 수 있음, FINDINGS 33차 참고)
 - carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
-- carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~32차 세션에서는 동기화 재점검 없음
+- carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~33차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
-- PROJECT_INSTRUCTIONS_carrot-ryu.md는 27차 버전(core.autocrlf=false clone 기본화 + PowerShell 실행정책 -Force)이 최신. (이번 세션 초반 raw.githubusercontent.com 캐시로 22차 버전이 조회되는 문제가 있었으나, nocache 쿼리로 재조회해 27차임을 확인·정정함)
-- **[30차]** 29차 HANDOFF.md가 "미반영"으로 잘못 기록했던 29~30차 코드 변경이 실제로는 GitHub에 이미 반영돼 있었음을 확인, devnotes(WIP/HANDOFF/CURRENT_STATUS/FINDINGS)를 실제 HEAD 기준으로 동기화함. 상세: FINDINGS.md 2026-09-15(30차) 항목.
+- PROJECT_INSTRUCTIONS_carrot-ryu.md는 27차 버전(core.autocrlf=false clone 기본화 + PowerShell 실행정책 -Force)이 최신.
 - **[31차]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 3가지 대안 제시, 결정 대기 상태로 세션 종료.
-- **[32차 신규]** 31차에서 제시한 대안 중 (a) drive.file 스코프+폴더 자동생성 복귀가 커밋 c704371a로 반영됨을 확인(이 커밋에 대한 세션 기록은 devnotes에 없었고, 이번 세션에서 diff를 직접 조회해 사후 정리). 실기기 연결 테스트는 아직 미실시. 상세: FINDINGS.md 2026-09-15(32차) 항목, HANDOFF.md 미완료 1번.
+- **[32차]** 31차 대안 중 (a) drive.file 스코프+폴더 자동생성 복귀가 커밋 c704371a로 반영됨을 확인(세션 기록 없이 반영된 것을 사후 diff로 정리). 실기기 연결 테스트는 아직 미실시.
+- **[33차 신규]** 32차 HANDOFF 미완료 3번(ko.js 문구 버그)을 commit 789667f7로 수정. 아울러 raw.githubusercontent.com이 캐시버스터 쿼리에도 이전 내용을 반환하는 현상을 관찰, github.com commit diff로 교차 검증하는 방식을 임시 도입. 상세: FINDINGS.md 2026-09-15(33차) 항목.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -29,6 +29,7 @@
 15. 경로안내 박스 제목 위치/도착·ETA 박스경계 끝맞춤/신호과속 배지를 회전아이콘 박스 바로 아래로 이동(29차, commit 67a8e10) -- GitHub 반영됨
 16. 경로안내 박스 route= 크기/위치 조정, 도착·ETA를 pad 인셋 + route= 아래 상단기준으로 재조정(30차, commit 34bb41bc) -- GitHub 반영됨, 반영 후 GitHub 재조회로 확인 완료
 17. Google Drive drive.file 스코프+폴더 자동생성 복귀(32차, commit c704371a) -- GitHub 반영 확인됨(diff 직접 조회), 실기기 연결 테스트 대기
+18. ko.js gdrive 클라이언트 유형 안내 문구 수정(33차, commit 789667f7) -- GitHub 반영 확인됨(commit diff로 검증), 실기기 검증 대기(우선순위 낮음)
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
@@ -79,6 +80,9 @@ Google은 OAuth Device Authorization Grant(기기 인증 흐름)에서 전체 Dr
 ## 핵심 발견 20 (32차) -- 31차 근본 원인을 drive.file+폴더자동생성 복귀로 우회 반영, 실기기 검증 전
 31차 핵심 발견 19의 3가지 대안 중 (a) drive.file 스코프+폴더 자동생성(c3-ms-dev 원본) 복귀가 커밋 c704371a로 반영됨을 이번 세션에서 diff 직접 조회로 확인. gdrive_upload.py의 DRIVE_SCOPE을 drive.file로 좁히고 _verify_folder()를 _ensure_folder()(이름 검색/자동생성)로 교체. 이 커밋에 대한 세션별 devnotes 기록은 없었음(16절 상황) -- 실제로 device flow 에러가 해소되는지, 기존 폴더의 파일을 새 폴더로 옮겨야 하는지는 아직 미확인. 상세: FINDINGS.md 2026-09-15(32차) 항목.
 
+## 핵심 발견 21 (33차) -- raw.githubusercontent.com 캐시 지연으로 커밋 직후 재조회 시 이전 내용이 보일 수 있음
+쿼리스트링 캐시버스터(`?nocache=<timestamp>`)를 붙여도 raw.githubusercontent.com이 한동안 이전 내용을 반환하는 현상이 33차에서 재현됨. github.com commit diff 엔드포인트(`/commit/<sha>.diff`)는 지연 없이 정확했음. 다음 세션에서 "재조회했는데 반영이 안 보인다"는 이유만으로 곧바로 "미반영"으로 단정하지 말고, commit diff로 교차 검증할 것. 상세: FINDINGS.md 2026-09-15(33차) 항목.
+
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: (최우선) 32차 Drive 연결 실기기 테스트, 28~30차 레이아웃 실기기 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, 화면녹화 전송 다이얼로그 "당근서버" 라벨 하드코딩 조사, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 17건 전부 실주행 재검증, 모델 셀렉터 코드 분석
+- 다음 작업: (최우선) 32차 Drive 연결 실기기 테스트, 28~30차 레이아웃 실기기 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, 화면녹화 전송 다이얼로그 "당근서버" 라벨 하드코딩 조사, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 18건 전부 실주행 재검증, 모델 셀렉터 코드 분석
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM

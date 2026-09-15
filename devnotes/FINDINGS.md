@@ -1,6 +1,15 @@
 # FINDINGS
 
 
+## 2026-09-15 (33차) -- raw.githubusercontent.com이 쿼리스트링 캐시버스터를 무시하고 이전 내용을 반환하는 현상 관찰
+
+**증상**: 33차 ko.js 수정 커밋(`789667f7`)이 GitHub에 정상 push된 것을 `git push` 로그와 `github.com/.../commit/<sha>.diff`로 확인했음에도, 같은 파일을 `raw.githubusercontent.com/.../carrot-ryu/.../ko.js?nocache=<timestamp>` 형태로 재조회하면 한동안 여전히 수정 전 텍스트("데스크톱 앱 유형")가 반환됨.
+
+**추정 원인**: `raw.githubusercontent.com`은 Fastly CDN을 경유하며, 커밋 반영 직후 일정 시간 동안 이전 응답을 계속 서빙하는 것으로 보임. 20차·22차 세션에서도 유사하게 "이전 버전이 캐시되어 있었다"는 사례가 있었으나, 이번엔 `nocache` 쿼리스트링을 붙였음에도 재현됨 -- 즉 쿼리스트링 캐시버스터가 이 CDN에는 효과가 없거나 제한적임을 시사.
+
+**임시 대응(이번 세션)**: `github.com/<owner>/<repo>/commit/<sha>.diff` 엔드포인트(git 커밋 자체를 직접 반영하므로 캐시 지연이 없는 것으로 관찰됨)로 교차 검증해 실제 반영을 확정함. `api.github.com` contents API도 대안이 될 수 있으나 이번 세션 중 비인증 rate limit(60/시간)에 걸려 사용 불가했음.
+
+**제안(19절 절차 대상, 아직 미승인)**: 16절/20절의 "raw.githubusercontent.com 재조회로 확인" 절차에 "즉시 재조회 시 캐시로 이전 내용이 보일 수 있으므로, 그 경우 `github.com/.../commit/<sha>.diff`로 교차 검증 후 판단할 것 -- 캐시된 이전 내용만 보고 곧바로 '미반영'으로 단정하지 않는다"는 단서 추가를 다음 세션에 사용자에게 제안할 수 있음. 이번 세션에서는 코드 변경이 아니므로 제안만 기록하고 문서 자체는 수정하지 않음.
 ## 2026-09-15 (32차) -- drive.file 스코프 + 폴더 자동생성 복귀로 31차 근본 원인(핵심 발견 19) 우회 반영
 
 **배경**: 31차(핵심 발견 19)에서 Google Device Authorization Grant가 전체 drive 스코프를 정책적으로 차단한다는 근본 원인이 확인되어, 사용자에게 3가지 대안(① drive.file+폴더자동생성 복귀, ② Authorization Code Flow 전면 재설계, ③ Drive 대체)을 제시하고 결정을 기다리는 상태로 세션이 종료됨.
