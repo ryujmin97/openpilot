@@ -1,6 +1,29 @@
 # WIP
 
 
+## 42차 (코드 작성 완료 -- 반영 스크립트 실행 대기 -- 온로드 화면에 원형 녹화(Record) 버튼 추가)
+
+사용자 요청: 온로드 화면의 스크린샷 캡쳐 버튼 옆에 동그라미 모양 녹화 버튼을 추가. 한 번 누르면 빨간색으로 점등(녹화 중), 다시 누르면 빨간색이 꺼지고 투명 원(대기 중)으로 표시.
+
+기존 화면녹화 기능(carrotweb Home 탭 `btnRecordToggle` + carrotMan `RECORD` 명령)은 이미 `ScreenRecord` bool param + `layouts/main.py`의 `_handle_carrot_record_cmd`로 구현돼 있었으나, 온로드 UI(디바이스 화면) 자체에는 트리거 버튼이 없었음. 이번 회차는 그 세 번째 트리거로 온로드 UI에 버튼을 추가.
+
+구현:
+- 신규 파일 `openpilot/selfdrive/ui/onroad/record_button.py`: `ScreenshotButton`과 동일한 스타일(검정 반투명 배경 원)의 `RecordButton` 위젯. 클릭 시 `ui_state.params.get_bool("ScreenRecord")`를 읽어 반전값을 `put_bool_nonblocking`으로 씀(carrotweb `car.js`의 `toggleRecord()`와 동일한 패턴). 그리기 상태는 로컬 토글 플래그가 아니라 매 프레임 `gui_app.is_recording()`을 직접 읽어 반영 -- carrotweb/carrotMan 등 다른 경로로 녹화 상태가 바뀌어도 항상 실제 상태와 일치.
+  - 녹화 중: 안쪽에 빨간 원(`rl.draw_circle`, 사용자 요청의 "빨간색 점등")
+  - 대기 중: 안쪽에 흰색 원 테두리만(`rl.draw_circle_lines`, 사용자 요청의 "투명 원")
+- `hud_renderer.py` 5곳 수정(문자열 블록 치환): import 추가, `UIConfig`에 `record_button_size`/`record_button_gap` 필드 추가, `__init__`에 `RecordButton` 인스턴스 생성, `_render()`에서 스크린샷 버튼 오른쪽(간격 30px)에 배치해 렌더, `user_interacting()`에 눌림 상태 포함(사이드바 토글 오탭 방지, 27차 이전 더블탭 제스처 폐기 사유와 동일 원칙).
+
+참고 조사 (반영 안 함): 사용자가 `ryujmin97/openpilot`의 `c3-ms-dev` 브랜치(폐기 프로젝트, 코드 참조용으로만 유지)에 이 기능이 있는지 확인 요청 -> Qt 기반 구형 UI(`selfdrive/ui/qt/screenrecorder/`, OMX 하드웨어 인코더)로 지금 carrot-ryu의 pyray 기반 UI와 프레임워크 자체가 달라 이식 대상 아님, 사용자도 "신경 안 써도 됨"으로 확인. `c3-ms-dev`는 1절이 문서화한 브랜치 구성(carrot-ryu/carrot-ryu-note)에 없는 브랜치이나, 사용자 확인으로 조치 불필요 처리.
+
+세션 번호 관련 주의: 이 회차를 준비하던 중 원래 "41차"로 라벨링했으나, 세션 종료 시점에 다른 세션이 이미 "41차"(carrotweb 로그탭 새로고침 아이콘, commit `da6ad815`)를 실제로 push 완료한 것을 `git ls-remote` 재확인으로 발견해 "42차"로 재번호. 코드 자체(record_button.py/hud_renderer.py)는 그 41차 커밋과 겹치는 파일이 없어 영향 없음(41차 커밋 파일: index.html/style.css/runtime.js/생성 번들, 이번 42차 파일: record_button.py/hud_renderer.py).
+
+검증: `py_compile` 통과(2개 파일). 반영 스크립트의 5개 anchor 블록 모두 GitHub 실제 최신 `hud_renderer.py`(41차 커밋 `da6ad815` 기준, 41차가 이 파일을 건드리지 않아 27차 세션 시점 내용과 바이트 단위로 동일함을 diff로 확인) 대비 정확히 1회씩만 매치함을 Python으로 재현해 확인, 치환 결과가 Claude가 로컬에서 직접 작성한 최종본과 바이트 단위로 동일함을 diff로 확인(6절, 9절, 20절). **실기기 검증은 미실시** -- 반영 스크립트 실행 자체가 이번 세션에서 아직 안 됨(12절 원칙: 사용자가 실행해 push하기 전까지 미반영으로 간주).
+
+미완료 (다음 세션 이월):
+1. [최우선] `push_carrot_ryu_42cha.ps1` 실행 여부 확인 -- `git ls-remote` + commit patch로 실제 push 재확인 필요.
+2. 실기기에서 버튼 위치(스크린샷 버튼 오른쪽, 간격 30px)가 화면 밖으로 벗어나지 않는지, 버튼을 눌렀을 때 실제로 빨간 원 점등/소등이 정상 동작하는지 확인.
+3. 41차(logs 탭 새로고침 아이콘) 실기기 검증도 여전히 미실시 상태로 남아있음(아래 HANDOFF.md 이월 목록 참고).
+
 ## 41차 (완료 -- 코드 작성/빌드/테스트, push 및 실기기 검증은 다음 세션 이월) -- carrotweb 로그탭 새로고침 아이콘 추가
 
 사용자 요청: 로그탭에서 대시캠/화면녹화 탭바(`#logsTabs`)와 hamburger 메뉴(`#logsMenu`) 사이에 새로고침 아이콘 버튼을 추가하고, 누르면 현재 화면 내용이 새로고침되도록.
