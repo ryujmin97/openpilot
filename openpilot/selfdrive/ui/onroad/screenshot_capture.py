@@ -7,10 +7,11 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.carrot.server.config import SCREEN_RECORDING_DIRS
 
 SCREENSHOT_DIR = SCREEN_RECORDING_DIRS[1]  # "/data/media/0/screenrecord"
+MAX_SCREENSHOT_HEIGHT = 480  # 51cha: downscale before saving, see docstring
 
 
 def capture_onroad_screenshot() -> str | None:
-  """Save a JPG of the current onroad frame into SCREENSHOT_DIR.
+  """Save a PNG of the current onroad frame into SCREENSHOT_DIR.
 
   Previously used rl.take_screenshot(), which internally sizes the capture
   as render_width/height * GetWindowScaleDPI() (raylib's rcore.c). On this
@@ -43,7 +44,21 @@ def capture_onroad_screenshot() -> str | None:
   the leading suspect. Reverting only the extension to .png here, while
   keeping the load_image_from_screen() DPI fix, isolates that one
   variable for the next real-device test (11-jeol: isolate before
-  confirming a cause).
+  confirming a cause). 50cha real-device test confirmed .png export now
+  succeeds and files show up in the log tab, so JPG export being
+  unsupported on this raylib build is treated as confirmed; staying on
+  .png going forward.
+
+  51cha: downscale to MAX_SCREENSHOT_HEIGHT (480p) before export_image(),
+  via rl.image_resize() (in-place, keeps aspect ratio) -- purely a
+  file-size/storage reduction. This does not affect *what* content ends
+  up in the frame; see screenshot_button.py's 51cha docstring note for
+  the separate fix that makes the clock/temperature HUD actually present
+  in the captured frame. If rl.image_resize() itself misbehaves on this
+  raylib build, the outer try/except below still catches it and logs via
+  cloudlog.exception, so a resize failure degrades to "no screenshot
+  saved" rather than affecting driving (12-jeol: not yet real-device
+  verified).
 
   Returns the final path on success, None on failure (never raises --
   a failed screenshot should not affect driving).
@@ -55,6 +70,9 @@ def capture_onroad_screenshot() -> str | None:
     if image.width <= 0 or image.height <= 0:
       cloudlog.warning(f"capture_onroad_screenshot: load_image_from_screen returned {image.width}x{image.height}")
       return None
+    if image.height > MAX_SCREENSHOT_HEIGHT:
+      target_width = max(1, round(image.width * MAX_SCREENSHOT_HEIGHT / image.height))
+      rl.image_resize(image, target_width, MAX_SCREENSHOT_HEIGHT)
     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     dst = os.path.join(SCREENSHOT_DIR, filename)
     if not rl.export_image(image, dst):

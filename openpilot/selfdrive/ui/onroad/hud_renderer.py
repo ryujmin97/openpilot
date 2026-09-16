@@ -6,6 +6,7 @@ from openpilot.common.constants import CV
 from openpilot.selfdrive.carrot.deceleration_source import deceleration_source_presentation
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.onroad.screenshot_button import ScreenshotButton
+from openpilot.selfdrive.ui.onroad.screenshot_capture import capture_onroad_screenshot
 from openpilot.selfdrive.ui.onroad.record_button import RecordButton
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.hardware.usbgpu import usbgpu_badge_state
@@ -325,6 +326,13 @@ class HudRenderer(Widget):
     self._draw_tpms(rect)
     self._draw_egpu_badge(rect)
     self._draw_cruise_speed_animation(rect)
+
+    # 51차: 스크린샷 버튼 클릭이 이 _render() 안에서 date_time/tpms 등보다
+    # 먼저 그려지는 순서라, 캡처를 클릭 시점에 바로 하면 그 뒤에 그려지는
+    # HUD 요소가 캡처에서 빠진다(51차 사용자 제보 원인). 이 프레임의 모든
+    # HUD 요소를 그린 뒤 여기서 대기 중인 캡처 요청을 소비한다.
+    if self._screenshot_button.consume_pending_capture():
+      capture_onroad_screenshot()
 
   def user_interacting(self) -> bool:
     return self._exp_button.is_pressed or self._screenshot_button.is_pressed or self._record_button.is_pressed
