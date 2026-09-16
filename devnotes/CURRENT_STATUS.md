@@ -73,6 +73,12 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
   누적된 스크린샷 후속 수정(25·26~28·30~36번: DPI/캡처 타이밍/render-texture 재설계/상하반전
   등)은 아직 미반영 -- 다음 세션 이후 순서 확정 필요. 실차 검증: 미실시(git pull 금지 상태 유지
   중).
+- **[64차]** carrot-ryu-v1 "코드 수정 현황" 항목 4(온로드 시계 좌측 화면 경계 잘림 수정, 13차
+  2adced8 원본)를 새 베이스(429f105e) 위에 재적용, commit `4e3b44a8`로 push 완료. 원본 커밋이
+  hud_renderer.py `_draw_date_time` 한 곳만 건드리는 작은 diff였고, 12차 재적용(63차) 이후에도
+  해당 함수가 원본 base(`0e9c84a51e`)와 동일하게 남아있어 Replace-Block으로 그대로 재적용.
+  치환 결과 blob이 원본 13차 커밋의 결과 blob(`d7e8d7b6a5`)과 완전히 일치함을 diff로 확인(바이트
+  단위 재현). 실차 검증: 미실시(git pull 금지 상태 유지 중).
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
@@ -88,7 +94,9 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
    재반영 완료(commit `429f105e`, git ls-remote + commit diff로 확인). 12차 원본 버전 그대로이며,
    25·26~28·30~36번(스크린샷 관련 후속 수정: DPI/타이밍/render-texture 재설계/상하반전 등)은
    아직 미반영. 실차 검증: 미실시(git pull 금지 상태 유지 중).
-4. 온로드 시계 좌측 화면 경계 잘림 수정(13차, 2adced8) -- GitHub 반영됨
+4. 온로드 시계 좌측 화면 경계 잘림 수정(13차, 2adced8 원본) -- [64차] 새 베이스(429f105e) 위에
+   재반영 완료(commit `4e3b44a8`, git ls-remote + commit diff로 확인, 원본과 결과 blob까지
+   완전 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).
 5. gdrive_upload.py 신규 추가(15차, 183bef9) -- Drive OAuth device flow + resumable 업로드 백엔드, GitHub 반영됨
 6. 대시캠 업로드(로그탭 "전송") zip+Drive 전환(16차, dae901c 본편 + cc734e1 hotfix) -- GitHub 반영됨
 7. send_tmux_web() Drive 업로드 전환(17차, commit 2869149) -- GitHub 반영됨
