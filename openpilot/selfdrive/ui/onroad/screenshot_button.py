@@ -18,10 +18,17 @@ class ScreenshotButton(Widget):
   drawn up to that point in the frame -- the clock/temperature/etc drawn
   later in the same frame are missing from the saved file (root cause of the
   51cha report "capture works but the clock/temperature HUD is missing").
-  Instead, _on_click() only raises a pending flag; HudRenderer consumes it
-  via consume_pending_capture() at the very end of _render(), after every
-  HUD element for this frame has been drawn, and only then calls
-  capture_onroad_screenshot().
+  Instead, _on_click() only raises a pending flag.
+
+  52cha: consume_pending_capture() is no longer called from inside
+  HudRenderer either. AugmentedRoadView._render() draws border debug text
+  (car name, LD/LT/SR, laneless status, git branch, IP) and the alert/
+  driver-state overlays *after* hud_renderer.render() returns, so consuming
+  the flag inside HudRenderer still missed those (52cha report: capture
+  works but most of the on-screen HUD is missing from the saved file).
+  AugmentedRoadView._render() now calls
+  self._hud_renderer.consume_pending_screenshot_capture() as its very last
+  step and only then calls capture_onroad_screenshot().
   """
 
   def __init__(self, button_size: int):

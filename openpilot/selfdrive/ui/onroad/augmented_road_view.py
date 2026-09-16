@@ -9,6 +9,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
+from openpilot.selfdrive.ui.onroad.screenshot_capture import capture_onroad_screenshot
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import gui_app
@@ -140,6 +141,15 @@ class AugmentedRoadView(CameraView):
     _t = time.monotonic()
     self._draw_border_carrot(rect)
     extras_ms = (time.monotonic() - _t) * 1000.0
+
+    # 52차: 스크린샷 캡처는 이 프레임에서 그려지는 모든 것(카메라/모델/HUD/
+    # alert/driver-state/테두리 디버그 텍스트)이 다 그려진 뒤, 이 지점에서
+    # 소비한다. hud_renderer.render() 안에서 바로 캡처하면(51차) border 텍스트
+    # (차량명, LD/LT/SR, laneless 상태, git branch, IP)와 alert_renderer/
+    # driver_state_renderer는 아직 그려지기 전이라 캡처에서 빠진다(52차 사용자
+    # 제보: 캡처는 되지만 화면 전체 상당수 요소가 결과물에서 빠짐).
+    if self._hud_renderer.consume_pending_screenshot_capture():
+      capture_onroad_screenshot()
 
     # publish uiDebug
     msg = messaging.new_message('uiDebug', valid=True)
