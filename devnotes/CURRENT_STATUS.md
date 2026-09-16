@@ -49,6 +49,12 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
   어긋나던 정체불명 브랜치 `c3-ms-dev` 삭제, (2) 현재 carrot-ryu(commit `9ccf1206`) 스냅샷을
   `carrot-ryu-v1`으로 생성(반영 스크립트 실행 대기). 실제 carrot-ms 베이스 재생성과 v1 코드
   이식은 규모가 커(36개 항목, 서로 무관한 여러 서브시스템) 다음 세션들로 이월(17절).
+- **[60차, devnotes 오염 발견/복구]** 세션 시작 SHA 고정 조회 중 devnotes/HANDOFF.md(59차분)에
+  WIP_SYNC.md 전체 내용이 PowerShell 히어스트링 조각과 함께 잘못 이어붙어 있고, 실제
+  devnotes/WIP_SYNC.md는 0바이트로 커밋되어 있음을 발견(59차 또는 이전 반영 스크립트의
+  히어스트링 종료 처리 오류로 추정). HANDOFF.md 안에 남아있던 원문을 바이트 단위로 정확히
+  추출해 내용 손실 없이 복구, HANDOFF.md/WIP_SYNC.md를 각각 정상 상태로 재작성(코드 변경
+  없음, 반영 스크립트 실행 대기). 20절 리셋 착수 여부는 이번 세션에서 재확정 안 됨.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
