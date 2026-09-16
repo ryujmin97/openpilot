@@ -3,6 +3,7 @@ import time
 
 import pyray as rl
 
+from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.carrot.server.config import SCREEN_RECORDING_DIRS
 
 SCREENSHOT_DIR = SCREEN_RECORDING_DIRS[1]  # "/data/media/0/screenrecord"
@@ -39,15 +40,22 @@ def capture_onroad_screenshot() -> str | None:
   try:
     image = rl.load_image_from_screen()
     if image.width <= 0 or image.height <= 0:
+      cloudlog.warning(f"capture_onroad_screenshot: load_image_from_screen returned {image.width}x{image.height}")
       return None
     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     dst = os.path.join(SCREENSHOT_DIR, filename)
     if not rl.export_image(image, dst):
+      cloudlog.warning(f"capture_onroad_screenshot: export_image failed for {dst}")
       return None
     if not os.path.isfile(dst) or os.path.getsize(dst) <= 0:
+      cloudlog.warning(f"capture_onroad_screenshot: {dst} missing or empty after export_image")
       return None
     return dst
   except Exception:
+    # 49차: 이전에는 여기서 원인 정보 없이 조용히 실패해, 버튼을 눌러도
+    # 아무 반응이 없다는 사용자 제보의 원인을 특정할 수 없었다. 다음 실차
+    # 테스트에서 실패 원인이 로그에 남도록 cloudlog.exception 추가.
+    cloudlog.exception("capture_onroad_screenshot failed")
     return None
   finally:
     if image is not None:

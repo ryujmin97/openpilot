@@ -302,12 +302,17 @@ class HudRenderer(Widget):
     self._exp_button.render(rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
 
     shot_size = UI_CONFIG.screenshot_button_size
-    shot_x = rect.x + rect.width / 2 - shot_size / 2
+    # 49차: 사용자 요청으로 스크린샷(카메라) 버튼을 화면 중앙(anchor_x, 예전
+    # 위치)에서 좌측으로 버튼 한 칸(버튼폭+간격)만큼 이동. anchor_x는 원래
+    # 스크린샷 버튼이 있던 자리이자 record 버튼 위치 계산의 기준점으로 계속
+    # 쓰인다 -- record 버튼 위치는 그대로 유지된다.
+    anchor_x = rect.x + rect.width / 2 - shot_size / 2
+    shot_x = anchor_x - (shot_size + UI_CONFIG.record_button_gap)
     shot_y = rect.y + rect.height - UI_CONFIG.border_size - shot_size
     self._screenshot_button.render(rl.Rectangle(shot_x, shot_y, shot_size, shot_size))
 
     record_size = UI_CONFIG.record_button_size
-    record_x = shot_x + shot_size + UI_CONFIG.record_button_gap
+    record_x = anchor_x + shot_size + UI_CONFIG.record_button_gap
     record_y = shot_y + (shot_size - record_size) / 2
     self._record_button.set_blink_phase(self._blink_timer <= 8)
     self._record_button.render(rl.Rectangle(record_x, record_y, record_size, record_size))

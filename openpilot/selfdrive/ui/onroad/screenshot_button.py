@@ -1,5 +1,6 @@
 import pyray as rl
 
+from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.onroad.screenshot_capture import capture_onroad_screenshot
 from openpilot.system.ui.widgets import Widget
 
@@ -20,6 +21,10 @@ class ScreenshotButton(Widget):
     self.set_click_callback(self._on_click)
 
   def _on_click(self) -> None:
+    # 49차: 클릭 콜백이 실제로 호출되는지 자체를 로그로 남겨, "버튼이 안
+    # 눌러진다"는 제보가 (a) 클릭이 전달되지 않는 문제인지 (b) 클릭은
+    # 전달되지만 캡처만 실패하는 문제인지 다음 실차 테스트에서 구분한다.
+    cloudlog.debug("ScreenshotButton clicked")
     capture_onroad_screenshot()
 
   def _render(self, rect: rl.Rectangle) -> None:
