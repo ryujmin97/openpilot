@@ -2,7 +2,7 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `706efb47b81cf9cb02888ee536a156d8f1fc1d91` (61차, 20절 리셋 실행: carrot-ms 현재 HEAD를 그대로 force-push로 반영. 이 시점부터 지금까지의 커스텀 코드(아래 "코드 수정 현황" 1~36번)가 carrot-ryu에 전혀 없는 상태 -- carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에만 보존됨. git ls-remote로 직접 재확인 완료(62차). 실기기 배포/검증은 미실시(현재 상태를 디바이스가 pull하면 기존 기능이 모두 사라짐, git pull 금지).
+- carrot-ryu HEAD: `0d5117533e0703e442fd1664b8ee00146cf40a4f` (66차 기준. 61차 20절 리셋(`706efb47`) 이후 항목 3·4·25·27·28만 순차 재적용된 상태 -- 67차에서 이 문서 갱신 시점에 발견한 표기 누락을 바로잡음(16절), 61차 커밋 해시만 남아있던 것을 실제 최신으로 정정). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
 - 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
@@ -104,6 +104,7 @@ hud_renderer.py 1줄 -- 녹화 중 버튼이 계속 채워진 채로만 있던 �
 import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md에 이 의존관계 기록 필요(다음
 세션 이월). 실차 검증: 미실시(git pull 금지 상태 유지 중).
 
+- **[67차]** 66차 HANDOFF 미완료 1번(항목 11+23 -> 26 의존관계 해소) 순서를 사용자가 확정: "항목 11만 우선 적용(22/23/26은 이월)". carrot-ryu-v1 "코드 수정 현황" 항목 11(24차, 화면녹화 탭 사진 스트립 신규 생성, commit `a7a912c1`)을 새 베이스(`0d511753`, 66차 위) 위에 재적용 -- 원본 commit patch를 github.com/.../commit/a7a912c1.patch로 직접 조회해 9개 소스 파일(config.py/catalog.py/routes.py/index.html/en.js/ko.js/zh.js/runtime.js/style.css) 수정 + screenshots.js 신규 파일 내용을 확인하고, 독립적인 실제 `git clone`(carrot-ryu)에 적용해 anchor 전부 1회 매치, 그 자리에서 `npm install && node build.mjs`로 생성 번들(logs.css/asset-manifest.json/logs.js)까지 재생성, `node --check`(runtime.js/screenshots.js/generated logs.js) + `python3 -m py_compile`(config.py/catalog.py/routes.py) + `node --test`(747/747) 전부 통과 확인(핵심 발견 30 재발 방지 -- 소스만 고치고 번들 재생성을 빠뜨리지 않도록 스크립트 자체가 npm install && node build.mjs를 실행). py/routes.py 3개 파일과 screenshots.js/style.css는 원본 24차 결과와 바이트 단위로 완전히 동일함을 diff로 확인, index.html/en.js/ko.js/zh.js/runtime.js는 그 사이 다른 세션들의 변경(Google Drive UI, 설정 검색 등)과 정상 공존하며 병합됨을 확인. 반영 스크립트(`reapply_item11_67cha.ps1`) 전달, 실행 대기. 부수적으로 이 파일 최상단 carrot-ryu HEAD 표기가 61차 커밋으로 오래 방치돼 있던 것을 16절에 따라 발견/정정(코드 변경 아님).
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.
@@ -127,7 +128,9 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 8. dashcam 업로드 연결 테스트 버튼(api_dashcam_upload_test)을 Google Drive 기준으로 전환(18~20차, commit ad055dd4) -- GitHub 반영됨
 9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- GitHub 반영됨
 10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 실기기에서 Client ID/Secret 입력란이 계속 안 보이는 문제 진행 중(26차까지 원인 미확정, 핵심 발견 16 참고).
-11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- GitHub 반영됨
+11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- [67차] 새 베이스(0d511753) 위에
+    재적용 스크립트 작성 및 sandbox/독립 clone 이중 검증 완료(원본과 바이트 단위 동일 확인), 반영 스크립트
+    실행 대기. 실행/push 확인 전까지 "재반영 완료"로 단정하지 않음(5절). 실차 검증: 미실시.
 12. LOG_UPLOAD_TARGETS "gdrive" 누락 수정(25차, commit d338afb7) -- GitHub 반영됨
 13. 우측하단 경로안내 박스 475x495 확대 + route=숫자 디버그 분리 표시 + 도착정보 2줄 표기(27차, commit 5f5e49d0) -- GitHub 반영됨. 40차 계속 실기기 검증: 상하 여백 균등 배치 확인됨(스크린샷, 12절 최초 실차 검증).
 14. 경로안내 박스 높이 축소(495→400) + 도착/ETA를 route= 아래 우측끝맞춤으로, 회전아이콘 좌측 배치(28차, commit cc73f629) -- GitHub 반영됨
@@ -145,8 +148,10 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
     재반영 완료(commit `b152e192`, git ls-remote + commit diff로 확인). 42차 원본 그대로이며,
     깜빡임 효과(44차 항목 28)는 [66차]에서 별도 재적용. 실차 검증: 미실시(git pull 금지 상태 유지 중).
 26. screenshots.js formatLogBytes import 누락 수정(44차) -- 사진 목록 렌더 크래시 근본수정. 61차
-    리셋 이후 아직 미반영: 전제가 되는 screenshots.js 자체(항목 11, 24차)가 새 베이스에 없어
-    [66차]에서 보류함(GitHub 404 확인). 항목 11·23(39cha-fix) 반영 후 이어서 처리 예정.
+    리셋 이후 아직 미반영: 전제 조건이 "항목 11 -> 22 -> 23" 순서로 셋 다 필요함을 66차에서 확정.
+    [67차]에서 항목 11 반영 스크립트까지는 준비됐으나(실행 대기), 항목 22(39차, commit 797fca2e --
+    체크박스/전체선택/업로드/다운로드 툴바로 screenshots.js/runtime.js/style.css 전면 재작성)와
+    항목 23(39cha-fix, formatRelativeEpoch import)은 아직 착수 전. 다음 세션 이후로 이월.
 27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- [66차] 새 베이스
     (b152e192) 위에 재반영 완료(commit `0d511753`, git ls-remote + commit diff로 확인, 원본
     44차 diff와 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).

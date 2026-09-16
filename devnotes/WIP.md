@@ -1,5 +1,15 @@
 # WIP
 
+## 67차 (20절 이식 항목 11 재적용 준비) — 화면녹화 탭 사진 스트립 재적용 스크립트 전달 (실행 대기)
+
+- 66차 미완료 이월(항목 11->22->23->26 의존관계, 순서 확정 필요)에 대해 사용자가 "항목 11만 우선 적용(22/23/26은 이월)"로 확정.
+- 원본 24차 커밋(a7a912c1)의 diff를 github.com/.../commit/a7a912c1.patch로 직접 조회 -- 9개 소스 파일 수정 + screenshots.js 신규 생성 내용 전부 확인.
+- 현재 carrot-ryu HEAD(0d511753)에서 raw 조회한 9개 파일에 anchor가 전부 1회씩 매치됨을 sandbox에서 검증, screenshots.js는 여전히 없음(GitHub 404, 66차 전제와 일치).
+- 독립적인 실제 git clone(carrot-ryu)에 같은 패치를 다시 적용해 재현하고, 그 자리에서 npm install && node build.mjs로 생성 번들(logs.css/asset-manifest.json/logs.js)까지 재생성 -- node --check(runtime.js/screenshots.js/generated logs.js) + python3 -m py_compile(config.py/catalog.py/routes.py) + node --test(747/747) 전부 통과 확인(45차 핵심 발견 30 재발 방지).
+- config.py/catalog.py/routes.py, screenshots.js, style.css는 원본 24차 결과와 바이트 단위 완전 동일, index.html/en.js/ko.js/zh.js/runtime.js는 그 사이 다른 세션들의 변경과 정상 공존/병합됨을 확인.
+- 반영 스크립트(reapply_item11_67cha.ps1)는 9절 형식(Replace-Block + CRLF/LF 정규화, autocrlf=false clone, UTF-8 BOM, Get-PythonCmd) + 그 자리에서 npm install/node build.mjs/node --check/py_compile까지 전부 수행하도록 작성, 사용자 실행 대기.
+- 부수적으로 CURRENT_STATUS.md 최상단 carrot-ryu HEAD 표기가 61차 커밋으로 오래 방치돼 66차 실제 최신과 어긋나 있던 것을 발견/정정(16절, 코드 변경 아님).
+
 ## 66차 (20절 이식 항목 27+28 재적용) — delete_all_videos 확장 + 녹화 버튼 깜빡임(44차 e2f35619 일부)
 
 - 44차 원본 diff를 GitHub commit patch로 재확인: 커밋 하나(e2f35619)에 항목 26·27·28이 함께
