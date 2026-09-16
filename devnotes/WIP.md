@@ -1,5 +1,17 @@
 # WIP
 
+## 51차 (코드 완료, push 대기) -- 스크린샷 캡처 타이밍 버그(시계/온도 HUD 누락) 수정 + 480p 다운스케일
+
+사용자가 50차 PNG 롤백 실차 결과 사진 2장(HUD 없는 순수 배경 스크린샷 1장, carrotweb 로그탭에 파일이 실제로 잡힌 화면 1장)을 제공하며 "캡쳐는 되는데 시간/온도 UI가 안 나온다, 480p로 낮춰달라, Termux로 달라"고 요청.
+
+- git ls-remote로 carrot-ryu HEAD 08c7e9ae7964... 확인 -- 50차 PNG 롤백이 이미 push 완료됐고 실제로 export가 성공하고 있음을 실증(50차 미완료 1,2번 해소).
+- hud_renderer.py _render()에서 스크린샷 버튼 render()(클릭 처리 포함)가 _draw_date_time/_draw_tpms/_draw_egpu_badge/_draw_cruise_speed_animation보다 먼저 호출됨을 코드로 확인 -- 클릭 시점에 즉시 rl.load_image_from_screen()으로 캡처하면 이 프레임의 나머지 HUD가 아직 안 그려진 상태라 빠지는 것이 사용자 제보 사진과 일치함을 확정.
+- 수정: _on_click()은 pending 플래그만 세우고, _render() 맨 끝에서 그 플래그를 소비해 캡처를 실행하도록 이동(screenshot_button.py + hud_renderer.py).
+- screenshot_capture.py에 rl.image_resize() 기반 480p(세로 기준) 다운스케일 추가.
+- 사용자가 이번 세션에서 Termux 사용을 명시 -> PowerShell 대신 bash 스크립트로 작성(9절).
+- py_compile 통과, hud_renderer.py 앵커 2곳 1회 매치 확인(스크립트 자체 검증 포함).
+- 실차 검증: 미실시(다음 세션 최우선 -- 시계/온도 포함 여부, 480p 다운스케일 실제 동작 여부).
+
 ## 50차 (코드 완료, push 대기) -- 49차 진단 로그 실차 분석 + JPG export 실패 원인 좁힘 + PNG 롤백
 
 사용자가 49차 반영 스크립트를 이미 실행했고(git pull 41fd34a74..dfdbfff9a, reboot 로그 확인), 실기기 swaglog grep 결과와 스크린샷 버튼 위치 확인 사진을 제공.
