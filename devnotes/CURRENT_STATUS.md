@@ -26,6 +26,7 @@ pm install && node build.mjs를 직접 실행해 재현하고, 변경 diff가 js
 ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.ps1)는 문자열 치환이 아니라 사용자 PC에서 실제 빌드를 실행하는 방식으로 작성, 실행 대기. 상세: FINDINGS.md 2026-09-16(45차) 항목, 핵심 발견 30.
 - **[45차-정정]** 45차 devnotes(carrot-ryu-note commit `0b0d322`)가 실제로는 핵심 발견 30의 최종 결론(esbuild 플랫폼 비결정성 -> Linux sandbox 빌드) 이전, "사용자 PC 재빌드가 아직 실패하지 않았던" 중간 초안 내용으로 push됐던 것을 재확인 절차 중 발견. carrot-ryu 코드(commit `99b49a1`)는 커밋 메시지 전문/sha256 비교로 최종본대로 정상 반영/검증됐음을 확인, devnotes만 중간 초안 상태였던 것으로 결론(핵심 발견 31). 원인은 한 세션 내 동일 파일명(`45cha_devnotes_carrot_ryu_note.ps1`) 스크립트 재전달로 인한 사용자 PC 측 파일명 충돌 가능성이 유력(직접 재현은 못 함). 부수적으로 `git clone --depth 1` + `git show --stat`이 grafted root 취급되어 무관한 파일이 대량 나열되는 착시도 확인/배제. 이 커밋으로 HANDOFF.md/CURRENT_STATUS.md를 실제 최종 상태로 재동기화.
 - **[46차]** 사용자가 제공한 실기기 스크린샷 2장(도구 탭 git pull/reboot 로그, 로그 탭 사진목록)과 실기기 촬영 영상 1개(20260916-095343.mp4)로 직전 HANDOFF "최우선" 이월 1~4번을 전부 실기기 검증 완료: (1) carrot-ryu HEAD(99b49a1) 실기기 배포/재부팅 확인, (2) 사진 목록 크래시 해소 확인, (3) delete_all_videos 스크린샷 포함 삭제 확인, (4) 로그탭 새로고침 목록 갱신 확인. 추가로 녹화 버튼 깜빡임을 영상 프레임 정량 분석(6fps, 버튼 영역 평균 RGB)으로 실증(핵심 발견 32). 코드 변경 없음, devnotes만 갱신. 상세: HANDOFF.md 46차 참고.
+- **[47차 신규]** 사용자가 실기기 스크린샷 버튼으로 찍은 사진이 세로(1080x2160, 상단 대부분 검정) 이미지로 저장되고 용량도 과도하게 크다고 제보. 원인 조사 결과 `screenshot_capture.py`가 쓰던 `rl.take_screenshot()`이 raylib 내부적으로 `render 크기 * GetWindowScaleDPI()`로 캡처 크기를 계산하는데(rcore.c), 이 기기에서 DPI 스케일이 비등방(가로/세로 배율이 다름)으로 나와 가로 2160x세로 1080이어야 할 캡처가 세로 1080x가로 2160으로 뒤집혀 저장됨을 확인. 같은 프레임버퍼를 읽되 DPI 배율 계산이 없는 `rl.load_image_from_screen()`(영상 녹화 파이프라인이 `rl.load_image_from_texture()`로 동일하게 DPI 우회 방식을 쓰는 것과 동일한 원리)으로 교체해 해결. 겸사겸사 저장 포맷을 PNG(무손실)에서 JPG로 변경 -- `SCREEN_RECORDING_PHOTO_EXTS`(carrot/server/config.py)에 ".jpg"/".jpeg"가 이미 등록돼 있어 백엔드/프론트엔드 추가 수정 없이 바로 인식/목록/썸네일/서빙됨을 코드 조사로 확인. 실차 검증: 미실시(스크립트 실행 대기). 상세: FINDINGS.md 2026-09-16(47차) 항목, 핵심 발견 33.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -57,6 +58,7 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
 27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- 스크린샷 폴더 미삭제 문제 수정. 46차 실기기 검증 완료: 전체 삭제 시 사진까지 함께 삭제됨을 사용자가 확인함.
 28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- 녹화 중 깜빡임 효과 추가. 46차 실기기 검증 완료: 실기기 촬영 영상을 6fps로 프레임 추출해 버튼 영역 평균 RGB를 측정, 밝음(R≈193)/어두움(R≈33) 상태가 프레임마다 규칙적으로 교대됨을 정량 확인(FINDINGS.md 2026-09-16(46차)).
 29. js/generated/logs.js, generated/asset-manifest.json 번들 재생성(45차, commit `99b49a1`) -- 44차 소스 수정이 반영 안 된 채 커밋됐던 생성 번들을 Claude가 Linux sandbox에서 npm install && node build.mjs로 재생성, sha256/`node --test` 737/737로 검증 완료. GitHub 반영 확인됨(45차-정정 세션에서 커밋 메시지 전문 대조로 재검증). **46차에서 실기기 배포까지 확인됨**: 도구 탭 로그에서 실제 `git pull`(`e2f356198..99b49a113`, Fast-forward) + `reboot` 실행을 확인, 이어서 크래시 해소(26번)까지 실증됨.
+30. screenshot_capture.py의 `rl.take_screenshot()` -> `rl.load_image_from_screen()` 교체 + 저장 포맷 PNG -> JPG 전환(47차, 커밋 예정) -- DPI 스케일 버그로 인한 세로 뒤바뀜/과대 용량 수정. 실차 검증: 미실시.
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
