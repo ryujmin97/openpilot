@@ -1,5 +1,23 @@
 # WIP
 
+## 49차 (코드 완료, push 대기) -- 스크린샷 버튼 무반응 진단 로그 추가 + 버튼 위치 사용자 요청 반영
+
+사용자가 실기기 스크린샷 2장(정상 캡처 예시, 실제 로그탭 화면 -- 목록에 사진 0건/영상 3건)을 제공하며 "스크린샷 버튼이 안 눌러지고 로그탭에 저장되지 않음" 제보 + "사진캡쳐버튼을 참고 사진의 빨간색 동그라미 위치로 이동" 요청.
+
+**증거**: 로그탭 스크린샷에서 목록의 항목 3개가 전부 MP4(화면녹화)이고 JPG(사진)가 하나도 없음 -- 스크린샷 저장이 실제로 0건이라는 뜻이라 제보와 일치.
+
+**코드 조사**: click 처리 로직(`Widget._process_mouse_events`), `capture_onroad_screenshot()`(47차 버전), pyray 바인딩(`uv.lock`에 고정된 `comma-deps-raylib==6.0.0.1.post101`을 sandbox에 실제 설치해 `load_image_from_screen`/`export_image` 존재 확인) 어디에서도 명백한 버그를 못 찾음. 11절 원칙(추측만으로 원인을 확정하지 않음)에 따라, 원인 확정 대신 다음 실차 테스트에서 원인이 드러나도록 진단 로그를 추가:
+1. `screenshot_capture.py`: 3개 실패 분기(캡처 크기 이상/`export_image` 실패/파일 생성 실패)와 예외 처리에 `cloudlog.warning`/`cloudlog.exception` 추가.
+2. `screenshot_button.py`: `_on_click`에 `cloudlog.debug("ScreenshotButton clicked")` 추가 -- 클릭 자체가 콜백까지 도달하는지, 캡처만 실패하는지 다음 실차 테스트에서 구분 가능.
+
+**버튼 위치 변경**: `hud_renderer.py`에서 스크린샷(카메라) 버튼을 화면 중앙(기존 자리, `anchor_x`로 명명)에서 좌측으로 버튼 한 칸(140px 폭 + 30px 간격 = 170px) 이동. record 버튼 위치는 `anchor_x` 기준 수식이 이전과 동일해 절대 위치 그대로 유지.
+
+**검증**: `py_compile`/`ast.parse` 3개 파일 모두 통과. Replace-Block 방식으로 `hud_renderer.py` 변경 전 블록이 파일 전체에서 정확히 1회 매치함을 Python으로 확인(9절). `cloudlog.debug/warning/exception`이 `SwagLogger`(`logging.Logger` 서브클래스)의 표준 메서드임을 `common/logging_extra.py` 소스로 확인(추측 아님, 11절).
+
+**실차 검증**: 미실시 -- 이번 세션은 "원인 확정"이 아니라 "다음 테스트에서 원인이 보이게 만드는" 진단 단계(11절). 버튼 위치 변경도 실기기 확인 전.
+
+상세: FINDINGS.md 2026-09-16(49차) 항목, 핵심 발견 34. HANDOFF.md 49차 참고.
+
 ## 48차 (검증 완료) — 47차 push 확인 + 36차/39차/37차 이월 항목 실기기 검증
 
 사용자가 "체크포인트"를 요청. 4절 0단계(`git ls-remote`로 carrot-ryu-note SHA 고정 조회)부터 시작.
