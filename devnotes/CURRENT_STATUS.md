@@ -40,6 +40,16 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
 - **[56차, 코드 변경 없음]** 사용자가 실기기 스크린샷 버튼으로 촬영한 이미지 1장(HYUNDAI_GENESIS(CAMERA SCC) 온로드 HUD, 16:59:49 09-16(수))을 제공하며 "정상됨" 확인. 55차 rl.image_flip_vertical() 수정 이후 상하반전 없이 정방향으로 저장됨을 실차 검증(12절) -- 이미지에 차량명/시계/날짜/LD·LT·SR/laneless/git branch/IP 등 border HUD 요소와 CPU·MEM·DISK, 속도/기어/LIMIT까지 전부 정상 포함돼 있어 54차 render-texture 재설계 항목(border HUD 누락/480p/PNG)도 함께 재확인됨. 49~55차에 걸쳐 순차 수정해온 스크린샷 관련 이슈(HUD 누락 -> DPI 반전 -> 캡처 타이밍 -> 상하반전)가 이 확인으로 전부 해소됨. 코드 변경 없음, devnotes만 갱신.
 
 - **[57차, 설계 논의만·코드 변경 없음]** 사용자 요청으로 "carrot-ms 모델 셀렉터 코드 분석 착수" 시작. 41개 모델셀렉터 전용 커밋(carrot-ms에만 있고 carrot-wip에는 없는 117건 중 필터링)을 조사했으나, `git merge-base --is-ancestor`로 전수 검증한 결과 전부 6~7차 체크포인트 기준점(`02015190f5`, 2026-09-12)의 조상 커밋이어서 이미 carrot-ryu에 반영돼 있음을 확인(carrot-wip/carrot-ms를 각각 blob 없이 bare clone 후 커밋 메시지 집합 비교, api.github.com rate limit 회피). carrot-ryu의 `carrot/model_selector/` 21개 파일이 fork 이후 무수정 상태이고, README 명시 upstream 최소침습 지점 6곳(process_config.py/manager.py/modeld/helpers.py/carrot/server/app.py/web/index.html/ui/mici/layouts/home.py) 및 params_keys.h의 DrivingModelName/PendingModelName 등록까지 전부 정상 배선됨을 직접 확인. 사용자가 이 결과를 바탕으로 범위를 재설정: 모델셀렉터에 국한하지 않고, **carrot-ryu 브랜치 생성(fork point `02015190f5`) 이후 carrot-ms에 새로 쌓인 커밋 전체**(현재 25건, WIP_SYNC.md 57차 체크포인트 참고)를 대상으로 (1) 우리 차량(제네시스 DH 2015)에 불필요한 것 제외, (2) 필요한 것만 선별, (3) carrot-ryu 자체 커스텀 코드와 충돌/상충 여부 분석하는 방향으로 다음 세션 작업을 설계하기로 함(이번 세션은 설계 방향 합의까지만, 실제 분석은 다음 세션). 부수적으로 항목 36(55차 `image_flip_vertical` 수정)이 "반영 스크립트 실행 대기"로 남아있었으나 실제로는 carrot-ryu HEAD가 이미 `9ccf1206`(커밋메시지 `55cha: flip render-texture screenshot vertically`)로 push 완료돼 있음을 `git ls-remote`로 확인(16절/핵심 발견 27과 동일 패턴, 다음 세션에서 정식 반영 표기 정정 필요).
+- **[59차, 설계 합의·저장소 정리]** 사용자 제안으로 carrot-ms 신규 커밋 선별 반영(2절)
+  방식의 누적 부담을 완화하기 위한 "carrot-ryu-vN 아카이브 + 재생성" 정책을 논의/합의
+  (PROJECT_INSTRUCTIONS_carrot-ryu.md 20절 신설). carrot-ryu는 디바이스 배포 브랜치명으로
+  계속 고정하고, 재생성 시점마다 직전 상태를 carrot-ryu-vN으로 스냅샷 보관한 뒤 carrot-ms
+  최신 베이스로 carrot-ryu를 재구성하고 vN의 커스텀 코드(이 파일의 "코드 수정 현황" 번호
+  리스트)를 체크리스트 삼아 이식하는 방식. 이번 세션에서 첫 적용으로 (1) 지침 1절과
+  어긋나던 정체불명 브랜치 `c3-ms-dev` 삭제, (2) 현재 carrot-ryu(commit `9ccf1206`) 스냅샷을
+  `carrot-ryu-v1`으로 생성(반영 스크립트 실행 대기). 실제 carrot-ms 베이스 재생성과 v1 코드
+  이식은 규모가 커(36개 항목, 서로 무관한 여러 서브시스템) 다음 세션들로 이월(17절).
+
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
 2. RES/+ 인게이지 속도 안전장치(10차, e1e587b) -- GitHub 반영됨

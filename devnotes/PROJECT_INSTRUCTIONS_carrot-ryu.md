@@ -48,9 +48,12 @@
 | carrot-ms | happymaj11r/openpilot (외부) | carrot-wip + 콤마 모델셀렉터. carrot-wip 갱신 때마다 통째로 재생성(rebase)됨 → commit hash로 추적 불가 | 조회만, 직접 수정 금지 |
 | carrot-ryu | ryujmin97/openpilot | 실제 코드 작업 브랜치(내 차량용). 콤마 디바이스에 설치되어 실주행하는 대상 | 코드만, devnotes 섞지 않음 |
 | carrot-ryu-note | ryujmin97/openpilot | devnotes 전용 orphan 브랜치(코드 히스토리와 분리) | devnotes + 이 지침 문서만, 코드 섞지 않음 |
+| carrot-ryu-vN (아카이브) | ryujmin97/openpilot | 20절 절차로 carrot-ryu 재생성 직전 시점을 스냅샷한 불변 기록(N=1,2,3...) | 생성 시점에만 관여, 생성 후에는 원칙적으로 조회도 하지 않음 |
 
-- ryujmin97/openpilot에는 carrot-ryu, carrot-ryu-note 두 브랜치만 존재해야 한다.
-  carrot-ms/carrot-wip을 여기에 미러링하지 않는다.
+- ryujmin97/openpilot에는 carrot-ryu, carrot-ryu-note, 그리고 20절 절차로 생성되는
+  carrot-ryu-vN 아카이브 브랜치만 존재해야 한다. carrot-ms/carrot-wip 원본을 여기에
+  미러링하는 것은 여전히 금지(carrot-ryu-vN은 미러링이 아니라 우리 자신의 과거
+  스냅샷이므로 별개).
 - carrot-ryu-note에 두는 파일: `PROJECT_INSTRUCTIONS_carrot-ryu.md`(이 문서),
   `devnotes/WIP.md`, `HANDOFF.md`, `CURRENT_STATUS.md`, `FINDINGS.md`,
   `LAST_ANALYZED.md`, `PARAMS_REGISTRY.md`, `WIP_SYNC.md`, `toolkit/`.
@@ -375,6 +378,10 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
 - devnotes를 위한 별도 GitHub 저장소를 임의로 생성
 - carrot-ms의 새 커밋을 사용자 승인 없이 임의로 carrot-ryu에 반영
 - ryujmin97/openpilot에 carrot-ms/carrot-wip을 다시 미러링
+- carrot-ryu-vN 아카이브 브랜치를 생성 이후에 수정(20절, WIP/FINDINGS와 동일한 불변
+  원칙 위반)
+- carrot-ryu 자체의 브랜치명을 변경(디바이스 배포 대상이므로 항상 고정, 20절)
+- 20절의 carrot-ryu 재생성(강제 교체에 준하는 작업)을 사용자의 명시적 승인 없이 실행
 - 반영 스크립트 실행 후 임시 폴더를 삭제하지 않고 남겨두는 것
 - diff/patch가 `git apply`에 실패했는데 강제 적용하거나 무시하고 다음 단계 진행
 - 문자열 블록 치환에서 "변경 전 블록"이 정확히 1회로 매치되지 않았는데 무시하고
@@ -400,6 +407,46 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
   메시지에 남긴다(v2부터 적용). 정말 중요한 배경만 본문에 한 줄로 남긴다.
 - 새 절이 필요하면 기존 0~19절 사이에 끼워 넣지 않고 19절 뒤에 20절부터 이어
   붙인다(번호 재배치 금지 원칙, 18절 참고).
+
+────────────────────────────────
+## 20. 브랜치 버전 관리 (carrot-ryu-vN 아카이브 + 재생성)
+────────────────────────────────
+- 배경: 2절의 개별 커밋 선별 반영 방식은 carrot-ms에 신규 커밋이 쌓일수록(특히 종방향/
+  Hyundai CAN/eGPU처럼 carrot-ryu가 독자적으로 병행 발전시켜 온 영역) 세션마다 위험도
+  판단 부담이 누적된다. 이를 완화하기 위해, 격차가 커졌다고 사용자가 판단하는 시점에
+  아래 절차로 carrot-ryu를 carrot-ms 최신 베이스 위에서 한 번에 재구성할 수 있다.
+- carrot-ryu는 콤마 디바이스가 실제로 추적/배포하는 브랜치이므로 이름을 절대 바꾸지
+  않는다. 버전 전환은 "아카이브 생성 → carrot-ryu 재생성" 순서로, carrot-ryu라는 이름
+  자체는 항상 유지한 채 그 내용(HEAD가 가리키는 커밋)만 바뀐다.
+
+**절차**
+1. 사용자가 리셋 시점을 지정한다(2절의 신규 커밋 누적 상황을 참고하되, 고정된 기준
+   개수를 두지 않고 매번 사용자가 판단).
+2. 현재 carrot-ryu HEAD를 그대로 가리키는 새 브랜치 `carrot-ryu-vN`(N은 1부터 순차
+   증가)을 생성해 스냅샷으로 보관한다. 기존 커밋을 그대로 복제해 새 참조를 만드는
+   것뿐이라 히스토리 파괴가 없다(15절의 강제 push 금지와 무관, force 불필요).
+3. carrot-ryu-vN은 생성 이후 절대 수정하지 않는다(과거 기록 전용, WIP.md/FINDINGS.md와
+   동일한 불변 원칙). 새 작업은 항상 carrot-ryu에서만 진행한다.
+4. carrot-ms 현재 HEAD를 새 베이스로 삼아 carrot-ryu를 재생성한다. 이는 기존 carrot-ryu
+   히스토리를 통째로 교체하는 작업(강제 push와 동등한 효과)이므로, 15절의 "삭제 후
+   재생성" 예외 사례로 취급한다 — 매번 실행 직전에 사용자에게 명확히 알리고 명시적
+   승인을 받은 뒤에만 진행하며, 임의로 선행하지 않는다.
+5. carrot-ryu-vN의 "코드 수정 현황"(CURRENT_STATUS.md의 번호 리스트)을 이식 체크리스트로
+   삼아, 항목별로 새 베이스 위에 하나씩 재적용한다. 이식은 git cherry-pick을 기본
+   수단으로 삼지 않는다(베이스 구조 자체가 크게 바뀐 영역은 conflict 위험이 크므로).
+   9절의 기존 워크플로(Replace-Block/전체교체 + py_compile·테스트 검증)를 그대로
+   따른다.
+6. 이식은 한 세션에 몰아서 끝내지 않고 17절 원칙대로 영역/항목 단위로 나눠 진행한다.
+   진행 상황(완료/보류/제외 항목과 사유)은 WIP_SYNC.md에 "버전 리셋 이력"으로 기록한다.
+7. 이식과 정적 검증이 모두 끝났더라도, 재생성된 carrot-ryu를 실제로 디바이스에
+   배포(git pull 유도)하기 전에는 사용자에게 다시 한번 확인받는다 — 재생성 직전
+   상태(=carrot-ryu-vN)가 이미 디바이스에 설치돼 실주행 중일 수 있기 때문이다.
+8. carrot-ryu-vN 아카이브는 조회도 원칙적으로 하지 않는다(필요할 때만 예외적으로
+   참고). carrot-ms/carrot-wip처럼 외부 미러링 대상이 아니라 우리 자신의 과거
+   스냅샷이므로 1절의 "존재해야 하는 브랜치" 원칙에 대한 명시적 예외로 취급한다.
+- 2절(개별 커밋 선별 반영)과 이 20절(버전 리셋)은 병행 가능한 서로 다른 도구다.
+  어느 시점에 어느 쪽을 쓸지는 매번 사용자가 정하며, 이 문서가 둘 중 하나를
+  자동으로 우선하지 않는다.
 
 ────────────────────────────────
 ## 최종 목표 요약
