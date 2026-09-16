@@ -1,44 +1,45 @@
 # HANDOFF
 
-Worker: Claude (45차 -- 44차 소스 수정은 맞았으나 생성 번들 미재생성으로 크래시가 실기기에 남아있던 문제 발견/수정)
+Worker: Claude (45차-정정 -- carrot-ryu-note devnotes 중간 초안 push를 최종 상태로 재동기화, 코드는 이미 최종본대로 정상)
 Date: 2026-09-16
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: e2f35619825959b23f6d937c8e00cbb0fbd02a5a, 44차. 이번 세션 반영 스크립트 작성 완료, 사용자 실행 대기)
-Note Branch: carrot-ryu-note (이 커밋으로 devnotes 갱신)
+Code Branch: carrot-ryu (HEAD: `99b49a113e48ddaeebf83074b04e42d417a88612`, 45차 최종본 -- Linux sandbox 빌드 logs.js 전체교체 + asset-manifest 해시. sha256/`node --test` 737/737 검증 완료. 실기기 검증은 아직 미실시)
+Note Branch: carrot-ryu-note (이 커밋으로 devnotes 재동기화. 참고: 이 커밋 직전 46차 세션이 PROJECT_INSTRUCTIONS_carrot-ryu.md를 v2로 재작성하고 CURRENT_STATUS.md 1줄을 갱신했음(commit `8f8209f`) -- 이 커밋은 그 위에서 이어받아 작업함. 지침 문서는 이제 v2가 최신)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 체크포인트 이후 신규 23건 확인, WIP_SYNC.md 40차 체크포인트 반영 스크립트 실행 여부 미확인(계속 이월)
 
 작업:
-사용자가 44차 반영 스크립트 실행 후에도 화면녹화 탭에서 사진을 선택하면 `formatLogBytes is not defined`가 그대로 재현된다는 스크린샷/영상을 제보(delete all videos는 정상 동작, 영상 녹화 깜빡임도 정상 확인). GitHub carrot-ryu HEAD(commit e2f35619, 44차)를 직접 조회해 소스(`screenshots.js`)는 정확히 고쳐져 있음을 확인했으나, 같이 커밋된 생성 번들(`js/generated/logs.js`)에는 `formatLogBytes` 함수 정의가 없고 호출부만 미해석 외부 참조로 남아있어 런타임에 크래시가 나는 것을 발견. 같은 소스로 `npm install && node build.mjs`를 직접 실행해 재현 -- 재생성된 번들에서는 문제가 사라지고(`formatLogBytes` 리터럴이 정상적으로 0회로 축약됨), `node --test` 737/737 통과. 변경 diff는 `js/generated/logs.js`와 `generated/asset-manifest.json`(해시 한 줄) 2개 파일로 한정됨을 확인.
+직전 devnotes 커밋(`0b0d322`, "bundle-not-rebuilt root cause + rebuild fix")의 실제 파일 내용이 세션 마지막에 전달된 최종 devnotes 스크립트와 다르다는 것을 재확인 절차 중 발견(핵심 발견 31 참고). carrot-ryu 코드는 최종본대로 정상 push/검증됐음을 커밋 메시지 전문 비교 + sha256 비교로 재확인했고, devnotes만 그보다 앞선 중간 초안 상태로 남아있었던 것으로 결론.
 
 완료:
-- 원인 확정 (FINDINGS.md 2026-09-16(45차) 항목, 핵심 발견 30 참고): 44차 세션이 소스는 고쳤지만 `npm install && node build.mjs`로 생성 번들을 재생성하는 단계를 건너뛴 채 예전 번들을 그대로 커밋함. 기기는 Node를 띄우지 않고 커밋된 번들을 그대로 서빙하는 구조라(레포 `.gitignore` 주석에 명시), 소스만 맞고 번들이 어긋나면 겉보기엔 정상 diff라도 실기기에서는 효과가 전혀 없음.
-- 반영 스크립트(`45cha_rebuild_bundle_carrot_ryu.ps1`) 작성: 기존처럼 Replace-Block 문자열 치환이 아니라, 사용자 PC에서 실제로 `git clone`(임시 폴더, `core.autocrlf=false`) 후 `npm install && node build.mjs`를 그 자리에서 실행하고, 변경된 생성 파일(`js/generated/`, `css/generated/`, `generated/asset-manifest.json`)만 골라 커밋/push하도록 작성. 빌드 후 `git status`로 예상 범위 밖의 변경이 섞이면 커밋 없이 중단(15절 강제 진행 금지). 109KB 넘는 압축 번들을 스크립트 문자열에 그대로 박아넣는 대신 빌드 과정 자체를 재현하는 방식을 택함.
-- devnotes 갱신: WIP.md 45차 신규 항목 prepend, FINDINGS.md 핵심 발견 30 append, 이 파일(HANDOFF.md)/CURRENT_STATUS.md 45차 기준 전체 교체.
+- carrot-ryu(코드) 최종 반영 상태 재검증: commit `99b49a1`의 커밋 메시지가 `45cha_apply_bundle_carrot_ryu.ps1`의 의도와 100% 일치, `js/generated/logs.js` sha256 `9236a383...` 일치, `formatLogBytes` 리터럴 0회 확인.
+- devnotes 재동기화: WIP.md/FINDINGS.md에 핵심 발견 31(정정 경위) 추가, 이 파일과 CURRENT_STATUS.md를 실제 최종 상태 기준으로 전체 교체.
+- shallow clone(`--depth 1`) 상태에서 `git show --stat`이 grafted root 취급되어 무관한 파일이 대량 나열되는 착시 현상을 확인하고 배제(핵심 발견 31 부수 발견).
 
-미완료 (다음 세션 이월):
-1. [최우선] `45cha_rebuild_bundle_carrot_ryu.ps1` 사용자 실행 확인 -- push 후 carrot-ryu에 `js/generated/logs.js`/`generated/asset-manifest.json`이 실제로 바뀌었는지 `git ls-remote`+commit patch로 재확인.
-2. [최우선, 1번 완료 후] 44차 미완료 항목 1~2번(사진 목록이 크래시 없이 렌더되는지, delete all videos가 사진까지 지우는지) 실기기 재검증 -- 이번 번들 재생성 전까지는 검증 자체가 불가능했던 항목.
+미완료 (다음 세션 이월, 44차/45차와 동일):
+1. [최우선] carrot-ryu HEAD(`99b49a1`)를 comma 실기기에 배포해 화면녹화 탭 사진 목록 렌더가 더 이상 `formatLogBytes is not defined`로 크래시하지 않는지 실기기 검증.
+2. [최우선, 1번과 함께] 44차 미완료 항목: 사진 목록이 크래시 없이 렌더되는지, delete all videos가 사진까지 지우는지 실기기 재검증.
 3. [이월, 44차] 녹화 버튼 깜빡임 실기기 재검증(녹화 중에만 실제로 깜빡이는지).
 4. [이월, 41차] 로그탭 새로고침 아이콘 실기기 검증.
 5. [이월] 37차 락 수정의 실제 동시성 재현 검증.
 6. [이월] 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 배지가 나타나는 구간에서).
 7. [이월] 28~30차 레이아웃 정밀 재검증.
 8. [이월] 실차 재검증(8~45차 코드 변경 전부, 12절 원칙).
-9. [이월] 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부(핵심 발견 16과 연결 -- 이번에 확인된 "소스-번들 불일치" 패턴이 그 미해결 이슈의 원인일 가능성도 재검토할 것).
+9. [이월] 실기기에서 직접 디버깅: 배포된 tools.js에 "web-gdrive-connect" 문자열 실제 존재 여부(핵심 발견 16과 연결).
 10. [이월] test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 + 대응 테스트 삭제/갱신.
 11. [이월] docs/carrot_web_upload.md 갱신(Drive 기준).
 12. [이월] carrot-ms 모델 셀렉터 코드 분석 착수. WIP_SYNC.md 40차 체크포인트 반영 확인 필요.
+13. [신규, 사용자 승인 필요] 핵심 발견 31의 재발 방지 제안(스크립트 파일명 버전 표시 규칙화) 채택 여부 결정.
 
-검증: `npm install && node build.mjs`를 GitHub HEAD(e2f35619) 소스에 대해 직접 실행해 재현 -- 변경 파일 정확히 2개(`js/generated/logs.js`, `generated/asset-manifest.json` 해시 1줄), `node --test tests/**/*.test.mjs` 737/737 통과. **실기기 검증은 스크립트 실행 후에만 가능하며 아직 미실시.**
+검증: 이 커밋 자체는 devnotes 텍스트 정정만 포함하며 코드 변경 없음. carrot-ryu 코드는 위 "완료" 항목의 sha256/테스트 재확인으로 검증됨. **실기기 검증은 여전히 미실시.**
 
 주의사항:
-- **소스 수정과 번들 재생성은 별개 단계다.** 앞으로 `js/`, `css/` 아래 소스를 고치는 모든 반영 스크립트는 반드시 그 자리에서 `npm install && node build.mjs`를 실행하고 생성 산출물 diff까지 커밋에 포함할 것(핵심 발견 30). 소스만 Replace-Block으로 고치고 번들은 스냅샷/미갱신 상태로 두면 안 됨.
-- 번들이 깨졌는지 판단하는 방법: 문제의 식별자(이번엔 `formatLogBytes`)가 압축된 번들 안에 원문 그대로 리터럴로 남아있으면 100% 번들링 실패 신호(정상이면 다른 로컬 함수들처럼 짧은 이름으로 축약돼 원문이 사라져야 함).
-- 이 스크립트는 사용자 PC에 Node.js/npm이 설치돼 있어야 동작한다(기존 "프론트엔드 빌드 시 npm run build 필요" 관례와 동일 전제).
+- **같은 세션에서 동일 대상 스크립트를 다시 만들 때는 파일명을 반드시 다르게 할 것**(예: `-v2`, `-final`). 이번처럼 구버전 로컬 파일이 재실행될 위험을 원천 차단(핵심 발견 31).
+- **`git clone --depth 1` 뒤 `git show --stat HEAD`로 "실제 변경 파일 목록"을 검증하지 말 것.** 부모 커밋이 없어 착시가 발생한다(핵심 발견 31 부수 발견). 검증 시에는 `--depth 5` 이상으로 clone하거나 `git show --stat <sha>^..<sha>`처럼 명시적으로 범위를 지정할 것.
+- devnotes 커밋이 push 로그상 "성공"으로 보여도, 파일명 충돌 등으로 의도한 스크립트가 아닌 다른 파일이 실행됐을 수 있으므로, 중요한 devnotes 반영 후에는 이번처럼 실제 파일 내용(WIP.md 최상단 등)을 스크립트 원본과 직접 대조할 것.
 
 다음 작업 후보:
-1. 45cha_rebuild_bundle_carrot_ryu.ps1 실행 확인(최우선)
+1. carrot-ryu HEAD(99b49a1) 실기기 배포 + 크래시 해소 확인(최우선)
 2. 44차 3건(사진목록 크래시/전체삭제 범위/녹화버튼 깜빡임) 실기기 재검증
 3. 41차 로그탭 새로고침 아이콘 실기기 검증
-4. WIP_SYNC.md 40차 체크포인트 반영 확인 + carrot-ms 신규 23건 중 모델 셀렉터 3건 cherry-pick 검토 착수
-5. 37차 락 수정 동시성 재현 검증
+4. 핵심 발견 31 재발 방지 제안 채택 여부 확인
+5. WIP_SYNC.md 40차 체크포인트 반영 확인 + carrot-ms 신규 23건 중 모델 셀렉터 3건 cherry-pick 검토 착수

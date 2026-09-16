@@ -2,11 +2,11 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `4f81ab7585847c71beb01ee8c5ee50d720f72b61` (42차: 온로드 원형 녹화 버튼) -- `git ls-remote` + commit patch로 43차 세션에서 직접 재확인. 41차(로그탭 새로고침 아이콘)와 42차(녹화 버튼)까지 모두 반영됨을 파일 내용으로도 재확인(index.html의 #logsRefreshButton, hud_renderer.py의 RecordButton 배선).
+- carrot-ryu HEAD: `99b49a113e48ddaeebf83074b04e42d417a88612` (45차 최종본: Linux sandbox 빌드로 `js/generated/logs.js` 전체교체 + asset-manifest 해시 1줄, `formatLogBytes is not defined` 크래시 원인인 미재생성 번들 수정) -- 커밋 메시지 전문 및 sha256(`9236a383...`) 비교로 45차-정정 세션에서 직접 재검증. 실기기 배포/검증은 아직 미실시.
 - carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
-- PROJECT_INSTRUCTIONS_carrot-ryu.md는 v2가 최신(v1 1~27차의 회차별 규칙을 절 번호(0~19) 그대로 유지한 채 정리/재구성, 상세 변경 사유는 이 파일 자체의 GitHub 커밋 메시지로 이전). 45차 세션에서 반영.
+- PROJECT_INSTRUCTIONS_carrot-ryu.md는 v2가 최신(v1 1~27차의 회차별 규칙을 절 번호(0~19) 그대로 유지한 채 정리/재구성, 상세 변경 사유는 이 파일 자체의 GitHub 커밋 메시지로 이전). 46차 세션에서 반영(commit `8f8209fe82de96acd2c5f7b90765aa3dc70d3012`) -- 직전 45차-정정 세션에서 "45차 세션에서 반영"으로 잘못 표기돼 있던 것을 커밋 메시지 대조로 정정.
 - **[31차]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 3가지 대안 제시, 결정 대기 상태로 세션 종료.
 - **[32차]** 31차 대안 중 (a) drive.file 스코프+폴더 자동생성 복귀가 커밋 c704371a로 반영됨을 확인(세션 기록 없이 반영된 것을 사후 diff로 정리). 실기기 연결 테스트는 아직 미실시.
 - **[33차]** 32차 HANDOFF 미완료 3번(ko.js 문구 버그)을 commit 789667f7로 수정. raw.githubusercontent.com 캐시 지연 현상 관찰(FINDINGS 33차).
@@ -24,6 +24,7 @@
 - **[45차 신규]** 사용자가 44차 스크립트 실행 후에도 사진 목록 크래시가 재현된다고 제보. carrot-ryu HEAD(e2f35619, 44차)를 직접 조회해 소스(screenshots.js)는 정확했지만 같이 커밋된 생성 번들(js/generated/logs.js)에 ormatLogBytes 함수 정의가 빠져 원문 그대로 미해석 참조로 남아있었음을 확인. 
 pm install && node build.mjs를 직접 실행해 재현하고, 변경 diff가 js/generated/logs.js/generated/asset-manifest.json 2개 파일로 한정됨을 확인(
 ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.ps1)는 문자열 치환이 아니라 사용자 PC에서 실제 빌드를 실행하는 방식으로 작성, 실행 대기. 상세: FINDINGS.md 2026-09-16(45차) 항목, 핵심 발견 30.
+- **[45차-정정]** 45차 devnotes(carrot-ryu-note commit `0b0d322`)가 실제로는 핵심 발견 30의 최종 결론(esbuild 플랫폼 비결정성 -> Linux sandbox 빌드) 이전, "사용자 PC 재빌드가 아직 실패하지 않았던" 중간 초안 내용으로 push됐던 것을 재확인 절차 중 발견. carrot-ryu 코드(commit `99b49a1`)는 커밋 메시지 전문/sha256 비교로 최종본대로 정상 반영/검증됐음을 확인, devnotes만 중간 초안 상태였던 것으로 결론(핵심 발견 31). 원인은 한 세션 내 동일 파일명(`45cha_devnotes_carrot_ryu_note.ps1`) 스크립트 재전달로 인한 사용자 PC 측 파일명 충돌 가능성이 유력(직접 재현은 못 함). 부수적으로 `git clone --depth 1` + `git show --stat`이 grafted root 취급되어 무관한 파일이 대량 나열되는 착시도 확인/배제. 이 커밋으로 HANDOFF.md/CURRENT_STATUS.md를 실제 최종 상태로 재동기화.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -54,8 +55,7 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
 26. screenshots.js formatLogBytes import 누락 수정(44차, 커밋 해시는 반영 스크립트 실행 로그 참고) -- 사진 목록 렌더 크래시 근본수정, 반영 스크립트 실행 대기.
 27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- 스크린샷 폴더 미삭제 문제 수정, 반영 스크립트 실행 대기.
 28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- 녹화 중 깜빡임 효과 추가, 반영 스크립트 실행 대기.
-29. js/generated/logs.js, generated/asset-manifest.json 번들 재생성(45차) -- 44차 소스 수정이 반영 안 된 채 커밋됐던 생성 번들을 
-pm install && node build.mjs로 다시 생성, GitHub 반영은 스크립트 실행 대기.
+29. js/generated/logs.js, generated/asset-manifest.json 번들 재생성(45차, commit `99b49a1`) -- 44차 소스 수정이 반영 안 된 채 커밋됐던 생성 번들을 Claude가 Linux sandbox에서 npm install && node build.mjs로 재생성, sha256/`node --test` 737/737로 검증 완료. GitHub 반영 확인됨(45차-정정 세션에서 커밋 메시지 전문 대조로 재검증). 실기기 검증은 아직 미실시.
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
@@ -140,5 +140,5 @@ pm install && node build.mjs를 직접 실행해 재현/해결, 변경 diff는 j
 ode --test 737/737 통과 확인. 앞으로 js/css 소스 변경 시 생성 산출물까지 diff로 함께 확인/커밋할 것. 상세: FINDINGS.md 2026-09-16(45차) 항목.
 
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: 45차 반영 스크립트 실행 확인(최우선) + 44차 3건(사진목록/전체삭제/녹화버튼 깜빡임) 실기기 재검증 + 3건(사진목록/전체삭제/녹화버튼 깜빡임) 실기기 재검증, 41차 로그탭 새로고침 아이콘 실기기 검증, 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 28건 전부 실주행 재검증, carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고)
+- 다음 작업: carrot-ryu HEAD(99b49a1) 실기기 배포/검증(최우선) + 44차 3건(사진목록/전체삭제/녹화버튼 깜빡임) 실기기 재검증, 41차 로그탭 새로고침 아이콘 실기기 검증, 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 29건 전부 실주행 재검증, carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고), 핵심 발견 31 재발 방지 제안(스크립트 파일명 버전 표시 규칙화) 채택 여부 확인
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM

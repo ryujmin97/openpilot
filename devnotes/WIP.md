@@ -1,3 +1,21 @@
+# WIP
+
+## 핵심 발견 31 (45차-정정) -- carrot-ryu-note에 반영된 45차 devnotes가 최종본이 아닌 중간 초안이었음 (코드는 최종본대로 정상 반영/검증됨)
+
+바로 아래 "45차" WIP 항목(및 FINDINGS/HANDOFF의 45차 기록)은 실제로 이번 세션에서 push된 것이 맞지만, Linux sandbox 재빌드로 전환하기 *이전* 단계 -- 즉 사용자 PC에서 `npm install && node build.mjs`를 직접 실행하려던 1차 시도(`45cha_rebuild_bundle_carrot_ryu.ps1`, 예상 밖 diff ~25개 파일로 안전 중단됨) 시점 기준의 중간 초안 내용이다.
+
+실제로는 그 이후 Linux sandbox 빌드로 전환한 최종 스크립트(`45cha_apply_bundle_carrot_ryu.ps1`)가 별도로 만들어져 carrot-ryu에 정상 push/검증까지 완료됐다(commit `99b49a113e48ddaeebf83074b04e42d417a88612`, `js/generated/logs.js` sha256 `9236a3838ecae5b81ef147c03a3b26f87ff1e15d738a159b4905b530acc49cbd` 일치, `node --test` 737/737 통과, 커밋 메시지에 CRLF/npm allow-scripts 가설 기각 및 esbuild 플랫폼 비결정성 결론까지 정확히 기록됨).
+
+문제는 같은 세션에서 devnotes 반영용으로 준비했던 최종 스크립트(파일명 `45cha_devnotes_carrot_ryu_note.ps1`)가 아니라, 그보다 먼저 만들어졌던 동일 파일명의 중간 초안이 사용자 PC에서 실행되어 push됐다는 점이다. 두 버전의 커밋 메시지("bundle-not-rebuilt root cause + rebuild fix" vs 최종본의 "carrotweb 번들 재빌드 크로스플랫폼 비결정성 진단/우회 기록")와 HANDOFF.md Worker 라인이 서로 완전히 다름을 직접 바이트 비교로 확인했다.
+
+원인 추정(직접 재현은 못 함): 한 세션 안에서 devnotes 스크립트를 같은 파일명으로 두 번(중간 초안 -> 최종본) 전달했고, 사용자 PC의 Downloads 폴더에 이미 이전 버전이 남아있어 최종본이 다른 이름으로 저장됐거나, 재실행 시 이전 로컬 파일이 그대로 실행됐을 가능성이 높다.
+
+부가 확인: 검증 과정에서 `git clone --depth 1` 뒤 `git show --stat HEAD`를 실행하면 부모 커밋이 로컬에 없어 빈 트리 대비 diff로 처리되어(grafted root 취급) devnotes 폴더의 무관한 파일들까지 대량으로 나열되는 착시가 있었다 -- 이는 실제 이상 징후가 아니라 shallow clone의 부작용이며, `--depth 5` 이상(부모 포함)으로 다시 확인해 배제했다.
+
+재발 방지 제안(승인 시 지침 문서에 규칙으로 추가 검토): 한 세션 안에서 같은 대상에 대해 스크립트를 다시 만들 때는 파일명에 버전 표시(-v2, -final 등)를 붙여 Downloads 폴더의 이전 로컬 파일과 절대 겹치지 않게 한다.
+
+부가 수정: 이번 검증 중 WIP.md 파일 맨 앞에 있어야 할 "# WIP" 타이틀 헤더가 실제로는 없는 상태임을 발견(FINDINGS.md는 "# FINDINGS" 헤더가 정상적으로 파일 맨 앞에 있는 것과 대조됨 -- 언제부터 이랬는지는 확인 못 함, 과거 어느 세션의 스크립트가 anchor 매칭에 실패한 채로 다른 위치에 텍스트를 삽입했을 가능성). 과거 devnotes 반영 스크립트들이 "# WIP`n`n" 앵커로 매칭했던 것은 사실 파일 맨 앞이 아니라 본문 중 이 앵커 기법 자체를 설명하는 텍스트(과거 세션 기록) 안의 우연한 일치였을 가능성이 있음 -- 다만 그 경우에도 매치 수가 정확히 1이었으므로 항목이 엉뚱한 위치에 삽입되지는 않았을 것으로 추정(직접 재현 확인은 못 함). 이 커밋에서 "# WIP" 헤더를 파일 맨 앞에 복원함.
+
 ## 45차 -- 44차 소스 수정은 맞았으나 생성 번들(js/generated/logs.js)이 재생성되지 않아 크래시가 실기기에 그대로 남아있던 문제 발견/수정
 
 사용자가 44차 스크립트 실행 후에도 실기기에서 `formatLogBytes is not defined`가 그대로 재현된다고 제보. GitHub의 carrot-ryu HEAD(commit e2f35619, 44차)를 직접 조회해 보니 `screenshots.js` 소스에는 `formatLogBytes` import가 정상적으로 추가돼 있었지만, 같이 커밋된 `js/generated/logs.js` 번들 안에는 `formatLogBytes` 함수 정의가 없고 호출부만 미해석 외부 참조로 그대로 남아있음을 확인(esbuild가 번들링/이름축약을 못 하고 원문 그대로 남겨둔 상태 -- 정상적으로 번들되면 다른 로컬 함수들처럼 짧은 이름으로 축약되어 원문에 `formatLogBytes` 리터럴이 아예 남지 않아야 함). 즉 44차 세션이 소스 파일은 정확히 고쳤지만, 그 위에서 `npm install && node build.mjs`를 실행해 생성 번들을 다시 만드는 단계를 건너뛴 채 예전(깨진) 번들 그대로 커밋한 것이 원인.

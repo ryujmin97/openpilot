@@ -1,5 +1,21 @@
 # FINDINGS
 
+## 2026-09-16 (45차-정정) -- carrot-ryu-note 45차 devnotes가 중간 초안 상태로 push됨(코드는 최종본대로 정상): 원인, 검증 방법, 재발 방지
+
+**증상**: carrot-ryu-note commit `0b0d32247d452393b3484381d2b95e86ef7ee64e`("45cha devnotes: bundle-not-rebuilt root cause + rebuild fix")의 실제 파일 내용(WIP.md 최상단, HANDOFF.md Worker 라인, 커밋 메시지)이 세션 마지막에 전달된 최종 `45cha_devnotes_carrot_ryu_note.ps1` 스크립트의 내용과 전혀 다름을 재확인 과정에서 발견.
+
+**검증 방법**: (1) 업로드된 두 스크립트(`45cha_apply_bundle_carrot_ryu.ps1`, `45cha_devnotes_carrot_ryu_note.ps1`)에서 커밋 메시지/Worker 라인/WIP 본문 텍스트를 grep으로 추출. (2) `git clone --depth 5 --branch carrot-ryu`와 `--branch carrot-ryu-note`로 각각 fresh clone 후 `git log -1 --format=%B`, `head devnotes/WIP.md`, `head devnotes/HANDOFF.md`로 실제 커밋 내용을 바이트 단위로 비교.
+
+**결과**: carrot-ryu(코드) 쪽은 커밋 메시지 전문이 `45cha_apply_bundle_carrot_ryu.ps1`의 `$commitMsg`와 100% 일치, `js/generated/logs.js` sha256도 스크립트가 기대한 값과 일치 -- **코드는 최종본대로 정상 반영/검증됨**. 반면 carrot-ryu-note(devnotes) 쪽은 최종 `45cha_devnotes_carrot_ryu_note.ps1`의 `$commitMsg`("carrotweb 번들 재빌드 크로스플랫폼 비결정성 진단/우회 기록")나 `$WipEntry`("핵심 발견 30 (45차) -- carrotweb 생성 번들 재빌드는...")와 전혀 다른, 그보다 앞선 중간 단계(1차 시도가 아직 실패하지 않았던 시점 -- "반영 스크립트 작성 완료, 실행 대기" 문구가 남아있는 등)의 텍스트가 커밋돼 있음을 확인.
+
+**원인 추정**: 같은 세션 안에서 파일명이 동일한(`45cha_devnotes_carrot_ryu_note.ps1`) devnotes 스크립트가 두 차례(중간 초안 -> 최종본) 만들어졌고, 사용자 PC Downloads 폴더의 파일명 충돌(구버전이 남아있거나 최종본이 `(1)` 등으로 다르게 저장)로 사용자가 실행한 파일이 최종본이 아닌 구버전이었을 가능성이 가장 높음. 직접 재현/확정은 못 함(사용자 PC 로컬 상태를 조회할 수단 없음).
+
+**부수 발견 (착시 배제)**: `git clone --depth 1` 후 `git show --stat HEAD`를 돌리면 부모 커밋이 로컬에 없어 해당 커밋이 grafted root(부모 없는 최초 커밋)로 취급되고, diff가 빈 트리 대비로 계산되어 devnotes 폴더의 관련 없는 파일(PARAMS_REGISTRY.md, PROJECT_INSTRUCTIONS_carrot-ryu.md, params_backup json 등)까지 전부 "추가"로 나열됨. 세션 중 이를 "예상 밖 파일(LAST_ANALYZED.md)이 커밋에 섞였다"는 이상 징후로 오인할 뻔했으나, `--depth 5`(부모 포함) clone으로 재확인해 실제 diff는 딱 4개 파일(WIP/FINDINGS/HANDOFF/CURRENT_STATUS.md)이었음을 확인, 착시로 결론.
+
+**대응**: 이 커밋(45차-정정)으로 WIP.md/FINDINGS.md에 이 사실을 기록하는 항목을 최상단에 추가(기존 45차 항목은 audit trail 보존을 위해 수정하지 않고 그대로 둠)하고, HANDOFF.md/CURRENT_STATUS.md는 실제 최종 상태(코드 push 완료/검증됨, 실기기 검증은 아직 미실시)로 전체 교체함.
+
+**재발 방지 제안**: 한 세션 안에서 같은 대상(코드/devnotes)에 대해 스크립트를 다시 작성할 때는 파일명에 버전 표시를 붙여(예: `-v2`, `-final`) 이전 로컬 파일과 절대 겹치지 않게 한다. 사용자 승인 시 지침 문서(9절/18절 인근)에 정식 규칙으로 추가 검토.
+
 ## 2026-09-16 (44차) -- 사진 목록 렌더 크래시(formatLogBytes 미import) / delete_all_videos 폴더 범위 누락 / 녹화 버튼 깜빡임 부재, 원인 확정 및 수정
 
 ### 증상 1: 화면녹화 탭에서 파일 체크박스 선택 시 `formatLogBytes is not defined` 토스트
