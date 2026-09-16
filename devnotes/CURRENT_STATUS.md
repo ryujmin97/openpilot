@@ -25,6 +25,7 @@
 pm install && node build.mjs를 직접 실행해 재현하고, 변경 diff가 js/generated/logs.js/generated/asset-manifest.json 2개 파일로 한정됨을 확인(
 ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.ps1)는 문자열 치환이 아니라 사용자 PC에서 실제 빌드를 실행하는 방식으로 작성, 실행 대기. 상세: FINDINGS.md 2026-09-16(45차) 항목, 핵심 발견 30.
 - **[45차-정정]** 45차 devnotes(carrot-ryu-note commit `0b0d322`)가 실제로는 핵심 발견 30의 최종 결론(esbuild 플랫폼 비결정성 -> Linux sandbox 빌드) 이전, "사용자 PC 재빌드가 아직 실패하지 않았던" 중간 초안 내용으로 push됐던 것을 재확인 절차 중 발견. carrot-ryu 코드(commit `99b49a1`)는 커밋 메시지 전문/sha256 비교로 최종본대로 정상 반영/검증됐음을 확인, devnotes만 중간 초안 상태였던 것으로 결론(핵심 발견 31). 원인은 한 세션 내 동일 파일명(`45cha_devnotes_carrot_ryu_note.ps1`) 스크립트 재전달로 인한 사용자 PC 측 파일명 충돌 가능성이 유력(직접 재현은 못 함). 부수적으로 `git clone --depth 1` + `git show --stat`이 grafted root 취급되어 무관한 파일이 대량 나열되는 착시도 확인/배제. 이 커밋으로 HANDOFF.md/CURRENT_STATUS.md를 실제 최종 상태로 재동기화.
+- **[46차]** 사용자가 제공한 실기기 스크린샷 2장(도구 탭 git pull/reboot 로그, 로그 탭 사진목록)과 실기기 촬영 영상 1개(20260916-095343.mp4)로 직전 HANDOFF "최우선" 이월 1~4번을 전부 실기기 검증 완료: (1) carrot-ryu HEAD(99b49a1) 실기기 배포/재부팅 확인, (2) 사진 목록 크래시 해소 확인, (3) delete_all_videos 스크린샷 포함 삭제 확인, (4) 로그탭 새로고침 목록 갱신 확인. 추가로 녹화 버튼 깜빡임을 영상 프레임 정량 분석(6fps, 버튼 영역 평균 RGB)으로 실증(핵심 발견 32). 코드 변경 없음, devnotes만 갱신. 상세: HANDOFF.md 46차 참고.
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
@@ -48,14 +49,14 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
 19. 경로안내 박스 도착 텍스트 크기(40->32)/도로명 위치(박스 안쪽, 신호과속과 같은 줄) 수정(34차, commit 9fdefb3d) -- GitHub 반영 확인됨(commit diff + raw 재조회 + py_compile). 38차 실기기 검증: 도착 텍스트 겹침 해소는 확인됨, 도로명-신호과속 같은 줄 배치는 신호과속 배지 미출현 구간이라 판단 보류(재검증 필요).
 20. 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정(36차, commit 0835b059) -- GitHub 반영 확인됨(push 로그). 38차 실기기 검증: 당근서버 라벨 수정과 햄버거 메뉴 탭 분기는 확인됨, 업로드 UI(체크박스/전체선택 등) 자체 동작은 녹화본 부재로 미확인.
 21. gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정(37차, 커밋 해시는 스크립트 실행 로그의 git push 출력 참고) -- 반영 여부 GitHub API/commit diff로 재확인 완료, 목 테스트로 검증. 38차 실기기 검증: Drive 폴더 1개만 생성됨을 확인했으나 시간 간격이 있는 업로드라 동시성 레이스의 직접 재현은 아님(정황상 일치 수준).
-22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- GitHub 반영 확인됨. 경로안내 박스 여백은 40차 계속에서 실기기 검증 완료(스크린샷). 사진 업로드 UI 자체 동작은 여전히 실기기 검증 대기.
+22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- GitHub 반영 확인됨. 경로안내 박스 여백은 40차 계속에서 실기기 검증 완료(스크린샷). 46차 실기기 검증: 사진 목록 렌더/체크박스 표시/새로고침 갱신은 확인됨. "선택 다운로드"/"선택 전송" 버튼을 실제로 눌렀을 때의 동작(파일 전송 성공 여부 등)은 여전히 미확인.
 23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- GitHub 반영 확인됨(`git ls-remote` + commit patch). 39차 사진 업로드 UI 크래시의 실제 원인 수정, 실기기 검증(에러 해소 여부)은 다음 세션 이월.
-24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- GitHub 반영 확인됨(43차, `git ls-remote` + commit patch + index.html 파일 내용 직접 재조회). 실기기 검증 대기.
-25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- GitHub 반영 확인됨(43차, 동일 방식). 실기기 검증 대기(버튼 위치/점등·소등/실제 녹화 파일 생성).
-26. screenshots.js formatLogBytes import 누락 수정(44차, 커밋 해시는 반영 스크립트 실행 로그 참고) -- 사진 목록 렌더 크래시 근본수정, 반영 스크립트 실행 대기.
-27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- 스크린샷 폴더 미삭제 문제 수정, 반영 스크립트 실행 대기.
-28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- 녹화 중 깜빡임 효과 추가, 반영 스크립트 실행 대기.
-29. js/generated/logs.js, generated/asset-manifest.json 번들 재생성(45차, commit `99b49a1`) -- 44차 소스 수정이 반영 안 된 채 커밋됐던 생성 번들을 Claude가 Linux sandbox에서 npm install && node build.mjs로 재생성, sha256/`node --test` 737/737로 검증 완료. GitHub 반영 확인됨(45차-정정 세션에서 커밋 메시지 전문 대조로 재검증). 실기기 검증은 아직 미실시.
+24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- GitHub 반영 확인됨(43차, `git ls-remote` + commit patch + index.html 파일 내용 직접 재조회). 46차 실기기 검증 완료: 에러 없이 동작하고 목록이 실제로 갱신됨을 사용자가 확인함.
+25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- GitHub 반영 확인됨(43차, 동일 방식). 버튼 위치/점등·소등/실제 녹화 파일 생성은 이전 세션(42차 스크린샷)에서 확인됨. 깜빡임 효과(44차 3번, 아래 26~28번)는 46차에서 별도 확인.
+26. screenshots.js formatLogBytes import 누락 수정(44차) -- 사진 목록 렌더 크래시 근본수정. 46차 실기기 검증 완료: 사진 목록 정상 렌더 + 파일 크기("2.2 MB" 등) 정상 포맷 확인됨.
+27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- 스크린샷 폴더 미삭제 문제 수정. 46차 실기기 검증 완료: 전체 삭제 시 사진까지 함께 삭제됨을 사용자가 확인함.
+28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- 녹화 중 깜빡임 효과 추가. 46차 실기기 검증 완료: 실기기 촬영 영상을 6fps로 프레임 추출해 버튼 영역 평균 RGB를 측정, 밝음(R≈193)/어두움(R≈33) 상태가 프레임마다 규칙적으로 교대됨을 정량 확인(FINDINGS.md 2026-09-16(46차)).
+29. js/generated/logs.js, generated/asset-manifest.json 번들 재생성(45차, commit `99b49a1`) -- 44차 소스 수정이 반영 안 된 채 커밋됐던 생성 번들을 Claude가 Linux sandbox에서 npm install && node build.mjs로 재생성, sha256/`node --test` 737/737로 검증 완료. GitHub 반영 확인됨(45차-정정 세션에서 커밋 메시지 전문 대조로 재검증). **46차에서 실기기 배포까지 확인됨**: 도구 탭 로그에서 실제 `git pull`(`e2f356198..99b49a113`, Fast-forward) + `reboot` 실행을 확인, 이어서 크래시 해소(26번)까지 실증됨.
 
 ## 핵심 발견 1~8 (12차까지, 요약)
 1. 현대기아/제네시스 종방향 PID 게인 코드 고정(LongTuningKpV/KiV/Kf 무시)
@@ -140,5 +141,5 @@ pm install && node build.mjs를 직접 실행해 재현/해결, 변경 diff는 j
 ode --test 737/737 통과 확인. 앞으로 js/css 소스 변경 시 생성 산출물까지 diff로 함께 확인/커밋할 것. 상세: FINDINGS.md 2026-09-16(45차) 항목.
 
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
-- 다음 작업: carrot-ryu HEAD(99b49a1) 실기기 배포/검증(최우선) + 44차 3건(사진목록/전체삭제/녹화버튼 깜빡임) 실기기 재검증, 41차 로그탭 새로고침 아이콘 실기기 검증, 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 코드 수정 29건 전부 실주행 재검증, carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고), 핵심 발견 31 재발 방지 제안(스크립트 파일명 버전 표시 규칙화) 채택 여부 확인
+- 다음 작업: 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 46차까지 확인된 것을 제외한 나머지 코드 변경 전부 실주행 재검증, carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고), 핵심 발견 31 재발 방지 제안(스크립트 파일명 버전 표시 규칙화) 채택 여부 확인, WIP.md "# WIP" 헤더 중복 정리(낮은 우선순위)
 - 보류 확인 항목: TurnSpeedControlMode=2 / EnableSpeedTF=0 / LeadAccelResponse=0 / DisableDM=2 / LateralTorqueCustom=0 / AutoRoadSpeedLimitOffset / SpeedFromPCM
