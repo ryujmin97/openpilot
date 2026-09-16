@@ -1,5 +1,13 @@
 # WIP
 
+## 55차 (코드 완료, push 대기) -- 54차 render-texture 스크린샷의 상하반전 버그 원인 확정/수정
+
+- 사용자가 54차 render-texture 재사용 스크린샷 캡처를 실기기에서 테스트한 결과, 480p 다운스케일/PNG 저장은 정상이었으나 이미지가 상하반전으로 저장된다고 제보(스크린샷 첨부).
+- application.py 코드 조사로 원인 확정(추측 아님, 11절): 영상 녹화 경로(카메라/화면 인코딩 2곳)는 ffmpeg `-vf vflip`으로 OpenGL render texture의 아래->위 픽셀 순서를 이미 보정하고 있었으나, 54차가 스크린샷 캡처를 `rl.load_image_from_screen()`(보정 불필요)에서 `rl.load_image_from_texture()`(보정 필요)로 바꿀 때 이 vflip 보정을 옮겨오지 않았음.
+- `screenshot_capture.py`의 `save_screenshot_image()` 맨 앞에 `rl.image_flip_vertical(image)` 한 줄 추가(Replace-Block, anchor 1회 매치 확인). 다른 파일은 손대지 않음(10절).
+- 사용자가 Termux 환경임을 명시해 bash 스크립트로 전달(9절, 51차와 동일 패턴).
+- 실차 검증: 미실시(다음 세션 최우선 -- 상하반전 해소 여부만 확인하면 됨).
+
 ## 54차 (코드 완료, push 완료) -- render-texture 재사용 스크린샷 캡처 재설계 구현 + push/반영 검증, Windows python3 미탐지로 인한 py_compile 무출력 실패 진단/수정
 
 - 53차에서 합의된 설계를 그대로 구현. 반영 스크립트 작성 직전 carrot-ryu 최신 원본(HEAD `e4816edc`)을 다시 조회해 그 위에서 Replace-Block anchor를 구성(6절).
