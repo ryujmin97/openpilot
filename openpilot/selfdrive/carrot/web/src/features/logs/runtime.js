@@ -43,6 +43,7 @@ import {
   screenrecordShouldLoadMore,
   screenrecordState,
 } from "./screenrecord.js";
+import { loadScreenshots, openScreenshot } from "./screenshots.js";
 
 // Logs page — shared infra used by both the Dashcam and Screen Recording tabs.
 // Owns: tab state, scroll persistence, lazy-image observer, generic helpers,
@@ -758,9 +759,11 @@ function activateLogsTab(tab, options = {}) {
     if (logsActiveTab === "screen" && !screenrecordState.initialized) {
       screenrecordState.initialized = true;
       loadScreenrecordVideos().catch(() => {});
+      loadScreenshots().catch(() => {});
     } else if (logsActiveTab === "screen") {
       renderScreenrecordVideos();
       loadScreenrecordVideos({ silent: true }).catch(() => {});
+      loadScreenshots({ silent: true }).catch(() => {});
     } else if (dashcamState.initialized) {
       loadDashcamRoutes({ silent: true }).catch(() => {});
     }
@@ -935,6 +938,18 @@ function bindLogsPage() {
       }
     });
   }
+
+  const photosHost = document.getElementById("screenrecordPhotos");
+  if (photosHost && photosHost.dataset.bound !== "1") {
+    photosHost.dataset.bound = "1";
+    photosHost.addEventListener("click", (ev) => {
+      const actionEl = ev.target?.closest?.("[data-action]");
+      if (!actionEl) return;
+      if (actionEl.dataset.action === "view-screenshot") {
+        openScreenshot(actionEl.dataset.id || "");
+      }
+    });
+  }
 }
 
 function initLogsPage() {
@@ -947,9 +962,11 @@ function initLogsPage() {
     if (!screenrecordState.initialized) {
       screenrecordState.initialized = true;
       loadScreenrecordVideos().catch(() => {});
+      loadScreenshots().catch(() => {});
     } else {
       renderScreenrecordVideos({ preserve: true });
       loadScreenrecordVideos({ silent: true }).catch(() => {});
+      loadScreenshots({ silent: true }).catch(() => {});
     }
   } else if (!dashcamState.initialized) {
     dashcamState.initialized = true;

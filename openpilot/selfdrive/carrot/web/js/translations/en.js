@@ -1446,6 +1446,8 @@ window.CarrotTranslations.register("en", {
     screenrecord_empty_title: "No screen recordings",
     screenrecord_empty_desc: "Screen recording files will appear here after recording.",
     screenrecord_load_failed: "Failed to load screen recordings",
+    screenrecord_photos_title: "Photos",
+    screenrecord_photos_load_failed: "Failed to load photos",
     toggle_log_panel: "Expand or collapse log panel",
     git_reset_head_prompt: "Select reset mode based on HEAD.",
     disable_dm_inactive: "Available when DisableDM is 2.",

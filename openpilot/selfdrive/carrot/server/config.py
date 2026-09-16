@@ -58,6 +58,7 @@ SCREEN_RECORDING_DIRS = (
   "/sdcard/Movies",
 )
 SCREEN_RECORDING_EXTS = (".mp4", ".mkv", ".avi", ".mov", ".ts", ".hevc")
+SCREEN_RECORDING_PHOTO_EXTS = (".png", ".jpg", ".jpeg")
 
 # Discord webhook (obfuscated)
 DASHCAM_DEFAULT_DISCORD_WEBHOOK = (
