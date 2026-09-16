@@ -80,6 +80,30 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
   치환 결과 blob이 원본 13차 커밋의 결과 blob(`d7e8d7b6a5`)과 완전히 일치함을 diff로 확인(바이트
   단위 재현). 실차 검증: 미실시(git pull 금지 상태 유지 중).
 
+- **[65차]** carrot-ryu-v1 "코드 수정 현황" 항목 25(온로드 화면 원형 녹화버튼 추가, 42차
+4f81ab75 원본)를 새 베이스(`4e3b44a8`, 64차 위) 위에 재적용, commit `b152e192`로 push 완료.
+record_button.py 신규 추가(스크린샷 버튼 오른쪽에 배치, ScreenRecord 파라미터를 토글하는 원형
+녹화 버튼, 녹화 중엔 빨간 원 채움) + hud_renderer.py에 import/UIConfig 필드/__init__/_render/
+user_interacting 5곳 배선. ScreenRecord 파라미터는 params_keys.h에 이미 등록되어 있어 추가
+등록 불필요, put_bool_nonblocking(params_pyx.pyx)/gui_app.is_recording()(application.py)/
+Widget/set_click_callback 모두 새 베이스에 그대로 존재함을 확인. 원본 42차 커밋과 동일한
+diff임을 git ls-remote + commit diff로 재확인. 실차 검증: 미실시(git pull 금지 상태 유지 중).
+
+- **[66차]** carrot-ryu-v1 "코드 수정 현황" 항목 27+28(44차 e2f35619 커밋 일부)을 새
+베이스(`b152e192`, 65차 위) 위에 재적용, commit `0d511753`으로 push 완료. 44차 원본은
+사실 항목 26·27·28을 커밋 하나(e2f35619)로 묶어 반영했었으나, 그중 항목 26(screenshots.js의
+formatLogBytes import 수정)은 전제가 되는 screenshots.js 파일 자체(항목 11, 24차 작업물)가
+아직 새 베이스에 없어서(GitHub에서 404 확인) 이번엔 적용 불가, 파일 의존성이 없는 항목
+27+28만 먼저 반영: (27) dispatcher.py의 "전체 영상 삭제"가 하드코딩된
+/data/media/0/videos 한 곳만 지우던 것을 이미 존재하는 SCREEN_RECORDING_DIRS(영상+스크린샷
+폴더 전체) 기준으로 확장(비동기/동기 경로 두 곳 모두), (28) record_button.py 전체교체 +
+hud_renderer.py 1줄 -- 녹화 중 버튼이 계속 채워진 채로만 있던 것을 기존 _blink_timer(카메라감지/
+과열경고에 이미 쓰던 프레임 카운터)를 재사용해 채움/테두리를 번갈아 그리도록 깜빡임 추가.
+원본 44차 diff와 동일함을 git ls-remote + commit diff로 확인. 남은 항목 26(screenshots.js)은
+항목 11(24차, 화면녹화 탭 사진 스트립 신규 생성)과 항목 23(39cha-fix, formatRelativeEpoch
+import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md에 이 의존관계 기록 필요(다음
+세션 이월). 실차 검증: 미실시(git pull 금지 상태 유지 중).
+
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.
@@ -117,10 +141,18 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
 22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- GitHub 반영 확인됨. 경로안내 박스 여백은 40차 계속에서 실기기 검증 완료(스크린샷). 46차 실기기 검증: 사진 목록 렌더/체크박스 표시/새로고침 갱신은 확인됨. 48차 실기기 검증: "선택 전송" 버튼을 실제로 눌러 구글드라이브 CarrotWeb Logs 폴더에 해당 타임스탬프 mp4 파일이 실제로 업로드됨을 확인 -- 전송 성공까지 실증됨. "선택 다운로드" 버튼 동작은 여전히 미확인.
 23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- GitHub 반영 확인됨(`git ls-remote` + commit patch). 39차 사진 업로드 UI 크래시의 실제 원인 수정, 실기기 검증(에러 해소 여부)은 다음 세션 이월.
 24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- GitHub 반영 확인됨(43차, `git ls-remote` + commit patch + index.html 파일 내용 직접 재조회). 46차 실기기 검증 완료: 에러 없이 동작하고 목록이 실제로 갱신됨을 사용자가 확인함.
-25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- GitHub 반영 확인됨(43차, 동일 방식). 버튼 위치/점등·소등/실제 녹화 파일 생성은 이전 세션(42차 스크린샷)에서 확인됨. 깜빡임 효과(44차 3번, 아래 26~28번)는 46차에서 별도 확인.
-26. screenshots.js formatLogBytes import 누락 수정(44차) -- 사진 목록 렌더 크래시 근본수정. 46차 실기기 검증 완료: 사진 목록 정상 렌더 + 파일 크기("2.2 MB" 등) 정상 포맷 확인됨.
-27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- 스크린샷 폴더 미삭제 문제 수정. 46차 실기기 검증 완료: 전체 삭제 시 사진까지 함께 삭제됨을 사용자가 확인함.
-28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- 녹화 중 깜빡임 효과 추가. 46차 실기기 검증 완료: 실기기 촬영 영상을 6fps로 프레임 추출해 버튼 영역 평균 RGB를 측정, 밝음(R≈193)/어두움(R≈33) 상태가 프레임마다 규칙적으로 교대됨을 정량 확인(FINDINGS.md 2026-09-16(46차)).
+25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- [65차] 새 베이스(4e3b44a8) 위에
+    재반영 완료(commit `b152e192`, git ls-remote + commit diff로 확인). 42차 원본 그대로이며,
+    깜빡임 효과(44차 항목 28)는 [66차]에서 별도 재적용. 실차 검증: 미실시(git pull 금지 상태 유지 중).
+26. screenshots.js formatLogBytes import 누락 수정(44차) -- 사진 목록 렌더 크래시 근본수정. 61차
+    리셋 이후 아직 미반영: 전제가 되는 screenshots.js 자체(항목 11, 24차)가 새 베이스에 없어
+    [66차]에서 보류함(GitHub 404 확인). 항목 11·23(39cha-fix) 반영 후 이어서 처리 예정.
+27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- [66차] 새 베이스
+    (b152e192) 위에 재반영 완료(commit `0d511753`, git ls-remote + commit diff로 확인, 원본
+    44차 diff와 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).
+28. record_button.py에 set_blink_phase() 추가 + hud_renderer.py _blink_timer 배선(44차) -- [66차]
+    새 베이스(b152e192) 위에 재반영 완료(commit `0d511753`, git ls-remote + commit diff로 확인,
+    원본 44차 diff와 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).
 29. js/generated/logs.js, generated/asset-manifest.json 번들 재생성(45차, commit `99b49a1`) -- 44차 소스 수정이 반영 안 된 채 커밋됐던 생성 번들을 Claude가 Linux sandbox에서 npm install && node build.mjs로 재생성, sha256/`node --test` 737/737로 검증 완료. GitHub 반영 확인됨(45차-정정 세션에서 커밋 메시지 전문 대조로 재검증). **46차에서 실기기 배포까지 확인됨**: 도구 탭 로그에서 실제 `git pull`(`e2f356198..99b49a113`, Fast-forward) + `reboot` 실행을 확인, 이어서 크래시 해소(26번)까지 실증됨.
 30. screenshot_capture.py의 `rl.take_screenshot()` -> `rl.load_image_from_screen()` 교체 + 저장 포맷 PNG -> JPG 전환(47차, commit `41fd34a7`) -- DPI 스케일 버그로 인한 세로 뒤바뀜/과대 용량 수정. 48차에서 git ls-remote + commit API + raw 조회(SHA 고정)로 GitHub 반영 확인됨. 실차 검증(스크린샷 버튼을 실제로 눌러본 결과물 확인): 미실시.
 31. screenshot_capture.py/screenshot_button.py에 진단 로그(cloudlog.debug/warning/exception) 추가 + hud_renderer.py 스크린샷 버튼 위치를 화면 중앙에서 좌측 170px로 이동(49차, 반영 스크립트 실행 대기) -- 스크린샷 버튼 무반응/미저장 제보의 원인을 다음 실차 테스트에서 특정하기 위한 진단 단계. GitHub 반영 여부는 다음 세션에서 확인 필요. 실차 검증: 미실시.
