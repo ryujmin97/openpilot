@@ -222,6 +222,14 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
   없으니, 가능하면 `git -C <경로>`로 셸의 현재 위치 자체를 바꾸지 않는 편을 권장.
 - 대상 파일에 쓸 때는 `Set-Content -Encoding UTF8` 또는 BOM 없는 UTF-8(대상 파일
   자체는 BOM 없는 편이 `git diff`/`grep`과 호환에 유리)을 사용한다.
+- devnotes(`WIP.md`/`CURRENT_STATUS.md`/`HANDOFF.md` 등) 편집에 Python 스크립트를 사용할
+  때는 파일을 열 때 `open(path, ..., newline="")`을 지정해 원본 개행 문자(LF/CRLF)를
+  그대로 보존한다. Python 텍스트 모드 쓰기(`newline=None`, 기본값)는 Windows에서 `\n`을
+  `\r\n`으로 자동 변환하는데, 이는 git의 `core.autocrlf=false`(git clone 단계 설정)로는
+  막을 수 없는 별개의 변환이라, 원본과 다른 개행 스타일로 파일 전체가 바뀌거나 같은
+  브랜치 안 파일끼리 개행 스타일이 서로 달라질 수 있다(56차에서 실증: Python으로 쓴
+  `WIP.md`/`CURRENT_STATUS.md`는 CRLF로, `.NET WriteAllText`로 쓴 `HANDOFF.md`는 LF로
+  남아 서로 불일치했음).
 - 전달하는 `.ps1` 파일 자체에 한글 등 비ASCII 문자가 있으면 반드시 UTF-8 BOM을
   포함해 생성한다. Windows PowerShell 5.1은 BOM 없는 `.ps1`을 시스템 코드페이지
   (CP949 등)로 잘못 해석해, 대상 파일 인코딩 지정과 무관하게 스크립트 안 한글
