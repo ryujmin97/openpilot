@@ -53,6 +53,11 @@ def save_screenshot_image(image: rl.Image) -> str | None:
     if image.width <= 0 or image.height <= 0:
       cloudlog.warning(f"save_screenshot_image: invalid image {image.width}x{image.height}")
       return None
+    # 55cha: rl.load_image_from_texture() on a render texture returns pixel rows in
+    # OpenGL's bottom-up order. The video recording paths already correct this with
+    # ffmpeg's "vflip" filter (see application.py); this path never did the equivalent,
+    # so every render-texture-based screenshot (54cha onward) was saved upside down.
+    rl.image_flip_vertical(image)
     if image.height > MAX_SCREENSHOT_HEIGHT:
       target_width = max(1, round(image.width * MAX_SCREENSHOT_HEIGHT / image.height))
       rl.image_resize(image, target_width, MAX_SCREENSHOT_HEIGHT)
