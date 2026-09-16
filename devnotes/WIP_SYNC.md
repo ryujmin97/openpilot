@@ -1,7 +1,9 @@
 # WIP SYNC
 
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
-hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)## 체크포인트: 2026-09-17 (62차) -- 61차 코드 리셋(carrot-ryu=carrot-ms) 결과를 devnotes에 사후 동기화
+hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
+
+## 체크포인트: 2026-09-17 (62차) -- 61차 코드 리셋(carrot-ryu=carrot-ms) 결과를 devnotes에 사후 동기화
 
 - carrot-ryu HEAD: 706efb47b81cf9cb02888ee536a156d8f1fc1d91 (carrot-ms와 동일. 리셋 이전 HEAD 9ccf1206은 carrot-ryu-v1에만 보존)
 - 직전 61차 세션에서 20절 리셋(carrot-ryu를 carrot-ms 현재 HEAD로 force-push)을 실제로 실행·push까지 완료했으나, 뒤이어 준비하던 devnotes 61차 갱신 스크립트는 무료 사용량 소진으로 사용자에게 전달되지 못한 채 세션이 끊김.
