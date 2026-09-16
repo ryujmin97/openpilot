@@ -1028,6 +1028,13 @@ class HudRenderer(Widget):
     y = int(rect.y + 120)
 
     if show_datetime in (1, 2):
+      # [13차] font_size=100 8자(HH:MM:SS) 시계 텍스트를 center_bottom 정렬로
+      # 그리면 x=rect.x+170 기준 절반 폭이 왼쪽 화면 경계를 넘어가 좌측 첫
+      # 글자(시 10의 자리)가 잘리는 문제가 있어, 텍스트 실측 폭 기준으로
+      # 왼쪽 여백(UI_CONFIG.border_size)을 보장하도록 x를 보정한다.
+      time_size = measure_text_cached(self._font_display, self._date_time_text, 100)
+      min_x = int(rect.x + UI_CONFIG.border_size + time_size.x * 0.5)
+      x = max(x, min_x)
       draw_text_ui_style(
         self._date_time_text, x, y, 100, rl.WHITE,
         font=self._font_display,
