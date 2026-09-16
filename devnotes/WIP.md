@@ -1,5 +1,21 @@
 # WIP
 
+## 53차 (설계 논의만, 코드 변경 없음) -- 스크린샷 캡처 근본 재설계 방향 합의: 녹화 프레임 추출 로직 재사용
+
+- 세션 시작 시 지침 문서 4절 0단계 확인 후 체크포인트: `git ls-remote`로 carrot-ryu HEAD가 `e4816edc`(52차, 커밋 메시지 "52cha: move screenshot capture trigger to end of AugmentedRoadView frame..."로 확정)임을 확인 -- 사용자가 52차 반영 스크립트를 이미 실행해 push까지 완료했음이 실증됨. 바로 위 "52차 (코드 완료, push 대기)" 항목은 그 시점 기준 표기이며 7절 규칙상 수정하지 않고 그대로 둠 -- 실제로는 이미 push 완료 상태였고, devnotes(WIP/HANDOFF/CURRENT_STATUS) 갱신이 그 사이 세션 종료로 누락된 것(16절/핵심 발견 27과 동일 패턴). carrot-ryu-note HEAD(`57062bb1`)는 체크포인트 전후로 변화 없음(HANDOFF 본문 안의 "이전 base" 참조 텍스트를 현재 HEAD로 순간 오인했으나, 재확인 결과 착오였음을 세션 내에서 스스로 정정).
+- 52차 수정(캡처 호출을 AugmentedRoadView._render() 끝, `_draw_border_carrot()` 다음으로 이동) 이후에도 실기기에서 여전히 border 관련 HUD(차량명/시계/LD·LT·SR/laneless/git branch/IP)가 캡처에서 빠지는 문제가 계속된다는 전제로, 화면녹화(정상)와 스크린샷(계속 실패)의 구조적 차이를 `application.py` 코드로 직접 대조:
+  - 녹화 중에는 위젯 트리 전체를 화면에 직접 그리지 않고 오프스크린 render texture에 그린 뒤(`begin_texture_mode()`~`end_texture_mode()`), `end_texture_mode()` 호출 뒤(그 프레임의 모든 내용이 텍스처에 확실히 다 쓰인 시점)에 `rl.load_image_from_texture()`로 읽는다 -- 순서가 구조적으로 보장됨.
+  - 스크린샷은 녹화 중이 아닐 때 render texture 자체가 없는 상태에서, 위젯 렌더 콜백 한가운데(51·52차가 호출 위치를 옮겨도 여전히 프레임이 완성되기 전)에 `rl.load_image_from_screen()`으로 화면을 직접 읽어 raylib 배치 플러시 타이밍에 구조적으로 취약함.
+- 해결 방향으로 "스크린샷 버튼을 누르면 녹화 로직으로 딱 1프레임만 떠서 이미지로 저장"(사용자 제안, 가장 실질적인 구현)에 합의. 구체 설계:
+  1. `GuiApplication`에 스크린샷 pending 플래그(예: `request_screenshot()`) 추가.
+  2. 렌더 루프 시작 시, pending 스크린샷이 있고 현재 녹화 중이 아니어서 `self._render_texture`가 없으면, 기존 `_ensure_render_texture_for_recording()`과 같은 패턴으로 그 프레임만 임시 render texture 생성 -- 자동으로 녹화와 동일한 `begin_texture_mode()` 경로를 타게 됨.
+  3. `end_texture_mode()` 직후(녹화가 프레임을 추출하는 지점과 정확히 동일한 위치)에서 pending 스크린샷이 있으면 `rl.load_image_from_texture()`로 해당 프레임을 가져와, 기존 `screenshot_capture.py`의 480p 다운스케일+`export_image` 로직을 그대로 재사용해 저장.
+  4. 이미 녹화 중일 때 스크린샷 버튼을 누른 경우는 별도 텍스처 생성 없이 같은 프레임을 한 번 더 추출.
+  5. 스크린샷 때문에 임시로 만든 render texture는, 녹화 중이 아니라면 캡처 직후(다음 프레임 시작 전) `unload_render_texture()`로 정리 -- 평소엔 화면에 직접 그리는 기존 경로 유지, 스크린샷 순간에만 텍스처 경로로 잠깐 전환.
+- 이 설계는 51·52차보다 범위가 넓어(공통 파일 `application.py` 포함) 사용자에게 진행 여부를 물었고, 사용자가 다음 세션에 구현하기로 결정 -- 이번 세션은 코드 변경 없이 설계 합의까지만 진행. 51·52차가 수정한 `augmented_road_view.py`의 캡처 호출부는 다음 세션 구현 시 되돌릴 예정.
+- 실차 검증: 미실시(코드 변경 자체가 없었음).
+
+
 ## 52차 (코드 완료, push 대기) -- 스크린샷에서 여전히 빠지는 HUD(차량명/디버그/laneless/IP 등) 원인 확정 + 수정
 
 사용자가 51차 반영 후 실기기 사진 2장(스크린샷 결과물 1장, 실기기 직접 촬영 1장)을 제공하며 처음엔 "오른쪽 HUD가 안 나온다"고 했다가 "오른쪽이 아니라 화면 전체가 다 안 나온다"고 정정.
