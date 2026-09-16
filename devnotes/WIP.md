@@ -1,5 +1,16 @@
 # WIP
 
+## 52차 (코드 완료, push 대기) -- 스크린샷에서 여전히 빠지는 HUD(차량명/디버그/laneless/IP 등) 원인 확정 + 수정
+
+사용자가 51차 반영 후 실기기 사진 2장(스크린샷 결과물 1장, 실기기 직접 촬영 1장)을 제공하며 처음엔 "오른쪽 HUD가 안 나온다"고 했다가 "오른쪽이 아니라 화면 전체가 다 안 나온다"고 정정.
+
+- 두 사진을 비교: 스크린샷에는 hud_renderer.py가 그리는 CPU/MEM/VOLT 박스, 우측 "교차로" 경로안내 박스, 플롯 디버그(1.Accel...)는 정상 포함돼 있었으나, 차량명("HYUNDAI_GENESIS(CAMERA SCC)"), 좌상단 시계, 우상단 LD/LT/SR 디버그, 하단 laneless 상태 텍스트, git branch, IP 주소는 전부 빠져 있음을 확인.
+- 코드 조사(augmented_road_view.py)로 원인 확정: AugmentedRoadView._render()가 self._hud_renderer.render(rect)를 먼저 호출하고, 그 다음에 alert_renderer.render(), driver_state_renderer.render(), 마지막으로 self._draw_border_carrot(rect)(차량명/LD·LT·SR/laneless/git branch/IP 텍스트를 실제로 그리는 곳)를 호출함. 51차는 HudRenderer *내부*의 그리기 순서만 고쳤을 뿐, 캡처 호출(consume_pending_capture → capture_onroad_screenshot) 자체가 여전히 hud_renderer.render() 안에 있어서, 이 호출 시점엔 border 텍스트와 alert/driver-state 오버레이가 아직 그려지기 전이었음(11절: 코드로 확정, 추측 아님).
+- 수정: capture_onroad_screenshot() 호출을 HudRenderer._render() 밖으로 빼서 AugmentedRoadView._render()의 맨 끝(self._draw_border_carrot(rect) 다음)으로 옮김. HudRenderer는 대기 플래그를 소비만 하는 공개 메서드 consume_pending_screenshot_capture()를 새로 노출.
+- 수정 파일 3개: hud_renderer.py(캡처 호출 제거 + 공개 메서드 추가 + import 정리), augmented_road_view.py(import 추가 + 프레임 끝 캡처 호출 추가), screenshot_button.py(클래스 docstring을 새 구조에 맞게 갱신, 18절).
+- 실제 GitHub 최신 코드(git clone)로 anchor 5곳 모두 정확히 1회 매치 확인 후 교체, py_compile 통과 확인(6절: 스크립트 작성 직전 최신 원본 기준으로 구성).
+- 실차 검증: 미실시. 다음 세션 최우선 -- 차량명/시계/LD·LT·SR/laneless/IP가 이번에는 전부 캡처에 포함되는지 확인.
+
 ## 51차 (코드 완료, push 대기) -- 스크린샷 캡처 타이밍 버그(시계/온도 HUD 누락) 수정 + 480p 다운스케일
 
 사용자가 50차 PNG 롤백 실차 결과 사진 2장(HUD 없는 순수 배경 스크린샷 1장, carrotweb 로그탭에 파일이 실제로 잡힌 화면 1장)을 제공하며 "캡쳐는 되는데 시간/온도 UI가 안 나온다, 480p로 낮춰달라, Termux로 달라"고 요청.
