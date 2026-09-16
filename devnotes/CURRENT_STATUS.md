@@ -2,8 +2,8 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `99b49a113e48ddaeebf83074b04e42d417a88612` (45차 최종본: Linux sandbox 빌드로 `js/generated/logs.js` 전체교체 + asset-manifest 해시 1줄, `formatLogBytes is not defined` 크래시 원인인 미재생성 번들 수정) -- 커밋 메시지 전문 및 sha256(`9236a383...`) 비교로 45차-정정 세션에서 직접 재검증. 실기기 배포/검증은 아직 미실시.
-- carrot-ryu HEAD 근처에 "token test"라는 내용 없는 빈 커밋(2c33603, 10차 위)이 있음(사용자의 git 인증 테스트로 추정, 코드/devnotes 영향 없음)
+- carrot-ryu HEAD: `706efb47b81cf9cb02888ee536a156d8f1fc1d91` (61차, 20절 리셋 실행: carrot-ms 현재 HEAD를 그대로 force-push로 반영. 이 시점부터 지금까지의 커스텀 코드(아래 "코드 수정 현황" 1~36번)가 carrot-ryu에 전혀 없는 상태 -- carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에만 보존됨. git ls-remote로 직접 재확인 완료(62차). 실기기 배포/검증은 미실시(현재 상태를 디바이스가 pull하면 기존 기능이 모두 사라짐, git pull 금지).
+- 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
 - PROJECT_INSTRUCTIONS_carrot-ryu.md는 v2가 최신(v1 1~27차의 회차별 규칙을 절 번호(0~19) 그대로 유지한 채 정리/재구성, 상세 변경 사유는 이 파일 자체의 GitHub 커밋 메시지로 이전). 46차 세션에서 반영(commit `8f8209fe82de96acd2c5f7b90765aa3dc70d3012`) -- 직전 45차-정정 세션에서 "45차 세션에서 반영"으로 잘못 표기돼 있던 것을 커밋 메시지 대조로 정정.
@@ -55,8 +55,22 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
   히어스트링 종료 처리 오류로 추정). HANDOFF.md 안에 남아있던 원문을 바이트 단위로 정확히
   추출해 내용 손실 없이 복구, HANDOFF.md/WIP_SYNC.md를 각각 정상 상태로 재작성(코드 변경
   없음, 반영 스크립트 실행 대기). 20절 리셋 착수 여부는 이번 세션에서 재확정 안 됨.
+- **[61차, 20절 실제 리셋 실행]** 사용자 승인으로 carrot-ryu를 carrot-ms 현재 HEAD(`706efb47`)로
+  재생성(force-push). carrot-ryu-v1(`9ccf1206`)은 변경 없이 보존. 이 시점부터 carrot-ryu에는
+  커스텀 코드가 전혀 없으며, devnotes 61차 갱신은 무료 사용량 소진으로 다음 세션으로 이월됨.
+- **[62차, devnotes 사후 동기화]** 세션 시작 재확인 중 코드 브랜치(이미 706efb47로 리셋됨)와
+  devnotes(여전히 60차 상태)가 서로 다른 시점을 가리키는 것을 16절 원칙대로 발견, 사용자 확인
+  후 devnotes 네 파일을 실제 코드 상태에 맞춰 사후 동기화(코드 변경 없음). 다음 세션부터 v1의
+  "코드 수정 현황" 36개 항목을 서브시스템 단위로 하나씩 재적용 예정(20절 5번, 17절).
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
+
+> **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.
+> carrot-ryu가 carrot-ms 현재 베이스(706efb47)로 통째로 교체되면서, 아래 각 항목은 리셋 시점
+> 기준 전부 carrot-ryu에 반영되어 있지 않다(carrot-ryu-v1에만 과거 상태로 보존). 각 항목이
+> 새 베이스 위에 실제로 재적용될 때마다 그 세션에서 해당 줄을 "재반영 완료(commit ...)"로
+> 개별 갱신할 것 -- 아래 "GitHub 반영됨" 표기는 61차 리셋 이전 carrot-ryu 기준 과거 기록이다.
+
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
 2. RES/+ 인게이지 속도 안전장치(10차, e1e587b) -- GitHub 반영됨
 3. 온로드 시계 초단위 표시 + 스크린샷 버튼(12차, 684b30d) -- GitHub 반영됨
