@@ -3,6 +3,19 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-17 (63차) -- 20절 이식 항목 3(12차 원본: 시계 초단위+스크린샷 버튼) 재적용
+
+- carrot-ryu HEAD: 429f105e16853b5230d7eb7a082de2b817a3d8e9 (62차 706efb47 위에 12차 원본
+  재적용 커밋 1개 추가)
+- 62차에서 이식 대상으로 확정된 "코드 수정 현황" 항목 3(12차, 684b30d 기준)을 새 베이스 위에
+  재적용, commit 429f105e로 push 완료. 착수 스크립트가 CRLF/LF 불일치로 한 차례 중단됐다가
+  원인(저장소 루트 .gitattributes의 "* text=auto") 확정 후 Replace-Block에 CRLF->LF 정규화를
+  추가해 재시도, 성공적으로 반영됨.
+- git ls-remote + commit diff로 반영 내용이 의도한 3개 파일(hud_renderer.py 7곳, 신규 파일 2개)과
+  정확히 일치함을 확인.
+- 12차 "원본" 그대로이며, 이후 세션들에서 누적된 스크린샷 관련 후속 수정(항목 25·26~28·30~36번)은
+  아직 미반영. 다음 확인 시점: 이 항목들을 언제/어떤 순서로 이어서 반영할지 다음 세션에서 결정.
+
 ## 체크포인트: 2026-09-17 (62차) -- 61차 코드 리셋(carrot-ryu=carrot-ms) 결과를 devnotes에 사후 동기화
 
 - carrot-ryu HEAD: 706efb47b81cf9cb02888ee536a156d8f1fc1d91 (carrot-ms와 동일. 리셋 이전 HEAD 9ccf1206은 carrot-ryu-v1에만 보존)

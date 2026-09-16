@@ -62,6 +62,17 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
   devnotes(여전히 60차 상태)가 서로 다른 시점을 가리키는 것을 16절 원칙대로 발견, 사용자 확인
   후 devnotes 네 파일을 실제 코드 상태에 맞춰 사후 동기화(코드 변경 없음). 다음 세션부터 v1의
   "코드 수정 현황" 36개 항목을 서브시스템 단위로 하나씩 재적용 예정(20절 5번, 17절).
+- **[63차]** carrot-ryu-v1 "코드 수정 현황" 항목 3(온로드 시계 초단위 표시 + 스크린샷 버튼,
+  12차 684b30d 원본)을 새 베이스(706efb47) 위에 재적용, commit `429f105e`로 push 완료. 착수
+  스크립트(reapply_12cha.ps1)가 hud_renderer.py 5번 Replace-Block에서 CRLF/LF 불일치로 중단된
+  것을, 저장소 루트 `.gitattributes`의 `* text=auto`(일부 Windows Git 환경에서
+  core.autocrlf=false를 줘도 체크아웃 시 CRLF로 변환될 수 있음, GitHub 원본 blob 자체는 LF)로
+  원인 확정하고, Replace-Block에 매칭 전 CRLF->LF 정규화(9절 기존 원칙)를 추가한
+  reapply_12cha-v2.ps1로 재시도해 해결. `git ls-remote` + commit diff(API rate limit 회피)로
+  반영 내용이 의도한 3개 파일과 정확히 일치함을 확인. 12차 원본 그대로이며, 이후 세션들에서
+  누적된 스크린샷 후속 수정(25·26~28·30~36번: DPI/캡처 타이밍/render-texture 재설계/상하반전
+  등)은 아직 미반영 -- 다음 세션 이후 순서 확정 필요. 실차 검증: 미실시(git pull 금지 상태 유지
+  중).
 
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
@@ -73,7 +84,10 @@ ode --test 737/737 통과). 반영 스크립트(45cha_rebuild_bundle_carrot_ryu.
 
 1. route 감속 오검출 근본수정(9차, 2dbe492) -- GitHub 반영됨
 2. RES/+ 인게이지 속도 안전장치(10차, e1e587b) -- GitHub 반영됨
-3. 온로드 시계 초단위 표시 + 스크린샷 버튼(12차, 684b30d) -- GitHub 반영됨
+3. 온로드 시계 초단위 표시 + 스크린샷 버튼(12차, 684b30d 원본) -- [63차] 새 베이스(706efb47) 위에
+   재반영 완료(commit `429f105e`, git ls-remote + commit diff로 확인). 12차 원본 버전 그대로이며,
+   25·26~28·30~36번(스크린샷 관련 후속 수정: DPI/타이밍/render-texture 재설계/상하반전 등)은
+   아직 미반영. 실차 검증: 미실시(git pull 금지 상태 유지 중).
 4. 온로드 시계 좌측 화면 경계 잘림 수정(13차, 2adced8) -- GitHub 반영됨
 5. gdrive_upload.py 신규 추가(15차, 183bef9) -- Drive OAuth device flow + resumable 업로드 백엔드, GitHub 반영됨
 6. 대시캠 업로드(로그탭 "전송") zip+Drive 전환(16차, dae901c 본편 + cc734e1 hotfix) -- GitHub 반영됨
