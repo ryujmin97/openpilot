@@ -1,5 +1,18 @@
 # WIP
 
+## 50차 (코드 완료, push 대기) -- 49차 진단 로그 실차 분석 + JPG export 실패 원인 좁힘 + PNG 롤백
+
+사용자가 49차 반영 스크립트를 이미 실행했고(git pull 41fd34a74..dfdbfff9a, reboot 로그 확인), 실기기 swaglog grep 결과와 스크린샷 버튼 위치 확인 사진을 제공.
+
+- `git ls-remote`로 carrot-ryu HEAD `dfdbfff9a7df48aac869b1417ea6398dd6768f32`(49차) 확인 -- 49차 미완료 1번 해소.
+- swaglog grep(git pull 전/후 구간)을 분석: git pull 이후 매 실패마다 `screenshot_button.py:28 _on_click`에서 `capture_onroad_screenshot: export_image failed for ...` 경고가 raylib `Failed to export image` 경고와 함께 찍힘 -> `_on_click()`->`capture_onroad_screenshot()` 호출, `load_image_from_screen()` 성공까지는 실증(11절, 로그 근거) -- 클릭 전달 문제 가설 배제.
+- 실패 지점을 `rl.export_image()` 자체로 좁힘. git pull 이전(47차)에도 동일 실패가 있었던 점, 46차까지 PNG는 저장에 성공했던 점을 근거로 "JPG export가 이 기기 raylib 빌드(comma-deps-raylib==6.0.0.1.post101)에서 지원되지 않는다"를 유력 가설로 제시(확정 아님, DPI수정과 확장자변경이 47차에 같이 들어가 변수 미분리).
+- 사용자가 스크린샷 버튼 위치가 의도한 대로 이동됐음을 실기기 촬영 사진으로 확인 -- 49차 미완료 3번 해소.
+- 변수 분리를 위해 screenshot_capture.py 저장 확장자만 `.jpg` -> `.png`로 롤백(load_image_from_screen() DPI 수정은 유지). Replace-Block 앵커 1회 매치 확인(9절).
+- 실차 검증: 미실시(PNG 롤백 후 저장 성공 여부가 다음 세션 최우선).
+
+
+
 ## 49차 (코드 완료, push 대기) -- 스크린샷 버튼 무반응 진단 로그 추가 + 버튼 위치 사용자 요청 반영
 
 사용자가 실기기 스크린샷 2장(정상 캡처 예시, 실제 로그탭 화면 -- 목록에 사진 0건/영상 3건)을 제공하며 "스크린샷 버튼이 안 눌러지고 로그탭에 저장되지 않음" 제보 + "사진캡쳐버튼을 참고 사진의 빨간색 동그라미 위치로 이동" 요청.

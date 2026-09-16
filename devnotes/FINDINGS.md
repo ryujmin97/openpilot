@@ -1,5 +1,19 @@
 # FINDINGS
 
+## 2026-09-16 (50차) -- 스크린샷 export_image 실패 원인을 클릭전달이 아닌 JPG export로 좁힘(핵심 발견 35)
+
+**증상**: 49차에서 추가한 진단 로그를 반영한 뒤(commit `dfdbfff9`)에도 스크린샷 저장이 계속 실패.
+
+**재현조건**: 사용자가 실기기에서 스크린샷 버튼을 여러 차례 눌렀고, 그 결과를 `grep -ai screenshot /data/log/swaglog.*`로 채취해 제공. git pull 전(commit `41fd34a7`, 47차)과 후(commit `dfdbfff9`, 49차) 로그가 함께 포함됨.
+
+**분석**: git pull 이후 구간에서, raylib의 `Failed to export image` 경고 직후 매번 `screenshot_button.py:28 _on_click`에서 `capture_onroad_screenshot: export_image failed for ...` 경고가 찍힘. 이 경고 문자열은 코드상 `capture_onroad_screenshot()`이 `rl.export_image()`의 반환값이 `False`일 때만 내보내므로, 이 로그가 존재한다는 사실 자체가 (1) `_on_click()` 콜백이 정상 호출됐고 (2) 그 안에서 `load_image_from_screen()`까지 성공(다른 실패 분기 로그가 없음)했음을 뜻함. 즉 실패 지점은 오직 `rl.export_image()` 호출뿐. 이 실패는 git pull 이전(47차, 진단 로그 추가 전) 구간에도 동일하게 나타나고 있었음.
+
+**정황(가설, 미확정)**: 46차까지(PNG 저장 시절)는 방향이 뒤집힌 채로나마 저장 자체는 성공했다는 기존 devnotes 기록(47차 항목)과, 47차에서 확장자를 `.jpg`로 바꾼 시점부터 100% 실패로 바뀌었다는 이번 grep 결과를 근거로, JPG export가 이 기기의 raylib 빌드(comma-deps-raylib==6.0.0.1.post101)에서 지원되지 않거나 stb_image_write의 JPG 인코더가 빠진 채 빌드됐을 가능성을 유력 가설로 제시. 다만 47차 커밋에는 DPI 수정(`rl.take_screenshot()` -> `rl.load_image_from_screen()`)과 확장자 변경(PNG->JPG)이 함께 들어가 있어 이 로그만으로는 두 변경 중 무엇이 실패 원인인지 분리되지 않음(11절, 확정 아님).
+
+**다음 단계**: 변수를 분리하기 위해 저장 확장자만 `.jpg` -> `.png`로 되돌리는 반영 스크립트를 작성(load_image_from_screen() DPI 수정은 유지). 다음 세션은 이 상태로 실차 테스트해 (a) PNG로 저장 성공 시 JPG export 미지원으로 확정, (b) PNG도 실패 시 확장자와 무관한 별도 원인으로 조사 방향 전환.
+
+
+
 ## 2026-09-16 (49차) -- 스크린샷 버튼 무반응/미저장 제보: 원인 미확정, 진단 로그로 전환(핵심 발견 34)
 
 **증상**: 사용자가 스크린샷 버튼을 눌러도 반응이 없고, 로그탭 사진 목록에 아무것도 저장되지 않는다고 제보. 실기기 로그탭 스크린샷을 보면 목록의 3개 항목이 전부 MP4(화면녹화)이며 JPG(사진)가 0건 -- 버튼을 눌러도 실제로 캡처가 한 번도 성공한 적이 없다는 것과 일치.
