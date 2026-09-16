@@ -1,54 +1,53 @@
 # HANDOFF
 
-Worker: Claude (53차 -- 52차 push 확인 + 스크린샷 캡처 근본 재설계 방향 합의, 코드 변경 없음)
+Worker: Claude (54차 -- render-texture 재사용 스크린샷 캡처 재설계 구현, push/반영 검증 완료)
 Date: 2026-09-16
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `e4816edc2488fbd21f7241a44733aaf5d2113fbd`, 52차 캡처 위치 재수정. 이번 세션은 코드 변경 없음 -- carrot-ryu는 세션 시작 시와 동일)
-Note Branch: carrot-ryu-note (base: `57062bb146744d003db080b44a83390bff59aede`, 52차 시점 devnotes. 이 커밋으로 devnotes 갱신)
-carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 체크포인트 이후 신규 23건 확인, WIP_SYNC.md 40차 체크포인트 반영 스크립트 실행 여부 미확인(계속 이월)
+Code Branch: carrot-ryu (base: `e4816edc2488fbd21f7241a44733aaf5d2113fbd`, 52차. 이번 세션 push 후: `e047beb3da61b6727a3ce82b8f18c1605fd55381`)
+Note Branch: carrot-ryu-note (base: `340d30ed38f98c0b3a2296e0c3771b41bf1e7d0b`, 53차 시점 devnotes. 이 커밋으로 devnotes 갱신)
+carrot-ms 마지막 검토/동기화 커밋(메시지 기준): 7차 체크포인트 이후 신규 23건 확인, WIP_SYNC.md 40차 체크포인트 반영 스크립트 실행 여부 미확인(계속 이월, 이번 세션 미착수)
 
 작업:
-지침 문서 4절 0단계(git ls-remote SHA 고정)로 시작, 체크포인트에서 carrot-ryu HEAD가 이미 `e4816edc`(52차)임을 확인 -- 52차 반영 스크립트가 세션 사이에 이미 실행/push 완료돼 있었음(devnotes에는 "push 대기"로 남아있던 괴리, 16절/핵심 발견 27과 동일 패턴). 이어서 52차 수정 이후에도 실기기 스크린샷에서 border 관련 HUD(차량명/시계/LD·LT·SR/laneless/git branch/IP)가 여전히 빠진다는 전제 하에, 화면녹화(정상)와 스크린샷(계속 실패)의 구조적 차이를 코드로 분석하고 근본 재설계 방향에 합의.
+53차에서 설계만 합의됐던 render-texture 재사용 스크린샷 캡처 재설계를 실제 코드로 구현. 반영 스크립트 작성 직전 carrot-ryu 최신 원본(HEAD `e4816edc`)을 다시 조회해 그 위에서 Replace-Block anchor를 구성(6절). 최초 반영 스크립트 실행 시 py_compile 검증에서 콘솔 출력 없이 조용히 중단되는 문제가 발생해 원인을 Windows PC의 `python3` 명령 문제로 진단/수정하고 재실행, 최종 push 및 전체 검증까지 완료.
 
 완료:
-1. `git ls-remote`로 carrot-ryu HEAD(`e4816edc`) 확인 + GitHub API로 커밋 메시지("52cha: move screenshot capture trigger to end of AugmentedRoadView frame...")를 대조해 52차가 실제로 push 완료됐음을 실증.
-2. carrot-ryu-note HEAD(`57062bb1`)는 세션 시작 전후로 변화 없음(체크포인트 중 HANDOFF 본문 안의 "이전 base" 참조 텍스트를 현재 HEAD로 순간 오인했다가, 재확인으로 착오였음을 세션 내에서 스스로 정정).
-3. `application.py` 코드를 직접 확인해 화면녹화와 스크린샷의 구조적 차이를 확정:
-   - 녹화 중에는 위젯 트리를 화면에 직접 그리지 않고 오프스크린 render texture에 그린 뒤(`begin_texture_mode()`~`end_texture_mode()`), `end_texture_mode()` 호출 뒤(그 프레임 내용이 텍스처에 확실히 다 쓰인 시점)에 `rl.load_image_from_texture()`로 읽는다 -- 순서가 구조적으로 보장됨.
-   - 스크린샷은 녹화 중이 아닐 때 render texture 자체가 없는 상태에서, 위젯 렌더 콜백 한가운데(51·52차가 호출 위치를 옮겨도 여전히 프레임이 완성되기 전)에 `rl.load_image_from_screen()`으로 화면을 직접 읽어 raylib 배치 플러시 타이밍에 구조적으로 취약함.
-4. 해결 방향 합의: "스크린샷 버튼을 누르면 녹화 로직으로 딱 1프레임만 임시 render texture에 떠서 이미지로 저장"(사용자 제안). 구체 설계:
-   1. `GuiApplication`에 스크린샷 pending 플래그 추가.
-   2. 렌더 루프 시작 시, pending 스크린샷이 있고 현재 녹화 중이 아니어서 `self._render_texture`가 없으면, 기존 `_ensure_render_texture_for_recording()`과 같은 패턴으로 그 프레임만 임시 render texture 생성 -- 자동으로 녹화와 동일한 `begin_texture_mode()` 경로를 타게 됨.
-   3. `end_texture_mode()` 직후(녹화가 프레임을 추출하는 지점과 정확히 동일한 위치)에서 pending 스크린샷이 있으면 `rl.load_image_from_texture()`로 해당 프레임을 가져와 기존 480p 다운스케일+`export_image` 로직을 그대로 재사용해 저장.
-   4. 이미 녹화 중일 때 스크린샷 버튼을 누른 경우는 별도 텍스처 생성 없이 같은 프레임을 한 번 더 추출.
-   5. 스크린샷 때문에 임시로 만든 render texture는, 녹화 중이 아니라면 캡처 직후(다음 프레임 시작 전) `unload_render_texture()`로 정리 -- 평소엔 화면에 직접 그리는 기존 경로 유지, 스크린샷 순간에만 텍스처 경로로 잠깐 전환.
-5. 이 설계는 51·52차보다 범위가 넓어(공통 파일 `application.py` 포함) 사용자에게 진행 여부를 확인, 사용자가 다음 세션에 구현하기로 결정 -- 이번 세션은 코드 변경 없이 설계 합의까지만 진행.
-6. devnotes(WIP.md/HANDOFF.md/CURRENT_STATUS.md) 갱신 -- 52차 push 확인 사실과 53차 설계 합의 내용을 반영. WIP.md의 기존 "52차 (코드 완료, push 대기)" 표기는 규칙상(7절, 기존 회차 수정 금지) 그대로 두고, 53차 새 회차에서 실제 상태를 정정 기록.
+1. `application.py`(공통 파일, `openpilot/system/ui/lib/`)에 `request_temp_capture(callback)` 신규 메서드를 3개 지점(Replace-Block)에 추가:
+   - `__init__` 끝: `_temp_capture_pending`/`_temp_capture_callback`/`_temp_capture_owns_texture` 초기화 + `request_temp_capture()` 메서드 정의.
+   - 렌더 루프 시작 지점: pending 캡처가 있고 `self._render_texture`가 없으면 기존 `_ensure_render_texture_for_recording()`으로 그 프레임만 임시 render texture 생성.
+   - `end_texture_mode()` 이후, 녹화 프레임 추출과 동일한 지점: `rl.load_image_from_texture()`로 추출 -> 콜백 호출 -> 임시로 만든 texture라면 즉시 해제.
+   - selfdrive 코드 import 없이 제네릭 유지(기존 레이어링 규칙, 10절 최소변경 원칙과 별개로 레이어 분리 원칙은 그대로 준수).
+2. `openpilot/selfdrive/ui/onroad/screenshot_capture.py` 전체 재작성: `capture_onroad_screenshot()` -> `save_screenshot_image(image: rl.Image)`. 화면을 직접 읽지 않고, 이미 캡처된 이미지를 받아 480p(세로기준, 51차) 다운스케일 + PNG(50차 롤백 상태) export만 담당하도록 책임 축소.
+3. `openpilot/selfdrive/ui/onroad/screenshot_button.py` 전체 재작성: `_on_click()`이 `gui_app.request_temp_capture(self._on_frame_captured)`만 호출하도록 단순화, pending 플래그/consume 로직 완전 제거.
+4. `openpilot/selfdrive/ui/onroad/hud_renderer.py`에서 `consume_pending_screenshot_capture()` 제거(Replace-Block 1곳).
+5. `openpilot/selfdrive/ui/onroad/augmented_road_view.py`에서 51·52차가 추가했던 `capture_onroad_screenshot` import 및 프레임 끝 호출부 원복(Replace-Block 2곳).
+6. **진단**: 최초 반영 스크립트(`54cha_code_carrot_ryu.ps1`) 실행 시 6개 Replace-Block/전체교체는 전부 "OK"로 성공했으나, py_compile 검증 단계에서 어떤 에러 텍스트도 없이 `[중단] py_compile 실패: application.py`로 종료(commit/push 안 됨 -- 스크립트 방어 로직은 의도대로 정상 동작). Linux sandbox에서 동일한 3개 Replace-Block을 그대로 재현해 `python3 -m py_compile` 실행 -> **정상 통과(exit 0)**. `Callable`도 파일에 이미 `from collections.abc import Callable, Iterable`로 import돼 있음을 확인 -- 반영된 코드 자체에는 결함이 없음을 확정(11절).
+7. **원인 확정(핵심 발견 37)**: Windows PC의 `python3` 명령으로 추정. python.org 설치본은 보통 `python.exe`/`py.exe`(런처)만 PATH에 등록하고 `python3.exe`는 없는 경우가 흔한데, 이 상태에서 `python3`를 호출하면 Windows 10/11의 앱 실행 별칭(Microsoft Store 유도 스텁)이 가로채 콘솔 출력 없이 조용히 실패 -- 로그에 파이썬 에러가 전혀 안 찍힌 정황과 정확히 일치.
+8. **수정**: 반영 스크립트에 `Get-PythonCmd` 함수 추가 -- `py -3` -> `python3` -> `python` 순으로 실제 `--version` 출력이 나오는 후보를 자동탐지해 py_compile 호출에 사용. 나머지 5개 파일 반영 내용은 원본과 100% 동일. 9절 버전표시 규칙에 따라 파일명 `54cha_code_carrot_ryu-v2.ps1`로 재전달.
+9. 사용자가 v2 스크립트 실행 -> `(python 실행 파일 감지: ...)` 로그와 함께 py_compile 전체 통과 -> `git push` 로그(`e4816edc..e047beb3 carrot-ryu -> carrot-ryu`)로 커밋/push 성공 확인.
+10. **push 후 검증(6절/16절 시퀀스)**: `git ls-remote`로 실제 HEAD가 `e047beb3`임을 재확인 -> commit-SHA 고정 raw URL로 5개 파일 전체 재조회 -> 5개 파일 전부 `python3 -m py_compile` 재통과 -> grep으로 핵심 마커 확인: `application.py`의 `request_temp_capture`/`_temp_capture_pending`/`_temp_capture_owns_texture` 존재, `screenshot_capture.py`의 `save_screenshot_image` 존재, `screenshot_button.py`의 `gui_app.request_temp_capture()` 호출 존재, `hud_renderer.py`의 `consume_pending_screenshot_capture` 0건(완전 제거), `augmented_road_view.py`의 `capture_onroad_screenshot` 0건(완전 제거) -- 실제 반영 내용이 설계·의도와 정확히 일치함을 실증.
+11. devnotes(WIP.md/HANDOFF.md/CURRENT_STATUS.md) 갱신, 핵심 발견 37 신규 기록.
 
 미완료 (다음 세션 이월):
-1. [최우선, 신규] 53차에서 합의된 render-texture 재사용 스크린샷 재설계를 실제 코드로 구현: `application.py`, `hud_renderer.py`, `screenshot_button.py`, `screenshot_capture.py` 대상. 51·52차가 수정한 `augmented_road_view.py`의 캡처 호출부는 이번 재설계로 되돌릴 예정.
-2. [이월] 52차 캡처 위치 수정(border HUD 포함 여부) 실차 검증 -- 다만 위 재설계로 대체될 가능성이 높아 우선순위는 1번 다음.
-3. [이월, 51차] 시계/온도 HUD 포함 여부, 480p 다운스케일(rl.image_resize) 실제 동작 여부(파일 용량/해상도) 미확인.
-4. [이월, 50차] 저장 확장자 `.jpg`->`.png` 롤백 실차 검증으로 JPG export 미지원 가설 확정/기각.
-5. [이월, 47차] 가로/세로 방향(2160x1080 비율 유지 여부) 재확인.
-6. [이월, 37차] 락 수정의 실제 동시성 재현 검증(의도적으로 거의 동시에 두 업로드 시도).
-7. [이월, 34차] 도로명-신호과속 같은 줄 배치 확인(신호과속 배지가 나타나는 구간에서).
-8. [이월] 28~30차 레이아웃 정밀 재검증.
-9. [이월] "선택 다운로드" 버튼 실제 동작(다운로드 성공 여부) 여전히 미확인.
-10. [이월] test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 삭제/갱신.
-11. [이월] docs/carrot_web_upload.md 갱신(Drive 기준).
-12. [이월] carrot-ms 모델 셀렉터 코드 분석 착수. WIP_SYNC.md 40차 체크포인트 반영 확인 필요.
+1. [최우선] 실차 검증 -- 스크린샷 버튼을 눌러 border HUD(차량명/시계/LD·LT·SR/laneless/git branch/IP) 전부가 결과 이미지에 포함되는지, 480p 다운스케일과 PNG 저장이 정상 동작하는지 확인. 구조가 완전히 바뀌었으므로 49~52차/47차/51차의 개별 이월 항목(HUD 누락, DPI/방향, JPG export 실패, 480p)은 전부 이번 한 번의 실차 테스트로 함께 흡수해 확인.
+2. [이월] 핵심 발견 31 재발 방지 제안(스크립트 파일명 버전 표시 규칙화) 및 이번 핵심 발견 37의 `Get-PythonCmd` 방식을 지침 문서 9절에 정식 규칙으로 채택할지 사용자 확인(19절 절차 -- 변경 이유/기존 규칙/변경안/승인/반영 순서).
+3. [이월, 37차] 락 수정의 실제 동시성 재현 검증(의도적으로 거의 동시에 두 업로드 시도).
+4. [이월, 34차] 도로명-신호과속 같은 줄 배치 확인(신호과속 배지가 나타나는 구간에서).
+5. [이월] 28~30차 레이아웃 정밀 재검증.
+6. [이월] "선택 다운로드" 버튼 실제 동작(다운로드 성공 여부) 여전히 미확인.
+7. [이월] test_web_upload.py 실제 실행해 낡은 테스트 수 확인 -> 데드코드 3개 삭제/갱신.
+8. [이월] docs/carrot_web_upload.md 갱신(Drive 기준).
+9. [이월] carrot-ms 모델 셀렉터 코드 분석 착수. WIP_SYNC.md 40차 체크포인트 반영 확인 필요.
 
-검증: 이번 세션은 코드 변경이 없어 py_compile 등 정적 검증 대상 없음. **실차 검증: 미실시**(설계 논의만 진행됨).
+검증: 5개 파일 전부 `python3 -m py_compile` 통과(스크립트 내장 검증 1회 + push 후 SHA고정 재조회본 재검증 1회, 총 2회). grep으로 핵심 마커(추가/제거 대상) 존재 여부 전부 의도와 일치 확인. **실차 검증: 미실시**.
 
 주의사항:
-- 52차는 이미 push 완료된 상태였으나 devnotes(HANDOFF/CURRENT_STATUS)에는 "실행 대기"로 남아있었음(16절/핵심 발견 27과 동일 패턴) -- 이번 세션에서 바로잡음.
-- 다음 세션은 위 render-texture 재사용 설계 그대로 구현에 착수. 세션 라벨은 "53차 계속" 또는 "54차" 중 세션 시작 시 실제 GitHub 최신 상태(다른 경로로 이미 반영된 것이 없는지)를 먼저 확인한 뒤 정한다(16절/핵심 발견 22와 동일 원칙).
-- 이번 재설계는 application.py(공통 파일)를 건드리므로, 반영 스크립트 작성 전 최신 원본을 다시 조회해 anchor를 구성할 것(6절).
+- Windows PC 환경에서 `python3` 명령이 항상 보장되지 않는다는 것이 이번 세션에서 처음 확인됨(핵심 발견 37) -- 앞으로 py_compile을 포함하는 반영 스크립트는 `Get-PythonCmd` 같은 자동탐지 방식을 기본으로 쓰는 것을 권장. 다만 지침 문서 9절 자체를 바꾸려면 19절 절차(사용자 승인)가 먼저 필요해 이번엔 스크립트 레벨에서만 대응.
+- 이번 재설계로 51·52차가 만들었던 `augmented_road_view.py`의 캡처 호출부는 완전히 원복됐으므로, 그 두 회차의 코드 변경 이력은 "현재 코드에는 반영돼 있지 않은 과거 시도"로 이해할 것(devnotes 기록 자체는 7절 규칙상 수정하지 않고 그대로 둠).
+- 다음 세션은 실차 검증 결과에 따라 갈림: border HUD가 전부 포함되면 49~52차 계열 이월 항목은 전부 해소로 정리, 일부라도 빠지면 이번 재설계의 어느 지점(임시 texture 생성 타이밍, 콜백 실행 시점 등)이 원인인지 `application.py`의 render() 루프를 다시 코드로 대조할 것.
 
 다음 작업 후보:
-1. render-texture 재사용 스크린샷 재설계 구현(application.py/hud_renderer.py/screenshot_button.py/screenshot_capture.py, augmented_road_view.py 캡처 호출부 원복) -- 최우선
-2. 52차 캡처 위치 수정 실차 검증(재설계 구현과 함께 또는 그 이후)
-3. 51차 480p 다운스케일 실차 검증(이월)
-4. 50차 PNG 롤백 실차 검증(이월)
-5. 47차 DPI 수정(가로/세로 방향) 재검증(이월)
+1. render-texture 재사용 스크린샷 재설계 실차 검증 -- 최우선
+2. 핵심 발견 37(Get-PythonCmd) 지침 문서 9절 정식 반영 여부 사용자 확인
+3. 37차 락 수정 동시성 재현 검증(이월)
+4. 34차 도로명-신호과속 같은 줄 배치 확인(이월)
+5. 28~30차 레이아웃 정밀 재검증(이월)
