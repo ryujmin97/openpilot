@@ -32,10 +32,23 @@ def capture_onroad_screenshot() -> str | None:
   so no backend/frontend changes are needed for the new extension to be
   listed, thumbnailed, and served.
 
+  50cha temporary rollback: real-device swaglog after 49cha showed
+  rl.export_image() failing on every attempt at the raylib level
+  ("Failed to export image"), and the 49cha diagnostic log for that
+  failure fired from inside _on_click -- confirming the click path and
+  load_image_from_screen() are not the problem. Before 47cha, .png
+  exports were succeeding (just with the wrong DPI-scaled dimensions);
+  every failure since has been on a .jpg target. So JPG export support
+  in this device's raylib build (comma-deps-raylib==6.0.0.1.post101) is
+  the leading suspect. Reverting only the extension to .png here, while
+  keeping the load_image_from_screen() DPI fix, isolates that one
+  variable for the next real-device test (11-jeol: isolate before
+  confirming a cause).
+
   Returns the final path on success, None on failure (never raises --
   a failed screenshot should not affect driving).
   """
-  filename = time.strftime("screenshot_%Y-%m-%d_%H-%M-%S.jpg")
+  filename = time.strftime("screenshot_%Y-%m-%d_%H-%M-%S.png")
   image = None
   try:
     image = rl.load_image_from_screen()
