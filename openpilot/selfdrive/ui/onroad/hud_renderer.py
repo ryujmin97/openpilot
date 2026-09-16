@@ -329,18 +329,6 @@ class HudRenderer(Widget):
   def user_interacting(self) -> bool:
     return self._exp_button.is_pressed or self._screenshot_button.is_pressed or self._record_button.is_pressed
 
-  def consume_pending_screenshot_capture(self) -> bool:
-    """52차: capture_onroad_screenshot() 호출 자체는 AugmentedRoadView._render()의
-    맨 마지막 단계로 옮겼다. 51차는 이 _render() 안에서 date_time/tpms 등보다
-    먼저 캡처하던 순서만 고쳤을 뿐이라, border 디버그 텍스트(_draw_border_carrot:
-    차량명/LD·LT·SR/laneless 상태/git branch/IP)와 alert_renderer/
-    driver_state_renderer는 AugmentedRoadView._render()에서 hud_renderer.render()
-    *이후*에 그려지므로 여전히 캡처에서 빠졌다(52차 사용자 제보: 클릭 시 캡처
-    자체는 되지만 화면 전체 상당수 HUD 요소가 결과물에서 빠짐). 대기 플래그는
-    계속 screenshot_button이 들고 있고, 여기서는 소비만 호출자(AugmentedRoadView)
-    에게 위임한다."""
-    return self._screenshot_button.consume_pending_capture()
-
   def _draw_egpu_badge(self, rect: rl.Rectangle) -> None:
     # Keep runtime state visible while the shared USB hub re-enumerates; a
     # transient missing sysfs sample must not hide loading or failure details.
