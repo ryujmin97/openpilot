@@ -1,42 +1,44 @@
-# HANDOFF
-
-Worker: Claude (68차 -- 항목 13~16+19 재적용, 항목 22 착수 전 의존관계 정리)
+Worker: Claude (69차 -- devnotes 정정만, 코드 변경 없음)
 Date: 2026-09-17
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `81754ea388b42fceb37200df2173eecd8b86bd4f`, 67차-fix 상태 위에서 이번 세션 작업 -- 반영 스크립트 실행 대기, 아직 push 전)
-Note Branch: carrot-ryu-note (base: `8cfa5b9257d98db52f32bed081eda751654e629b`, 67차 devnotes. 이 커밋으로 갱신)
+Code Branch: carrot-ryu (base: `2088c5461118368341c3841667467e63f20188be`, 68차 hud_renderer.py 항목 13→14→15→16→19 재적용 push 완료 -- `git ls-remote`로 재확인)
+Note Branch: carrot-ryu-note (base: `6090edd445777e4793a6d19c76cb68ddf52dc637`, 68차 devnotes. 이 커밋으로 갱신)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): `706efb47b81cf9cb02888ee536a156d8f1fc1d91`(61차 20절 리셋 베이스, 변경 없음).
 
 작업:
-직전 세션 HANDOFF의 "다음 세션 최우선: 항목 22(39차, `797fca2e`) 재적용"을 착수하기 전, 원본 diff와 현재 베이스를 대조하는 과정에서 항목 22의 hud_renderer.py 부분(경로안내 박스 상하 여백 통일, `content_shift_y`)이 항목 13~16(27~30차, 경로안내 박스를 475x495로 확대하고 이후 400으로 축소, `route=` 디버그 분리 표시, ETA 위치 등)뿐 아니라 항목 19(34차/실제 커밋 메시지는 33cha, `9fdefb3d`)까지 새 베이스에 먼저 있어야 성립하는 diff임을 발견했다(사용자에게 보고 후 "먼저 13~16 재적용 -> 이후 항목 22 전체 적용" 순서로 진행하기로 합의). 13→14→15→16→19를 원본 commit(`5f5e49d0`/`cc73f629`/`67a8e10`/`34bb41bc`/`9fdefb3d`)의 hud_renderer.py diff를 순서대로 적용해 재구성했다.
+직전 세션(68차) HANDOFF의 "다음 세션 최우선: 항목 22(39차, `797fca2e`) 본편 착수"를 시작하기 전, 항목 22의 routes.py 변경 부분이 실제로 어디에 이어붙는지 diff로 대조하다가, 항목 22가 항목 20(36차, `0835b059`)에 바로 이어붙는 구조이고, 항목 20 자체가 Google Drive 업로드 파이프라인 전체(항목 5~10·12·17·18·21, 15~37차에 걸쳐 만들어짐)에 의존한다는 것을 발견했다. 이 의존 사슬 전체가 61차(20절) 리셋 이후 실제로 재적용됐는지 CURRENT_STATUS.md만으로는 판단할 수 없어("GitHub 반영됨" 표기가 리셋 이전 것인지 이후 것인지 문구만으로 구분 안 됨), 독립적인 `git clone`으로 현재 `carrot-ryu` 코드를 직접 확인했다.
 
 완료:
-1. `git ls-remote`로 세션 시작 체크포인트 재확인: carrot-ryu `81754ea3`, carrot-ryu-note `8cfa5b92` -- 직전 세션 보고와 일치.
-2. 원본 5개 커밋(13/14/15/16/19)의 `hud_renderer.py` diff를 격리된 로컬 git 저장소에서 현재 베이스(`81754ea3`) 위에 순서대로 `git apply --check` -> `git apply`로 재현, 각 단계 성공(anchor 충돌 없음) 확인.
-3. 항목 13에서 `_format_eta_text` -> `_format_eta_time_text`로 이름이 바뀌는데, 그 유일한 호출부(`_draw_turn_info_hud` 안)가 같은 블록 교체 범위 안에 포함되어 있어 dangling 참조가 남지 않음을 grep으로 확인.
-4. 5개 적용이 끝난 최종 상태에 항목 22(`797fca2e`)의 `hud_renderer.py` diff를 `git apply --check`로 시도해 정상 통과함을 확인 -- 13→14→15→16→19 순서가 항목 22의 전제 상태와 정확히 일치함을 실증(항목 22는 이번 세션에서 적용하지 않음, 다음 단계용 사전 검증).
-5. 5개 커밋을 합친 최종 결과를 현재 베이스와 비교해 `import re` 추가 1줄 + `_draw_turn_info_hud`를 포함하는 연속 블록(168줄 -> 242줄) 교체로 정리, 두 anchor(상단 import 3줄, 본문 블록) 모두 현재 베이스에서 1회만 매치함을 확인.
-6. `python3 -m py_compile hud_renderer.py` 통과(각 단계 및 최종본 모두).
-7. CURRENT_STATUS.md 항목 13/14/15/16/19/26 및 최상단에 68차 진행상황 갱신(코드 변경 없음, devnotes만).
+1. `git ls-remote`로 세션 시작 체크포인트 확인: carrot-ryu `2088c546`(68차 push 실제 완료 확인), carrot-ryu-note `6090edd4` -- 직전 세션 보고와 일치.
+2. `codeload.github.com`으로 carrot-ryu 브랜치 tarball을 받아 독립적으로 검사: `gdrive_upload.py` 파일이 저장소 전체에 존재하지 않음, `routes.py`(5개 서브시스템 전부)에 업로드용 POST 엔드포인트가 하나도 없음(GET만 존재)을 확인.
+3. 이를 근거로 CURRENT_STATUS.md "코드 수정 현황" 항목 5~10·12·17·18·20·21(및 이에 의존하는 22·23·24)의 "GitHub 반영됨" 표기가 61차 리셋 이전 과거 기록이 그대로 남아있던 것임을 확정(62차 안내문이 미리 경고했던 바로 그 상황). 63~68차는 hud_renderer.py 계열(항목 3·4·11·13~16·19·25·27·28)만 순서대로 재확인/재적용해왔고, Drive 관련 항목은 그 사이 아무도 재확인하지 않았던 것이 원인.
+4. CURRENT_STATUS.md의 carrot-ryu HEAD 표기 및 항목 5~10·12·17·18·20·21·22·23 줄을 "리셋 이후 미반영 확인됨(69차)"으로 정정, 재적용 순서(5→6→7→8→9→10→12→17→18→20→21)를 각 줄에 명시. 항목 24(로그탭 새로고침 아이콘)는 Drive 파이프라인과 무관한 별개 서브시스템이라 재확인 필요 표시만 남기고 순위는 낮춤. 핵심 발견 38로 이 패턴(리셋 이후 stale 표기 장기 방치)을 기록.
+5. WIP.md 최상단에 69차 항목 추가(코드 변경 없음, 발견 경위만 기록).
+6. 이번 세션은 코드 파일을 전혀 건드리지 않았다(devnotes 3개 파일만 교체/이어붙이기).
 
-미완료(다음 세션 또는 이 세션 이어서 최우선):
-1. 이번 세션에서 준비한 반영 스크립트(PowerShell) 실행 -> push 확인(`git ls-remote` + raw 재조회).
-2. 항목 22(39차, `797fca2e`) 본편 착수: (a) `hud_renderer.py`의 `content_shift_y` 부분(위 1번 push 확인 후, anchor 재검증 -- 이번 세션 사전검증대로 정상 적용될 것으로 예상), (b) `screenshots.js`/`runtime.js`/`style.css`/`index.html`/번역파일(en/ko/zh.js)/`routes.py` 전면 재작성(체크박스/전체선택/다운로드/전송 툴바), (c) `npm install && node build.mjs`로 생성 번들(`logs.css`/`logs.js`/`asset-manifest.json`) 재생성 + `node --test` 통과 확인(핵심 발견 30 재발 방지).
-3. 항목 22 다음 항목 23(39cha-fix, `bdde8326` -- `screenshots.js`의 `formatRelativeEpoch` import 누락 수정), 이어서 항목 26(44차, `formatLogBytes` import 누락 수정) 순서로 진행.
-4. carrot-ryu-v1 나머지 미이식 항목(1·2번 종방향/RES 안전장치, 5번 이후 Google Drive 파이프라인, 17·18번 Drive 관련, 27~36번 스크린샷 DPI/캡처타이밍/render-texture/상하반전 등 -- 27·28번은 66차에서 이미 반영됨)도 순서 미정, 사용자 확인 필요(20절 5번).
-5. 이식이 반 정도라도 끝나기 전까지 콤마 디바이스 git pull 금지 상태 유지.
-6. (낮은 우선순위, 계속 이월) WIP.md 본문 중간의 중복 "# WIP" 헤더 정리.
+미완료(다음 세션 최우선):
+1. 항목 5(15차, commit `183bef9`) -- `gdrive_upload.py` 신규 추가를 새 베이스(`2088c546`) 위에 재적용.
+2. 항목 6(16차, commit `dae901c` 본편 + `cc734e1` hotfix) -- 대시캠 업로드 zip+Drive 전환. **주의**: 원본 `dae901c`의 `dashcam_upload_report.py`에 줄바꿈 누락으로 인한 SyntaxError가 있을 가능성이 이전(끊긴) 세션에서 보고된 바 있음 -- 재적용 시 원본 diff를 그대로 믿지 말고 `py_compile`로 반드시 직접 재확인할 것.
+3. 항목 7(17차, `2869149`) -- `send_tmux_web()` Drive 업로드 전환.
+4. 항목 8(18~20차, `ad055dd4`) -- dashcam 업로드 연결 테스트 버튼 Drive 전환.
+5. 항목 9(22차, `48c2e081`) -- `params_keys.h`에 `CarrotGDriveClientId/Secret/RefreshToken` 등록. **10절 핵심 규칙**: 새 Params 키는 반드시 이 파일에도 같이 등록할 것(핵심 발견 12 재발 방지).
+6. 항목 10(23차, `272834b`) -- web settings Drive 연결 UI 추가.
+7. 항목 12(25차, `d338afb7`) -- `LOG_UPLOAD_TARGETS`에 "gdrive" 등록(항목 10 다음).
+8. 항목 17(32차, `c704371a`) -- drive.file 스코프+폴더 자동생성 복귀.
+9. 항목 18(33차, `789667f7`) -- ko.js 문구 수정(항목 10 위에 적용).
+10. 항목 20(36차, `0835b059`) -- 화면녹화 탭 업로드 UI + 라벨/햄버거 메뉴 버그 수정(routes.py/dashcam.js/screenrecord.js/번역/번들).
+11. 항목 21(37차) -- `_ensure_folder()` TOCTOU 레이스 수정(asyncio.Lock).
+12. (5~21 전부 끝난 뒤) 항목 22(39차, `797fca2e`) 본편, 항목 23(39cha-fix), 항목 26(44차) 순서로 재개.
+13. 위 11개 항목은 규모가 커 한 세션에 몰아서 끝내지 않는다(17절) -- 파일 스코프가 서로 겹치지 않으므로 순서(5→6→7→8→9→10→12→17→18→20→21) 자체는 바꾸지 않되, 몇 개 단위로 나눠 진행할지는 다음 세션에서 사용자와 다시 정한다.
 
-검증: 5개 커밋 순서 재적용과 항목 22 diff 사전 호환성 검증을 격리된 로컬 git 저장소(`git apply --check`)로 직접 재현했다(16절). `py_compile` 통과 확인. 실차 검증: 미실시(12절) -- git pull 금지 상태, 아직 push 전.
+검증: `gdrive_upload.py` 부재 및 `routes.py` POST 엔드포인트 부재를 독립 `git clone`(codeload tarball)으로 직접 재현/확인했다(16절). 코드 변경이 없으므로 py_compile 등은 해당 없음. 실차 검증: 해당 없음(devnotes 정정만).
 
 주의사항:
-- 이번 세션 코드 변경은 아직 사용자 PC에서 반영 스크립트를 실행하기 전이라 GitHub carrot-ryu는 여전히 `81754ea3`다. 다음 세션(또는 이어지는 대화)에서 반드시 push 완료 여부를 `git ls-remote`로 먼저 재확인할 것(16절).
-- 항목 22를 원본 그대로 적용하려던 첫 시도는 anchor 불일치로 실패했었다(`git apply --check`가 `eta_top`/`by` 관련 hunk에서 중단). 13~16+19 없이 항목 22만 단독으로 적용하면 안 된다.
-- CURRENT_STATUS.md 목록의 번호 순서(13,14,15,16,17,18,19,20...)만 보고 의존관계를 판단하지 말 것 -- 17·18(Drive 관련)은 hud_renderer.py와 무관하게 중간에 끼어있을 뿐, 실제 코드 의존관계는 13→14→15→16→19로 이어진다(이번 세션에서 diff 대조로 실증).
+- CURRENT_STATUS.md 항목 번호 순서(5,6,7,8,9,10,...,17,18,...,20,21,22...)만 보고 "이미 순서대로 다 반영됐겠지"라고 가정하지 말 것 -- "GitHub 반영됨"이라는 문구가 61차 리셋 이전 기록일 수 있다는 것이 이번 세션의 핵심 발견이다. 앞으로 어떤 항목이든 재적용 전에는 해당 파일/함수가 현재 `carrot-ryu`에 실제로 존재하는지 먼저 확인할 것.
+- 다음 세션이 항목 5부터 재적용을 시작할 때, 이 세션에서는 로컬 격리 clone으로 검증까지 진행하지 않았다(devnotes 정정에 집중) -- 처음부터 원본 commit diff를 새로 조회해 현재 베이스(`2088c546`) 위에서 `git apply --check`부터 다시 시작할 것.
+- 세션 간 컨테이너(로컬 작업 디렉터리)는 매번 초기화된다 -- 어느 세션이 "로컬 검증 완료"라고 보고했더라도, 다음 세션이 그 검증 결과를 재사용할 수는 없다. GitHub에 실제로 push되지 않은 로컬 작업 내용은 다음 세션 시작 시 존재하지 않는 것으로 간주하고 필요하면 처음부터 다시 검증한다.
 
 다음 작업 후보:
-1. 이번 세션 반영 스크립트 실행 확인
-2. 항목 22 본편(스크린샷 업로드 UI + hud_renderer.py content_shift_y + 번들 재생성) 착수
-3. 항목 23 재적용
-4. 항목 26 재적용
-5. carrot-ryu-v1 미이식 항목(1·2·17·18·29~36 등) 순서 사용자와 협의
+1. 항목 5(gdrive_upload.py 신규) 재적용부터 시작
+2. 항목 5~10·12·17·18·20·21을 몇 개 단위로 나눌지 사용자와 확정
+3. (그 전에 원하면) 항목 24(로그탭 새로고침 아이콘)가 Drive 파이프라인과 무관하게 이미 정상 존재하는지 별도로 빠르게 확인
