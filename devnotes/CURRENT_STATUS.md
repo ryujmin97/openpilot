@@ -2,7 +2,7 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `0d5117533e0703e442fd1664b8ee00146cf40a4f` (66차 기준. 61차 20절 리셋(`706efb47`) 이후 항목 3·4·25·27·28만 순차 재적용된 상태 -- 67차에서 이 문서 갱신 시점에 발견한 표기 누락을 바로잡음(16절), 61차 커밋 해시만 남아있던 것을 실제 최신으로 정정). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
+- carrot-ryu HEAD: `81754ea388b42fceb37200df2173eecd8b86bd4f` (67차-fix 기준. 항목 11 재적용(`63addc2e`) + stray 파일 제거(`81754ea3`)까지 완료, 독립 `git clone`으로 코드 실체와 stray 파일 부재 모두 재확인(16절). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
 - 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
@@ -129,8 +129,9 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- GitHub 반영됨
 10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- GitHub 반영됨. 실기기에서 Client ID/Secret 입력란이 계속 안 보이는 문제 진행 중(26차까지 원인 미확정, 핵심 발견 16 참고).
 11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- [67차] 새 베이스(0d511753) 위에
-    재적용 스크립트 작성 및 sandbox/독립 clone 이중 검증 완료(원본과 바이트 단위 동일 확인), 반영 스크립트
-    실행 대기. 실행/push 확인 전까지 "재반영 완료"로 단정하지 않음(5절). 실차 검증: 미실시.
+    재적용 완료, commit `63addc2e`로 push까지 `git ls-remote`로 확인(5절/16절). 같은 커미트에 실수로 같이
+    커밋된 반영 스크립트 헬퍼(`apply_item11_67cha.py`)는 [67차-fix]에서 `cleanup_stray_67cha.ps1`로 제거하고
+    commit `81754ea3`로 push, 독립 `git clone`으로 파일 부재 + 코드 정상 유지 재확인 완료(16절). 실차 검증: 미실시.
 12. LOG_UPLOAD_TARGETS "gdrive" 누락 수정(25차, commit d338afb7) -- GitHub 반영됨
 13. 우측하단 경로안내 박스 475x495 확대 + route=숫자 디버그 분리 표시 + 도착정보 2줄 표기(27차, commit 5f5e49d0) -- GitHub 반영됨. 40차 계속 실기기 검증: 상하 여백 균등 배치 확인됨(스크린샷, 12절 최초 실차 검증).
 14. 경로안내 박스 높이 축소(495→400) + 도착/ETA를 route= 아래 우측끝맞춤으로, 회전아이콘 좌측 배치(28차, commit cc73f629) -- GitHub 반영됨
@@ -149,9 +150,10 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
     깜빡임 효과(44차 항목 28)는 [66차]에서 별도 재적용. 실차 검증: 미실시(git pull 금지 상태 유지 중).
 26. screenshots.js formatLogBytes import 누락 수정(44차) -- 사진 목록 렌더 크래시 근본수정. 61차
     리셋 이후 아직 미반영: 전제 조건이 "항목 11 -> 22 -> 23" 순서로 셋 다 필요함을 66차에서 확정.
-    [67차]에서 항목 11 반영 스크립트까지는 준비됐으나(실행 대기), 항목 22(39차, commit 797fca2e --
-    체크박스/전체선택/업로드/다운로드 툴바로 screenshots.js/runtime.js/style.css 전면 재작성)와
-    항목 23(39cha-fix, formatRelativeEpoch import)은 아직 착수 전. 다음 세션 이후로 이월.
+    [67차/67차-fix]에서 항목 11 반영 + stray 파일 정리까지 완료(commit `81754ea3`까지 검증됨),
+    항목 22(39차, commit 797fca2e -- 체크박스/전체선택/업로드/다운로드 툴바로
+    screenshots.js/runtime.js/style.css 전면 재작성)와 항목 23(39cha-fix, formatRelativeEpoch
+    import)은 아직 착수 전. 다음 세션 최우선.
 27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- [66차] 새 베이스
     (b152e192) 위에 재반영 완료(commit `0d511753`, git ls-remote + commit diff로 확인, 원본
     44차 diff와 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).

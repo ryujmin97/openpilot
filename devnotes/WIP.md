@@ -1,5 +1,13 @@
 # WIP
 
+## 67차 계속 (stray 파일 발견 → 제거 완료, 항목 11 최종 정리)
+
+- reapply_item11_67cha.ps1 실행 로그를 이어받아 `git ls-remote` + 독립 `git clone`으로 재확인한 결과, carrot-ryu HEAD가 `63addc2e`로 push되어 항목 11(24차, 화면녹화 탭 사진 스트립) 코드 자체는 원본과 동일하게 정상 반영됨을 확인.
+- 저장소 루트를 전수 점검하는 과정에서, 반영 스크립트 준비 중 만들어진 파이썬 헬퍼(`apply_item11_67cha.py`)가 같은 커밋에 실수로 함께 커밋된 것을 발견(9절/18절 -- 산출물이 아닌 임시 파일 유입). 다른 루트 파일은 전부 정상 openpilot 저장소 파일로 확인, stray는 이 파일 하나뿐.
+- 제거 전용 스크립트(`cleanup_stray_67cha.ps1`)를 9절 형식(UTF-8 BOM, CRLF, `core.autocrlf=false` clone, stray 없으면 무변경 중단, 각 단계 실패 시 즉시 중단, `--force` 미사용)으로 작성해 사용자가 실행, `carrot-ryu`에 commit `81754ea3`로 push됨을 push 로그로 확인.
+- 독립 `git clone --depth 1 --branch carrot-ryu`로 재검증: `apply_item11_67cha.py`가 저장소에서 완전히 사라졌고, 항목 11 코드(`screenshots.js`, `runtime.js`, `style.css`, `config.py`, `catalog.py`, `routes.py`, 생성 번들)는 그대로 정상 존재함을 확인(16절). 항목 11은 이제 최종 정리 완료 상태.
+- CURRENT_STATUS.md 항목 11/26 및 최상단 HEAD 표기를 `81754ea3` 기준 "정리 완료"로 갱신.
+
 ## 67차 (20절 이식 항목 11 재적용 준비) — 화면녹화 탭 사진 스트립 재적용 스크립트 전달 (실행 대기)
 
 - 66차 미완료 이월(항목 11->22->23->26 의존관계, 순서 확정 필요)에 대해 사용자가 "항목 11만 우선 적용(22/23/26은 이월)"로 확정.
