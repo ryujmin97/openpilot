@@ -1,5 +1,31 @@
 # WIP
 
+## 79차 (항목 18 완료 -- ko.js gdrive 클라이언트 유형 안내 문구 수정)
+
+- 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `c197cd4e`/carrot-ryu-note `2a3b6de`(78cha-fix,
+  CRLF 정상화 완료) 확인, 지침 문서(v2, 커밋 `2a3b6de`)/HANDOFF.md/CURRENT_STATUS.md 재확인 후
+  이어받음(HANDOFF.md 지시대로 항목 18부터 착수).
+- 항목 18(33차, commit `789667f7`) 원본 커밋을 `github.com/.../commit/789667f7.patch`로 직접
+  조회(GitHub API rate limit로 API 대신 .patch 엔드포인트 사용): `openpilot/selfdrive/carrot/web/
+  js/translations/ko.js` 한 파일, 한 줄 변경(`web_gdrive_client_id_desc`: "데스크톱 앱 유형" ->
+  "TV 및 제한된 입력이 있는 기기 유형"). sparse-checkout으로 `web/` 디렉터리 구조를 확인해 이 파일이
+  `index.html`에서 `<script src="/js/translations/ko.js">`로 직접 로드되고 `build.mjs` 번들
+  대상이 아님을 확인 -- npm 빌드 불필요.
+- 새 베이스(`c197cd4e`)의 대상 라인이 원본 커밋 anchor와 1회만 매치함을 sandbox에서 미리 시뮬레이션,
+  변경 후 결과가 원본 diff와 한 줄까지 완전히 동일함을 확인(9절).
+- 반영 스크립트 최초 전달본(v1)이 실행 중 anchor 0회 매치로 안전하게 중단됨 -- 원인은 스크립트
+  자체가 UTF-8 BOM 없이 생성되어 Windows PowerShell 5.1이 CP949로 잘못 해석, 스크립트 내부 한글
+  anchor 문자열 자체가 로드 시점에 이미 깨져 있었던 것(9절 필수 규칙에 이미 명시된 이슈의 재발이나
+  이번엔 Claude가 스크립트 생성 시 직접 저지름; 15절/18절의 "강제 진행 금지" 안전장치가 정상
+  동작해 대상 파일은 전혀 손상되지 않음). BOM 포함 `-v2`로 재생성/재전달해 해결, push 완료.
+- push 완료 후 `git ls-remote` + GitHub compare API(`c197cd4e...a959576f`)로 재검증: 변경 파일이
+  정확히 1개(`ko.js`), diff가 원본 33차 커밋과 완전히 동일함을 확인. raw 조회(SHA고정, 새 HEAD
+  `a959576f`)로 대상 파일 전체가 sandbox 예상 결과와 byte-exact 일치함도 확인(16절).
+- carrot-ryu 새 HEAD: `a959576f6973b44d878617399241cd35c47bf1bd`.
+- 실차 검증: 미실시.
+- 다음 세션 최우선: 항목 20(36차, commit `0835b059`, 화면녹화 탭 업로드 UI 신규 구현 + 당근서버
+  라벨/햄버거 메뉴 버그 수정) -- 항목 5~10·12·17·18 전부 끝난 뒤 순서 10번.
+
 ## 78차 (항목 17 완료 -- Google Drive drive.file 스코프+폴더 자동생성 복귀)
 
 - 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `27d81a4`/carrot-ryu-note `227bde4`(77차-fix)

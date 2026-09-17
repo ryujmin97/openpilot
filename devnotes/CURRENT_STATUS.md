@@ -2,7 +2,7 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `c197cd4e627c6f266e6f5529d152d1984a47fcd6` (78차, 항목 17 push 완료 -- 독립 clone으로 새 HEAD의 `gdrive_upload.py` blob hash(`e6a5832f07af9a3249942b9f4d64df28ffe4a5a7`)가 원본 32차 커밋 결과 blob과 완전히 일치함을 확인, byte-exact). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
+- carrot-ryu HEAD: `a959576f6973b44d878617399241cd35c47bf1bd` (79차, 항목 18 push 완료 -- GitHub compare API(`c197cd4e...a959576f`)로 변경 파일 1개(`ko.js`)가 원본 33차 커밋 diff와 완전히 일치함을 확인, raw 조회(SHA고정)로 byte-exact 재검증). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
 - 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
@@ -31,6 +31,18 @@
   재발이자, devnotes 자체가 세션 종료로 아예 반영되지 못한 새로운 변형. 이번 세션에서 처음부터
   다시 확인/재작성해 CURRENT_STATUS.md/WIP.md/HANDOFF.md 3개 파일을 완성, 한 번에 push했다.
   실차 검증: 미실시. 상세: 핵심 발견 39. HANDOFF.md 78차 참고.
+- **[79차]** 항목 18(33차, commit `789667f7`, ko.js gdrive 클라이언트 유형 안내 문구 수정: "데스크톱
+  앱 유형" -> "TV 및 제한된 입력이 있는 기기 유형") 착수. 원본 커밋을 `.patch` 엔드포인트로 조회(API
+  rate limit 회피), sparse-checkout으로 `web/` 구조를 확인해 이 파일이 `index.html`에서 직접
+  `<script>`로 로드되고 build.mjs 번들 대상이 아님을 확인(npm 빌드 불필요). anchor 1회 매치를
+  sandbox에서 사전 시뮬레이션 후 스크립트 전달. 최초 전달본(v1)이 실행 중 anchor 0회 매치로 안전하게
+  중단됨 -- 스크립트(.ps1) 자체가 UTF-8 BOM 없이 생성되어 PowerShell 5.1이 CP949로 잘못 해석,
+  스크립트 내부 한글 anchor 문자열이 로드 시점에 이미 깨져 있었던 것(9절 필수 규칙에 이미 명시된
+  이슈의 재발이나 이번엔 Claude가 스크립트 생성 시 직접 저지름; 15절/18절의 강제진행 금지 안전장치는
+  정상 동작해 대상 파일 손상 없음). BOM 포함 `-v2`로 재생성해 해결, carrot-ryu commit
+  `a959576f6973b44d878617399241cd35c47bf1bd`로 push 완료. push 후 GitHub compare API + raw
+  조회(SHA고정)로 변경 파일 1개·원본 33차 diff와 완전 일치·byte-exact를 재확인(16절). 실차 검증:
+  미실시. 다음 세션 최우선: 항목 20(36차, commit `0835b059`) -- 재적용 순서 10번.
 - **[75차]** 위 74차까지의 devnotes 공백을 사후 동기화하고, 이어서 재적용 순서 6번째인 항목 10(23차, commit `272834b`, web settings log_upload에 Google Drive 계정 연결 UI 추가)을 착수. base.css/components.js/schema.js는 pre-image hash가 현재 베이스와 정확히 일치해 전체교체, en.js/ko.js/zh.js는 다른 세션들이 추가한 번역 키와 공존하도록 anchor 기반 15개 키 삽입으로 처리. 독립 `git clone`에 실제 적용 + `npm install && node build.mjs`로 생성 번들 3종 재생성까지 확인, 변경 파일이 원본 커밋과 정확히 같은 9개임을 `git status`로 확인, `node --check` + `node --test`(747/747) 전부 통과. 반영 스크립트 (`75cha_item10_web_settings_gdrive.ps1`) 작성 및 임베드 데이터 GitHub 최신 상태 대비 round-trip 재검증까지 완료, 실행 대기. 상세: HANDOFF.md 75차 참고.
 - **[68차]** 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu(`81754ea3`)/carrot-ryu-note(`8cfa5b92`)가 직전 세션 보고와 일치함을 확인. 사용자와 협의해 항목 22(39차) 착수 전 항목 13~16(27~30차, 경로안내 박스 조정)을 먼저 재적용하기로 결정, 착수 중 항목 19(34차/33cha)까지 선행 필요함을 추가로 발견(위 26번 참고). hud_renderer.py 한 파일에 13→14→15→16→19를 순서대로 적용 -- 각 단계 anchor 1회 매치 확인, 최종 결과에 항목 22(`797fca2e`)의 hud_renderer.py 부분 diff가 정상적으로 붙는 것까지 별도 검증(9절/16절). `py_compile` 통과. `_format_eta_text`가 `_format_eta_time_text`로 이름이 바뀌는 부분(항목13)의 유일 호출부도 같은 블록 안에서 함께 치환됨을 확인해 dangling 참조 없음. 반영 스크립트 실행 대기, 항목 22 본편(스크린샷 업로드 UI + 번들 재생성)은 push 확인 후 이어서 진행.
 - **[31차]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 3가지 대안 제시, 결정 대기 상태로 세션 종료.
@@ -168,7 +180,7 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
     clone으로 결과 파일 blob hash(`e6a5832f`)가 원본 32차 커밋 결과와 완전히 일치함을 확인(byte-exact,
     16절). 35차 실기기 연결 성공 기록은 리셋 이전 상태 기준이라 이번 재적용본은 재검증 필요(실차 검증:
     미실시).
-18. ko.js gdrive 클라이언트 유형 안내 문구 수정(33차, commit 789667f7) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 10의 web settings UI가 없음). 재적용 순서 9번.
+18. ko.js gdrive 클라이언트 유형 안내 문구 수정(33차, commit 789667f7) -- **[79차]** 새 베이스(`c197cd4e`) 위에 재적용 완료, push, GitHub compare API + raw 조회로 byte-exact 확인(새 HEAD `a959576f`). 재적용 순서 9번 완료 -- 다음은 항목 20(순서 10번).
 19. 경로안내 박스 도착 텍스트 크기(40->32)/도로명 위치(박스 안쪽, 신호과속과 같은 줄) 수정(34차, 실제 commit 메시지는 "33cha", commit `9fdefb3d`) -- [68차] 항목 16 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기. **68차에서 신규 확인**: 항목 22(39차, `797fca2e`)의 hud_renderer.py 부분이 13→14→15→16뿐 아니라 이 19번(comment "eta_size(40)는...")까지 전제로 하는 체인임을 diff 대조로 확정 -- CURRENT_STATUS 목록 순서(13~16, 17~18 Drive, 19)만 보면 안 보이던 의존관계라 다음 세션(또는 이번 세션 이어서) 항목 22 착수 전 필수 선행 항목으로 기록. 38차 실기기 검증(리셋 이전 기록): 도착 텍스트 겹침 해소는 확인됨, 도로명-신호과속 같은 줄 배치는 신호과속 배지 미출현 구간이라 판단 보류 -- 재검증 필요.
 20. 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정(36차, commit 0835b059) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(routes.py에 해당 POST 엔드포인트 없음, 독립 clone으로 확인). 재적용 순서 10번(항목 5~10·12·17·18 전부 끝난 뒤). 38차/48차 실기기 검증 기록은 리셋 이전 상태 기준이라 재적용 후 처음부터 재검증 필요.
 21. gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정(37차, 커밋 해시는 스크립트 실행 로그의 git push 출력 참고) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제 파일 자체가 없음). 재적용 순서 11번(마지막).
