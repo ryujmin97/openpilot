@@ -380,6 +380,51 @@
   overflow-wrap: anywhere;
 }
 
+.web-gdrive-settings {
+  display: grid;
+  gap: var(--sp-sm);
+}
+
+.web-gdrive-settings__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 40px;
+}
+
+.web-gdrive-settings__code {
+  display: grid;
+  gap: 4px;
+  padding: var(--sp-sm);
+  border: 1px solid color-mix(in srgb, var(--md-outline-var) 68%, transparent);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--md-surface-cont-h) 84%, transparent);
+}
+
+.web-gdrive-settings__code-label {
+  color: var(--md-on-surface-var);
+  font-size: var(--fs-label-sm);
+}
+
+.web-gdrive-settings__code-value {
+  font-size: var(--fs-title-sm, 1.1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--md-on-surface);
+}
+
+.web-gdrive-settings__code-link {
+  color: var(--md-primary);
+  font-size: var(--fs-label-sm);
+  width: fit-content;
+}
+
+.web-gdrive-settings__status {
+  color: var(--md-on-surface-var);
+  font-size: var(--fs-label-sm);
+  overflow-wrap: anywhere;
+}
+
 .app-dialog--tools-qr .app-dialog__sheet {
   width: min(calc(100vw - 32px), 520px);
   max-height: min(calc(100dvh - 32px), 720px);

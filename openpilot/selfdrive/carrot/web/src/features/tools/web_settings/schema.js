@@ -127,6 +127,10 @@ const WEB_SETTINGS_GROUPS = [
         id: "web_upload",
         component: "web-upload",
       },
+      {
+        id: "web_gdrive_connect",
+        component: "web-gdrive-connect",
+      },
     ],
   },
 ];
