@@ -44,7 +44,9 @@
 - 실차 검증: 미실시(git pull 금지 상태 유지 중). drive.file 스코프 자체는 리셋 이전 35차에서 실기기
   연결 성공 기록이 있었으나, 이번 재적용본은 처음부터 재검증 필요.
 - 다음 세션 최우선: 항목 18(33차, commit `789667f7`, ko.js gdrive 클라이언트 유형 안내 문구 수정)
-  -- 항목 10(web settings UI) 위에 적용.## 77차 계속 (item12 push 완료 재확인 + devnotes 정정)
+  -- 항목 10(web settings UI) 위에 적용.
+
+## 77차 계속 (item12 push 완료 재확인 + devnotes 정정)
 
 - `77cha_item12_log_upload_targets.ps1` 실행 완료 보고 수신, `git ls-remote`로 carrot-ryu HEAD가
   `27d81a4`로 바뀐 것을 확인. GitHub compare API(`c9a03b5`..`27d81a4`)로 diff가 원본 25차 커밋
