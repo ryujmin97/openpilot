@@ -1,5 +1,23 @@
 # WIP
 
+## 77차 계속 (item12 push 완료 재확인 + devnotes 정정)
+
+- `77cha_item12_log_upload_targets.ps1` 실행 완료 보고 수신, `git ls-remote`로 carrot-ryu HEAD가
+  `27d81a4`로 바뀐 것을 확인. GitHub compare API(`c9a03b5`..`27d81a4`)로 diff가 원본 25차 커밋
+  (`d338afb7`)과 정확히 동일함(`web_settings.py` 1개 파일, `f41e1bb4b4` -> `4d669cde7f`)을 재확인.
+- `77cha_devnotes_carrot_ryu_note.ps1`(최초 버전)이 WIP.md 상단 anchor 검증에서 중단됨: WIP.md
+  34862바이트 지점에 과거 세션이 남긴 "# WIP" 헤더 중복(이 파일 하단에 이미 낮은 우선순위 기지
+  이슈로 기록돼 있던 것)이 있어 "파일 전체 매치 1회" 조건이 2회로 걸림. 아무것도 커밋되지 않고
+  안전하게 중단됨을 `git ls-remote`로 확인(15절/18절 안전장치 정상 동작).
+- 삽입 위치가 항상 파일 절대 최상단이라는 점에 착안, 검증을 전체 매치 횟수에서 `StartsWith`로
+  바꾼 `77cha_devnotes_carrot_ryu_note-v2.ps1`로 재전달(9절 버전표시 규칙). 사용자 실행 →
+  carrot-ryu-note commit `f76209d`로 push 완료.
+- WIP.md/CURRENT_STATUS.md/HANDOFF.md 3개 파일 변경 내용을 raw 조회(SHA 고정)로 재확인,
+  의도한 내용과 정확히 일치함을 확인.
+- CURRENT_STATUS.md/HANDOFF.md에 남아있던 "실행 대기" 표기를 실제 완료 상태(commit `27d81a4`,
+  `f76209d`)로 이번 세션 안에서 바로 정정(76차형 지연 재발 방지).
+- 다음 세션 최우선: 항목 17(32차, `c704371a`, drive.file 스코프+폴더 자동생성 복귀)부터 착수.
+
 ## 77차 (항목 12 착수 -- LOG_UPLOAD_TARGETS gdrive 누락 수정)
 
 - 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `c9a03b5`(76차)/carrot-ryu-note `102131e`(76차)
