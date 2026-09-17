@@ -1,5 +1,21 @@
 # WIP
 
+## 76차 (devnotes 정정: 항목 10 실제 push 완료 확인) -- 코드 변경 없음
+
+- 배경: 세션 시작 시 HANDOFF.md(75차 최종 갱신)는 항목 10 반영 스크립트
+  (`75cha_item10_web_settings_gdrive.ps1`) 실행 대기 상태로 기록돼 있었으나, `git ls-remote`로
+  carrot-ryu HEAD를 직접 확인한 결과 이미 `c9a03b5`로, HANDOFF에 기록된 base(`7a1555ed`)와 달랐다.
+- GitHub compare API(`7a1555ed`..`c9a03b5`)로 그 사이 커밋을 조회한 결과 정확히 2개:
+  `61bfcd44`(AR projection golden fixture 갱신, Drive 작업과 무관) + `c9a03b5`("75cha: web settings
+  Google Drive 계정 연결 UI 재적용", 항목 10, 번들 재생성 포함).
+- `c9a03b5`의 변경 파일 9개(base.css/components.js/schema.js 전체교체 + en.js/ko.js/zh.js
+  anchor삽입 + tools.css/tools.js/asset-manifest.json 생성번들)가 HANDOFF.md 75차 기록과 정확히
+  일치함을 확인 -- 사용자가 이미 75차 반영 스크립트를 실행/push까지 완료했고, devnotes만 그 사실을
+  따라가지 못했던 것(핵심 발견 27/38과 동일 패턴).
+- 코드 변경 없이 CURRENT_STATUS.md(최상단 carrot-ryu HEAD 표기, 항목 10 줄) + HANDOFF.md만 정정.
+- 다음 세션 최우선: 항목 12(25차, commit `d338afb7`, `LOG_UPLOAD_TARGETS`에 "gdrive" 누락 수정)
+  원본 커밋 patch 조회부터 실제 착수.
+
 ## 75차 (항목 10 web settings Drive UI 재적용 스크립트 준비, 항목 5~9 반영 사후확인)
 
 - 배경: 이 세션 시작 시 HANDOFF.md(69차 최종 갱신)는 "항목 5부터 순서대로 재적용" 상태로 기록돼
