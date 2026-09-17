@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
+import tempfile
 import time
 import uuid
+import zipfile
 from collections import deque
 from datetime import datetime
 from typing import Any
 
-from openpilot.selfdrive.carrot.web_upload import (
-  create_web_upload_session,
-  send_web_upload_complete,
-  upload_device_id,
-  upload_folder_to_web,
-)
+from openpilot.selfdrive.carrot import gdrive_upload
+from openpilot.selfdrive.carrot.web_upload import upload_device_id
 
 from ...services.params import HAS_PARAMS, Params
 from . import upload
@@ -333,27 +332,32 @@ def start_job(job: dict[str, Any]) -> asyncio.Task:
 
 
 async def run_upload_segments(segments: list[str], job: dict[str, Any] | None = None) -> dict[str, Any]:
+  """세그먼트(들)를 zip으로 압축해 Google Drive에 업로드한다.
+
+  [15차->16차 전환] 기존에는 세그먼트마다, 파일마다 개별 HTTP PUT으로
+  Carrot/Toss 서버에 올리고(`upload_folder_to_web`) 완료 후 `/complete`를
+  통지했다. 이제는 선택된 세그먼트들의 대상 파일(qcamera/rlog)을 하나의 zip으로
+  묶어 `gdrive_upload.upload_file_resumable()`로 단일 파일 업로드한다.
+
+  이 때문에 성공/실패 단위가 "세그먼트별"에서 "zip 전체"로 바뀐다: zip 안에
+  포함된 세그먼트는 업로드 성공 시 모두 ok=True, 압축 준비 단계에서 이미
+  실패한 세그먼트(파일 접근 오류 등)만 ok=False로 표시된다. 업로드 자체가
+  중간에 실패/취소되면 zip에 포함됐던 세그먼트 전부가 실패로 처리된다
+  (부분 업로드가 Drive에 남지 않으므로 실제 상태와 일치).
+  """
   params = Params() if HAS_PARAMS else None
-  target = upload.resolve_upload_target()
-  base_url, token = target["base_url"], target["token"]
+
+  if not gdrive_upload.is_connected():
+    raise RuntimeError("Google Drive가 연결되어 있지 않습니다. 로그탭 설정에서 Drive를 먼저 연결하세요.")
+
   meta = upload.upload_metadata(params)
   device_id = upload_device_id(meta)
   car_selected = meta.get("carName") or "none"
-  storage_directory = f"{car_selected} {device_id}".strip()
-  upload_directory = device_id if target["kind"] == "carrot" else storage_directory
-  if not token:
-    if target["kind"] == "carrot":
-      token = await create_web_upload_session(base_url, meta, "dashcam")
-    else:
-      raise RuntimeError("Toss upload token is not configured")
-  remote_base_path = f"{base_url}/routes/{storage_directory}/".replace("\\", "/")
-  total = len(segments)
-  results: list[Any] = [None] * total  # filled by index so order matches input
+  storage_label = f"{car_selected}_{device_id}".strip().replace(" ", "_") or "unknown"
 
+  total = len(segments)
   if job:
-    job["upload_meta"] = meta
-    job["remote_base_path"] = remote_base_path
-    job["upload_target"] = target["kind"]
+    job["upload_target"] = "gdrive"
     job["partial_results"] = []
     progress(
       job,
@@ -368,9 +372,9 @@ async def run_upload_segments(segments: list[str], job: dict[str, Any] | None = 
 
   ensure_not_canceled(job)
 
-  # Upload segments in parallel with bounded concurrency. Each segment uses an
-  # independent HTTPS session. Keep the limit small because the upload service
-  # and its backing storage are shared across devices.
+  # Gather segment file lists in parallel with bounded concurrency (unchanged
+  # from the pre-Drive implementation: reading directory entries/sizes is
+  # cheap but still worth not serializing across many segments).
   try:
     concurrency = max(1, min(6, int(os.environ.get("CARROT_WEB_UPLOAD_CONCURRENCY", "3") or "3")))
   except Exception:
@@ -430,155 +434,134 @@ async def run_upload_segments(segments: list[str], job: dict[str, Any] | None = 
     if error is None
     for item in files
   )
+  if total_bytes <= 0:
+    raise RuntimeError("업로드할 파일이 없습니다 (선택한 세그먼트에서 qcamera/rlog를 찾지 못함)")
+
   if job:
     progress(
       job,
-      message="Uploading files",
-      current=0,
+      message="Compressing segments",
+      current=total,
       total=total,
       percent=UPLOAD_PREPARING_END_PERCENT,
-      phase=UPLOAD_PHASE_UPLOADING,
-      phase_current=0,
-      phase_total=total_bytes if total_bytes > 0 else total,
-      bytes_current=0,
-      bytes_total=total_bytes,
-      bytes_per_second=0,
+      phase=UPLOAD_PHASE_PREPARING,
+      phase_current=total,
+      phase_total=total,
     )
 
-  sem = asyncio.Semaphore(concurrency)
-  completed = 0
-  logical_bytes = 0
-  transmitted_bytes = 0
-  logical_by_file: dict[tuple[int, str], int] = {}
-  transfer_started = time.monotonic()
-  speed_samples: deque[tuple[float, int]] = deque([(transfer_started, 0)])
+  ensure_not_canceled(job)
 
-  def current_percent() -> int:
-    byte_ratio = logical_bytes / total_bytes if total_bytes > 0 else 0
-    step_ratio = completed / total if total > 0 else 0
-    transfer_ratio = max(0.0, min(1.0, max(byte_ratio, step_ratio)))
+  timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+  zip_filename = f"{storage_label}_{timestamp}.zip"
+  tmp_dir = tempfile.mkdtemp(prefix="carrot_dashcam_")
+  zip_path = os.path.join(tmp_dir, zip_filename)
+
+  def build_zip() -> None:
+    # ZIP_STORED (무압축): qcamera는 이미 h265로, rlog는 이미 zstd로 압축돼
+    # 있어 추가 DEFLATE는 CPU만 태우고 용량 이득이 거의 없다(콤마 기기 CPU를
+    # 아끼는 쪽을 택함).
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
+      for idx0, segment in enumerate(segments):
+        files, prepare_error = normalized_prepared[idx0]
+        if prepare_error is not None:
+          continue
+        seg_dir = segment_dir(segment)
+        for item in files:
+          name = str(item["name"])
+          zf.write(os.path.join(seg_dir, name), arcname=f"{segment}/{name}")
+
+  try:
+    await asyncio.to_thread(build_zip)
+    ensure_not_canceled(job)
+
+    zip_size = os.path.getsize(zip_path)
+    if job:
+      progress(
+        job,
+        message="Uploading to Google Drive",
+        current=0,
+        total=total,
+        percent=UPLOAD_PREPARING_END_PERCENT,
+        phase=UPLOAD_PHASE_UPLOADING,
+        phase_current=0,
+        phase_total=zip_size,
+        bytes_current=0,
+        bytes_total=zip_size,
+        bytes_per_second=0,
+      )
+
+    transfer_started = time.monotonic()
+    speed_samples: deque[tuple[float, int]] = deque([(transfer_started, 0)])
     transfer_span = UPLOAD_TRANSFERRING_END_PERCENT - UPLOAD_PREPARING_END_PERCENT
-    return min(
-      UPLOAD_TRANSFERRING_END_PERCENT,
-      UPLOAD_PREPARING_END_PERCENT + round(transfer_ratio * transfer_span),
-    )
 
-  async def upload_one(idx0: int, segment: str) -> None:
-    nonlocal completed, logical_bytes, transmitted_bytes
-    idx = idx0 + 1
-    files, prepare_error = normalized_prepared[idx0]
-
-    def on_file_progress(filename: str, sent: int, file_size: int, delta: int) -> None:
-      nonlocal logical_bytes, transmitted_bytes
+    def on_upload_progress(sent: int, size: int) -> None:
+      # gdrive_upload calls this synchronously from inside its chunk loop;
+      # raising here (e.g. via ensure_not_canceled) aborts the upload in
+      # place, which is how mid-transfer cancellation is wired up without
+      # threading a cancel-check callback through gdrive_upload itself.
+      ensure_not_canceled(job)
       if not job:
         return
-      key = (idx0, filename)
-      previous = logical_by_file.get(key, 0)
-      bounded = max(0, min(int(sent), max(0, int(file_size))))
-      current = max(previous, bounded)
-      logical_by_file[key] = current
-      logical_bytes += current - previous
-      transmitted_bytes += max(0, int(delta))
-
       now = time.monotonic()
-      speed_samples.append((now, transmitted_bytes))
+      speed_samples.append((now, sent))
       while len(speed_samples) > 2 and now - speed_samples[0][0] > 3.0:
         speed_samples.popleft()
       sample_time, sample_bytes = speed_samples[0]
       elapsed = max(0.001, now - sample_time)
-      current_bytes = min(total_bytes, logical_bytes)
+      ratio = (sent / size) if size > 0 else 0.0
+      percent = UPLOAD_PREPARING_END_PERCENT + round(ratio * transfer_span)
       progress(
         job,
-        percent=current_percent(),
+        percent=min(UPLOAD_TRANSFERRING_END_PERCENT, percent),
         phase=UPLOAD_PHASE_UPLOADING,
-        phase_current=current_bytes if total_bytes > 0 else completed,
-        phase_total=total_bytes if total_bytes > 0 else total,
-        bytes_current=current_bytes,
-        bytes_total=total_bytes,
-        bytes_per_second=max(0, round((transmitted_bytes - sample_bytes) / elapsed)),
+        phase_current=sent,
+        phase_total=size,
+        bytes_current=sent,
+        bytes_total=size,
+        bytes_per_second=max(0, round((sent - sample_bytes) / elapsed)),
       )
 
-    async with sem:
-      if is_cancel_requested(job):
-        return
-      if job:
-        append(job, f"[{idx}/{total}] {segment}")
-      try:
-        if prepare_error is not None:
-          raise prepare_error
-        segment_path = segment_dir(segment)
-
-        def should_cancel() -> bool:
-          if job:
-            touch(job)
-          return is_cancel_requested(job)
-
-        ok = await upload_folder_to_web(
-          segment_path,
-          upload_directory,
-          segment,
-          base_url,
-          token,
-          should_cancel if job else None,
-          filenames=[str(item["name"]) for item in files],
-          on_progress=on_file_progress if job else None,
-        )
-        results[idx0] = {
-          "segment": segment,
-          "route": route_name(segment),
-          "segmentIndex": segment_index(segment),
-          "ok": bool(ok),
-          "remotePath": f"{remote_base_path}{segment}",
-          "files": files,
-        }
-        if job:
-          append(job, f"[{idx}/{total}] {segment} OK")
-      except Exception as e:
-        if is_cancel_requested(job):
-          return  # canceled mid-upload — handled after gather
-        results[idx0] = {
-          "segment": segment,
-          "route": route_name(segment),
-          "segmentIndex": segment_index(segment),
-          "ok": False,
-          "remotePath": f"{remote_base_path}{segment}",
-          "files": files,
-          "error": str(e),
-        }
-        if job:
-          append(job, f"[{idx}/{total}] {segment} FAILED: {e}")
-    # post-upload bookkeeping runs synchronously (atomic between awaits)
-    completed += 1
-    if job:
-      job["partial_results"] = [r for r in results if r is not None]
-      progress(
-        job,
-        message=f"Uploaded {completed}/{total}",
-        current=completed,
-        total=total,
-        percent=current_percent(),
-        phase=UPLOAD_PHASE_UPLOADING,
-        phase_current=min(total_bytes, logical_bytes) if total_bytes > 0 else completed,
-        phase_total=total_bytes if total_bytes > 0 else total,
-      )
-
-  await asyncio.gather(*(upload_one(i, seg) for i, seg in enumerate(segments)))
+    drive_result = await gdrive_upload.upload_file_resumable(
+      zip_path, zip_filename, progress_cb=on_upload_progress,
+    )
+  finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
   ensure_not_canceled(job)
-  results = [r for r in results if r is not None]
-  ok_count = sum(1 for item in results if item["ok"])
+
+  web_link = str(drive_result.get("webViewLink") or "")
   uploaded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  results: list[dict[str, Any]] = []
+  for idx0, segment in enumerate(segments):
+    files, prepare_error = normalized_prepared[idx0]
+    entry = {
+      "segment": segment,
+      "route": route_name(segment),
+      "segmentIndex": segment_index(segment),
+      "ok": prepare_error is None,
+      "remotePath": web_link,
+      "files": files,
+    }
+    if prepare_error is not None:
+      entry["error"] = str(prepare_error)
+    results.append(entry)
+  if job:
+    job["partial_results"] = results
+
+  ok_count = sum(1 for item in results if item["ok"])
   response_payload = {
-    "ok": ok_count == len(results),
+    "ok": ok_count == len(results) and bool(drive_result.get("id")),
     "uploaded": ok_count,
     "total": len(results),
     "uploadedAt": uploaded_at,
-    "target": target["kind"],
+    "target": "gdrive",
     "deviceId": device_id,
-    "remoteBasePath": remote_base_path,
+    "remoteBasePath": web_link,
     "meta": meta,
     "results": results,
-    "message": f"{ok_count}/{len(results)} uploaded",
+    "message": f"{ok_count}/{len(results)} uploaded to Google Drive",
+    "driveFileId": drive_result.get("id"),
+    "driveFileName": drive_result.get("name"),
   }
   response_payload["shareText"] = upload.upload_share_text(response_payload)
 
@@ -591,32 +574,15 @@ async def run_upload_segments(segments: list[str], job: dict[str, Any] | None = 
       percent=UPLOAD_NOTIFYING_START_PERCENT,
       phase=UPLOAD_PHASE_NOTIFYING,
       phase_current=0,
-      phase_total=2,
+      phase_total=1,
     )
+
   ensure_not_canceled(job)
-  response_payload["webComplete"] = await send_web_upload_complete(
-    base_url,
-    token,
+  response_payload["discord"] = await upload.send_discord_webhook(
+    upload.discord_webhook_url(params),
     response_payload,
   )
-  if job:
-    progress(
-      job,
-      message="Sending notification",
-      current=total,
-      total=total,
-      percent=UPLOAD_NOTIFYING_END_PERCENT,
-      phase=UPLOAD_PHASE_NOTIFYING,
-      phase_current=1,
-      phase_total=2,
-    )
-  if target["kind"] == "carrot":
-    response_payload["discord"] = await upload.send_discord_webhook(
-      upload.discord_webhook_url(params),
-      response_payload,
-    )
-  else:
-    response_payload["discord"] = {"configured": False, "ok": False, "skipped": True}
+
   if job:
     progress(
       job,
@@ -625,8 +591,8 @@ async def run_upload_segments(segments: list[str], job: dict[str, Any] | None = 
       total=total,
       percent=UPLOAD_NOTIFYING_END_PERCENT,
       phase=UPLOAD_PHASE_NOTIFYING,
-      phase_current=2,
-      phase_total=2,
+      phase_current=1,
+      phase_total=1,
     )
   return response_payload
 
