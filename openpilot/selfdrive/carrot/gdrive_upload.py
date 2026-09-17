@@ -314,6 +314,21 @@ async def _verify_folder(session: aiohttp.ClientSession, token: str) -> str:
   return DRIVE_FOLDER_ID
 
 
+async def test_connection() -> dict[str, Any]:
+  """연결 테스트 버튼(api_dashcam_upload_test)용. is_connected()는 refresh_token
+  존재 여부만 보므로, 여기서는 실제로 access_token 갱신 + 대상 폴더 조회까지
+  왕복해 Drive 연동이 실제로 동작하는지 확인한다."""
+  if not is_connected():
+    return {"ok": False, "connected": False, "error": "Google Drive가 연결되어 있지 않습니다"}
+  try:
+    async with aiohttp.ClientSession() as session:
+      token = await _get_access_token(session)
+      folder_id = await _verify_folder(session, token)
+    return {"ok": True, "connected": True, "folder_id": folder_id}
+  except Exception as e:
+    return {"ok": False, "connected": True, "error": str(e)}
+
+
 UPLOAD_JOB_KEEP_COUNT = 12
 _upload_jobs: dict[str, dict[str, Any]] = {}
 
