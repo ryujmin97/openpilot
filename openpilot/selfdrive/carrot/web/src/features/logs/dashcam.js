@@ -1276,7 +1276,9 @@ function dashcamUploadConfirmHtml(stats, uploadTarget = "carrot") {
   const sizeLabel = bytes > 0 ? formatLogBytes(bytes) : getUIText("upload_size_unknown", "size unknown");
   const targetLabel = uploadTarget === "toss"
     ? getUIText("web_log_upload_target_toss", "Toss server")
-    : getUIText("web_log_upload_target_carrot", "Carrot server");
+    : uploadTarget === "gdrive"
+      ? getUIText("web_log_upload_target_gdrive", "Google Drive")
+      : getUIText("web_log_upload_target_carrot", "Carrot server");
   const networkWarning = getUIText("upload_data_warning", "This upload may use mobile data depending on your network connection.");
   return `<section class="app-dialog__uploadBrief" aria-label="${escapeHtml(getUIText("upload_summary_label", "Upload summary"))}">
     <div class="app-dialog__uploadBriefCopy">
