@@ -2,7 +2,7 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `27d81a4667263cf3ea96ca70f35b83abeda24b1f` (77차, 항목 5~10·12 전부 push 완료 -- GitHub compare API(`c9a03b5`..`27d81a4`)로 `web_settings.py` 1개 파일, 원본 25차 커밋과 정확히 동일한 diff임을 확인). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
+- carrot-ryu HEAD: `c197cd4e627c6f266e6f5529d152d1984a47fcd6` (78차, 항목 17 push 완료 -- 독립 clone으로 새 HEAD의 `gdrive_upload.py` blob hash(`e6a5832f07af9a3249942b9f4d64df28ffe4a5a7`)가 원본 32차 커밋 결과 blob과 완전히 일치함을 확인, byte-exact). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
 - 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
@@ -11,6 +11,26 @@
 - **[70~74차]** 항목 5(15차, `183bef9`, gdrive_upload.py 신규)→6(16차, `dae901c`+`cc734e1`, 대시캠/tmux 업로드 Drive zip 전환)→7(17차, `2869149`, send_tmux_web() Drive 전환)→8(18~20차, `ad055dd4`, 업로드 연결테스트 버튼 Drive 전환)→9(22차, `48c2e081`, params_keys.h Drive 3키 등록) 순서로 새 베이스(`2088c546`) 위에 순차 재적용, 각 commit(`017072dd`/`4b6c8f84`/`75c7c316`/`bc021ed9`/`7a1555ed`)까지 push 완료. devnotes(HANDOFF.md/WIP.md)는 이 다섯 세션 동안 갱신되지 못한 채 세션이 끊겨 69차 상태로 남아있었음 -- 75차에서 `git ls-remote`+GitHub compare API로 발견/사후 동기화(핵심 발견 27/38과 동일 패턴, 상세는 75차 항목 및 WIP.md 참고).
 - **[76차, devnotes 정정만 · 코드 변경 없음]** 세션 시작 체크포인트(`git ls-remote`)에서 carrot-ryu HEAD가 `c9a03b5`로, HANDOFF.md(75차)에 기록된 base(`7a1555ed`)와 다름을 발견(4절/16절). GitHub compare API로 `7a1555ed`..`c9a03b5` 사이를 조회한 결과 정확히 2개 커밋: `61bfcd44`(AR projection golden fixture 갱신, Drive 작업과 무관) + `c9a03b5`("75cha: web settings Google Drive 계정 연결 UI 재적용", 항목 10, 번들 재생성 포함). 변경 파일 9개(base.css/components.js/schema.js 전체교체 + en.js/ko.js/zh.js anchor삽입 + tools.css/tools.js/asset-manifest.json 생성번들)가 HANDOFF.md 75차에 기록된 예상과 정확히 일치함을 확인. 결론: 사용자가 이미 `75cha_item10_web_settings_gdrive.ps1`을 실행해 push까지 완료했고, HANDOFF.md의 "실행 대기" 표기만 뒤처져 있던 것(핵심 발견 27/38과 동일 패턴). 코드 변경 없이 이 파일과 HANDOFF.md의 표기만 정정. 다음 세션 최우선: 항목 12(25차, commit `d338afb7`, `LOG_UPLOAD_TARGETS`에 "gdrive" 누락 수정)부터 이어서.
 - **[77차]** 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu `c9a03b5`/carrot-ryu-note `102131e` 확인, 지침 문서(v2, 커밋 `102131e`)/HANDOFF.md/CURRENT_STATUS.md 재확인 후 이어받음. 항목 12(25차, commit `d338afb7`, `LOG_UPLOAD_TARGETS`에 "gdrive" 누락 수정) 착수: 원본 커밋 patch를 `github.com/.../commit/d338afb7.patch`로 직접 조회한 결과 `openpilot/selfdrive/carrot/server/services/web_settings.py` 한 파일, 한 줄 변경 (`LOG_UPLOAD_TARGETS = {"carrot", "toss"}` -> `{"carrot", "toss", "gdrive"}`). 새 베이스(`c9a03b5`)의 해당 파일 blob hash(`f41e1bb4b4a31b380b33968d41781a98101b2661`)가 원본 커밋의 pre-image blob hash와 완전히 일치함을 `git hash-object`로 확인 -- 그 사이 다른 세션이 이 파일을 건드리지 않았음을 실증(byte-exact 재적용 가능). anchor 매치 1회 확인. 반영 스크립트(`77cha_item12_log_upload_targets.ps1`) 작성/전달, 사용자 실행 후 commit `27d81a4`로 push 완료를 GitHub compare API로 재확인(원본 25차 diff와 완전히 동일). devnotes 반영 스크립트(`77cha_devnotes_carrot_ryu_note.ps1`)는 최초 실행 시 WIP.md 상단 anchor 검증 로직이 파일 중간의 기존 "# WIP" 헤더 중복(기지 이슈)까지 세면서 2회 매치로 잘못 중단됨 -- StartsWith 방식으로 고친 -v2로 재전달해 해결, push 완료(`f76209d`) 확인. 실차 검증: 미실시.
+- **[78차]** 사용자가 올린 첫 파일이 채팅에서 설명한 "항목 17 스크립트"와 다른 파일(실제로는 이미
+  push 완료된 77차-fix devnotes 정정 스크립트)임을 `git log` 대조로 발견(16절), 재업로드받은 실제
+  항목 17 스크립트(`77cha_item17_gdrive_file_scope.ps1`, 챗지피티 작성)를 반영 전 원본 커밋
+  (`c704371a`, 32차)의 부모 SHA/pre-image blob hash 일치 여부부터 독립 재현으로 먼저 검증(9절).
+  실행 과정에서 버그 3건을 사용자 실행 로그로 실증하며 순차 수정: (1) 8자리 축약 SHA로는 GitHub이
+  `git fetch`를 거부함 -- 40자리 전체 SHA로 교체, (2) `git diff | Out-File -Encoding ascii`가
+  PowerShell 파이프라인 캡처 과정에서 patch를 손상시킴(`patch fragment without header`) --
+  `git diff --output=<file>`로 교체, (3) `$Diff` 배열에 대한 `-notmatch` 검사가 PowerShell의
+  배열 매치 시맨틱("전체가 매치 안 하면 참"이 아니라 "매치 안 하는 원소들의 배열 반환") 때문에
+  항상 거짓 실패로 중단됨 -- 이미 읽어둔 스칼라 문자열 `$PatchText`로 교체. (4) `py_compile`
+  검증은 핵심 발견 37과 동일한 Windows 앱 실행 별칭 문제가 재발해 `Get-PythonCmd` 함수를 재적용.
+  v2~v5까지 9절 버전표시 규칙대로 순차 전달, 최종 v5 실행으로 carrot-ryu commit `c197cd4e`(32차
+  "restore drive.file scope and auto-create Drive folder")로 push 완료. push 후 독립 clone으로
+  새 HEAD의 대상 파일 blob hash가 원본 32차 커밋 결과 blob과 byte-exact 일치함을 재확인(16절).
+  이전 대화(코드 push까지는 동일 작업)에서 devnotes 3개 파일 반영이 HANDOFF.md 작성 전에 끊겨
+  push되지 못했음을 이번 세션 시작 시 `git ls-remote`(carrot-ryu-note가 여전히 `227bde4`, 77차-fix)
+  로 확인 -- 76차/77차와 동일한 "코드 push는 됐는데 devnotes만 뒤처짐" 패턴(핵심 발견 27/38)의
+  재발이자, devnotes 자체가 세션 종료로 아예 반영되지 못한 새로운 변형. 이번 세션에서 처음부터
+  다시 확인/재작성해 CURRENT_STATUS.md/WIP.md/HANDOFF.md 3개 파일을 완성, 한 번에 push했다.
+  실차 검증: 미실시. 상세: 핵심 발견 39. HANDOFF.md 78차 참고.
 - **[75차]** 위 74차까지의 devnotes 공백을 사후 동기화하고, 이어서 재적용 순서 6번째인 항목 10(23차, commit `272834b`, web settings log_upload에 Google Drive 계정 연결 UI 추가)을 착수. base.css/components.js/schema.js는 pre-image hash가 현재 베이스와 정확히 일치해 전체교체, en.js/ko.js/zh.js는 다른 세션들이 추가한 번역 키와 공존하도록 anchor 기반 15개 키 삽입으로 처리. 독립 `git clone`에 실제 적용 + `npm install && node build.mjs`로 생성 번들 3종 재생성까지 확인, 변경 파일이 원본 커밋과 정확히 같은 9개임을 `git status`로 확인, `node --check` + `node --test`(747/747) 전부 통과. 반영 스크립트 (`75cha_item10_web_settings_gdrive.ps1`) 작성 및 임베드 데이터 GitHub 최신 상태 대비 round-trip 재검증까지 완료, 실행 대기. 상세: HANDOFF.md 75차 참고.
 - **[68차]** 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu(`81754ea3`)/carrot-ryu-note(`8cfa5b92`)가 직전 세션 보고와 일치함을 확인. 사용자와 협의해 항목 22(39차) 착수 전 항목 13~16(27~30차, 경로안내 박스 조정)을 먼저 재적용하기로 결정, 착수 중 항목 19(34차/33cha)까지 선행 필요함을 추가로 발견(위 26번 참고). hud_renderer.py 한 파일에 13→14→15→16→19를 순서대로 적용 -- 각 단계 anchor 1회 매치 확인, 최종 결과에 항목 22(`797fca2e`)의 hud_renderer.py 부분 diff가 정상적으로 붙는 것까지 별도 검증(9절/16절). `py_compile` 통과. `_format_eta_text`가 `_format_eta_time_text`로 이름이 바뀌는 부분(항목13)의 유일 호출부도 같은 블록 안에서 함께 치환됨을 확인해 dangling 참조 없음. 반영 스크립트 실행 대기, 항목 22 본편(스크린샷 업로드 UI + 번들 재생성)은 push 확인 후 이어서 진행.
 - **[31차]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 3가지 대안 제시, 결정 대기 상태로 세션 종료.
@@ -143,7 +163,11 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 14. 경로안내 박스 높이 축소(495→400) + 도착/ETA를 route= 아래 우측끝맞춤으로, 회전아이콘 좌측 배치(28차, commit cc73f629) -- [68차] 항목 13 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기
 15. 경로안내 박스 제목 위치/도착·ETA 박스경계 끝맞춤/신호과속 배지를 회전아이콘 박스 바로 아래로 이동(29차, commit 67a8e10) -- [68차] 항목 14 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기
 16. 경로안내 박스 route= 크기/위치 조정, 도착·ETA를 pad 인셋 + route= 아래 상단기준으로 재조정(30차, commit 34bb41bc) -- [68차] 항목 15 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기. 항목 22(39차) diff의 hud_renderer.py 부분이 이 상태를 전제로 함을 확인(20절 이식 순서 근거).
-17. Google Drive drive.file 스코프+폴더 자동생성 복귀(32차, commit c704371a) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 gdrive_upload.py 자체가 없음). 재적용 순서 8번. 35차 실기기 연결 성공 기록은 리셋 이전 상태 기준.
+17. Google Drive drive.file 스코프+폴더 자동생성 복귀(32차, commit c704371a) -- **[78차]** 새 베이스
+    (`27d81a4`) 위에 재적용 완료, commit `c197cd4e627c6f266e6f5529d152d1984a47fcd6`로 push. 독립
+    clone으로 결과 파일 blob hash(`e6a5832f`)가 원본 32차 커밋 결과와 완전히 일치함을 확인(byte-exact,
+    16절). 35차 실기기 연결 성공 기록은 리셋 이전 상태 기준이라 이번 재적용본은 재검증 필요(실차 검증:
+    미실시).
 18. ko.js gdrive 클라이언트 유형 안내 문구 수정(33차, commit 789667f7) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 10의 web settings UI가 없음). 재적용 순서 9번.
 19. 경로안내 박스 도착 텍스트 크기(40->32)/도로명 위치(박스 안쪽, 신호과속과 같은 줄) 수정(34차, 실제 commit 메시지는 "33cha", commit `9fdefb3d`) -- [68차] 항목 16 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기. **68차에서 신규 확인**: 항목 22(39차, `797fca2e`)의 hud_renderer.py 부분이 13→14→15→16뿐 아니라 이 19번(comment "eta_size(40)는...")까지 전제로 하는 체인임을 diff 대조로 확정 -- CURRENT_STATUS 목록 순서(13~16, 17~18 Drive, 19)만 보면 안 보이던 의존관계라 다음 세션(또는 이번 세션 이어서) 항목 22 착수 전 필수 선행 항목으로 기록. 38차 실기기 검증(리셋 이전 기록): 도착 텍스트 겹침 해소는 확인됨, 도로명-신호과속 같은 줄 배치는 신호과속 배지 미출현 구간이라 판단 보류 -- 재검증 필요.
 20. 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정(36차, commit 0835b059) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(routes.py에 해당 POST 엔드포인트 없음, 독립 clone으로 확인). 재적용 순서 10번(항목 5~10·12·17·18 전부 끝난 뒤). 38차/48차 실기기 검증 기록은 리셋 이전 상태 기준이라 재적용 후 처음부터 재검증 필요.
@@ -271,6 +295,36 @@ hud_renderer.py의 HudRenderer._render()는 screenshot_button.render()(클릭 �
 
 ## 핵심 발견 38 (69차) -- "코드 수정 현황"의 stale "GitHub 반영됨" 표기가 20절 리셋 이후에도 장기간 방치될 수 있음
 62차 안내문이 "61차 리셋 이후 각 항목은 실제로 재적용될 때마다 개별 갱신하라"고 미리 경고했음에도, 항목 5~10·12·17·18·20·21(Google Drive 파이프라인 전체)은 68차까지 7개 세션 동안 아무도 재확인하지 않아 리셋 이전 "GitHub 반영됨" 표기가 그대로 남아있었다. 그 사이 63~68차는 hud_renderer.py 계열(항목 3·4·11·13~16·19·25·27·28)만 순서대로 재적용하며 CURRENT_STATUS 목록을 위에서부터 훑지 않고 "다음 필요한 항목"만 골라 처리해온 것이 원인으로 추정된다. 69차에서 항목 22(39차) 착수 전 의존관계를 역추적하다 우연히 발견했고, 독립 `git clone`으로 `gdrive_upload.py` 부재 + routes.py POST 엔드포인트 부재를 직접 확인해 실증했다(16절, 11절). 앞으로 새 항목을 재적용하기 전에는 그 항목이 서브시스템 경계를 넘어 의존하는 다른 항목(예: 22가 20에, 20이 5~10·12·17·18·21에 의존)까지 먼저 "GitHub 반영됨" 표기만 믿지 말고 실제 코드 존재 여부를 확인할 것.
+
+
+## 핵심 발견 39 (78차) -- 다른 AI가 만든 반영 스크립트의 구조적 버그 3종 + devnotes 미반영
+채팅이 끊기면 코드는 push되어도 devnotes는 통째로 유실될 수 있음
+챗지피티가 작성한 항목 17 반영 스크립트를 실행하며 서로 다른 layer의 버그 3건이 연쇄로 드러났다.
+(1) `git fetch origin <8자리 축약 SHA>`는 GitHub 서버가 ref로 인식하지 못해 거부한다(`couldn't
+find remote ref`) -- reachable 여부와 무관하게 40자리 전체 SHA가 필요함을 독립 재현으로 확정.
+(2) `git diff ... | Out-File -Encoding ascii`처럼 PowerShell 파이프라인(성공 스트림)으로 git의
+표준출력을 캡처해 파일에 쓰면, 비ASCII(한글 주석 등)가 많이 섞인 긴 diff에서 patch가 손상돼
+`git apply --check`가 `patch fragment without header`로 실패할 수 있다(원인은 파이프라인
+캡처/재인코딩 과정으로 추정, 정확한 메커니즘은 미확정). git 자체가 파이프라인을 거치지 않고 파일에
+직접 쓰는 `git diff --output=<file>` 옵션으로 완전히 우회됨을 독립 재현으로 확인 -- 앞으로 patch를
+파일로 뽑아야 하는 스크립트는 `Out-File`/`>` 대신 이 방식을 기본으로 삼을 것.
+(3) PowerShell의 `-match`/`-notmatch`는 좌변이 배열이면 "전체가 조건을 만족하는가"의 불리언이
+아니라 "조건을 만족하는(또는 만족하지 않는) 개별 원소들의 배열"을 반환한다. `$Diff = git ... diff`
+처럼 여러 줄짜리 명령 출력을 변수에 담으면 PowerShell이 자동으로 줄 단위 문자열 배열로 저장하므로,
+`if ($Diff -notmatch 'X')`는 "X를 포함하는 줄이 하나도 없으면 참"이 아니라 "X를 포함하지 않는
+줄들의 배열이 비어있지 않으면 참"으로 동작해, 대부분의 실전 diff에서 매치되는 줄이 1~2줄뿐이어도
+거의 항상 거짓 실패(오탐)로 중단된다. 이번 사례는 실제로 패치가 정상 적용된 뒤에도(4~6/8단계 전부
+성공) 이 검증 단계에서만 계속 실패했다 -- 스칼라 문자열(이미 파일로 읽어둔 patch 원문 등)로 검사
+대상을 통일하면 해결된다. 앞으로 diff/patch 텍스트에 대한 문자열 포함 여부 검사는 배열이 아니라
+반드시 단일 문자열 변수에 대해 수행할 것.
+(4) 별개로, 항목 17 코드 push까지 마친 이전 대화가 devnotes(CURRENT_STATUS.md/WIP.md/HANDOFF.md)
+3개 파일 편집 도중, HANDOFF.md 작성 전에 끊겨 devnotes가 전혀 push되지 못한 채 남았다. 대화가
+끊기면 로컬(컨테이너) 파일 편집 내용은 전부 사라지고 GitHub에 실제로 push된 것만 남으므로, 코드
+push 확인 직후 devnotes 3개 파일도 가능한 한 바로 이어서 완성해 같은 세션 안에서 push까지 끝내는
+것이 안전하다(76차/77차의 "코드는 됐는데 devnotes만 뒤처짐" 패턴, 핵심 발견 27/38과 연결되는
+동일 계열 위험 -- 이번엔 지연이 아니라 완전 유실 직전까지 갔다는 점이 다름). 다음 세션 시작 시
+`git ls-remote`로 carrot-ryu-note HEAD가 예상과 다르면(코드 HEAD는 최신인데 devnotes HEAD가
+뒤처져 있으면) 곧바로 이 패턴을 의심하고 devnotes 재작성부터 시작할 것.
 
 - 미확인: carrot-ms 모델 셀렉터 코드 미분석
 - 다음 작업: [신규] 56차에서 55차 스크린샷 상하반전 수정 실차검증 완료 -- 다음 우선순위는 사용자 확인 필요. 후보: 37차 락 수정 동시성 재현 검증(의도적으로 동시에 두 업로드 시도), 34차 도로명-신호과속 같은 줄 배치 확인(신호과속 구간에서), 28~30차 레이아웃 정밀 재검증, 실기기 터미널로 배포된 tools.js 내용 확인해 번들 최신 여부 검증, test_web_upload.py 실제 실행해 낡은 테스트 범위 확정, 데드코드 3개 삭제 + 대응 테스트 정리, docs 갱신, 46차까지 확인된 것을 제외한 나머지 코드 변경 전부 실주행 재검증, carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고), 핵심 발견 31 재발 방지 제안(스크립트 파일명 버전 표시 규칙화) 채택 여부 확인, 핵심 발견 37 Get-PythonCmd 방식을 9절 정식 규칙으로 채택할지 사용자 확인(19절 절차), WIP.md "# WIP" 헤더 중복 정리(낮은 우선순위)

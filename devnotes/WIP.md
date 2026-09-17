@@ -1,6 +1,50 @@
 # WIP
 
-## 77차 계속 (item12 push 완료 재확인 + devnotes 정정)
+## 78차 (항목 17 완료 -- Google Drive drive.file 스코프+폴더 자동생성 복귀)
+
+- 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `27d81a4`/carrot-ryu-note `227bde4`(77차-fix)
+  확인, 지침 문서(v2, 커밋 `227bde4`)/HANDOFF.md/CURRENT_STATUS.md 재확인 후 이어받음.
+- 사용자가 올린 첫 파일(`77cha-fix_devnotes_item12_complete.ps1`)이 채팅 설명("항목 17 스크립트")과
+  다른 파일임을 발견 -- 실제로는 이미 push 완료된 77차-fix devnotes 정정 스크립트였음(커밋 메시지가
+  carrot-ryu-note 현재 HEAD와 문자 그대로 일치함을 `git log`로 확인, 16절). 사용자가 실제 항목 17
+  스크립트(`77cha_item17_gdrive_file_scope.ps1`, 챗지피티 작성)를 재업로드.
+- 반영 전 원본 커밋(`c704371a`, 32차)을 독립적으로 fetch해 부모 SHA(`34bb41bc1b9c2fdb...`)와
+  pre-image blob hash(`bfd4b0d0d770...`)가 새 베이스(`27d81a4`)의 대상 파일과 완전히 일치함을 확인,
+  patch 생성/`git apply --check`/적용/`py_compile`까지 전부 독립 재현해 스크립트 로직 정확성을
+  먼저 검증(9절).
+- 실행 중 버그 3건을 사용자 실행 로그로 실증하며 순차 수정(매번 강제진행 없이 안전하게 중단됨을
+  확인한 뒤 수정, 15절/18절 안전장치 정상 동작):
+  1. `git fetch origin c704371a`(8자리 축약 SHA)가 GitHub에서 거부됨(`couldn't find remote ref`)
+     -- carrot-ryu-v1 아카이브 브랜치에서 40자리 전체 SHA를 찾아 교체해 해결.
+  2. `git diff ... | Out-File -Encoding ascii`로 patch를 생성하면 PowerShell 파이프라인 캡처
+     과정에서 patch가 손상됨(`git apply --check`에서 `patch fragment without header`) -- 비ASCII
+     (한글 주석) 다수 포함 diff를 파이프라인으로 캡처/재인코딩하는 과정의 손상으로 추정, `git diff
+     --output=<file>`(git이 파이프라인 없이 직접 파일에 기록)로 교체해 해결.
+  3. `$Diff = git ... diff -- $Target` 결과를 PowerShell 배열로 받은 뒤 `-notmatch`로 검사하던
+     로직이 상시 실패: PowerShell의 배열 `-match`/`-notmatch`는 "전체가 매치 안 하면 참"이 아니라
+     "매치 안 하는 개별 원소들의 배열"을 반환하므로, 89줄 중 1줄만 매치해도 나머지 88줄이 반환돼
+     항상 참으로 평가됨. 이미 스칼라 문자열로 읽어둔 `$PatchText`를 재사용하도록 교체해 해결.
+  4. (부수) `py_compile` 검증에서 Windows 앱 실행 별칭으로 인한 `python3`/`python` 스텁 문제
+     재발(핵심 발견 37과 동일 패턴) -- `py -3`→`python3`→`python` 순으로 `--version` 출력을
+     실제로 확인한 후보만 쓰는 `Get-PythonCmd` 함수를 재적용.
+- v2→v5까지 버전 표시 규칙(9절)에 따라 순차 전달, 최종 v5 실행으로 carrot-ryu commit
+  `c197cd4e627c6f266e6f5529d152d1984a47fcd6`(커밋 메시지: `32cha: restore drive.file scope and
+  auto-create Drive folder`)로 push 완료.
+- push 완료 후 `git ls-remote` + 독립 clone으로 재검증: 새 HEAD의 `gdrive_upload.py` blob hash
+  (`e6a5832f07af9a3249942b9f4d64df28ffe4a5a7`)가 원본 32차 커밋의 결과 blob hash와 완전히
+  일치함을 확인(byte-exact, 16절). diffstat도 스크립트 로그와 동일(`89 changes, 53 insertions(+),
+  36 deletions(-)`).
+- 코드 push까지 마친 직후 devnotes(CURRENT_STATUS.md/WIP.md/HANDOFF.md) 3개 파일을 편집하던 중
+  대화가 HANDOFF.md 작성 전에 끊겨 아무것도 push되지 못한 채 남았다. 이어받은 새 대화가 세션 시작
+  체크포인트에서 `git ls-remote`로 carrot-ryu-note가 여전히 `227bde4`(77차-fix, devnotes 미반영)임을
+  확인하고, CURRENT_STATUS.md/WIP.md 편집을 처음부터 다시 확인/재작성한 뒤 이 파일까지 완성해 같은
+  세션 번호(78차)로 한 번에 push했다 -- 76차/77차와 동일한 "코드 push는 됐는데 devnotes만 뒤처짐"
+  패턴(핵심 발견 27/38)의 새로운 변형(지연이 아니라 완전 유실 직전까지 갔던 사례)이며, 상세는 핵심
+  발견 39 항목 참고.
+- 실차 검증: 미실시(git pull 금지 상태 유지 중). drive.file 스코프 자체는 리셋 이전 35차에서 실기기
+  연결 성공 기록이 있었으나, 이번 재적용본은 처음부터 재검증 필요.
+- 다음 세션 최우선: 항목 18(33차, commit `789667f7`, ko.js gdrive 클라이언트 유형 안내 문구 수정)
+  -- 항목 10(web settings UI) 위에 적용.## 77차 계속 (item12 push 완료 재확인 + devnotes 정정)
 
 - `77cha_item12_log_upload_targets.ps1` 실행 완료 보고 수신, `git ls-remote`로 carrot-ryu HEAD가
   `27d81a4`로 바뀐 것을 확인. GitHub compare API(`c9a03b5`..`27d81a4`)로 diff가 원본 25차 커밋
