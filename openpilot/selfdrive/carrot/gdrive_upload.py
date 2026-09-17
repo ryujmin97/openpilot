@@ -46,6 +46,7 @@ carrot-ryu에서는 다음 두 곳을 대체한다.
      (기존의 "폴더에 편집자 권한 부여" 단계는 더 이상 필요 없음)
 """
 
+import asyncio
 import os
 import time
 import uuid
@@ -77,6 +78,7 @@ PARAM_REFRESH_TOKEN = "CarrotGDriveRefreshToken"
 _pending_flow: dict[str, Any] = {}
 _access_token_cache: dict[str, Any] = {"token": None, "expires_at": 0}
 _folder_verified_cache: dict[str, Any] = {"id": None, "checked_at": 0}
+_folder_lock = asyncio.Lock()
 _last_error: dict[str, str] = {"message": ""}
 
 
@@ -294,41 +296,52 @@ async def _get_access_token(session: aiohttp.ClientSession) -> str:
 async def _ensure_folder(session: aiohttp.ClientSession, token: str) -> str:
   """DRIVE_FOLDER_NAME 폴더를 이름으로 찾고, 없으면 새로 만들어 id를 반환한다.
   drive.file 스코프에서는 앱이 만들지 않은 폴더에 ID로 접근할 수 없으므로,
-  고정 ID 대신 이름 검색/자동생성 방식을 쓴다(c3-ms-dev 원본과 동일)."""
-  cache_age = time.monotonic() - float(_folder_verified_cache.get("checked_at") or 0)
-  cached_id = _folder_verified_cache.get("id")
-  if cached_id and cache_age < 300:
-    return cached_id
+  고정 ID 대신 이름 검색/자동생성 방식을 쓴다(c3-ms-dev 원본과 동일).
 
-  headers = {"Authorization": f"Bearer {token}"}
-  query = f"name='{DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-  async with session.get(
-    DRIVE_FILES_URL,
-    headers=headers,
-    params={"q": query, "fields": "files(id,name)"},
-    timeout=_HANDSHAKE_TIMEOUT,
-  ) as resp:
-    data = await _read_json_safe(resp)
-    if resp.status != 200:
-      raise RuntimeError(data.get("error", {}).get("message", str(data)))
-  files = data.get("files") or []
-  if files:
-    folder_id = files[0]["id"]
-  else:
-    async with session.post(
+  [37차] 캐시 확인~검색~생성~캐시기록 전체를 _folder_lock으로 감싼다. 락이
+  없으면 같은 프로세스 안에서 두 업로드(예: 대시캠 탭 전송 + 햄버거 메뉴
+  "최근 로그 업로드")가 거의 동시에 호출될 때, 첫 호출의 Drive API 왕복이
+  끝나기 전에 둘째 호출도 캐시 미스로 판단해 폴더를 중복 생성하는 레이스가
+  있었다(35차 핵심 발견 23 증상 4, 37차에서 원인 확정). 다만 이 락은
+  같은 프로세스 안에서만 유효하므로, carrot_man.py의 send_tmux_web()처럼
+  별도 프로세스에서 호출되는 경로까지는 보호하지 못한다 -- 근본 해결은
+  폴더 id를 Params에 영구 저장하는 방식이며, 이번에는 최소 수정으로 범위를
+  한정함(FINDINGS.md 37차 참고)."""
+  async with _folder_lock:
+    cache_age = time.monotonic() - float(_folder_verified_cache.get("checked_at") or 0)
+    cached_id = _folder_verified_cache.get("id")
+    if cached_id and cache_age < 300:
+      return cached_id
+
+    headers = {"Authorization": f"Bearer {token}"}
+    query = f"name='{DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    async with session.get(
       DRIVE_FILES_URL,
-      headers={**headers, "Content-Type": "application/json"},
-      json={"name": DRIVE_FOLDER_NAME, "mimeType": "application/vnd.google-apps.folder"},
+      headers=headers,
+      params={"q": query, "fields": "files(id,name)"},
       timeout=_HANDSHAKE_TIMEOUT,
     ) as resp:
       data = await _read_json_safe(resp)
-      if resp.status not in (200, 201):
+      if resp.status != 200:
         raise RuntimeError(data.get("error", {}).get("message", str(data)))
-      folder_id = data["id"]
+    files = data.get("files") or []
+    if files:
+      folder_id = files[0]["id"]
+    else:
+      async with session.post(
+        DRIVE_FILES_URL,
+        headers={**headers, "Content-Type": "application/json"},
+        json={"name": DRIVE_FOLDER_NAME, "mimeType": "application/vnd.google-apps.folder"},
+        timeout=_HANDSHAKE_TIMEOUT,
+      ) as resp:
+        data = await _read_json_safe(resp)
+        if resp.status not in (200, 201):
+          raise RuntimeError(data.get("error", {}).get("message", str(data)))
+        folder_id = data["id"]
 
-  _folder_verified_cache["id"] = folder_id
-  _folder_verified_cache["checked_at"] = time.monotonic()
-  return folder_id
+    _folder_verified_cache["id"] = folder_id
+    _folder_verified_cache["checked_at"] = time.monotonic()
+    return folder_id
 
 
 async def test_connection() -> dict[str, Any]:
