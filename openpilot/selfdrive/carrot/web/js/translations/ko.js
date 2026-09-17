@@ -581,7 +581,7 @@ window.CarrotTranslations.register("ko", {
     web_log_upload_target_toss: "토스서버",
     web_log_upload_target_gdrive: "구글 드라이브",
     web_gdrive_client_id: "클라이언트 ID",
-    web_gdrive_client_id_desc: "Google Cloud OAuth 클라이언트 ID (데스크톱 앱 유형)",
+    web_gdrive_client_id_desc: "Google Cloud OAuth 클라이언트 ID (TV 및 제한된 입력이 있는 기기 유형)",
     web_gdrive_client_secret: "클라이언트 보안 비밀번호",
     web_gdrive_client_secret_desc: "클라이언트 ID와 함께 발급된 OAuth 보안 비밀번호",
     web_gdrive_connect: "Google 계정 연결",
