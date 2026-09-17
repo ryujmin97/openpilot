@@ -1436,6 +1436,28 @@ class HudRenderer(Widget):
     # 교통정보 수집지점은 회전 아이콘 초록박스와 분리된 별도 초록색 배지로 표시한다.
     if info["sdi_descr"]:
       label_x = box_x + pad
+      # 교통정보 수집지점은 회전 아이콘 초록박스와 시각적으로 분리된
+      # 독립 배지로 표시한다. 기존 8px 간격보다 충분히 띄워 별도 배지임을
+      # 명확하게 하고, 배지 자체는 텍스트 크기에 맞춰 독립적으로 만든다.
+      size = measure_text_cached(self._font_bold, info["sdi_descr"], eta_size)
+      badge_gap = 20
+      label_y = by + 115 + badge_gap + int(size.y) + 2
+      badge_h = max(48, int(size.y + 13))
+      badge_y = label_y - int(size.y) - 2
+      self._draw_round_box(
+        label_x - 10,
+        badge_y,
+        int(size.x) + 20,
+        badge_h,
+        rl.GREEN,
+        roundness=10.0 / badge_h,
+        segments=8,
+        line_thickness=0,
+      )
+      self._draw_text_left_bottom(
+        info["sdi_descr"], label_x, label_y, eta_size, rl.WHITE,
+        font=self._font_bold, border_width=1.5, shadow_offset=3.0,
+      )
       # [29차] 사용자 요청으로 "신호과속" 배지를 박스 맨 아래(다른 하단 상태줄과
       # 겹쳐 보이던 위치)에서, 바로 위 회전 아이콘 초록박스(하단 경계 by+115)에
       # 붙는 위치로 이동. 텍스트 높이(size.y)를 먼저 구해 배지 상단이 by+115에
