@@ -1,5 +1,43 @@
 # WIP
 
+## 75차 (항목 10 web settings Drive UI 재적용 스크립트 준비, 항목 5~9 반영 사후확인)
+
+- 배경: 이 세션 시작 시 HANDOFF.md(69차 최종 갱신)는 "항목 5부터 순서대로 재적용" 상태로 기록돼
+  있었으나, git ls-remote로 carrot-ryu HEAD를 직접 확인한 결과 이미 `7a1555ed`(74차 커밋)로, 항목
+  5~9(70~74차, commit 017072dd/4b6c8f84/75c7c316/bc021ed9/7a1555ed)가 전부 재적용/push 완료돼
+  있었다. devnotes(HANDOFF.md/CURRENT_STATUS.md)가 여기까지 갱신되지 못한 채 직전 세션이 끊긴
+  것으로 추정된다(핵심 발견 27/38과 동일 패턴).
+- 독립 조회로 재확인: `gdrive_upload.py` 존재(`openpilot/selfdrive/carrot/gdrive_upload.py`),
+  `params_keys.h`에 `CarrotGDriveClientId/Secret/RefreshToken` 3종 등록, dashcam `routes.py`에
+  `upload/summary`/`upload/start`/`upload/test`/`upload/job`/`upload/cancel` POST 엔드포인트
+  전부 존재(항목 5~9 실제 반영 확인).
+- 이어서 항목 10(23차, commit `272834b`, web settings log_upload에 Google Drive 계정 연결 UI
+  추가) 재적용 착수. 원본 커밋 patch를 조회해 9개 파일(base.css/components.js/schema.js
+  전체교체 3개, en.js/ko.js/zh.js anchor삽입 3개, tools.css/tools.js/asset-manifest.json
+  생성번들 3개) 구조를 확인.
+- base.css/components.js/schema.js pre-image hash(`d8d64ca104`/`3f81b85f7c`/`858a20ad21`)가
+  현재 베이스(`7a1555ed`)와 정확히 일치함을 확인(항목 10 미반영 상태 재확인, 전체교체로 처리
+  가능).
+- en.js/ko.js/zh.js는 다른 세션들이 이미 다른 번역 키를 추가해 발산돼 있어(항목 7과 동일 패턴),
+  `web_log_upload_target_toss` 줄을 anchor로 삼아 정확히 1회 매치 확인 후 15개 신규 키
+  (`web_gdrive_*` 등)만 삽입하는 방식으로 처리.
+- 독립 `git clone`(carrot-ryu HEAD `7a1555ed`)에 6개 소스 변경을 실제로 적용한 뒤
+  `npm install && node build.mjs`로 생성 번들 3종(tools.css/tools.js/asset-manifest.json)
+  재생성, 변경된 파일이 원본 커밋과 정확히 같은 9개 파일 목록임을 `git status`로 확인,
+  `node --check`(tools.js 구문) + `node --test`(747/747) 전부 통과.
+- 반영 스크립트(`75cha_item10_web_settings_gdrive.ps1`)를 9절 규칙(UTF-8 BOM,
+  `core.autocrlf=false`, base64 임베드 전체교체 3개 + anchor 삽입 3개 + 사용자 PC에서
+  `npm install && node build.mjs` 실행 + `node --test` 747/747 검증 + git add/commit/push +
+  임시폴더 삭제)대로 작성, 스크립트에 임베드된 base64/anchor 데이터를 GitHub 최신 상태에서
+  직접 재조회한 값으로 재검증(round-trip 확인, 이전 세션 결과를 그대로 신뢰하지 않고 이번
+  세션에서 처음부터 재현 -- 세션 간 컨테이너 초기화 원칙).
+- 실행 대기. 이번 세션에서 HANDOFF.md/CURRENT_STATUS.md를 실제 GitHub 상태(항목 5~9 완료, 항목
+  10 스크립트 준비)에 맞게 동기화.
+
+다음 세션 최우선: (1) 이번 75차 반영 스크립트 push 확인(`git ls-remote`), (2) 항목 12(25차,
+`d338afb7`, `LOG_UPLOAD_TARGETS`에 "gdrive" 등록) 재적용(재적용 순서 7번, 항목 10 다음), (3)
+이후 17→18→20→21 순서로 계속.
+
 ## 69차 (devnotes 정정만, 코드 변경 없음) — Google Drive 관련 항목(5~10·12·17·18·20·21) 61차 리셋 이후 미반영 재확인/정정
 
 - 배경: 68차 HANDOFF의 "다음 세션 최우선: 항목 22(39차, `797fca2e`) 본편 착수"를 시작하기 전, 항목 22의

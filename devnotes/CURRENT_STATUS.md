@@ -2,12 +2,14 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `2088c5461118368341c3841667467e63f20188be` (68차 기준, 항목 13→14→15→16→19 hud_renderer.py 재적용 push 완료 -- `git ls-remote`로 재확인, 69차. carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
+- carrot-ryu HEAD: `7a1555edf4dcf837b5593cdf762f0eb6e7e6d883` (74차 기준, 항목 5~9(gdrive_upload.py/대시캠·tmux 업로드/연결테스트/params_keys.h 등록) 재적용 push 완료 -- `git ls-remote`+GitHub compare API로 75차에서 재확인. carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지).
 - 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
 - PROJECT_INSTRUCTIONS_carrot-ryu.md는 v2가 최신(v1 1~27차의 회차별 규칙을 절 번호(0~19) 그대로 유지한 채 정리/재구성, 상세 변경 사유는 이 파일 자체의 GitHub 커밋 메시지로 이전). 46차 세션에서 반영(commit `8f8209fe82de96acd2c5f7b90765aa3dc70d3012`) -- 직전 45차-정정 세션에서 "45차 세션에서 반영"으로 잘못 표기돼 있던 것을 커밋 메시지 대조로 정정.
 - **[69차, devnotes 정정만 · 코드 변경 없음]** 68차에서 항목 22(39차) 착수를 준비하던 중, 항목 22의 routes.py 변경이 항목 20(36차, `0835b059`)에 바로 이어붙는 전제이고, 항목 20 자체가 Google Drive 파이프라인 전체(항목 5~10·12·17·18·21)에 의존한다는 것을 diff 대조로 발견했다. 실제 `carrot-ryu` 코드를 독립적으로 clone해 재확인한 결과, `gdrive_upload.py` 파일이 저장소 어디에도 없고 `routes.py`에는 업로드용 POST 엔드포인트가 하나도 없음(GET만 존재)을 확인했다. 원인: 아래 "코드 수정 현황" 항목 5~10·12·17·18·20·21(및 이에 의존하는 22·23·24)이 61차(20절 리셋) 이전 carrot-ryu 기준 "GitHub 반영됨" 표기가 그대로 남아있었던 것 -- 62차 안내문이 "재적용될 때마다 개별 갱신하라"고 미리 경고했던 바로 그 상황이 방치돼 있었다(63~68차에서는 hud_renderer.py 관련 항목(3·4·11·13~16·19·25·27·28)만 개별 재확인/재적용됐고, Drive 관련 항목은 그 사이 아무도 재확인하지 않음). 즉 항목 22를 지금 적용해도 전제인 항목 20(및 20이 의존하는 5~10·12·17·18·21)이 새 베이스에 없어 반드시 다시 막힌다. 이번 세션은 코드 변경 없이 아래 해당 항목 표기만 정정했다(16절). 다음 세션 최우선: 5→6→7→8→9→10→12→17→18→20→21 순서(파일 스코프 대조로 서로 겹치지 않음 확인, 순서 변경 없이 확정)로 재적용, 이후 22→23→26.
+- **[70~74차]** 항목 5(15차, `183bef9`, gdrive_upload.py 신규)→6(16차, `dae901c`+`cc734e1`, 대시캠/tmux 업로드 Drive zip 전환)→7(17차, `2869149`, send_tmux_web() Drive 전환)→8(18~20차, `ad055dd4`, 업로드 연결테스트 버튼 Drive 전환)→9(22차, `48c2e081`, params_keys.h Drive 3키 등록) 순서로 새 베이스(`2088c546`) 위에 순차 재적용, 각 commit(`017072dd`/`4b6c8f84`/`75c7c316`/`bc021ed9`/`7a1555ed`)까지 push 완료. devnotes(HANDOFF.md/WIP.md)는 이 다섯 세션 동안 갱신되지 못한 채 세션이 끊겨 69차 상태로 남아있었음 -- 75차에서 `git ls-remote`+GitHub compare API로 발견/사후 동기화(핵심 발견 27/38과 동일 패턴, 상세는 75차 항목 및 WIP.md 참고).
+- **[75차]** 위 74차까지의 devnotes 공백을 사후 동기화하고, 이어서 재적용 순서 6번째인 항목 10(23차, commit `272834b`, web settings log_upload에 Google Drive 계정 연결 UI 추가)을 착수. base.css/components.js/schema.js는 pre-image hash가 현재 베이스와 정확히 일치해 전체교체, en.js/ko.js/zh.js는 다른 세션들이 추가한 번역 키와 공존하도록 anchor 기반 15개 키 삽입으로 처리. 독립 `git clone`에 실제 적용 + `npm install && node build.mjs`로 생성 번들 3종 재생성까지 확인, 변경 파일이 원본 커밋과 정확히 같은 9개임을 `git status`로 확인, `node --check` + `node --test`(747/747) 전부 통과. 반영 스크립트 (`75cha_item10_web_settings_gdrive.ps1`) 작성 및 임베드 데이터 GitHub 최신 상태 대비 round-trip 재검증까지 완료, 실행 대기. 상세: HANDOFF.md 75차 참고.
 - **[68차]** 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu(`81754ea3`)/carrot-ryu-note(`8cfa5b92`)가 직전 세션 보고와 일치함을 확인. 사용자와 협의해 항목 22(39차) 착수 전 항목 13~16(27~30차, 경로안내 박스 조정)을 먼저 재적용하기로 결정, 착수 중 항목 19(34차/33cha)까지 선행 필요함을 추가로 발견(위 26번 참고). hud_renderer.py 한 파일에 13→14→15→16→19를 순서대로 적용 -- 각 단계 anchor 1회 매치 확인, 최종 결과에 항목 22(`797fca2e`)의 hud_renderer.py 부분 diff가 정상적으로 붙는 것까지 별도 검증(9절/16절). `py_compile` 통과. `_format_eta_text`가 `_format_eta_time_text`로 이름이 바뀌는 부분(항목13)의 유일 호출부도 같은 블록 안에서 함께 치환됨을 확인해 dangling 참조 없음. 반영 스크립트 실행 대기, 항목 22 본편(스크린샷 업로드 UI + 번들 재생성)은 push 확인 후 이어서 진행.
 - **[31차]** Google Drive 연동(15차) 설계가 Google의 Device Authorization Grant 스코프 제약(전체 drive 스코프 구조적 차단)과 근본적으로 충돌함을 확인. 3가지 대안 제시, 결정 대기 상태로 세션 종료.
 - **[32차]** 31차 대안 중 (a) drive.file 스코프+폴더 자동생성 복귀가 커밋 c704371a로 반영됨을 확인(세션 기록 없이 반영된 것을 사후 diff로 정리). 실기기 연결 테스트는 아직 미실시.
@@ -124,12 +126,12 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 4. 온로드 시계 좌측 화면 경계 잘림 수정(13차, 2adced8 원본) -- [64차] 새 베이스(429f105e) 위에
    재반영 완료(commit `4e3b44a8`, git ls-remote + commit diff로 확인, 원본과 결과 blob까지
    완전 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).
-5. gdrive_upload.py 신규 추가(15차, 183bef9) -- Drive OAuth device flow + resumable 업로드 백엔드. **[69차 정정]** 61차 리셋 이후 미반영 확인됨(파일 자체가 저장소에 없음, 독립 clone으로 확인) -- 아래 'GitHub 반영됨' 표기는 리셋 이전 과거 기록. 다음 세션 최우선 재적용 대상(5→6→...→21 순서 1번).
-6. 대시캠 업로드(로그탭 "전송") zip+Drive 전환(16차, dae901c 본편 + cc734e1 hotfix) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(항목 5와 동일 사유). 재적용 순서 2번.
-7. send_tmux_web() Drive 업로드 전환(17차, commit 2869149) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨. 재적용 순서 3번.
-8. dashcam 업로드 연결 테스트 버튼(api_dashcam_upload_test)을 Google Drive 기준으로 전환(18~20차, commit ad055dd4) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨. 재적용 순서 4번.
-9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(params_keys.h 재조회로 미등록 확인). 재적용 순서 5번.
-10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(web settings 쪽 Drive UI 없음). 재적용 순서 6번. 실기기 입력란 미노출 이슈(26차, 핵심 발견 16)는 리셋 이전 기록이라 재적용 후 재검증 필요.
+5. gdrive_upload.py 신규 추가(15차, 183bef9) -- Drive OAuth device flow + resumable 업로드 백엔드. **[70차]** 새 베이스(2088c546) 위에 byte-exact 재적용 완료, commit `017072dd`로 push(75차에서 git ls-remote+compare API로 재확인). 실차 검증: 미실시.
+6. 대시캠 업로드(로그탭 "전송") zip+Drive 전환(16차, dae901c 본편 + cc734e1 hotfix) -- **[71차]** 새 베이스(017072dd) 위에 byte-exact 재적용 완료, commit `4b6c8f84`로 push(75차에서 재확인). 실차 검증: 미실시.
+7. send_tmux_web() Drive 업로드 전환(17차, commit 2869149) -- **[72차]** 새 베이스(4b6c8f84) 위에 3-block replace로 재적용 완료, commit `75c7c316`으로 push(75차에서 재확인). 실차 검증: 미실시.
+8. dashcam 업로드 연결 테스트 버튼(api_dashcam_upload_test)을 Google Drive 기준으로 전환(18~20차, commit ad055dd4) -- **[73차]** 새 베이스(75c7c316) 위에 byte-exact 재적용 완료(18~20차 원본은 a44f1580+ad055dd4), commit `bc021ed9`로 push(75차에서 재확인). 실차 검증: 미실시.
+9. params_keys.h에 CarrotGDriveClientId/Secret/RefreshToken 등록(22차, commit 48c2e081) -- **[74차]** 새 베이스(bc021ed9) 위에 재적용 완료(3개 파라미터 정확히 삽입, SHA 고정 raw 조회로 검증), commit `7a1555ed`로 push(75차에서 재확인). 실차 검증: 미실시.
+10. web settings log_upload에 Google Drive 계정 연결 UI 추가(23차, commit 272834b) -- **[75차]** 새 베이스(7a1555ed) 위에 재적용(base.css/components.js/schema.js 전체교체 hash일치 + en.js/ko.js/zh.js anchor삽입 hash일치 + 생성번들 3종 재생성, node --test 747/747 통과), 반영 스크립트(`75cha_item10_web_settings_gdrive.ps1`) 실행 대기. 실기기 입력란 미노출 이슈(26차, 핵심 발견 16)는 리셋 이전 기록이라 재적용 후 재검증 필요.
 11. 화면녹화 탭 스크린샷(.png) "사진" 스트립 추가(24차, commit a7a912c1) -- [67차] 새 베이스(0d511753) 위에
     재적용 완료, commit `63addc2e`로 push까지 `git ls-remote`로 확인(5절/16절). 같은 커미트에 실수로 같이
     커밋된 반영 스크립트 헬퍼(`apply_item11_67cha.py`)는 [67차-fix]에서 `cleanup_stray_67cha.ps1`로 제거하고
