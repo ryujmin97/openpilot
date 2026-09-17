@@ -1,5 +1,18 @@
 # WIP
 
+## 83차 (devnotes 정정만 · 코드 변경 없음) — 항목 21(37차) push 확인, Drive 파이프라인 이식 완료
+
+세션 시작 체크포인트(`git ls-remote`)에서 carrot-ryu HEAD가 이미 `435d0b58e6fc3a1012d659f379770fb48654e01f`로,
+82차 HANDOFF.md에 기록된 base(`1bd10a7c`, "push 대기")와 다름을 발견(4절/16절). GitHub compare
+`.diff` 엔드포인트로 `1bd10a7c`..`435d0b58` 구간을 조회한 결과 정확히 1개 커밋(82cha item21
+재적용)이며, 변경 파일이 gdrive_upload.py 1개뿐이고 diff 내용(import asyncio + _folder_lock +
+_ensure_folder() 전체를 락으로 감싸는 것)이 82차 HANDOFF.md 기록과 정확히 일치함을 확인. 즉
+사용자가 이미 `82cha_item21_gdrive_folder_lock_v4.ps1`을 실행해 push까지 완료했고, devnotes의
+"push 대기" 표기만 뒤처져 있었던 것(핵심 발견 27/38과 동일 패턴). 이로써 Google Drive 파이프라인
+(항목 5~10·12·17·18·20·21) 이식이 전부 완료됨. 코드 변경 없이 HANDOFF.md/CURRENT_STATUS.md 표기만
+정정. 다음 세션 최우선: 항목 22(39차, `797fca2e`, 화면녹화 탭 사진 업로드 UI 신규 구현: 체크박스/
+전체선택/다운로드/전송) 본편 착수.
+
 ## 82차 계속 (코드 push 대기 · v4로 원인 수정) — item21 py_compile 검증 원인 확정/수정
 
 82차 v3 스크립트가 anchor 3개 전부 1회 매치 + 파일 쓰기까지 성공했으나 [5/6] py_compile
