@@ -155,7 +155,23 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
   있었던 것(핵심 발견 27/38과 동일 패턴). 코드 변경 없이 이 파일과 HANDOFF.md의 표기만 정정.
   다음 세션 최우선: 항목 21(37차, `_ensure_folder()` TOCTOU 레이스 수정, asyncio.Lock) 재적용부터
   착수.
-- **[82차, 코드 반영 · push 대기]** 항목 21(37차, gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정, asyncio.Lock)을 새 베이스(carrot-ryu `1bd10a7c`) 위에 재적용 -- carrot-ryu-v1(`9ccf1206`, 20절 리셋 직전 스냅샷)을 실제 `git clone`으로 대조해 차이가 정확히 37차 수정 하나임을 확인 후, 문자열 블록 치환 3곳(import asyncio 추가/`_folder_lock` 변수 추가/`_ensure_folder()` 본문 교체)을 실제 `git clone` 리허설에 적용해 anchor 전부 1회 매치, 적용 결과가 carrot-ryu-v1의 파일과 byte-exact 일치함을 diff/md5로 확인, `python3 -m py_compile` 통과(9절/16절). 반영 스크립트가 실제로 사용하는 base64 블록을 디코딩해 동일한 치환을 재적용한 결과도 다시 한번 시뮬레이션으로 검증. js/css 소스 변경이 없어(단일 파이썬 파일) 번들 재생성/npm test 대상 아님, 새 Params 키도 없어 params_keys.h 등록 불필요. 37차 원본의 목 기반 동시성 테스트는 원본 코드에서 이미 검증된 내용이라 재현하지 않고 byte-exact 일치 검증으로 대체(17절, 세션 범위 절약). 지난 턴에 도구 사용 한도로 전달이 중단됐던 미완성 스크립트는 신뢰하지 않고 이번 세션에서 처음부터 다시 생성/검증함(3절 원칙). 반영 스크립트(`82cha_item21_gdrive_folder_lock.ps1`) 전달, 실행 대기. 다음 세션 최우선: push 확인부터. push 확인되면 Google Drive 파이프라인 이식(항목 5~10·12·17·18·20·21)이 전부 완료되므로, 이어서 항목 22(39차, `797fca2e`) 본편 착수 -> 항목 23(39cha-fix) -> 항목 26(44차) 순서로 진행. 실차 검증: 미실시(git pull 금지 상태 유지 중).
+- **[82차, 코드 push 대기 · v4로 py_compile 원인 수정]** 항목 21(37차, gdrive_upload.py
+  _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정, asyncio.Lock)을 새 베이스
+  (carrot-ryu `1bd10a7c`) 위에 재적용 -- carrot-ryu-v1(`9ccf1206`)과 실제 `git clone`
+  대조로 차이가 정확히 37차 수정 하나임을 확인, 문자열 블록 치환 3곳 anchor 전부 1회
+  매치, 결과가 carrot-ryu-v1과 byte-exact 일치(diff/md5), `python3 -m py_compile` 통과
+  까지 확인(9절/16절). 최초 반영 스크립트(v3)는 실제 사용자 PC 실행 시 [5/6]
+  py_compile 검증 단계에서 진단 출력 없이 실패 -- 리눅스 재현으로 코드/치환 로직
+  자체는 문제 없음을 재확정하고, 원인을 핵심 발견 37(54차)과 동일한 Windows
+  App Execution Alias 문제로 특정. `Get-PythonCmd`를 "py -3" 최우선 + 실제
+  `--version` 실행 결과로 후보를 검증하도록 강화하고 py_compile 출력을 항상
+  콘솔에 표시하도록 한 v4로 교체(anchor/치환 로직 자체는 v3와 동일, 변경 없음).
+  js/css 소스 변경 없어 번들 재생성/params_keys.h 등록 불필요. 반영 스크립트
+  (`82cha_item21_gdrive_folder_lock_v4.ps1`) 전달, 실행 대기. 다음 세션 최우선:
+  push 확인부터. push 확인되면 Google Drive 파이프라인 이식(항목
+  5~10·12·17·18·20·21)이 전부 완료되므로, 이어서 항목 22(39차, `797fca2e`) 본편
+  착수 -> 항목 23(39cha-fix) -> 항목 26(44차) 순서로 진행. 실차 검증: 미실시(git
+  pull 금지 상태 유지 중).
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.
@@ -196,7 +212,14 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 18. ko.js gdrive 클라이언트 유형 안내 문구 수정(33차, commit 789667f7) -- **[79차]** 새 베이스(`c197cd4e`) 위에 재적용 완료, push, GitHub compare API + raw 조회로 byte-exact 확인(새 HEAD `a959576f`). 재적용 순서 9번 완료 -- 다음은 항목 20(순서 10번).
 19. 경로안내 박스 도착 텍스트 크기(40->32)/도로명 위치(박스 안쪽, 신호과속과 같은 줄) 수정(34차, 실제 commit 메시지는 "33cha", commit `9fdefb3d`) -- [68차] 항목 16 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기. **68차에서 신규 확인**: 항목 22(39차, `797fca2e`)의 hud_renderer.py 부분이 13→14→15→16뿐 아니라 이 19번(comment "eta_size(40)는...")까지 전제로 하는 체인임을 diff 대조로 확정 -- CURRENT_STATUS 목록 순서(13~16, 17~18 Drive, 19)만 보면 안 보이던 의존관계라 다음 세션(또는 이번 세션 이어서) 항목 22 착수 전 필수 선행 항목으로 기록. 38차 실기기 검증(리셋 이전 기록): 도착 텍스트 겹침 해소는 확인됨, 도로명-신호과속 같은 줄 배치는 신호과속 배지 미출현 구간이라 판단 보류 -- 재검증 필요.
 20. 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정(36차, commit 0835b059) -- **[80차/81차]** 새 베이스(`a959576f`) 위에 byte-exact 재적용 완료, commit `1bd10a7c`로 push(81차에서 GitHub `.diff` 엔드포인트로 원본 36차 diff와 파일 목록·커밋 메시지 일치 재확인). 재적용 순서 10번 완료 -- 다음은 항목 21(순서 11번, 마지막). 38차/48차 실기기 검증 기록은 리셋 이전 상태 기준이라 재적용 후 처음부터 재검증 필요.
-21. gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정(37차, 커밋 해시는 스크립트 실행 로그의 git push 출력 참고) -- **[82차]** 새 베이스(`1bd10a7c`) 위에 재적용(carrot-ryu-v1의 같은 파일과 byte-exact 일치 diff/md5로 확인, py_compile 통과), 반영 스크립트(`82cha_item21_gdrive_folder_lock.ps1`) 실행 대기. 재적용 순서 11번(마지막) -- push 확인되면 Google Drive 파이프라인 이식(항목 5~10·12·17·18·20·21) 전부 완료.
+21. gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정(37차, 커밋
+    해시는 스크립트 실행 로그의 git push 출력 참고) -- **[82차]** 새 베이스(`1bd10a7c`)
+    위에 재적용(carrot-ryu-v1의 같은 파일과 byte-exact 일치 diff/md5로 확인, py_compile
+    통과). 반영 스크립트는 anchor/치환 로직이 정상임에도 v3가 사용자 PC에서 py_compile
+    검증 단계(Windows App Execution Alias 문제, 핵심 발견 37과 동일 패턴)에서 막혀
+    v4(`82cha_item21_gdrive_folder_lock_v4.ps1`)로 교체, 실행 대기. 재적용 순서 11번
+    (마지막) -- push 확인되면 Google Drive 파이프라인 이식(항목 5~10·12·17·18·20·21)
+    전부 완료.
 22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 5~10·12·17·18·20·21 전부 없음). content_shift_y 부분은 68차에서 13~16+19 재적용 완료로 anchor 조건 충족, 나머지(routes.py/screenshots.js 등)는 항목 20까지 재적용된 뒤에야 착수 가능. 46차/48차 실기기 검증 기록은 리셋 이전 상태 기준.
 23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 22의 screenshots.js가 아직 없음).
 24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- 이 항목은 index.html/style.css/runtime.js 새로고침 버튼 자체로, Drive 파이프라인과 무관. **[69차 확인]** hud_renderer.py 계열과 별개 서브시스템이라 61차 리셋 영향 여부는 미확인(다음 세션에서 index.html의 #logsRefreshButton 존재 여부로 재확인 필요, 우선순위는 5~21보다 낮음).

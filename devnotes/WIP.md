@@ -1,5 +1,38 @@
 # WIP
 
+## 82차 계속 (코드 push 대기 · v4로 원인 수정) — item21 py_compile 검증 원인 확정/수정
+
+82차 v3 스크립트가 anchor 3개 전부 1회 매치 + 파일 쓰기까지 성공했으나 [5/6] py_compile
+검증 단계에서 아무 진단 출력 없이 실패로 중단됨(commit/push는 안전하게 되지 않음, 15절/18절
+안전장치 정상 동작 -- carrot-ryu HEAD는 이번 세션 시작 `git ls-remote`로도 여전히 `1bd10a7c`
+그대로임을 재확인). 리눅스 샌드박스에서 v3의 anchor/치환 로직을 그대로 재현: anchor 3개 전부
+1회 매치, 결과가 carrot-ryu-v1의 gdrive_upload.py와 byte-exact 일치, `python3 -m py_compile`
+정상 통과(exit 0) 재확인 -- 코드/치환 로직 자체는 문제가 없음을 재확정.
+
+원인: 핵심 발견 37(54차)과 동일한 패턴. v3의 `Get-PythonCmd`가 "python3"/"python" 존재
+여부를 `Get-Command`로만 확인했는데, Windows 10/11이 이 두 이름을 App Execution Alias
+(Microsoft Store 유도용 스텁)로 PATH에 기본 등록해두는 경우가 흔해 `Get-Command` 상으로는
+"존재"로 잡히지만 실행하면 콘솔 출력 없이 조용히 비정상 종료함 -- v3에서 관찰된 증상과
+정확히 일치. 54차에서 이미 확정된 순서("py -3" -> "python3" -> "python")를 이 스크립트가
+아직 반영하지 않고 있었음(핵심 발견 37이 개별 스크립트마다 매번 재적용돼야 하는 방어
+로직이라는 것을 다시 한 번 보여준 사례).
+
+수정(v4): `Get-PythonCmd`를 "py -3" 최우선 + 각 후보를 `Get-Command` 존재 여부가 아니라
+실제 `--version` 실행 결과("Python "으로 시작하는 정상 출력 + exit 0)로 검증하도록 강화.
+추가로 py_compile 실행 결과(stdout/stderr)를 성공/실패 무관하게 항상 콘솔에 출력해, 다음에
+다른 원인으로 실패하더라도 그 자리에서 바로 보이게 함. anchor 3개/CRLF->LF 정규화
+(Read-Utf8Lf)/LF 저장 로직은 v3와 완전히 동일(이미 검증 완료, 변경 없음, 10절 최소 변경
+원칙).
+
+v1/v2/v3는 삭제하고 `82cha_item21_gdrive_folder_lock_v4.ps1`만 사용(18절: 동일 세션 재작성
+시 파일명 버전 표시 규칙).
+
+다음 세션 최우선: 실행 로그(특히 [5/6] "사용할 Python 후보 확정: ..." 로그와 py_compile
+OK 여부, 최종 commit/push 출력) 확인부터. push 확인되면 Google Drive 파이프라인 이식(항목
+5~10·12·17·18·20·21)이 전부 완료되므로, 이어서 항목 22(39차, `797fca2e`) 본편 착수 -> 항목
+23(39cha-fix) -> 항목 26(44차) 순서로 진행. 실차 검증: 미실시(git pull 금지 상태 유지 중).
+
+
 ## 82차 (코드 반영, push 대기) — 항목 21(37차 원본) 재적용: gdrive_upload.py _ensure_folder() TOCTOU 레이스 수정
 
 81차 확인(항목 20 push 완료) 이후 다음 우선순위였던 항목 21(37차, gdrive_upload.py의 _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정, asyncio.Lock)을 새 베이스(carrot-ryu `1bd10a7c790aea4a08c605502379a5da88f96aad`) 위에 재적용했습니다. 이 항목이 재적용 순서 11번(마지막)이라, push가 확인되면 Google Drive 파이프라인 이식(항목 5~10·12·17·18·20·21)이 전부 완료됩니다.
