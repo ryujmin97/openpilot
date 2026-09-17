@@ -1,5 +1,31 @@
 # WIP
 
+## 80차 (항목 20 구현 완료 스크립트 전달, push는 사용자 실행 대기)
+
+- 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `a959576f`/carrot-ryu-note `52af3bb`(79차) 확인, 지침
+  문서(v2, 커밋 `52af3bb`)/HANDOFF.md/CURRENT_STATUS.md 재확인 후 79차가 지시한 다음 세션 최우선인
+  항목 20(36차, commit `0835b059`, 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그
+  수정)을 이어받았다.
+- 원본 커밋(`0835b059`)을 `.patch` 엔드포인트로 전체 조회(12개 파일 변경). 현재 베이스(`a959576f`)를 실제
+  clone해 대상 9개 소스 파일(routes.py/index.html/en·ko·zh.js/dashcam.js/runtime.js/screenrecord.js/
+  style.css)의 blob hash가 원본 diff의 pre-image hash와 정확히 일치함을 확인해 anchor가 그대로
+  유효함을 확정했다(9절).
+- Replace-Block 방식으로 9개 소스 파일 전체 적용(routes.py에 `api_screenrecord_upload` 신규 POST
+  엔드포인트, index.html에 툴바 wrap, en/ko/zh.js에 번역키 6개, dashcam.js의 gdrive 라벨 버그
+  수정, runtime.js의 탭-aware 햄버거 메뉴 + 체크박스/툴바 바인딩, screenrecord.js에 선택/업로드/
+  다운로드 로직 전체 신규, style.css에 툴바 wrap 스타일). anchor 1회 매치 전부 확인.
+- py_compile/node --check 통과 후 `npm install && node build.mjs`로 생성 번들(js/generated/logs.js,
+  css/generated/logs.css, generated/asset-manifest.json) 재생성 -- 변경 파일이 원본 커밋과 정확히 같은
+  12개임을 `git status`로 확인.
+- `node --test` 747개 중 746개 통과, 유일 실패(`ar_projection_golden.test.mjs`)는 무수정 base clone에서도
+  동일하게 재현되는 기존 환경 문제(Python/numpy)로 이번 변경과 무관함을 별도 무수정 clone으로
+  재확인.
+- 재현성 검증: 추출한 소스 전용 diff를 완전히 독립된 새 clone에 `git apply --check` + `git apply`로
+  재적용하고 다시 빌드한 결과, 12개 파일 전부의 blob hash가 첫 번째 clone과 byte-exact 일치함을
+  확인(16절/9절 검증 파이프라인).
+- 반영 스크립트(`80cha_item20_screenrecord_upload.ps1`) 작성/전달. 실행 대기(push 미실시). 실차
+  검증: 미실시(항목 5~21 전체가 아직 실기기 미배포, git pull 금지 유지 중).
+
 ## 79차 (항목 18 완료 -- ko.js gdrive 클라이언트 유형 안내 문구 수정)
 
 - 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `c197cd4e`/carrot-ryu-note `2a3b6de`(78cha-fix,

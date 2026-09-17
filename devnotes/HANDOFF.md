@@ -1,68 +1,79 @@
-Worker: Claude (79차 -- 항목 18 완료: ko.js gdrive 클라이언트 유형 안내 문구 수정)
+Worker: Claude (80차 -- 항목 20 구현 완료, 반영 스크립트 전달, push는 사용자 실행 대기)
 Date: 2026-09-18
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `a959576f6973b44d878617399241cd35c47bf1bd`, 항목 5~10·12·17·18 전부 push 완료)
-Note Branch: carrot-ryu-note (base: 이 커밋으로 갱신, 직전 base `2a3b6de1ae9c5ff56ccf47bf7d3ee0caabd8dc0e`, 78cha-fix)
+Code Branch: carrot-ryu (base: `a959576f6973b44d878617399241cd35c47bf1bd`, 79차 기준 그대로 -- 이번 세션 스크립트는 아직 미실행)
+Note Branch: carrot-ryu-note (base: 이 커밋으로 갱신, 직전 base `52af3bbed545bd0fe874da2ce49dbeffb8f0a4b7`, 79차)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): `706efb47b81cf9cb02888ee536a156d8f1fc1d91`(61차 20절 리셋 베이스, 변경 없음).
 
 작업:
-직전 세션(78차)에서 지침 문서 4절 0단계 확인 후 이어받아, HANDOFF.md/WIP.md/CURRENT_STATUS.md가 지시한
-다음 세션 최우선인 항목 18(33차, commit `789667f7`, ko.js gdrive 클라이언트 유형 안내 문구 수정:
-"데스크톱 앱 유형" -> "TV 및 제한된 입력이 있는 기기 유형")을 진행했다. 원본 커밋을 `.patch`
-엔드포인트로 조회(GitHub API rate limit 회피), sparse-checkout으로 `web/` 디렉터리 구조를 확인해
-ko.js가 `index.html`에서 `<script>`로 직접 로드되며 build.mjs 번들 대상이 아님을 확인, npm 빌드가
-불필요함을 사전에 확정했다. 반영 스크립트 최초 전달본(v1)이 BOM 누락으로 실행 중 안전하게 중단된
-것을 사용자 실행 로그로 확인, BOM 포함 -v2로 재전달해 push까지 완료했다.
+직전 세션(79차)에서 지침 문서 4절 0단계 확인 후 이어받아, HANDOFF.md/WIP.md/CURRENT_STATUS.md가 지시한
+다음 세션 최우선인 항목 20(36차, commit `0835b059`, 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거
+메뉴 버그 수정)을 진행했다. 원본 커밋을 `.patch` 엔드포인트로 조회, 현재 베이스에 실제로 코드를 적용해
+빌드/테스트까지 전부 통과시켰고, 그 과정을 완전히 독립된 두 번째 clone에서 다시 재현해 byte-exact
+일치를 확인했다.
 
 완료:
-1. 지침 문서 v2(커밋 `2a3b6de`) 재조회, 4절 0단계 완료 확인(`git ls-remote`로 carrot-ryu
-   `c197cd4e`/carrot-ryu-note `2a3b6de` 확인, 78차 보고와 일치).
-2. 항목 18 원본 커밋(`789667f7`)을 `.patch` 엔드포인트로 조회: `openpilot/selfdrive/carrot/web/
-   js/translations/ko.js` 한 파일, 한 줄 변경. sparse-checkout으로 이 파일이 번들 비대상임을 확인.
-3. 새 베이스(`c197cd4e`)의 대상 라인이 anchor와 1회만 매치함을 sandbox에서 시뮬레이션, 변경 후
-   결과가 원본 diff와 완전히 동일함을 사전 확인(9절).
-4. 반영 스크립트(v1) 전달 -- 실행 중 anchor 0회 매치로 안전하게 중단(15절/18절 안전장치 정상
-   동작). 원인 진단: 스크립트 자체가 UTF-8 BOM 없이 생성되어 PowerShell 5.1이 CP949로 오인식,
-   스크립트 내부 한글 anchor 문자열이 로드 시점에 이미 깨져 있었음(9절 기존 규칙의 재발, 이번엔
-   Claude가 직접 저지름).
-5. BOM 포함 v2로 재생성/재전달, 사용자 실행으로 carrot-ryu commit
-   `a959576f6973b44d878617399241cd35c47bf1bd`(커밋 메시지: `33cha: fix ko.js gdrive client id
-   type desc (desktop app -> TV/limited-input device)`)로 push 완료.
-6. push 후 `git ls-remote` + GitHub compare API(`c197cd4e...a959576f`)로 재검증: 변경 파일
-   정확히 1개(`ko.js`), diff가 원본 33차 커밋과 완전히 동일함을 확인. raw 조회(SHA고정)로 대상
-   파일 전체가 sandbox 예상 결과와 byte-exact 일치함도 확인(16절).
-7. CURRENT_STATUS.md 갱신: carrot-ryu HEAD 라인을 `a959576f`(79차)로 교체, 코드 수정 현황 항목
-   18을 "재적용 완료·push·byte-exact 확인"으로 갱신, 79차 서술 불릿 추가.
-8. WIP.md 최상단(7절 규칙)에 79차 항목 추가: 항목 18 진행 경위, v1 BOM 실패/v2 해결 경위, 검증
-   결과를 서술.
-9. 이 파일(HANDOFF.md)을 79차 기준으로 전체 재작성(8절 "교체형" 규칙).
+1. 지침 문서 v2(커밋 `52af3bb`) 재조회, 4절 0단계 완료 확인(`git ls-remote`로 carrot-ryu
+   `a959576f`/carrot-ryu-note `52af3bb` 확인, 79차 보고와 일치).
+2. 항목 20 원본 커밋(`0835b059`)을 `.patch` 엔드포인트로 조회: 12개 파일 변경(소스 9개 + 생성 번들 3개).
+3. 현재 베이스(`a959576f`)를 실제 clone해 대상 9개 소스 파일(routes.py, index.html, en/ko/zh.js,
+   dashcam.js, runtime.js, screenrecord.js, style.css)의 blob hash가 원본 diff의 pre-image hash와
+   정확히 일치함을 `git hash-object`로 확인 -- 그 사이 다른 세션이 이 파일들을 건드리지 않았음을
+   실증(anchor가 그대로 유효함, 9절).
+4. Replace-Block 방식으로 9개 소스 파일 전체 적용:
+   - routes.py: 신규 POST 엔드포인트 `api_screenrecord_upload` 추가(선택된 화면녹화 파일들을
+     gdrive_upload.upload_file_resumable()로 순차 업로드, 대시캠 zip/job 방식과 달리 동기·파일별
+     순차 처리) + 라우터 등록.
+   - index.html: 화면녹화 탭에 툴바 wrap(선택 개수/전체선택/선택 다운로드/선택 업로드 버튼) 추가.
+   - en.js/ko.js/zh.js: `download_selected`/`screenrecord_upload`/`no_selected_recordings` 3개
+     번역키 각 언어별 추가(총 9개 키).
+   - dashcam.js: 업로드 대상 라벨이 "toss"/기타(carrot 취급)만 분기해 gdrive 업로드 시에도 "당근서버"로
+     잘못 표시되던 버그 수정(gdrive 분기 추가).
+   - runtime.js: 햄버거 메뉴 "최근 로그 업로드" 항목을 화면녹화 탭에서 숨기도록 tab-aware 처리, 화면녹화
+     행/툴바의 체크박스·업로드·다운로드 클릭/change 핸들러 바인딩.
+   - screenrecord.js: 선택 상태 관리(Set), 툴바 렌더링, 체크박스 동기화, 업로드 확인창/결과창 HTML,
+     `uploadScreenrecordVideos`/`downloadScreenrecordVideos` 등 신규 함수 전체 구현.
+   - style.css: 툴바 wrap 스타일 추가.
+   각 Replace-Block anchor가 정확히 1회만 매치함을 확인.
+5. `python3 -m py_compile`(routes.py) + `node --check`(runtime.js/screenrecord.js/dashcam.js) 통과.
+6. `npm install && node build.mjs`로 생성 번들(js/generated/logs.js, css/generated/logs.css,
+   generated/asset-manifest.json) 재생성. `git status`로 변경 파일이 원본 36차 커밋과 정확히 같은
+   12개임을 확인.
+7. `node --test` 747개 중 746개 통과. 유일 실패(`ar_projection_golden.test.mjs`)는 이번 변경과
+   무관한 기존 환경(로컬 Python/numpy) 이슈임을, 무수정 base를 별도로 clone해 동일하게 재현됨을
+   확인해 실증(9절/16절 원칙 -- 추측 아님).
+8. 재현성 검증: 적용한 9개 소스 파일만의 변경분을 `git diff`로 추출(소스 전용 diff, 약 27KB)한 뒤
+   완전히 새로운 세 번째 clone에 `git apply --check` + `git apply`로 재적용하고 다시
+   `npm install && node build.mjs`를 실행, 생성 번들을 포함한 12개 파일 전체의 blob hash가 첫 번째
+   clone과 byte-exact 일치함을 `git hash-object` 비교로 확인.
+9. 반영 스크립트(`80cha_item20_screenrecord_upload.ps1`) 작성: 9절 필수 규칙(core.autocrlf=false
+   clone, git apply --check 선검증 후 실패 시 중단, UTF-8 BOM, py_compile, npm install && node
+   build.mjs + node --test, git add/commit/push, 임시폴더 자동정리) 전부 준수. 전달.
+10. CURRENT_STATUS.md/WIP.md/이 파일(HANDOFF.md)을 80차 기준으로 갱신.
 
 미완료(다음 세션 최우선):
-1. 항목 20(36차, commit `0835b059`) -- 화면녹화 탭 업로드 UI + 라벨/햄버거 메뉴 버그 수정.
-2. 항목 21(37차) -- `_ensure_folder()` TOCTOU 레이스 수정(asyncio.Lock).
-3. (5~21 전부 끝난 뒤) 항목 22(39차, `797fca2e`) 본편, 항목 23(39cha-fix), 항목 26(44차) 순서로
-   재개.
-4. (낮은 우선순위, 여유 있을 때) WIP.md 파일 안의 "# WIP" 헤더 중복(7회 등장, 34862바이트 지점
-   포함) 정리 -- 여전히 미완료 상태로 남아있음. 이번 세션 devnotes 스크립트는 StartsWith 방식으로
-   맨 앞 앵커만 사용해 이 중복과 무관하게 안전하게 처리했다.
-5. 위 1~3은 규모가 커 한 세션에 몰아서 끝내지 않는다(17절) -- 순서(20→21) 자체는 바꾸지 않되
-   몇 개 단위로 나눌지는 다음 세션에서 사용자와 다시 정한다.
+1. 사용자가 `80cha_item20_screenrecord_upload.ps1`을 실행해 push했는지 확인 -- 실행 로그(특히
+   git commit/push 출력과 node --test 결과에서 "# fail 1"이 ar_projection_golden 하나뿐인지)를
+   받으면 GitHub compare API + raw 조회(SHA고정)로 재검증(16절).
+2. 위 1번이 정상 확인되면 항목 21(37차) -- `_ensure_folder()` TOCTOU 레이스 수정(asyncio.Lock) 재적용.
+3. (5~21 전부 끝난 뒤) 항목 22(39차, `797fca2e`) 본편, 항목 23(39cha-fix), 항목 26(44차) 순서로 재개.
+4. (낮은 우선순위) WIP.md 파일 안의 "# WIP" 헤더 중복(7회 등장) 정리 -- 여전히 미완료. 이번 세션
+   devnotes 스크립트도 StartsWith 방식(맨 앞 anchor만 사용)으로 이 중복과 무관하게 안전 처리.
+5. 실기기 검증: 항목 20 화면녹화 탭 업로드 UI 자체의 동작은 이번 세션 범위 밖(코드 push 이후 다음
+   실기기 배포 시 확인 대상).
 
-검증: 코드 diff는 GitHub compare API + raw 조회(SHA고정)로 원본 33차 커밋과 byte-exact 동일함을
-확인(16절). 실차 검증: 미실시(항목 5~21 전체가 아직 실기기 미배포, git pull 금지 상태 유지 중).
+검증: 코드 diff는 두 개의 완전히 독립된 clone 간 blob hash byte-exact 비교로 재현성 확인(16절/9절).
+실차 검증: 미실시(항목 5~21 전체가 아직 실기기 미배포, git pull 금지 상태 유지 중).
 
 주의사항:
-- 이번 사례의 교훈: working-rules(9절)에 이미 명시된 ".ps1 BOM 필수" 규칙이 Claude 자신의 스크립트
-  생성 과정에서 재발했다. 안전장치(anchor 1회 매치 확인, 0회/2회 시 강제진행 금지)가 정상 동작해
-  대상 파일 손상은 없었지만, 향후 세션은 한글이 포함된 .ps1을 전달하기 전에 파일 자체의 BOM 유무를
-  스스로 재점검할 것(예: 첫 3바이트가 EF BB BF인지 확인).
-- CURRENT_STATUS.md/WIP.md는 원본이 CRLF 개행이므로, 이 파일들을 다시 다룰 때 Python으로 읽고
-  쓸 경우 `newline=''`으로 원본 개행을 보존해야 한다(텍스트 모드 기본값은 개행을 자동 변환해
-  전체 diff를 오염시킴 -- 이번 세션에서 CURRENT_STATUS.md 초안 작성 중 직접 겪고 즉시 수정함).
-- 다음 세션은 이 파일을 신뢰하기 전에 여전히 `git ls-remote`로 carrot-ryu/carrot-ryu-note HEAD를
-  먼저 확인할 것(3절 원칙은 예외 없음).
+- 이번 세션은 push까지 완료하지 못했다 -- "완료"는 사용자가 스크립트를 실행해 git push 로그를 보여준
+  뒤에만 성립한다(5절/9절 원칙). 다음 세션은 이 파일을 신뢰하기 전에 `git ls-remote`로 carrot-ryu
+  HEAD가 `a959576f`(미실행)인지 다른 값(실행됨)인지부터 먼저 확인할 것.
+- 사용자 채팅 메시지에 붙어있던 이전 턴의 작업 로그(도구 사용 한도 도달로 중단된 이전 턴 내용)는
+  실제로 이번 세션이 수행한 작업이 아니라 참고 컨텍스트로만 취급했고, 이번 세션 자체적으로 GitHub
+  라이브 상태부터 다시 확인 후 모든 검증(blob hash 대조, 빌드, 테스트, 독립 clone 재현)을 처음부터
+  다시 수행했다(3절 원칙: GitHub 현재 상태 > Claude의 기억 > 채팅에 붙여넣어진 과거 사본).
 
 다음 작업 후보:
-1. 항목 20(`0835b059`, 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정)
-   원본 커밋 patch 조회부터 착수.
-2. (여유 있으면) WIP.md "# WIP" 헤더 중복 정리 여부를 사용자와 논의.
+1. 사용자의 `80cha_item20_screenrecord_upload.ps1` 실행 결과(성공/실패 로그) 확인부터 시작.
+2. 성공 확인되면 항목 21(37차, `_ensure_folder()` TOCTOU 레이스 수정) 원본 커밋 patch 조회부터 착수.
