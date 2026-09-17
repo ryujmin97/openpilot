@@ -2,7 +2,7 @@
 
 - 프로젝트: CARROT-RYU (제네시스 DH 2015)
 - 베이스 브랜치: carrot-ms (happymaj11r/openpilot). ryujmin97/openpilot에는 carrot-ms/carrot-wip을 미러링하지 않음(7차 세션에서 삭제 완료)
-- carrot-ryu HEAD: `a959576f6973b44d878617399241cd35c47bf1bd` (79차, 항목 18 push 완료 -- GitHub compare API(`c197cd4e...a959576f`)로 변경 파일 1개(`ko.js`)가 원본 33차 커밋 diff와 완전히 일치함을 확인, raw 조회(SHA고정)로 byte-exact 재검증). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지). 항목 20(36차, `0835b059`) 전체 12개 파일 재적용을 독립된 두 clone에서 각각 검증(blob hash byte-exact 일치, node --test 746/747, 유일 실패는 무관한 기존 ar_projection_golden 이슈)하고 반영 스크립트(`80cha_item20_screenrecord_upload.ps1`)를 전달했으나, 사용자가 아직 실행하지 않아 carrot-ryu HEAD는 여전히 `a959576f`로 고정(다음 세션 최우선: 스크립트 실행 결과 확인 후 해당 없으면 재전달/있으면 항목 21로 진행).
+- carrot-ryu HEAD: `1bd10a7c790aea4a08c605502379a5da88f96aad` (36cha 커밋 메시지, 80차 항목 20 반영 스크립트 실행/push 완료 -- 81차에서 GitHub `.diff` 엔드포인트(api.github.com rate limit 회피)로 `a959576f`..`1bd10a7c` 구간이 정확히 이 커밋 1개이고 변경 파일 12개가 80차 HANDOFF.md 기록과 완전히 일치함을 재확인). carrot-ryu-v1(`9ccf1206a034c5fb5e5f35201553f9fc4e5237e5`)에 원래 36개 항목 전체가 보존됨. 실기기 배포/검증은 미실시(git pull 금지 유지 중, 이식이 반 정도라도 끝나기 전까지). 다음 세션 최우선: 항목 21(37차, `_ensure_folder()` TOCTOU 레이스 수정) 재적용 착수.
 - 61차 리셋 이전 HEAD 이력(9ccf1206 등, 45차~59차의 개별 커밋들)은 carrot-ryu-v1 브랜치에 스냅샷으로 남아있으며, 20절 원칙에 따라 앞으로 수정하지 않음.
 - carrot-ms 동기화 상태: 6차 세션 이후 신규 커밋(rebase) 없음 확인(7차). 8차~38차 세션에서는 동기화 재점검 없음
 - 참고: carrot-wip(ajouatom/openpilot)은 계속 진행 중이나, carrot-ms가 아직 rebase하지 않아 직접 비교 대상 아님
@@ -143,6 +143,18 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 세션 이월). 실차 검증: 미실시(git pull 금지 상태 유지 중).
 
 - **[67차]** 66차 HANDOFF 미완료 1번(항목 11+23 -> 26 의존관계 해소) 순서를 사용자가 확정: "항목 11만 우선 적용(22/23/26은 이월)". carrot-ryu-v1 "코드 수정 현황" 항목 11(24차, 화면녹화 탭 사진 스트립 신규 생성, commit `a7a912c1`)을 새 베이스(`0d511753`, 66차 위) 위에 재적용 -- 원본 commit patch를 github.com/.../commit/a7a912c1.patch로 직접 조회해 9개 소스 파일(config.py/catalog.py/routes.py/index.html/en.js/ko.js/zh.js/runtime.js/style.css) 수정 + screenshots.js 신규 파일 내용을 확인하고, 독립적인 실제 `git clone`(carrot-ryu)에 적용해 anchor 전부 1회 매치, 그 자리에서 `npm install && node build.mjs`로 생성 번들(logs.css/asset-manifest.json/logs.js)까지 재생성, `node --check`(runtime.js/screenshots.js/generated logs.js) + `python3 -m py_compile`(config.py/catalog.py/routes.py) + `node --test`(747/747) 전부 통과 확인(핵심 발견 30 재발 방지 -- 소스만 고치고 번들 재생성을 빠뜨리지 않도록 스크립트 자체가 npm install && node build.mjs를 실행). py/routes.py 3개 파일과 screenshots.js/style.css는 원본 24차 결과와 바이트 단위로 완전히 동일함을 diff로 확인, index.html/en.js/ko.js/zh.js/runtime.js는 그 사이 다른 세션들의 변경(Google Drive UI, 설정 검색 등)과 정상 공존하며 병합됨을 확인. 반영 스크립트(`reapply_item11_67cha.ps1`) 전달, 실행 대기. 부수적으로 이 파일 최상단 carrot-ryu HEAD 표기가 61차 커밋으로 오래 방치돼 있던 것을 16절에 따라 발견/정정(코드 변경 아님).
+- **[81차, devnotes 정정만 · 코드 변경 없음]** 세션 시작 체크포인트(`git ls-remote`)에서 carrot-ryu
+  HEAD가 이미 `1bd10a7c790aea4a08c605502379a5da88f96aad`로, HANDOFF.md(80차)에 기록된 base
+  (`a959576f`, "실행 대기")와 다름을 발견(4절/16절). GitHub `.diff` 엔드포인트(api.github.com
+  rate limit 회피)로 `a959576f`..`1bd10a7c` 구간을 조회한 결과 정확히 1개 커밋(`1bd10a7c`,
+  커밋 메시지 "36cha: screenrecord tab upload/download UI + gdrive label fix + tab-aware
+  hamburger menu")이며, 변경 파일 12개(routes.py `api_screenrecord_upload` 신규 엔드포인트 +
+  생성 번들 3종 + 소스 8개)가 80차 HANDOFF.md에 기록된 항목 20(36차, `0835b059`) 재적용 내용과
+  정확히 일치함을 확인. 결론: 사용자가 이미 `80cha_item20_screenrecord_upload.ps1`을 실행해
+  push까지 완료했고, HANDOFF.md/CURRENT_STATUS.md의 "실행 대기"/"push 미실시" 표기만 뒤처져
+  있었던 것(핵심 발견 27/38과 동일 패턴). 코드 변경 없이 이 파일과 HANDOFF.md의 표기만 정정.
+  다음 세션 최우선: 항목 21(37차, `_ensure_folder()` TOCTOU 레이스 수정, asyncio.Lock) 재적용부터
+  착수.
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.
@@ -182,7 +194,7 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
     미실시).
 18. ko.js gdrive 클라이언트 유형 안내 문구 수정(33차, commit 789667f7) -- **[79차]** 새 베이스(`c197cd4e`) 위에 재적용 완료, push, GitHub compare API + raw 조회로 byte-exact 확인(새 HEAD `a959576f`). 재적용 순서 9번 완료 -- 다음은 항목 20(순서 10번).
 19. 경로안내 박스 도착 텍스트 크기(40->32)/도로명 위치(박스 안쪽, 신호과속과 같은 줄) 수정(34차, 실제 commit 메시지는 "33cha", commit `9fdefb3d`) -- [68차] 항목 16 위에 이어서 재적용(anchor 1회 매치, py_compile 통과), 반영 스크립트 실행 대기. **68차에서 신규 확인**: 항목 22(39차, `797fca2e`)의 hud_renderer.py 부분이 13→14→15→16뿐 아니라 이 19번(comment "eta_size(40)는...")까지 전제로 하는 체인임을 diff 대조로 확정 -- CURRENT_STATUS 목록 순서(13~16, 17~18 Drive, 19)만 보면 안 보이던 의존관계라 다음 세션(또는 이번 세션 이어서) 항목 22 착수 전 필수 선행 항목으로 기록. 38차 실기기 검증(리셋 이전 기록): 도착 텍스트 겹침 해소는 확인됨, 도로명-신호과속 같은 줄 배치는 신호과속 배지 미출현 구간이라 판단 보류 -- 재검증 필요.
-20. 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정(36차, commit 0835b059) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(routes.py에 해당 POST 엔드포인트 없음, 독립 clone으로 확인). 재적용 순서 10번(항목 5~10·12·17·18 전부 끝난 뒤). 38차/48차 실기기 검증 기록은 리셋 이전 상태 기준이라 재적용 후 처음부터 재검증 필요.
+20. 화면녹화 탭 업로드 UI 신규 구현 + 당근서버 라벨/햄버거 메뉴 버그 수정(36차, commit 0835b059) -- **[80차/81차]** 새 베이스(`a959576f`) 위에 byte-exact 재적용 완료, commit `1bd10a7c`로 push(81차에서 GitHub `.diff` 엔드포인트로 원본 36차 diff와 파일 목록·커밋 메시지 일치 재확인). 재적용 순서 10번 완료 -- 다음은 항목 21(순서 11번, 마지막). 38차/48차 실기기 검증 기록은 리셋 이전 상태 기준이라 재적용 후 처음부터 재검증 필요.
 21. gdrive_upload.py _ensure_folder() Drive 폴더 중복생성 레이스컨디션 수정(37차, 커밋 해시는 스크립트 실행 로그의 git push 출력 참고) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제 파일 자체가 없음). 재적용 순서 11번(마지막).
 22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 5~10·12·17·18·20·21 전부 없음). content_shift_y 부분은 68차에서 13~16+19 재적용 완료로 anchor 조건 충족, 나머지(routes.py/screenshots.js 등)는 항목 20까지 재적용된 뒤에야 착수 가능. 46차/48차 실기기 검증 기록은 리셋 이전 상태 기준.
 23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 22의 screenshots.js가 아직 없음).

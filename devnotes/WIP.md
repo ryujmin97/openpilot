@@ -1,5 +1,23 @@
 # WIP
 
+## 81차 (devnotes 정정만 · 코드 변경 없음) — 80차 반영 스크립트 실행/push 완료 확인
+
+- 세션 시작 체크포인트(`git ls-remote`)에서 carrot-ryu HEAD가 이미
+  `1bd10a7c790aea4a08c605502379a5da88f96aad`로, HANDOFF.md(80차)에 기록된 base(`a959576f`,
+  "실행 대기")와 다름을 발견(4절/16절). api.github.com이 rate limit에 걸려 GitHub 웹의 compare
+  `.diff` 엔드포인트로 대체 조회(working-practices 문서화된 fallback 순서)한 결과, `a959576f`..
+  `1bd10a7c` 구간이 정확히 커밋 1개(`1bd10a7c`, 메시지 "36cha: screenrecord tab upload/download
+  UI + gdrive label fix + tab-aware hamburger menu")임을 확인.
+- 해당 커밋의 `.patch`를 직접 조회해 변경 파일 12개(routes.py `api_screenrecord_upload` 신규
+  POST 엔드포인트 + 생성 번들 3종 + 소스 8개)가 80차 HANDOFF.md에 기록된 항목 20(36차,
+  `0835b059`) 재적용 내용과 파일 목록·건수가 정확히 일치함을 확인.
+- 결론: 사용자가 이미 `80cha_item20_screenrecord_upload.ps1`을 실행해 push까지 완료했고,
+  HANDOFF.md/CURRENT_STATUS.md의 "실행 대기"/"push 미실시" 표기만 그 사이 갱신되지 못하고
+  뒤처져 있었던 것(핵심 발견 27/38과 동일 패턴). 코드 변경 없이 CURRENT_STATUS.md/HANDOFF.md
+  표기만 정정.
+- 다음 세션 최우선: 항목 21(37차, `_ensure_folder()` TOCTOU 레이스 수정, asyncio.Lock) 재적용
+  착수(재적용 순서 11번, 마지막).
+
 ## 80차 (항목 20 구현 완료 스크립트 전달, push는 사용자 실행 대기)
 
 - 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `a959576f`/carrot-ryu-note `52af3bb`(79차) 확인, 지침
