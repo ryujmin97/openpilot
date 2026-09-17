@@ -1,5 +1,26 @@
 # WIP
 
+## 77차 (항목 12 착수 -- LOG_UPLOAD_TARGETS gdrive 누락 수정)
+
+- 세션 시작 체크포인트: `git ls-remote`로 carrot-ryu `c9a03b5`(76차)/carrot-ryu-note `102131e`(76차)
+  확인, 지침 문서 v2(커밋 `102131e`) 재조회 후 HANDOFF.md/CURRENT_STATUS.md 순서로 이어받음.
+  76차가 남긴 "다음 세션 최우선: 항목 12"를 그대로 착수.
+- 항목 12(25차, commit `d338afb7`, "25cha: fix LOG_UPLOAD_TARGETS missing gdrive"): 원본 커밋 patch를
+  `github.com/ryujmin97/openpilot/commit/d338afb7.patch`로 직접 조회 -- 대상 파일
+  `openpilot/selfdrive/carrot/server/services/web_settings.py` 한 곳,
+  `LOG_UPLOAD_TARGETS = {"carrot", "toss"}` -> `{"carrot", "toss", "gdrive"}` 한 줄 변경.
+- 새 베이스(`c9a03b5`)에서 해당 파일을 raw로 조회해 `git hash-object`로 blob hash를 계산한 결과
+  `f41e1bb4b4a31b380b33968d41781a98101b2661`로, 원본 커밋의 pre-image blob hash(`f41e1bb4b4...`)와
+  완전히 일치함을 확인 -- 25차 이후 다른 어떤 세션도 이 파일을 건드리지 않았다는 뜻이므로 원본 diff를
+  그대로(byte-exact) 재적용 가능하다고 판단.
+- 대상 줄이 파일 전체에서 정확히 1회만 존재함을 확인(anchor 조건 충족, 9절).
+- 반영 스크립트(`77cha_item12_log_upload_targets.ps1`) 작성: git clone(core.autocrlf=false) ->
+  anchor 1회 매치 재확인 -> 문자열 치환 -> py_compile 정적 검증(Get-PythonCmd 자동탐지, 핵심 발견 37
+  방식 적용) -> commit/push -> 임시폴더 삭제. 실행 대기.
+- 실차 검증: 미실시(반영 자체가 아직 push 전).
+- 다음 세션 최우선: 이 스크립트 push 완료 확인(`git ls-remote` + `git hash-object`로 결과 blob
+  재확인) 후 항목 17(32차, `c704371a`, drive.file 스코프+폴더 자동생성 복귀)로 이어서 진행.
+
 ## 76차 (devnotes 정정: 항목 10 실제 push 완료 확인) -- 코드 변경 없음
 
 - 배경: 세션 시작 시 HANDOFF.md(75차 최종 갱신)는 항목 10 반영 스크립트
