@@ -3,21 +3,24 @@ Google Drive 연동 — 로그탭 "전송" 버튼 + tmux 진단 전송(carrot/to
 공통 업로드 백엔드.
 
 c3-ms-dev 브랜치의 server/gdrive.py(OAuth2 Device Authorization Grant, 511줄,
-로컬 검증됨)를 기반으로 이식했으며, carrot-ryu에서는 다음 두 곳을 대체한다.
+c3-ms-web에서 검증됨)를 기반으로 이식했다.
+
+[32차] 15차에서 고정 폴더 ID(DRIVE_FOLDER_ID) + 전체 drive 스코프로 바꿨던
+설계를 c3-ms-dev 원본 방식(drive.file 스코프 + 폴더 이름 검색/자동생성)으로
+되돌렸다. 사유: 31차에서 Google이 Device Authorization Grant(기기 인증
+흐름)에서 전체 drive 스코프를 정책적으로 차단한다는 것이 확인되어, 15차
+설계로는 애초에 연결 자체가 불가능했다(실기기 연결 실패의 근본 원인).
+drive.file 스코프는 이 제약을 받지 않으므로, 앱이 직접 만든 폴더
+(DRIVE_FOLDER_NAME)를 이름으로 찾거나 없으면 새로 만들어 그 안에만
+업로드한다 — 기존처럼 사용자가 미리 만들어둔 임의 폴더에 ID로 접근하는
+방식은 더 이상 지원하지 않는다.
+
+carrot-ryu에서는 다음 두 곳을 대체한다.
   1. server/features/dashcam/upload_jobs.py의 run_upload_segments()
      (기존 Carrot/Toss HTTP 업로드 대체)
   2. carrot_man.py의 send_tmux_web()
      (기존 carrot/toss 선택 전송 대체. send_tmux_carrot_logs()는 Discord
      carrot_logs 포럼용 별도 고정 전송이라 이번 변경과 무관 — 그대로 둔다)
-
-c3-ms-dev 원본과 다른 점 (사용자 지정):
-  - 폴더를 매번 이름으로 검색/자동생성하지 않고, 고정 폴더 ID
-    (DRIVE_FOLDER_ID)로 바로 사용한다. drive.file(최소 권한) 스코프로는
-    앱이 만들지 않은 기존 폴더에 ID로 접근할 수 없으므로, 스코프를
-    drive(전체 권한)로 확대했다.
-  - _ensure_folder() 대신 _verify_folder()로, 해당 ID가 (a) 존재하고
-    (b) 휴지통에 있지 않고 (c) 실제로 폴더 타입인지만 확인한다(폴더를
-    새로 만들지 않음 — 사용자가 이미 만들어둔 폴더를 그대로 씀).
 
 핵심 설계(c3-ms-dev와 동일):
   1. OAuth2 Device Authorization Grant — 콤마 기기 자체 브라우저 없이도
@@ -29,15 +32,18 @@ c3-ms-dev 원본과 다른 점 (사용자 지정):
      - 파일을 메모리에 통째로 읽지 않고 청크 단위로만 읽어 올려 OOM 방지.
   3. 업로드는 시간이 걸릴 수 있어 job 방식 비동기 처리 — 요청은 즉시
      job_id를 반환하고, 프론트는 폴링으로 진행률(%)을 받는다.
+  4. [32차] 대상 폴더(DRIVE_FOLDER_NAME)는 이름으로 검색해 있으면 재사용,
+     없으면 자동 생성한다(_ensure_folder). 고정 폴더 ID를 미리 만들어둘
+     필요가 없다.
 
-필요 사전 준비 (Google Cloud Console에서 1회 설정, c3-ms-dev와 동일):
+필요 사전 준비 (Google Cloud Console에서 1회 설정):
   1. https://console.cloud.google.com/ 에서 프로젝트 생성
   2. "API 및 서비스 > 라이브러리"에서 Google Drive API 활성화
   3. "API 및 서비스 > 사용자 인증 정보 > OAuth 클라이언트 ID 만들기"
      -> 애플리케이션 유형: "TV 및 제한된 입력이 있는 기기" (필수!)
   4. 발급된 클라이언트 ID / 클라이언트 보안 비밀번호를 로그탭 설정에 입력
-  5. 이 파일의 DRIVE_FOLDER_ID가 가리키는 폴더에 대해, 인증에 사용할
-     구글 계정이 최소 "편집자" 권한을 갖고 있어야 함
+  5. [32차] 폴더는 최초 업로드 시 앱이 자동으로 만들므로 별도 준비 불필요
+     (기존의 "폴더에 편집자 권한 부여" 단계는 더 이상 필요 없음)
 """
 
 import os
@@ -61,8 +67,8 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
 
-DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
-DRIVE_FOLDER_ID = "1Sb5nxF5wknwM9CbJFbXQPY1OIEB_bL9t"
+DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+DRIVE_FOLDER_NAME = "CarrotWeb Logs"
 
 PARAM_CLIENT_ID = "CarrotGDriveClientId"
 PARAM_CLIENT_SECRET = "CarrotGDriveClientSecret"
@@ -70,7 +76,7 @@ PARAM_REFRESH_TOKEN = "CarrotGDriveRefreshToken"
 
 _pending_flow: dict[str, Any] = {}
 _access_token_cache: dict[str, Any] = {"token": None, "expires_at": 0}
-_folder_verified_cache: dict[str, Any] = {"ok": False, "checked_at": 0}
+_folder_verified_cache: dict[str, Any] = {"id": None, "checked_at": 0}
 _last_error: dict[str, str] = {"message": ""}
 
 
@@ -107,7 +113,7 @@ def disconnect() -> None:
     pass
   _access_token_cache["token"] = None
   _access_token_cache["expires_at"] = 0
-  _folder_verified_cache["ok"] = False
+  _folder_verified_cache["id"] = None
   _folder_verified_cache["checked_at"] = 0
 
 
@@ -131,7 +137,6 @@ async def api_gdrive_status(request: web.Request) -> web.Response:
     "hasCredentials": bool(client_id and client_secret),
     "user_code": _pending_flow.get("user_code", ""),
     "verification_uri": _pending_flow.get("verification_uri", ""),
-    "folder_id": DRIVE_FOLDER_ID,
     "last_error": _last_error["message"],
   })
 
@@ -286,44 +291,56 @@ async def _get_access_token(session: aiohttp.ClientSession) -> str:
   return token
 
 
-async def _verify_folder(session: aiohttp.ClientSession, token: str) -> str:
+async def _ensure_folder(session: aiohttp.ClientSession, token: str) -> str:
+  """DRIVE_FOLDER_NAME 폴더를 이름으로 찾고, 없으면 새로 만들어 id를 반환한다.
+  drive.file 스코프에서는 앱이 만들지 않은 폴더에 ID로 접근할 수 없으므로,
+  고정 ID 대신 이름 검색/자동생성 방식을 쓴다(c3-ms-dev 원본과 동일)."""
   cache_age = time.monotonic() - float(_folder_verified_cache.get("checked_at") or 0)
-  if _folder_verified_cache.get("ok") and cache_age < 300:
-    return DRIVE_FOLDER_ID
+  cached_id = _folder_verified_cache.get("id")
+  if cached_id and cache_age < 300:
+    return cached_id
 
   headers = {"Authorization": f"Bearer {token}"}
+  query = f"name='{DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
   async with session.get(
-    f"{DRIVE_FILES_URL}/{DRIVE_FOLDER_ID}",
+    DRIVE_FILES_URL,
     headers=headers,
-    params={"fields": "id,name,mimeType,trashed"},
+    params={"q": query, "fields": "files(id,name)"},
     timeout=_HANDSHAKE_TIMEOUT,
   ) as resp:
-    if resp.status == 404:
-      raise RuntimeError(f"대상 폴더를 찾을 수 없습니다 (id={DRIVE_FOLDER_ID}). 폴더 ID 또는 계정 권한을 확인하세요")
     data = await _read_json_safe(resp)
     if resp.status != 200:
       raise RuntimeError(data.get("error", {}).get("message", str(data)))
+  files = data.get("files") or []
+  if files:
+    folder_id = files[0]["id"]
+  else:
+    async with session.post(
+      DRIVE_FILES_URL,
+      headers={**headers, "Content-Type": "application/json"},
+      json={"name": DRIVE_FOLDER_NAME, "mimeType": "application/vnd.google-apps.folder"},
+      timeout=_HANDSHAKE_TIMEOUT,
+    ) as resp:
+      data = await _read_json_safe(resp)
+      if resp.status not in (200, 201):
+        raise RuntimeError(data.get("error", {}).get("message", str(data)))
+      folder_id = data["id"]
 
-  if data.get("trashed"):
-    raise RuntimeError("대상 폴더가 휴지통에 있습니다")
-  if data.get("mimeType") != "application/vnd.google-apps.folder":
-    raise RuntimeError("대상 ID가 폴더가 아닙니다")
-
-  _folder_verified_cache["ok"] = True
+  _folder_verified_cache["id"] = folder_id
   _folder_verified_cache["checked_at"] = time.monotonic()
-  return DRIVE_FOLDER_ID
+  return folder_id
 
 
 async def test_connection() -> dict[str, Any]:
   """연결 테스트 버튼(api_dashcam_upload_test)용. is_connected()는 refresh_token
-  존재 여부만 보므로, 여기서는 실제로 access_token 갱신 + 대상 폴더 조회까지
+  존재 여부만 보므로, 여기서는 실제로 access_token 갱신 + 대상 폴더 조회/생성까지
   왕복해 Drive 연동이 실제로 동작하는지 확인한다."""
   if not is_connected():
     return {"ok": False, "connected": False, "error": "Google Drive가 연결되어 있지 않습니다"}
   try:
     async with aiohttp.ClientSession() as session:
       token = await _get_access_token(session)
-      folder_id = await _verify_folder(session, token)
+      folder_id = await _ensure_folder(session, token)
     return {"ok": True, "connected": True, "folder_id": folder_id}
   except Exception as e:
     return {"ok": False, "connected": True, "error": str(e)}
@@ -451,7 +468,7 @@ async def upload_file_resumable(
   try:
     async with aiohttp.ClientSession(timeout=_UPLOAD_TIMEOUT) as session:
       token = await _get_access_token(session)
-      folder_id = await _verify_folder(session, token)
+      folder_id = await _ensure_folder(session, token)
 
       set_job_message(job, "업로드 세션 여는 중...")
       metadata = {"name": filename, "parents": [folder_id]}
