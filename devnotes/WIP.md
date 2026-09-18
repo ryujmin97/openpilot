@@ -1,4 +1,63 @@
-﻿## 84차 (코드 push 대기) — 신호과속/교통정보 배지 위치·글자크기 수정 + 40차 검증 범위 오류 발견
+# WIP
+
+## 84차 계속2 (코드/devnotes push 완료 후 보정 대기) -- Set-Content -Encoding UTF8의 BOM 강제삽입 + WIP.md "# WIP" 헤더 소실 발견 및 수정
+
+사용자가 84cha_item_sdi_badge_fix_v2.ps1/84cha_devnotes_carrot_ryu_note_v2.ps1를 실행해 carrot-ryu(`a461c7e`)/
+carrot-ryu-note(`b174937`)에 각각 push 완료. 9절 체크리스트 승격 작업 착수 전 4절/16절 원칙대로
+`git ls-remote`+GitHub raw(SHA고정)로 실제 반영 내용을 재확인하는 과정에서 두 가지 문제를 발견했다.
+
+(1) 네 파일(`hud_renderer.py`/`WIP.md`/`CURRENT_STATUS.md`/`HANDOFF.md`) 전부 파일 맨 앞에 의도치 않은
+UTF-8 BOM(`EF BB BF`)이 삽입되어 있었다. 원인: 이 네 파일 모두 스크립트 안에서 `Set-Content -Encoding UTF8`로
+전체 재작성됐는데, Windows PowerShell 5.1의 `Set-Content`(`Out-File`도 동일)는 `-Encoding UTF8`을 지정하면
+원본에 BOM이 없었어도 항상 새로 BOM을 붙인다. 지침 문서 9절의 기존 문구("Set-Content -Encoding UTF8 또는
+BOM 없는 UTF-8을 사용한다")가 이 둘을 사실상 동의어처럼 서술해 놓은 것 자체가 잘못된 전제였음을 확인했다
+(핵심 발견 41). `hud_renderer.py`는 Python이 파일 맨 앞 UTF-8 BOM을 자동으로 건너뛰므로 `py_compile`은
+정상 통과해 이번에도 걸러지지 않았다.
+
+(2) `WIP.md`는 이번 84차 반영 스크립트의 anchor/치환 로직 자체 버그로 최상단 "# WIP" 제목 줄이 통째로
+사라진 채 push됐다(기존에 알려진 "# WIP 헤더 중복" 이슈와는 반대로, 이번엔 "소실"). 원인: 삽입 anchor를
+`"# WIP\n\n## 83차"`로 잡고 이를 `[새 84차 항목]\n\n## 83차`로 치환했는데, 새 콘텐츠 쪽에 "# WIP"를
+다시 넣지 않았다. anchor가 정확히 1회 매치됐다는 것만 확인하고 치환 *결과* 텍스트를 다시 훑어보지 않아서
+발견이 늦었다(핵심 발견 42).
+
+두 문제 모두 이번 보정 스크립트로 즉시 수정(코드: BOM만 제거 / devnotes: BOM 제거 + "# WIP" 헤더 복원),
+지침 문서(PROJECT_INSTRUCTIONS_carrot-ryu.md) 9절에 아래 세 가지를 실제로 반영했다(19절 절차, 사용자
+승인 완료 -- 직전 세션에서 문구만 준비되고 실제 파일 반영이 누락되어 있었던 것을 이번에 바로잡음):
+(a) 대상 파일 전체 재작성은 `[System.IO.File]::WriteAllText($Path, $Content,
+(New-Object System.Text.UTF8Encoding($false)))`만 사용하고, 쓴 뒤 대상 파일 첫 3바이트가 BOM이 아닌지
+`od`/`Get-Content -Encoding Byte`류로 확인하는 것을 표준 절차로 명문화, (b) anchor 매치 횟수뿐 아니라
+치환 *결과* 텍스트(특히 파일 맨 앞/헤더 줄)를 다시 확인하는 절차 추가, (c) 21차/26(39차)·37차에 걸쳐
+반복된 BOM(.ps1)/core.autocrlf/임시폴더/Get-PythonCmd 규칙을 "전달 전 필수 자가검증 체크리스트"로
+승격(모두 py_compile과 동급의, 실행하고 결과를 응답에 보여줘야 하는 검증 단계). 상세: FINDINGS.md
+2026-09-18(84차 계속) 항목, 핵심 발견 41/42.
+
+**검증**: 4개 파일 모두 BOM 제거 후 `od -An -tx1 -N3`로 첫 3바이트가 더 이상 `ef bb bf`가 아님을 확인,
+`hud_renderer.py`는 `py_compile` 재통과 확인, `WIP.md`는 파일 맨 앞이 `# WIP`로 시작하는지 재확인.
+PROJECT_INSTRUCTIONS_carrot-ryu.md 9절 변경은 Replace-Block anchor 1회 매치 + 치환 결과 재확인(핵심
+발견 42 재발 방지 원칙을 이 수정 자체에도 바로 적용).
+
+**실차 검증**: 이번 회차는 devnotes/인코딩 보정만이며 로직 변경 없음 -- 84차 sdi_descr 배지 수정 자체의
+실차 검증은 여전히 미실시로 다음 세션 최우선 과제.
+
+## 핵심 발견 43 (84차 계속2, 사용자 실행 중 발견) -- `& $cmd @verArgs 2>&1` 형태의 Python 버전/컴파일 호출이 특정 환경에서 인터랙티브 REPL로 빠져 스크립트를 무한 대기시킬 수 있음
+
+사용자가 `84cha2_hud_renderer_bom_fix.ps1`을 실행하던 중, `Get-PythonCmd`의 `py -3 --version` 호출은
+정상적으로 "Python 3.12.10"을 출력했으나, 그 직후 실제 `py_compile` 검증 호출 단계에서 스크립트가
+Python 인터랙티브 셸(`>>>`)에 빠져 멈췄다(사용자가 `Ctrl+C`로 중단, `git commit`/`push` 이전이라 반영
+사고는 없었음). 정확한 재현 조건은 로컬에서 재현이 불가능해 확정하지 못했으나(11절: 이 부분은 추정),
+Windows PowerShell에서 배열 스플래팅(`@CompileArgs`)으로 외부 `.exe`를 호출할 때 인자 조합이 특정
+조건에서 예상과 다르게 전달되어, `py` 런처가 버전 선택자만 받고 실행할 스크립트/모듈 인자를 못 받으면
+인터랙티브 REPL로 빠지는 것으로 추정된다.
+
+**재발 방지**: 이 인터랙티브 진입 가능성 자체를 구조적으로 차단하기 위해, Python을 외부 프로세스로
+호출하는 모든 지점(버전 확인 + `py_compile` 실행 모두)에서 표준입력에 빈 문자열을 미리 파이프해
+EOF를 즉시 공급한다: `"" | & $Cmd @Args 2>&1`. 이렇게 하면 설령 인자 전달이 잘못돼 REPL로 빠지더라도
+즉시 EOF를 받아 종료되므로 스크립트가 무한 대기하지 않는다(단, 이 경우 `py_compile`이 실제로 실행되지
+않았을 수 있으므로, 종료 코드와 함께 출력 내용도 항상 응답에 남겨 "그냥 통과"로 오판하지 않도록 함).
+9절 체크리스트 항목 4("Get-PythonCmd 자동탐지 패턴 사용")에 "표준입력 EOF 선공급"을 추가 조건으로
+반영. `84cha2_hud_renderer_bom_fix_v2.ps1`로 하드닝된 버전을 재전달.
+
+## 84차 (코드 push 대기) — 신호과속/교통정보 배지 위치·글자크기 수정 + 40차 검증 범위 오류 발견
 
 사용자가 실기기 스크린샷(2026-09-17)으로 우측하단 경로안내 박스의 "교통정보 수집지점"(sdi_descr)
 문구가 그 위 초록 배지 밖으로 밀려 보이는 버그를 제보. 사용자가 "carrot-ryu-v1 브랜치에서 고치자"고

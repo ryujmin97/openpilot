@@ -223,8 +223,14 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
   옮겨도 일부 .NET API는 프로세스 시작 디렉터리 기준으로 상대경로를 해석해
   실패할 수 있다(`DirectoryNotFoundException`). `git` 명령 자체는 이 문제가
   없으니, 가능하면 `git -C <경로>`로 셸의 현재 위치 자체를 바꾸지 않는 편을 권장.
-- 대상 파일에 쓸 때는 `Set-Content -Encoding UTF8` 또는 BOM 없는 UTF-8(대상 파일
-  자체는 BOM 없는 편이 `git diff`/`grep`과 호환에 유리)을 사용한다.
+- 대상 파일(devnotes/코드) 전체를 재작성할 때는 `Set-Content -Encoding UTF8`을 쓰지 않는다.
+  Windows PowerShell 5.1의 `Set-Content`/`Out-File -Encoding UTF8`은 원본에 BOM이 없어도
+  항상 새로 UTF-8 BOM(`EF BB BF`)을 붙이는데(PowerShell 7의 `UTF8NoBOM`과 달리 5.1에는 그런
+  옵션이 없음), 대상 파일은 BOM 없는 편이 `git diff`/`grep`/Python 파서와 호환에 유리하다
+  (84차 계속2, 핵심 발견 41에서 4개 파일 전체가 이 방식으로 인해 오염된 채 push된 사례 발생).
+  전체 재작성에는 `[System.IO.File]::WriteAllText($Path, $Content, (New-Object
+  System.Text.UTF8Encoding($false)))`만 사용하고, 쓴 직후 대상 파일 첫 3바이트를 확인해
+  BOM이 없음을 검증한다(아래 "전달 전 필수 자가검증 체크리스트" 참고).
 - devnotes(`WIP.md`/`CURRENT_STATUS.md`/`HANDOFF.md` 등) 편집에 Python 스크립트를 사용할
   때는 파일을 열 때 `open(path, ..., newline="")`을 지정해 원본 개행 문자(LF/CRLF)를
   그대로 보존한다. Python 텍스트 모드 쓰기(`newline=None`, 기본값)는 Windows에서 `\n`을
@@ -243,6 +249,29 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
   & "$HOME\Downloads\script_name.ps1"
   ```
+
+**전달 전 필수 자가검증 체크리스트 (핵심 발견 17·21(26/39차)·37·41·42 재발 방지)**
+`.ps1` 파일을 생성한 뒤, 사용자에게 전달(present_files)하기 전에 아래를 전부 실행하고 그 결과
+(명령 출력)를 응답에 포함한다. 서술("BOM 포함했습니다", "체크리스트를 지켰습니다")만으로는
+충분하지 않고, 검증 명령의 실제 출력을 보여준다. 다른 세션이 만든 반영 스크립트를 이어받아 실행하는
+경우에도 동일하게 적용한다(핵심 발견 26/39차).
+1. 비ASCII 문자가 포함된 `.ps1`이면 첫 3바이트가 `EF BB BF`인지 확인(`od -An -tx1 -N3 <path>` 등).
+2. 스크립트 안의 모든 `git clone`에 `--config core.autocrlf=false`가 포함돼 있는지 확인.
+3. `finally` 블록에 임시 폴더 `Remove-Item -Recurse -Force`가 있는지, 사용자에게 수동 삭제를
+   요청하는 문구가 없는지 확인.
+4. `py_compile` 등 정적 검증을 포함하는 스크립트는 `python3`/`python` 단순 호출 대신, `py -3` ->
+   `python3` -> `python` 순으로 실제 `--version` 출력을 확인하는 `Get-PythonCmd` 패턴을 기본값으로
+   사용한다(필요할 때만 추가하는 것이 아니라 항상 기본값). Python을 외부 프로세스로 호출하는 모든
+   지점(버전 확인 + 실제 검증 실행 모두)은 표준입력에 빈 문자열을 미리 파이프해 EOF를 공급한다
+   (`"" | & $Cmd @Args 2>&1`) -- 특정 환경에서 인자 전달 문제로 인터랙티브 REPL에 빠져 스크립트가
+   무한 대기하는 사고(핵심 발견 43, 84차 계속2)를 구조적으로 차단하기 위함이며, 이 경우에도 종료
+   코드와 실제 출력을 응답에 남겨 "그냥 통과"로 오판하지 않는다.
+5. 대상 파일(devnotes/코드)을 전체 재작성하는 모든 쓰기는 `[System.IO.File]::WriteAllText(...,
+   UTF8Encoding($false))`만 사용하고, 쓴 뒤 대상 파일 첫 3바이트가 BOM이 아닌지 확인한다(핵심
+   발견 41).
+6. 이어붙이기형 파일(WIP.md 등)에 anchor 치환을 적용했다면, 매치 횟수(1회)뿐 아니라 치환 *결과*
+   텍스트(특히 파일 맨 앞/헤더 줄)를 다시 읽어 의도한 내용과 같은지 확인한다(핵심 발견 42 --
+   "1회 매치"는 "그 자리에서 치환이 일어났다"만 보증하지 "결과가 의도와 같다"는 보증하지 않는다).
 
 **공통 원칙**
 - 코드는 carrot-ryu, devnotes는 carrot-ryu-note — 한 스크립트에 두 브랜치를
