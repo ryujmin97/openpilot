@@ -1,4 +1,4 @@
-﻿import re
+import re
 import time
 import pyray as rl
 from dataclasses import dataclass
