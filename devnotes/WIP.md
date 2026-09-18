@@ -1,5 +1,43 @@
 # WIP
 
+## 85차 (+계속3) — 항목22(39차)+23(40차-fix)+26(44차) 재검증, v1 CRLF 실패 -> 핵심 발견 44 -> v2로 수정, 이번 세션에서 독립 재확인
+
+세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu HEAD가 이미 `132d85b`(84차2 BOM 제거 커밋)로 push
+완료돼 있음을 확인했다. 사용자 요청으로 항목 22(39차, `797fca2e`, 화면녹화 탭 사진 업로드 UI +
+content_shift_y)·항목 23(40차-fix, `bdde8326`, screenshots.js formatRelativeEpoch import 누락)·항목
+26(44차 일부, `e2f35619`, screenshots.js formatLogBytes import 누락)을 현재 베이스(`132d85b`) 위에서
+처음부터 재검증했다: 원본 커밋 patch 3개 직접 조회 -> 12개 파일 중 11개는 `git apply` 1회 매치, `routes.py`
+1개는 파일 끝 컨텍스트 차이로 Replace-Block 수동 삽입 -> `npm install && node build.mjs`로 생성 번들 3종
+재생성 -> `py_compile`/`node --check`/`npm test`(746/747, 유일 실패는 무관한 기존 `ar_projection_golden`
+환경 이슈) 통과. 반영 스크립트 `85cha_item22_23_26_carrot_ryu.ps1`(v1) 작성/전달.
+
+**[사용자 실행 결과]** 사용자가 v1을 실행한 결과 첫 Replace-Block(`content_shift_y-decl`)에서
+`Anchor match count != 1: got 0`으로 안전하게 중단됨(commit/push 이전, 15절/18절 안전장치 정상 동작).
+원인 규명: `.gitattributes`에 여전히 `* text=auto`가 있어(63차에서 이미 규명된 조건) Windows Git
+환경에서 `core.autocrlf=false`를 clone 시 줘도 체크아웃 시 CRLF로 변환될 수 있는데, 이번
+`Invoke-ReplaceBlock` 함수에는 9절이 이미 요구하던 "매칭 전 CRLF->LF 정규화"가 실제 코드에는 빠져
+있었음을 확인(핵심 발견 44 -- "9절 체크리스트 통과"라는 서술만 믿지 말고 코드 자체를 직접 대조해야
+한다는 교훈). `Invoke-ReplaceBlock`에 CRLF->LF 정규화를 추가한 `85cha_item22_23_26_carrot_ryu_v2.ps1`로
+교체.
+
+**[85차 계속3, 새 세션에서 독립 재확인]** 새 세션 시작 체크포인트에서 carrot-ryu/carrot-ryu-note가 여전히
+`132d85b`/`fa038e0`임을 재확인 -- 위 작업 전체가 아직 GitHub에 반영되지 않은 채팅 사본이었음을 인지하고
+(3절), 그 기록을 그대로 믿지 않고 신선한 별도 clone에서 v2 스크립트 로직을 처음부터 다시
+재시뮬레이션(Python)했다: base64 전체교체 7개 파일 + CRLF 정규화 Replace-Block 12개 앵커 전부 1회 매치,
+`py_compile`(routes.py/hud_renderer.py)·`node --check`(screenshots.js/runtime.js/en·ko·zh.js/생성번들
+logs.js) 전부 통과, `content_shift_y`/`screenshotsToolbarWrap` 치환 결과도 재확인. 이어서 9절 "전달 전
+필수 자가검증 체크리스트" 6항목을 `.ps1` 파일을 직접 `grep`으로 대조해 전부 확인(BOM 있음/
+`core.autocrlf=false`/`finally` 임시폴더 삭제/`Get-PythonCmd`+EOF 선공급/`WriteAllText` 무BOM/쓰기 후
+BOM 검사 루프). 결론: v2 스크립트는 수정 없이 그대로 사용 가능. devnotes 반영 스크립트
+(`85cha_devnotes_carrot_ryu_note.ps1`)를 이 세션에서 새로 작성해 코드 스크립트(v2)와 함께 전달.
+
+실행 순서: (1) `85cha_item22_23_26_carrot_ryu_v2.ps1`(carrot-ryu) 먼저 실행, (2)
+`85cha_devnotes_carrot_ryu_note.ps1`(carrot-ryu-note) 실행. v1(`85cha_item22_23_26_carrot_ryu.ps1`)은
+실행하지 말 것.
+
+실차 검증: 미실시(항목 22/23/26 코드 변경 자체가 아직 push되지 않음, 이 프로젝트 역사상 이 경로들은 한
+번도 실차 확인된 적 없음). push 확인되면 다음 세션 최우선으로 실차 검증 진행.
+
 ## 84차 계속2 (코드/devnotes push 완료 후 보정 대기) -- Set-Content -Encoding UTF8의 BOM 강제삽입 + WIP.md "# WIP" 헤더 소실 발견 및 수정
 
 사용자가 84cha_item_sdi_badge_fix_v2.ps1/84cha_devnotes_carrot_ryu_note_v2.ps1를 실행해 carrot-ryu(`a461c7e`)/
