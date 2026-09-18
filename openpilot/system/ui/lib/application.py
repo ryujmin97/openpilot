@@ -320,6 +320,33 @@ class GuiApplication:
     self._record_every_n = 3
     self._record_frame_idx = 0
 
+    # 54cha: one-shot frame capture, reusing the same render-texture path that
+    # already backs recording (see start_recording()/render()'s RECORD branch)
+    # instead of load_image_from_screen(), which was proven unreliable for
+    # screenshots (see screenshot_capture.py's pre-54cha docstring history:
+    # DPI-scale bugs, mid-frame reads that missed HUD elements drawn later in
+    # the same frame, and export_image() failures specific to the screen-read
+    # path). request_temp_capture() takes effect starting the *next* render()
+    # loop iteration (the flag is only read at the top of the loop, before a
+    # frame's widgets run), so a widget that calls it mid-frame doesn't need
+    # this frame to already be using a render texture.
+    self._temp_capture_pending = False
+    self._temp_capture_callback: Callable[[rl.Image], None] | None = None
+    self._temp_capture_owns_texture = False
+
+  def request_temp_capture(self, callback: Callable[[rl.Image], None]) -> None:
+    """Request that the fully-rendered pixels of an upcoming frame be handed
+    to `callback` as an rl.Image, read from the render texture right after
+    end_texture_mode() -- the same extraction point/method render() already
+    uses for video recording -- rather than a mid-frame or on-screen read.
+    If no render texture currently exists (recording/scale/burn-in all off),
+    one is created for exactly one frame and torn down again immediately
+    after the callback runs. `callback` takes ownership of the Image and
+    must call rl.unload_image() on it (see screenshot_capture.py's
+    save_screenshot_image() for the expected callback shape)."""
+    self._temp_capture_pending = True
+    self._temp_capture_callback = callback
+
   def _new_record_path(self) -> Path:
     self._record_dir.mkdir(parents=True, exist_ok=True)
     name = datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".mp4"
@@ -843,6 +870,14 @@ class GuiApplication:
           yield False
           continue
 
+        # 54cha: if a one-shot capture was requested (see request_temp_capture())
+        # and there's no render texture already backing this frame for another
+        # reason (recording/scale/burn-in), create one just for this frame so
+        # the capture below can read from it instead of the screen.
+        if self._temp_capture_pending and self._render_texture is None:
+          self._ensure_render_texture_for_recording()
+          self._temp_capture_owns_texture = self._render_texture is not None
+
         if self._render_texture:
           rl.begin_texture_mode(self._render_texture)
           rl.clear_background(rl.BLACK)
@@ -881,6 +916,26 @@ class GuiApplication:
               rl.end_shader_mode()
             else:
               rl.draw_texture_pro(texture, src_rect, dst_rect, rl.Vector2(0, 0), 0.0, rl.WHITE)
+
+        # 54cha: extract this frame for the one-shot capture request, if any,
+        # at the same point/via the same rl.load_image_from_texture() call
+        # already used below for video recording -- the render texture holds
+        # this frame's fully-drawn content regardless of whether it's about to
+        # be recorded, so this doesn't depend on the RECORD/self._record_enabled
+        # branch below.
+        if self._temp_capture_pending and self._render_texture is not None:
+          capture_image = rl.load_image_from_texture(self._render_texture.texture)
+          capture_callback = self._temp_capture_callback
+          self._temp_capture_pending = False
+          self._temp_capture_callback = None
+          if self._temp_capture_owns_texture:
+            rl.unload_render_texture(self._render_texture)
+            self._render_texture = None
+            self._temp_capture_owns_texture = False
+          if capture_callback is not None:
+            capture_callback(capture_image)
+          else:
+            rl.unload_image(capture_image)
 
         if self._show_fps:
           rl.draw_fps(10, 10)

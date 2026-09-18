@@ -1,6 +1,8 @@
 import pyray as rl
 
-from openpilot.selfdrive.ui.onroad.screenshot_capture import capture_onroad_screenshot
+from openpilot.common.swaglog import cloudlog
+from openpilot.selfdrive.ui.onroad.screenshot_capture import save_screenshot_image
+from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets import Widget
 
 
@@ -11,6 +13,14 @@ class ScreenshotButton(Widget):
   Uses an explicit tap-on-a-button instead of a double-tap-anywhere gesture,
   so it never conflicts with the existing single-tap sidebar toggle on the
   rest of the onroad screen (see augmented_road_view.py's click_callback).
+
+  54cha: _on_click() no longer captures anything itself, and this widget no
+  longer needs to coordinate with HudRenderer/AugmentedRoadView about when in
+  the frame it's safe to capture (see 51cha/52cha history in
+  save_screenshot_image()'s docstring for what that coordination used to look
+  like, and why it kept missing HUD elements). It just asks GuiApplication
+  for a one-shot render-texture capture of a whole upcoming frame via
+  gui_app.request_temp_capture(), and saves whatever Image comes back.
   """
 
   def __init__(self, button_size: int):
@@ -20,7 +30,14 @@ class ScreenshotButton(Widget):
     self.set_click_callback(self._on_click)
 
   def _on_click(self) -> None:
-    capture_onroad_screenshot()
+    # 49차: 클릭 콜백이 실제로 호출되는지 자체를 로그로 남겨, "버튼이 안
+    # 눌러진다"는 제보가 (a) 클릭이 전달되지 않는 문제인지 (b) 클릭은
+    # 전달되지만 캡처만 실패하는 문제인지 다음 실차 테스트에서 구분한다.
+    cloudlog.debug("ScreenshotButton clicked")
+    gui_app.request_temp_capture(self._on_frame_captured)
+
+  def _on_frame_captured(self, image: rl.Image) -> None:
+    save_screenshot_image(image)
 
   def _render(self, rect: rl.Rectangle) -> None:
     center_x = int(self._rect.x + self._rect.width // 2)
