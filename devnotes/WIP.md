@@ -1,5 +1,15 @@
 # WIP
 
+## 88차 — 87차 반영 스크립트 2개 push 확인 (devnotes 정정만, 코드 변경 없음) + carrot-ms 신규 13건 발견
+
+세션 시작 체크포인트(4절 0단계, `git ls-remote`)로 carrot-ryu-note가 `50e7f67`(87차 devnotes 갱신)임을 확인. 이어서 carrot-ryu HEAD를 조회한 결과 `0923f8396dacbb61a23e1c394751d8014ddddf5f`로, HANDOFF.md(87차)에 "실행/push 대기"로 기록돼 있던 항목 30~36 반영 스크립트(`87cha_items30_36_carrot_ryu.ps1`)가 이미 사용자에 의해 실행/push까지 완료돼 있음을 16절에 따라 발견했다(핵심 발견 27/38과 동일 패턴). GitHub commit API로 `0923f83`의 부모가 `ba929b5f2`(86차 베이스)와 정확히 일치하고, 변경 파일 4개(hud_renderer.py/screenshot_button.py/screenshot_capture.py/application.py)가 87차 HANDOFF에 기록된 내용과 동일함을 재확인했다. devnotes 반영 스크립트(`87cha_devnotes_carrot_ryu_note.ps1`)도 이미 실행되어 `50e7f67`(부모 `15cdf6e2e`, 87차 베이스와 일치)로 push 완료돼 있었다.
+
+**36개 항목(1~36) 전부가 20절 리셋 이후 새 베이스 위에서 GitHub 반영 확인 완료된 상태다.** 이번 세션은 코드 변경 없이 CURRENT_STATUS.md(최상단 HEAD 줄 + 항목 30~36 일곱 곳)와 HANDOFF.md, 이 WIP.md 표기만 88차 기준으로 정정한다.
+
+부수적으로 carrot-ms(happymaj11r/openpilot) 동기화 상태도 점검했다: WIP_SYNC.md에 마지막 검토 완료로 기록된 지점(`706efb47`, 87차까지 "변경 없음"으로 유지)보다 carrot-ms 현재 HEAD(`994683d5`)가 GitHub compare API 기준 13개 커밋 앞서 있음을 확인했다. 신규 13건: `845e725`(fix tests) / `0beb200`(CAN FD stop request re-entry 실험) / `de6ee63`(CAN FD stopping merge resolution 복원) / `a6c8220`(CAN FD stop retry를 기본 off 설정 뒤로) / `21b71f0`(Cinque v3 실험 범위 기록) / `34cf65f`(CAN FD stop retry 설정 변경을 주행 중 적용) / `ee8d435`(Hyundai Group 3 레이더 객체 identity, CAN 슬롯 이동 대응) / `b4f751f`(카메라 cadence/커브 진입 복구/UI path cost) / `4d1a3ad`(model selector mirror를 공유 카메라 페어링에 적응) / `5ae4a25`(CAN FD 카메라 SCC HUD 객체에 leadOne 사용) / `ec95363`(lane dash geometry 배치 + UI CPU 작업 분리) / `557e6f6`(worker 진단에 모델 아티팩트/입력 크기 식별) / `994683d`(EV9 정지 상태 코너 phantom braking 회귀 대응). 이 중 CAN FD stop retry/stopping 4건(`0beb200`/`de6ee63`/`a6c8220`/`34cf65f`)과 Hyundai Group 3 레이더 1건(`ee8d435`)은 현대차 그룹 CAN 계열이라 제네시스 DH 2015와 관련성 후보로 보이고, model selector mirror 조정 1건(`4d1a3ad`)도 2절 동기화 대상 후보다. 나머지(카메라 cadence, lane dash, worker 진단, EV9 phantom braking, 테스트/실험 범위 기록 등)는 관련성 낮아 보이나 개별 diff 미확인. **이 13건의 개별 diff 분석/반영 판단/WIP_SYNC.md 체크포인트 기록은 이번 세션에서 진행하지 않았고 다음 세션 과제로 이월한다.**
+
+실차 검증: 미실시(코드 변경 자체가 없음). 상세: HANDOFF.md 88차 참고.
+
 ## 87차 — 항목 30~36(스크린샷 캡처 체인 7건) 재적용 + WIP.md null byte 손상 발견/수정
 
 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu(`ba929b5`)/carrot-ryu-note(`15cdf6e`)가 86차 상태 그대로임을
