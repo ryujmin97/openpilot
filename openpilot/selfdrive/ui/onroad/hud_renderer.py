@@ -1441,8 +1441,9 @@ class HudRenderer(Widget):
       size = measure_text_cached(self._font_bold, info["sdi_descr"], eta_size)
       badge_gap = 20
       badge_y = by + 115 + badge_gap
-      # 텍스트가 배지 내부에서 세로 중앙에 오도록 패딩과 baseline을 함께 계산한다.
-      # left_bottom 정렬이므로 baseline을 배지의 수직 중앙 + 텍스트 높이의 절반으로 맞춘다.
+      # 배지 내부에 텍스트를 확실히 넣기 위해 center 정렬을 사용한다.
+      # draw_text_ui_style의 y_offset(6px)를 보정해서 텍스트의 실제 top이
+      # 배지 중앙을 기준으로 오도록 한다.
       badge_h = max(48, int(size.y + 20))
       self._draw_round_box(
         label_x - 10,
@@ -1454,10 +1455,11 @@ class HudRenderer(Widget):
         segments=8,
         line_thickness=0,
       )
-      text_bottom_y = badge_y + (badge_h + size.y) / 2
-      self._draw_text_left_bottom(
-        info["sdi_descr"], label_x, text_bottom_y, eta_size, rl.WHITE,
+      text_center_y = badge_y + badge_h / 2 - 6
+      draw_text_ui_style(
+        info["sdi_descr"], label_x, text_center_y, eta_size, rl.WHITE,
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
+        align="left_center",
       )
     elif road_name_text:
       # [33차] 사용자 요청: 도로명 텍스트가 박스 아래 경계를 벗어나 보임 ->
