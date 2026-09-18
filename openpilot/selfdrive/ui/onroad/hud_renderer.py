@@ -1441,7 +1441,9 @@ class HudRenderer(Widget):
       size = measure_text_cached(self._font_bold, info["sdi_descr"], eta_size)
       badge_gap = 20
       badge_y = by + 115 + badge_gap
-      badge_h = max(48, int(size.y + 13))
+      # 텍스트가 배지 내부에서 세로 중앙에 오도록 패딩과 baseline을 함께 계산한다.
+      # left_bottom 정렬이므로 baseline을 배지의 수직 중앙 + 텍스트 높이의 절반으로 맞춘다.
+      badge_h = max(48, int(size.y + 20))
       self._draw_round_box(
         label_x - 10,
         badge_y,
@@ -1452,8 +1454,9 @@ class HudRenderer(Widget):
         segments=8,
         line_thickness=0,
       )
+      text_bottom_y = badge_y + (badge_h + size.y) / 2
       self._draw_text_left_bottom(
-        info["sdi_descr"], label_x, badge_y + int(size.y) + 2, eta_size, rl.WHITE,
+        info["sdi_descr"], label_x, text_bottom_y, eta_size, rl.WHITE,
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
       )
     elif road_name_text:
