@@ -1,102 +1,101 @@
-Worker: Claude (86차)
+Worker: Claude (87차)
 Date: 2026-09-18
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `c74c0ac541fa48dcbd67b7b9aa491d84e11e5dc5`, 85차 v2 스크립트 push 완료 확인 -- 항목 22/23/26 이식 완료. 이번 세션은 그 위에서 항목 24 재적용, 반영 스크립트(v2) 실행/push 대기)
-Note Branch: carrot-ryu-note (base: `da6d6a4e5c9b3f38adc483c951e144e43637797e`, 85차 계속3 기준. 이번 세션 CURRENT_STATUS/HANDOFF/WIP 갱신, 반영 스크립트 실행/push 대기)
+Code Branch: carrot-ryu (base: `ba929b5f29cf88530f2fd64e28b5fc59f12e4c8b`, 86차 항목22/23/26 push 확인 + 항목24(41차, v2) 재적용 완료 기준. 이번 세션은 그 위에서 항목 30~36 재적용, 반영 스크립트 실행/push 대기)
+Note Branch: carrot-ryu-note (base: `15cdf6e2e094ad479fcc9da4e980154785392889`, 86차 devnotes 기준. 이번 세션 CURRENT_STATUS/HANDOFF/WIP 갱신 + WIP.md null byte 손상 수정, 반영 스크립트 실행/push 대기)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): `706efb47b81cf9cb02888ee536a156d8f1fc1d91`(61차 20절 리셋 베이스, 변경 없음).
 
 작업:
-세션 시작 체크포인트(`git ls-remote`)에서 carrot-ryu HEAD가 이미 `c74c0ac`로, HANDOFF.md(85차 계속3)에
-기록된 base(`132d85b`, "v2 스크립트 실행/push 대기")와 다름을 발견(4절/16절). GitHub compare `.diff`
-엔드포인트(api.github.com rate limit 회피)로 `132d85b`..`c74c0ac` 구간을 조회한 결과 정확히 1개 커밋이며,
-변경 파일 12개(routes.py 신규 함수 + screenshots.js/runtime.js/style.css + 생성 번들 3종 + index.html +
-en/ko/zh.js + hud_renderer.py)가 85차 HANDOFF.md에 기록된 항목 22(39차)+23(40차-fix)+26(44차) 재적용
-내용과 정확히 일치함을 확인. `screenshots.js`에 `formatRelativeEpoch`/`formatLogBytes` import가 실제로
-존재함을 raw 조회로 재확인. 결론: 사용자가 이미 `85cha_item22_23_26_carrot_ryu_v2.ps1`을 실행해 push까지
-완료했고, HANDOFF.md/CURRENT_STATUS.md의 "실행/push 대기" 표기만 뒤처져 있었던 것(핵심 발견 27/38과
-동일 패턴). 이 push로 항목 22/23/26 이식이 전부 완료됨.
+세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu가 `ba929b5`, carrot-ryu-note가 `15cdf6e`로 86차 상태 그대로임을
+확인(4절) -- 86차 이후 추가 push 없음. CURRENT_STATUS.md 최상단 "carrot-ryu HEAD" 줄이 82차/83차 기준(`435d0b58`)으로
+오래 방치돼 있던 것을 16절에 따라 발견, 이번 세션에서 정정(코드 변경 아님).
 
-이어서 사용자 요청으로 항목 24(41차, commit `da6ad815`, carrotweb 로그탭 새로고침 아이콘 추가)에 착수.
-새 베이스(`c74c0ac`)의 index.html에 `#logsRefreshButton`이 0건임을 grep으로 확인해 미반영을 확정.
-원본 41차 patch(6개 파일: index.html/runtime.js/style.css 소스 3개 + logs.css/asset-manifest.json/
-logs.js 생성 번들 3개)를 `github.com/.../commit/da6ad815.patch`로 직접 조회. 새 베이스의 세 소스 파일
-주변 컨텍스트(`bindLogsMenu`/`formatRelativeEpoch`/`bindLogsPage`/`.logs-menu` 등)가 원본 41차 시점과
-byte 단위로 완전히 동일함을 확인(그 사이 다른 세션들의 변경과 겹치지 않는 독립 영역). 독립 `git clone`에
-Replace-Block 3파일 5곳(index.html 1곳, runtime.js 2곳, style.css 2곳) 적용, 전부 1회 매치 확인. 그
-자리에서 `npm install && node build.mjs`로 생성 번들 3종 재생성, `git diff --stat`으로 변경 파일 6개와
-라인 증감(index.html +8, runtime.js +32, style.css +30, logs.css 2줄, asset-manifest.json 4줄, logs.js
-60줄)이 원본 41차 커밋과 정확히 일치함을 확인(byte-exact 수준의 구조적 일치). `node --check`(runtime.js,
-생성 logs.js) 통과, `node --test` 746/747 통과(유일 실패는 `ar_projection_golden`, 69차 이전부터 반복
-확인된 이 변경과 무관한 기존 환경 이슈).
+이어서 마지막 남은 이식 항목인 30~36(스크린샷 캡처 체인 7건: DPI 스케일 버그(47차) → 진단로그+버튼위치(49차) →
+PNG 롤백(50차) → 480p 다운스케일+캡처타이밍(51차) → 캡처위치 재조정/border HUD(52차) → render-texture 재설계
+(54차) → 상하반전(55차))을 새 베이스(`ba929b5`) 위에 착수. carrot-ryu-v1(`9ccf1206`) 아카이브에서 이 체인의 56차
+최종본(`screenshot_capture.py`/`screenshot_button.py`/`hud_renderer.py`/`system/ui/lib/application.py` 4개 파일)을
+가져와 현재 베이스와 대조:
+- `screenshot_capture.py`/`screenshot_button.py`: 다른 세션이 그 사이 건드리지 않아 v1과 전체교체로 안전하게
+  적용 가능함을 확인, 전체교체로 반영.
+- `hud_renderer.py`: 84차에서 추가된 sdi_descr 배지 위치 보정(핵심 발견 40)이 v1 아카이브 시점 이후의 변경이라
+  전체교체하면 유실되므로, 49차 버튼위치 이동(anchor_x 도입, 스크린샷 버튼을 화면 중앙에서 좌측으로 이동)
+  부분만 Replace-Block 2곳으로 좁혀 반영해 84차 수정을 보존.
+- `application.py`: 이 저장소(20절 리셋 이후 베이스)에 처음 반영되는 파일(54차 `request_temp_capture()`
+  render-texture 재사용 재설계) -- v1 아카이브와 완전히 동일하게 전체교체(diff 결과 IDENTICAL).
+- `augmented_road_view.py`: 51·52차가 추가했던 캡처 호출부가 54차 재설계로 이미 다시 원복돼 있어(v1 기준
+  diff 0), 이번 재적용에서 변경 없음.
 
-**[v1 -> v2 교체]** 위 검증을 마친 v1 반영 스크립트(`86cha_item24_logs_refresh_carrot_ryu.ps1`)는
-`npm install && node build.mjs`를 사용자 PC에서 직접 실행하는 기존 방식으로 작성했으나, 사용자가 실행한
-결과 `[3/6] node --check` 단계에서 `node`/`npm` 명령 자체가 인식되지 않음을 확인(`node --version`,
-`where.exe node` 모두 실패 -- 이 PC에 Node.js가 설치돼 있지 않거나 PATH에 없는 상태). overview.md에
-남아있던 "Node.js는 로컬에 설치 확인됨" 기록이 이 PC의 현재 상태와 더 이상 맞지 않음(다음 세션에서
-정정 필요, 낮은 우선순위). git commit/push 이전 단계에서 막혔으므로 반영 사고는 없음(15절/18절 안전장치
-정상 동작). 67차 등 과거 세션에서 이미 썼던 방식대로, 소스 3개 Replace-Block 적용 + `npm install &&
-node build.mjs` 생성 번들 재생성 전체를 Claude 샌드박스(Linux)에서 실행/검증(위 문단의 검증 내용과
-동일)한 뒤, 최종 결과 파일 6개를 base64 전체교체로 담은 `86cha_item24_logs_refresh_carrot_ryu_v2.ps1`로
-교체했다. v2는 이 PC에서 node/npm을 전혀 실행하지 않는다. v2의 base64 페이로드는 완전히 독립된 두 번째
-`git clone`(fresh clone, `c74c0ac` 기준)에 적용해 샌드박스 빌드 결과물과 6개 파일 전부 byte-exact
-일치함을 재확인했다(9절/16절, 핵심 발견 42 원칙 -- anchor 매치뿐 아니라 결과 자체를 재확인).
+독립 `git clone`에 4개 파일 적용 → `python3 -m py_compile` 4개 전부 통과, `application.py`는 v1 아카이브와
+byte-exact 일치(diff 무출력)까지 확인, 구 API(`capture_onroad_screenshot`/`consume_pending_screenshot_capture`)
+잔여 참조 0건, `gui_app` 싱글턴 import 경로 정상 확인(9절/16절). js/css 소스 변경이 없어 번들 재생성/
+`params_keys.h` 등록 불필요. 최종 파일 4개(BOM 없음 확인)를 base64로 담아 반영 스크립트
+(`87cha_items30_36_carrot_ryu.ps1`)를 작성, 완전히 별개의 두 번째 clone에 페이로드를 재현해 `py_compile`
+재통과 + diff stat(4 files, +138/-20)이 최초 검증과 동일함을 재확인했다(핵심 발견 42 원칙 -- 결과 자체를
+다시 확인). 9절 "전달 전 필수 자가검증 체크리스트" 전항목(비ASCII 0건/`core.autocrlf=false`/`Get-PythonCmd`
++ EOF 공급/임시폴더 자동삭제)을 스크립트 파일 grep으로 직접 대조해 통과를 확인했다.
+
+이 코드 작업과 별개로, devnotes 갱신을 준비하며 `WIP.md`를 raw로 재조회하는 과정에서 실제 null byte(`\x00`)
+손상 1건을 처음 발견했다: 57차 항목 본문 "carrot-ryu fork point(`\x00`2015190f5, ...)" 자리에 있어야 할 숫자
+`0`이 널바이트로 바뀌어 있었다(같은 커밋 해시가 파일 다른 곳(606번째 줄 등)에는 `02015190f5`로 정상 표기돼
+있어 원본 문자를 바이트 단위로 확정할 수 있었다). 그 외 이 파일에 다른 null byte가 없음을 전수 확인 후
+`0`으로 복원. WIP.md는 평소 "이어붙이기형"(최상단 anchor 삽입만)이지만, 이번엔 파일 중간의 손상을 같은
+커밋에서 함께 고쳐야 해서 9절의 "이번만 예외" 원칙에 따라 이번 회차에 한해 파일 전체를 base64로 담아
+전체교체 방식으로 반영한다(다음 회차부터는 다시 anchor 삽입 방식으로 복귀). 파일 맨 끝(1차 세션 기록)에
+이미 있던 별개의 인코딩 깨짐(mojibake로 추정, null byte와 무관 -- 원본 파일과 대조해 내 수정 이전부터
+있었음을 확인)과 기존에 알려진 "`# WIP` 헤더 중복"(789번째 줄, "다음 작업" 목록에 낮은 우선순위로 이미
+기록됨)은 7절 "임의 축소/삭제 금지" 원칙에 따라 이번 세션에서 손대지 않았다.
 
 완료:
-1. 4절/16절 원칙대로 carrot-ryu 실제 GitHub 최신 상태(`c74c0ac`)를 확인하고 항목 22/23/26의 push
-   완료를 재확인, devnotes 표기 정정(CURRENT_STATUS.md 항목 22/23/26 줄에 86차 확인 기록 추가).
-2. 항목 24(41차) 원본 커밋 patch 조회 및 새 베이스와의 anchor 일치 확인.
-3. 독립 `git clone`에 항목 24 재적용(Replace-Block 5곳 전부 1회 매치) + `npm install && node build.mjs`
-   재생성 + `node --check`/`node --test`(746/747) 통과까지 샌드박스에서 사전 검증 완료.
-4. v1 반영 스크립트가 사용자 PC의 node/npm 부재로 막힘을 확인, 소스 수정+번들 재생성 전체를 Claude
-   샌드박스에서 실행한 결과물을 base64 전체교체로 담은 v2(`86cha_item24_logs_refresh_carrot_ryu_v2.ps1`)로
-   교체. 완전히 독립된 두 번째 clone에 페이로드를 적용해 샌드박스 빌드 결과와 byte-exact 일치 재확인.
-5. devnotes 반영 스크립트(`86cha_devnotes_carrot_ryu_note.ps1`) 작성: HANDOFF.md(이 파일, 전체교체) +
-   CURRENT_STATUS.md(항목 22/23/24/26 네 줄만 Replace-Block으로 갱신, 그 외 내용은 손대지 않음 -- 파일
-   규모상 9절의 "교체형" 원칙에서 이번만 예외적으로 부분 치환 방식을 사용했음을 다음 세션이 알 수 있도록
-   여기 명시) + WIP.md(최상단 86차 항목 삽입, anchor `# WIP\n\n## 85차` 1회 매치 + 결과 재확인).
+1. 4절/16절 원칙대로 carrot-ryu/carrot-ryu-note가 86차 상태 그대로임을 재확인, CURRENT_STATUS.md 최상단
+   stale HEAD 표기(82차/83차 기준)를 86차 기준으로 정정.
+2. 항목 30~36(스크린샷 캡처 체인 전체)을 carrot-ryu-v1 최종본 기준으로 새 베이스 위에 재구성(84차 sdi_descr
+   수정 보존), 독립 clone 2회(최초 검증 + 완전 별개 재현)로 py_compile 통과 + byte-exact 일치 확인.
+3. 반영 스크립트(`87cha_items30_36_carrot_ryu.ps1`) 작성, 9절 체크리스트 전항목 통과 확인.
+4. WIP.md의 null byte 손상 1건을 발견/원인 특정/복원.
+5. devnotes 반영 스크립트(`87cha_devnotes_carrot_ryu_note.ps1`) 작성: HANDOFF.md(이 파일, 전체교체) +
+   CURRENT_STATUS.md(최상단 HEAD 줄 + 항목 30~36 일곱 줄 + 87차 신규 항목, Replace-Block으로 부분 갱신 --
+   파일 규모상 9절 "교체형" 원칙의 실무적 예외를 이번에도 적용) + WIP.md(전체교체, null byte 수정 + 87차
+   신규 항목 반영, 9절 "이번만 예외" 명시).
 
 미완료(다음 세션 최우선):
-1. 사용자가 `86cha_item24_logs_refresh_carrot_ryu_v2.ps1`을 실행해 carrot-ryu에 push할 것 -- v1
-   (`86cha_item24_logs_refresh_carrot_ryu.ps1`)은 이 PC에서 실행해도 node/npm 부재로 다시 막힐 뿐이니
-   실행하지 말 것.
-2. push 확인되면 devnotes 반영 스크립트(`86cha_devnotes_carrot_ryu_note.ps1`)도 실행해 HANDOFF.md/
+1. 사용자가 `87cha_items30_36_carrot_ryu.ps1`을 실행해 carrot-ryu에 push할 것. 이 push가 완료되면 36개
+   항목 전부(1~36) 재적용이 완료됨.
+2. push 확인되면 devnotes 반영 스크립트(`87cha_devnotes_carrot_ryu_note.ps1`)도 실행해 HANDOFF.md/
    CURRENT_STATUS.md/WIP.md를 최신 상태로 반영할 것.
-3. 항목 22/23/26(사진 업로드 UI + import 버그 2건)과 항목 24(로그탭 새로고침 아이콘)의 실차 검증 --
-   둘 다 61차 리셋 이후 새 베이스에 처음 재적용되는 경로라 프로젝트 역사상 이 형태로는 한 번도 실차
-   확인된 적 없음(12절).
-4. 이 PC의 node/npm 설치 상태를 확인해, 이후 세션에서도 계속 base64 전체교체 방식(샌드박스 빌드)을
-   기본으로 할지, 아니면 node/npm을 재설치해 예전처럼 사용자 PC 빌드로 되돌릴지 사용자 판단 필요
-   (overview.md의 "Node.js 로컬 설치 확인됨" 기록과의 불일치 해소).
-5. 남은 미이식 항목: 30~36(스크린샷 캡처 체인 7건 -- DPI/JPG↔PNG/진단로그/pending플래그/render-texture
-   재설계/상하반전, 47~56차에 걸쳐 순차 수정된 체인이라 그 순서를 지켜 재적용해야 함). 이식되면 36개
-   항목 전부 완료.
+3. 항목 30~36(스크린샷 캡처 체인 전체: DPI/진단로그/PNG/480p/캡처타이밍/render-texture 재설계/상하반전)의
+   실차 검증 -- 61차 리셋 이후 새 베이스에 처음 재적용되는 경로라 프로젝트 역사상 이 형태로는 한 번도 실차
+   확인된 적 없음(12절). 36개 항목 전부가 이 시점부터 처음으로 "새 베이스 기준 실차 재검증 완료" 상태를
+   목표로 삼을 수 있게 됨.
+4. WIP.md 파일 맨 끝(1차 세션 기록)의 별개 인코딩 깨짐(mojibake) 처리 여부 사용자 판단 필요(이번 세션에서
+   발견만 하고 손대지 않음, 새로운 이슈이므로 "# WIP" 헤더 중복과 별개로 취급).
+5. WIP.md "# WIP" 헤더 중복(789번째 줄) 정리 여부(기존부터 낮은 우선순위로 이월 중).
+6. 36개 항목 전부 재적용이 끝나면, 다음 큰 작업 후보로 carrot-ms 신규 커밋 cherry-pick 검토(WIP_SYNC.md),
+   test_web_upload.py 실행/데드코드 3개 정리, docs 갱신, 37차 락 동시성 재현 검증 등이 대기 중(CURRENT_STATUS.md
+   "다음 작업" 목록 참고).
 
-검증: `git ls-remote`+GitHub compare `.diff`로 carrot-ryu 실제 HEAD 및 항목 22/23/26 push 내용 재확인,
-항목 24 원본 커밋 patch 직접 조회 후 독립 clone에 재현/검증(anchor 5곳 1회 매치, 번들 재생성 diff가
-원본과 라인 단위로 일치, `node --check`/`node --test` 746/747 통과). v2 스크립트의 base64 페이로드는
-완전히 별개의 두 번째 clone에 적용해 샌드박스 빌드 결과와 6개 파일 전부 byte-exact 일치까지 재확인.
-반영 스크립트 자체도 9절 체크리스트 항목을 스크립트 파일 grep으로 직접 대조(서술이 아닌 코드 확인,
-핵심 발견 44 교훈 적용). 실차 검증: 미실시(이번 세션은 항목 24 코드 변경 자체가 아직 push되지 않음).
+검증: `git ls-remote`로 carrot-ryu/carrot-ryu-note 실제 HEAD가 86차 상태 그대로임을 재확인. 항목 30~36 코드는
+독립 clone 2회(최초 검증 + 완전히 별개의 재현 clone)에서 py_compile 4개 전부 통과, application.py는
+carrot-ryu-v1 아카이브와 byte-exact 일치, 구 API 잔여 참조 0건을 각각 확인. 반영 스크립트 자체도 9절
+체크리스트 항목을 스크립트 파일 grep으로 직접 대조(서술이 아닌 코드 확인, 핵심 발견 44 교훈 적용). WIP.md의
+null byte 위치는 파일 다른 곳의 동일 해시 표기와 바이트 단위로 대조해 원본 문자를 확정했고, 복원 후 파일
+전체에 null byte가 0건임을 재확인. 실차 검증: 미실시(이번 세션은 코드 변경 자체가 아직 push되지 않음).
 
 주의사항:
-- HANDOFF.md/CURRENT_STATUS.md의 "실행/push 대기" 표기가 실제 push 완료 상태를 못 따라간 패턴(핵심
-  발견 27/38)이 85차 계속3 이후에도 재발함 -- 세션 시작 시 4절 0단계(git ls-remote)를 반드시 먼저
-  수행해 devnotes 텍스트보다 GitHub 실제 상태를 우선할 것.
-- 이번 세션은 CURRENT_STATUS.md의 4줄만 Replace-Block으로 갱신했다(9절 "교체형" 원칙의 실무적 예외).
-  파일 전체를 다시 손볼 필요가 있으면(예: 여러 항목이 한꺼번에 크게 바뀌는 경우) 다음 세션에서 전체
-  교체 방식으로 정리할 것.
-- **[86차, 신규]** 이 PC의 node/npm 실행 가능 여부가 세션 사이에 바뀔 수 있음이 처음 확인됨(45차~85차
-  까지는 반영 스크립트 안에서 `npm install && node build.mjs`를 사용자 PC에서 직접 실행해왔음). 앞으로
-  js/css 소스를 건드리는 반영 스크립트를 작성하기 전에는, 사용자 PC에서 node/npm이 실제로 동작하는지
-  먼저 확인하거나(또는 실패 시 재시도 가능하도록) 처음부터 Claude 샌드박스에서 빌드해 base64로 담는
-  방식을 기본으로 고려할 것.
-- 남은 미이식 항목은 24(이번 세션에서 v2 스크립트 전달, push 대기)와 30~36(착수 전) 뿐이다. 30~36은
-  47~56차 순서(DPI -> 진단로그+버튼위치 -> PNG롤백 -> 캡처타이밍+480p -> 캡처위치 재조정 -> render-texture
-  재설계 -> 상하반전)를 그대로 지켜야 한다(20절 5번).
+- CURRENT_STATUS.md 최상단 "carrot-ryu HEAD" 줄이 여러 세션(최소 82차 이후)에 걸쳐 정정되지 않고 방치된
+  패턴이 재확인됨. 과거에도 유사 항목(내용 전체) 표기 지연은 핵심 발견 27/38로 문서화돼 있었으나, 이번처럼
+  "최상단 요약 한 줄"만 별도로 오래 방치되는 경우는 세션들이 본문 항목/서술 갱신에 집중하며 최상단 줄을
+  놓치기 쉬운 패턴으로 보임 -- 다음 세션부터 devnotes 갱신 시 최상단 HEAD 줄도 매번 함께 점검할 것.
+- WIP.md의 null byte 손상은 이번 세션에서 처음 발견됐고 정확한 발생 경위는 미확정이다(과거 세션들이 "9절
+  체크리스트 전항목 통과"로 기록했던 시점 중 어딘가에서 실제로는 걸러지지 못했을 가능성 -- 핵심 발견 41/42/44와
+  유사 계열). 이번 수정으로 이 파일의 null byte는 0건이 됐지만, 앞으로 devnotes 전체교체 작업 시에는 "BOM
+  확인"뿐 아니라 "null byte 0건 확인"도 자가검증 체크리스트에 추가하는 것을 다음 19절 절차로 제안할 가치가
+  있음(이번 세션에서는 발견/수정만 하고 지침 문서 자체는 변경하지 않음 -- 사용자 승인 필요).
+- 남은 미이식 항목은 이번 세션 스크립트(30~36)가 push되면 0개가 된다. 36개 항목 전부가 push 확인되면
+  "36개 항목 전부 완료" 마일스톤이며, 이후 프로젝트 우선순위는 실차 검증 및 carrot-ms 신규 커밋 검토로
+  전환될 예정(사용자 판단 필요).
 
 다음 작업 후보:
-1. 항목 24 코드 스크립트(v2) 실행/push 확인, devnotes 스크립트도 실행/push 확인.
-2. 항목 22/23/24/26 실차 검증(사진 업로드 UI, content_shift_y 여백, 로그탭 새로고침 아이콘).
-3. 항목 30(47차, DPI 스케일 버그 수정)부터 순서대로 30~36 재적용 착수.
-4. 이 PC의 node/npm 설치 상태 확인 및 향후 빌드 방식(사용자 PC vs Claude 샌드박스) 결정.
+1. 항목 30~36 코드 스크립트 실행/push 확인, devnotes 스크립트도 실행/push 확인.
+2. 항목 30~36 전체 실차 검증(스크린샷 버튼 반응, HUD 포함 여부, 480p 다운스케일, 정방향 저장까지 한 번에).
+3. WIP.md mojibake(1차 세션 기록)/헤더 중복 정리 여부 사용자 확인.
+4. carrot-ms 신규 커밋 cherry-pick 검토 착수(WIP_SYNC.md 참고).

@@ -1,5 +1,48 @@
 # WIP
 
+## 87차 — 항목 30~36(스크린샷 캡처 체인 7건) 재적용 + WIP.md null byte 손상 발견/수정
+
+세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu(`ba929b5`)/carrot-ryu-note(`15cdf6e`)가 86차 상태 그대로임을
+확인(4절/16절) -- 86차 이후 추가 push 없음. 이어서 남은 마지막 항목인 30~36(스크린샷 캡처 체인: DPI 스케일
+버그 → 진단로그+버튼위치 → PNG 롤백 → 480p 다운스케일+캡처타이밍 → 캡처위치 재조정(border HUD) →
+render-texture 재설계 → 상하반전, 47~56차 순서)을 새 베이스(`ba929b5`) 위에 착수했다.
+
+carrot-ryu-v1(`9ccf1206`) 아카이브에서 이 체인의 최종 결과물(56차 시점 최종본)인
+`screenshot_capture.py`/`screenshot_button.py`/`hud_renderer.py`/`system/ui/lib/application.py` 4개 파일을
+가져와 현재 베이스와 대조했다. `screenshot_capture.py`/`screenshot_button.py`는 다른 세션이 그 사이 건드리지
+않아 전체교체로 안전하게 적용 가능함을 확인. `hud_renderer.py`는 84차에서 추가된 sdi_descr 배지 위치 보정
+(핵심 발견 40)이 v1 아카이브에는 없는 이후 변경이라, 전체교체 대신 49차 버튼위치 이동 부분만 Replace-Block
+2곳으로 좁혀 적용해 84차 수정을 보존했다. `application.py`는 이 저장소에 처음 반영되는 파일(신규 추가,
+54차 request_temp_capture() 렌더텍스처 재사용 방식)이라 v1과 완전히 동일하게 전체교체. `augmented_road_view.py`는
+51·52차가 추가했던 캡처 호출부가 54차 재설계로 이미 다시 원복돼 있어(v1 기준) 이번 재적용에서 변경 없음(diff 0).
+
+4개 파일 전부 독립 `git clone`에 적용 → `py_compile` 4개 전부 통과, `application.py`는 v1 아카이브와
+byte-exact 일치(`diff` 무출력) 확인, 잔여 참조 점검(`capture_onroad_screenshot`/`consume_pending_screenshot_capture`
+호출부 0건, `gui_app` 싱글턴 import 경로 확인)까지 완료(9절/16절). js/css 소스 변경 없어 번들 재생성/
+`params_keys.h` 등록 불필요. 반영 스크립트(`87cha_items30_36_carrot_ryu.ps1`, base64 전체교체 4개 파일 +
+`Get-PythonCmd` 자동탐지 + EOF 공급 + `core.autocrlf=false` + 임시폴더 자동삭제)를 9절 "전달 전 필수
+자가검증 체크리스트" 전항목(비ASCII 0건/`core.autocrlf`/cleanup/`Get-PythonCmd`+EOF공급) 통과 후, 완전히
+독립된 두 번째 clone에 페이로드를 재적용해 `py_compile` 재통과 + diff stat(4 files, +138/-20)이 최초
+검증과 동일함을 재확인했다(핵심 발견 42 원칙 적용 -- 결과 자체를 다시 확인).
+
+이 작업과 별개로, devnotes 갱신을 준비하며 `WIP.md`를 raw로 재조회하는 과정에서 실제 null byte(`\x00`) 손상
+1건을 처음으로 발견했다: 57차 항목 본문 중 "carrot-ryu fork point(`\x00`2015190f5, ...)" 자리에 있어야 할
+숫자 `0`이 널바이트로 바뀌어 있었다(같은 해시가 파일 다른 곳(606번째 줄 등)에는 `02015190f5`로 정상
+표기돼 있어 원본 문자를 확정할 수 있었다). 정확한 손상 경위는 미확정이나(과거 세션의 문자열 치환/이스케이프
+처리 과정에서 발생한 것으로 추정, 핵심 발견 41·42와 유사하게 "체크리스트 통과 기록과 실제 결과물이
+달랐던" 사례로 보임), 이번 세션에서 바이트 단위로 위치를 특정해 `0`으로 복원했다(그 외 이 파일에 다른
+null byte는 없음을 전수 확인). 기존에 알려져 있던 "`# WIP` 헤더 중복"(789번째 줄) 이슈는 지침 문서
+"다음 작업" 목록에 "낮은 우선순위"로 이미 기록돼 있어 이번 세션에서는 손대지 않았다(임의 축소/삭제
+금지 원칙, 7절).
+
+**[9절 예외 사항 명시]** WIP.md는 원래 "이어붙이기형"(최상단 anchor 삽입만) 원칙 대상이지만, 이번엔 파일
+중간의 null byte 손상을 같은 커밋에서 함께 고쳐야 해서 이번 회차에 한해 파일 전체를 base64로 담아
+전체교체 방식으로 반영한다(9절의 "이번만 예외" 명시 원칙, 85차가 CURRENT_STATUS.md에 적용했던 것과 반대
+방향의 동일 원칙 적용). 다음 회차부터는 다시 기존 방식(최상단 anchor 삽입)으로 돌아간다.
+
+실행/push 대기(코드/devnotes 모두). 실차 검증: 미실시(항목 30~36 모두 이 프로젝트 역사상 새 베이스
+위에서는 처음 재적용되는 경로).
+
 ## 86차 — 항목22/23/26 push 확인(c74c0ac) + 항목24(41차) 재적용(v1 실패 -> v2로 교체)
 
 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu HEAD가 `132d85b`가 아니라 이미 `c74c0ac`로 바뀌어
@@ -611,7 +654,7 @@ OK 여부, 최종 commit/push 출력) 확인부터. push 확인되면 Google Dri
 - 실차 검증: 미실시(코드 변경 없음, 12절).## 57차 (설계 논의만, 코드 변경 없음) -- carrot-ms 동기화 분석 범위 재설정
 
 - 사용자 요청: "carrot-ms 모델셀렉터 분석 착수".
-- 41개 모델셀렉터 전용 커밋(carrot-wip/carrot-ms bare clone 비교로 특정)을 git merge-base --is-ancestor로 전수 검증한 결과, 전부 carrot-ryu fork point( 2015190f5, 6~7차 체크포인트)의 조상 -> 이미 반영돼 있어 신규 작업 불필요함을 확인.
+- 41개 모델셀렉터 전용 커밋(carrot-wip/carrot-ms bare clone 비교로 특정)을 git merge-base --is-ancestor로 전수 검증한 결과, 전부 carrot-ryu fork point(02015190f5, 6~7차 체크포인트)의 조상 -> 이미 반영돼 있어 신규 작업 불필요함을 확인.
 - carrot-ryu의 carrot/model_selector/ 코드가 fork 이후 무수정, upstream 침습 지점/파람 등록 전부 정상임을 직접 확인.
 - 사용자가 이 결과를 듣고 분석 범위를 재설정: "모델셀렉터 코드뿐 아니라, carrot-ryu 브랜치 만든 이후 생긴 커밋은 다 분석해서 필요없는 커밋은 제외하고, 우리 차에 필요한 커밋만 추려서 우리가 수정한 코드와 충돌은 없는지 확인" -> fork point 이후 carrot-ms 신규 커밋 25건 전체를 대상으로 확대.
 - 다음 세션 작업 순서: (1) 25건 필요 여부 선별 (2) 필요한 것만 diff 분석 (3) carrot-ryu 커스텀 코드와 충돌/상충 여부 확인. 이번 세션은 이 설계까지만, 실제 분석은 이월.
