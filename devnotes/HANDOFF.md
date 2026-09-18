@@ -1,61 +1,61 @@
-Worker: Claude (83차, devnotes 정정만 · 코드 변경 없음)
+﻿Worker: Claude (84차)
 Date: 2026-09-18
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `435d0b58e6fc3a1012d659f379770fb48654e01f`, 82차 항목 21(37차) 재적용 push 완료 -- 83차에서 git ls-remote + GitHub compare `.diff`로 재확인)
-Note Branch: carrot-ryu-note (base: 이 커밋으로 갱신, 직전 base `8c373f10a6942d9c7ee4e9ae4161a1fcacca23fb`, 83차)
+Code Branch: carrot-ryu (base: `435d0b58e6fc3a1012d659f379770fb48654e01f`, 84차 sdi_descr 배지 위치/글자크기 수정 커밋 push 대기)
+Note Branch: carrot-ryu-note (base: 이 커밋으로 갱신, 직전 base `bdf1f7ae64b4fc6f9755e0f63d154552e7598aef`, 84차)
 carrot-ms 마지막 검토/동기화 커밋(메시지 기준): `706efb47b81cf9cb02888ee536a156d8f1fc1d91`(61차 20절 리셋 베이스, 변경 없음).
 
 작업:
-세션 시작 체크포인트(`git ls-remote`)에서 carrot-ryu HEAD가 이미 `435d0b58`로, 82차 HANDOFF.md에
-기록된 base(`1bd10a7c`, "push 대기")와 다름을 발견(4절/16절). GitHub compare `.diff` 엔드포인트
-(api.github.com rate limit 회피)로 `1bd10a7c`..`435d0b58` 구간을 조회해 실제 반영 여부와 내용을
-직접 재확인했다.
+사용자가 실기기 스크린샷(2026-09-17)으로 우측하단 경로안내 박스의 "교통정보 수집지점"(sdi_descr,
+카메라/POI 타입 안내) 문구가 그 위 초록색 배지 밖으로 밀려 보이는 버그를 제보. 사용자가 이 버그를
+"carrot-ryu-v1 브랜치에서 고치자"고 표현했으나, v1은 20절/18절에 따라 생성 이후 수정이 금지된
+아카이브 브랜치라 carrot-ryu(작업 브랜치)에 반영하는 방향으로 합의.
 
 완료:
-1. `1bd10a7c`..`435d0b58` 구간이 정확히 1개 커밋("82cha: item21 (37cha) reapply -
-   gdrive_upload.py _ensure_folder() TOCTOU...")임을 GitHub compare `.diff`로 확인.
-2. 변경 파일이 `openpilot/selfdrive/carrot/gdrive_upload.py` 1개뿐이고, diff 내용이
-   (1) `import asyncio` 추가, (2) 모듈 레벨 `_folder_lock = asyncio.Lock()` 추가, (3)
-   `_ensure_folder()` 본문 전체(캐시확인~검색~생성~캐시기록)를 `async with _folder_lock:`으로
-   감싸는 것 -- 82차 HANDOFF.md에 기록된 v4 스크립트의 의도와 정확히 일치함을 확인(9절/16절).
-3. 이로써 Google Drive 파이프라인 재이식 순서(항목 5→6→7→8→9→10→12→17→18→20→21, 총 11개)가
-   전부 완료됨을 확정.
-4. CURRENT_STATUS.md의 (a) 최상단 carrot-ryu HEAD 요약 줄, (b) "코드 수정 현황" 항목 21 줄,
-   (c) 82차 서술 말미의 "다음 세션 최우선" 문구 3곳을 Replace-Block으로 정정하고, 83차 신규
-   불릿을 "## 코드 수정 현황" 헤더 바로 위에 삽입.
-5. WIP.md 최상단(82차 계속 항목 바로 위)에 83차 항목 삽입.
-6. 이 파일(HANDOFF.md)을 83차 기준으로 재작성.
+1. 이 버그가 지금까지 한 번도 실차로 제대로 검증된 적이 없었음을 devnotes 대조로 확인: 이 박스는
+   `if sdi_descr: ... elif road_name: ...` 구조인데, FINDINGS.md 38차 항목이 "신호과속 배지
+   부재로 판단 보류"라고 명시했고, HANDOFF.md 40차의 "정상 확인" 목록에도 도로명까지만 있고
+   sdi_descr 케이스는 없었음 -- 즉 지금까지의 모든 실차 검증은 도로명(elif) 분기만 우연히
+   캡처했던 것(12절/16절 원칙에 따른 재확인).
+2. 근본 원인을 코드로 확정: `openpilot/system/ui/lib/text_draw.py`의 `get_text_draw_pos()`에
+   `align="left_bottom"` 분기가 없어(다른 6개 정렬 케이스만 존재), `hud_renderer.py`의
+   `_draw_text_left_bottom()`(제목/신호과속·교통정보 배지/도로명, 3곳에서 호출)이 실제로는
+   `left_top`과 동일하게 동작함 -- 텍스트가 의도한 위치보다 자기 글자 높이만큼 아래로 밀려
+   그려짐. carrot-ryu(`435d0b58`)와 carrot-ryu-v1(`9ccf1206`) 양쪽 다 이 버그가 동일하게
+   존재함을 직접 조회로 확인.
+3. 사용자 요청(공용 정렬 함수는 건드리지 말고 신호과속/교통정보 배지 텍스트만 수정 + 글자크기
+   90%)에 따라, `hud_renderer.py`의 `_draw_turn_info_hud()` 중 `if info["sdi_descr"]:` 블록만
+   범위를 한정해 수정. `elif road_name_text:`와 제목(`tbt_main_text`) 부분은 그대로 둠(같은
+   원인이지만 이번엔 의도적으로 미수정, 10절 최소변경 원칙).
+4. 수정 내용: (a) `sdi_size = int(eta_size * 0.9)`로 배지 전용 글자 크기 축소, (b) 배지
+   위치(`badge_top`)를 먼저 고정한 뒤 실제 렌더링 동작(`y+6`이 텍스트 상단)에 맞춰 `label_y`를
+   역산해 배지 안에 세로 중앙 정렬되도록 변경.
+5. anchor 1회 매치 확인, `python3 -m py_compile` 통과 확인(리눅스 샌드박스). 반영 스크립트
+   (`84cha_item_sdi_badge_fix.ps1`) 작성/전달, 실행 대기(push 미실시).
 
 미완료(다음 세션 최우선):
-1. 이 devnotes 반영 스크립트(`83cha_devnotes_carrot_ryu_note.ps1`)를 사용자가 실행해 push할 것.
-2. push 확인되면 항목 22(39차, commit `797fca2e`, 화면녹화 탭 사진 업로드 UI 신규 구현: 체크박스/
-   전체선택/다운로드/전송 + 경로안내 박스 상하 여백 통일 content_shift_y) 본편 착수. 원본 커밋
-   patch를 `.patch` 엔드포인트로 조회 후 현재 베이스(`435d0b58`)의 대상 파일들(routes.py/
-   hud_renderer.py/screenshots.js 등)의 blob hash가 원본 diff pre-image와 일치하는지부터 확인할 것
-   (39차 원본은 61차 리셋 이전 base 기준이므로, 그 사이 새 베이스 위에 재적용된 다른 항목들
-   (특히 항목 11의 screenshots.js, 항목 13~16·19의 hud_renderer.py)과 정상 병합되는지 개별
-   anchor로 재검증 필요, 69차/68차의 의존관계 기록 참고).
-3. (항목 22 끝난 뒤) 항목 23(39cha-fix, screenshots.js formatRelativeEpoch import 누락 수정),
-   항목 26(44차, screenshots.js formatLogBytes import 누락 수정) 순서로 재개.
-4. (낮은 우선순위) WIP.md 파일 안의 "# WIP" 헤더 중복 정리 -- 여전히 미완료.
-5. 실기기 검증: 항목 21(Drive 폴더 중복생성 레이스) 자체의 동작 확인 -- 항목 5~21 전체 이식이
-   끝난 지금부터는 배포/검증을 고려할 수 있으나, 항목 22~26까지 마저 이식한 뒤 한 번에 배포할지는
-   사용자 판단 필요(17절 세션 관리 원칙과 연계).
+1. 사용자가 `84cha_item_sdi_badge_fix.ps1`을 실행해 carrot-ryu에 push할 것.
+2. push 확인되면 이 devnotes 반영 스크립트(`84cha_devnotes_carrot_ryu_note.ps1`)도 실행 확인할 것.
+3. 실차 검증: sdi_descr 배지(신호과속/교통정보 수집지점 등)가 실제 카메라·POI 근처에서 초록 배지
+   안에 제대로 들어오는지 확인(12절 -- 이 코드 경로는 프로젝트 전체 역사상 처음으로 검증되는 것).
+4. (낮은 우선순위, 사용자 결정 대기) 제목(`tbt_main_text`)과 도로명(`road_name_text`)도 동일한
+   `left_bottom` 버그의 영향을 받고 있음 -- `get_text_draw_pos()`에 `left_bottom` 분기를
+   추가하는 근본 수정을 별도로 진행할지, 아니면 지금처럼 필요한 곳만 개별 보정할지 사용자 판단
+   필요.
+5. 항목 22(39차, `797fca2e`, 화면녹화 탭 사진 업로드 UI) 본편 착수는 이 세션에서 다루지 않음 --
+   83차 기록대로 여전히 다음 우선순위 후보.
 
-검증: GitHub compare `.diff` 엔드포인트로 diff 내용을 직접 재조회해 82차 HANDOFF.md 기록과
-diff 텍스트 단위로 완전히 일치함을 확인(16절). devnotes 3개 파일의 Replace-Block anchor는
-로컬(컨테이너)에서 원본 파일 전체를 대조해 전부 1회 매치를 사전 확인함. 실차 검증: 미실시(git
-pull 금지 상태 유지 중).
+검증: py_compile 통과(리눅스 샌드박스), anchor 1회 매치 확인(Python 문자열 대조). 실차 검증:
+미실시(스크립트 실행 대기 + 카메라/POI 근처 실주행 필요).
 
 주의사항:
-- 이번 세션도 76·77·81차와 동일한 패턴("코드는 이미 push됐는데 devnotes만 뒤처짐", 핵심 발견
-  27/38)이었다. 세션 시작 시 `git ls-remote`를 HANDOFF.md 텍스트보다 먼저/독립적으로 신뢰하는
-  4절/16절 절차가 이번에도 정상 작동했다.
-- 항목 22는 39차 원본이 61차 리셋 이전 base(구 carrot-ms) 기준으로 만들어졌고, 그 diff 중
-  hud_renderer.py 부분은 이미 68차에서 확인된 13→14→15→16→19 체인에 의존한다(현재 베이스에는
-  이미 반영되어 있음). routes.py/screenshots.js 쪽 의존관계는 아직 개별 재검증 전이므로, 착수
-  시 반드시 anchor 사전 검증부터 할 것(10절 최소변경/9절 원칙).
+- 이번 발견은 핵심 발견 18/27/38(devnotes 기록과 실제 상태 불일치)과 유사하지만 다른 성격 --
+  "코드가 반영됐는데 devnotes가 뒤처짐"이 아니라 "실차 검증을 했다고 기록했지만 실제로는 다른
+  코드 경로(elif 분기)를 본 것"이었음. 앞으로 `if/elif`로 갈리는 UI 요소는 실차 검증 기록 시
+  "어느 분기가 표시된 상태였는지"까지 구체적으로 남길 것.
+- 이번 수정은 사용자 요청으로 sdi_descr 블록에만 국한됨 -- 제목/도로명은 같은 버그를 그대로
+  갖고 있으므로, 나중에 그쪽에서도 비슷한 증상이 보고되면 이 4번 항목을 참고할 것.
 
 다음 작업 후보:
-1. 이 devnotes 스크립트 실행/push 확인부터 착수.
-2. 확인되면 항목 22(39차) 본편 착수.
+1. 코드 반영 스크립트 실행/push 확인.
+2. 실차에서 sdi_descr 배지 표시 확인.
