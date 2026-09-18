@@ -1316,6 +1316,13 @@ class HudRenderer(Widget):
     box_y = int(rect.y + rect.height - 10 - box_h)
     pad = 24
     eta_size = 40  # "신호과속" 라벨과 동일한 글자 크기
+    # [39차] 사용자 요청: 상단 제목 여백은 넉넉한데 하단(도로명/신호과속 배지)이
+    # 박스 아래 경계에 거의 닿거나 벗어나 보임 -> 박스 안 모든 컨텐츠(제목,
+    # route=숫자, 도착 거리/시간, 회전 아이콘, 신호과속/도로명 배지)를 동일한
+    # 양만큼 위로 이동시켜 상하 여백을 맞춘다. 각 요소 간 상대 간격(95/175/190
+    # 등의 차이)은 그대로 유지한 채, 기준이 되는 절대 y값에서 일괄로 뺀다.
+    # 실기기에서 봤을 때도 여백이 안 맞으면 이 값만 조정하면 된다.
+    content_shift_y = 20
 
     self._draw_round_box(
       box_x,
@@ -1338,7 +1345,7 @@ class HudRenderer(Widget):
     # 표시되어도 겹치거나 사라지지 않게 한다.
     if info["tbt_main_text"]:
       self._draw_text_left_bottom(
-        info["tbt_main_text"], box_x + pad, box_y + 38, 40, rl.WHITE,
+        info["tbt_main_text"], box_x + pad, box_y + 38 - content_shift_y, 40, rl.WHITE,
         font=self._font_bold, border_width=2.0, shadow_offset=4.0,
       )
 
@@ -1346,7 +1353,7 @@ class HudRenderer(Widget):
       # [30차] 사용자 요청: 글자 크기 28 -> 32, 세로 위치를 회전 아이콘
       # 초록박스 상단(box_y+95)과 텍스트 상단이 일치하도록 이동.
       draw_text_ui_style(
-        route_debug_text, box_x + box_w - pad, box_y + 95, 32, rl.WHITE,
+        route_debug_text, box_x + box_w - pad, box_y + 95 - content_shift_y, 32, rl.WHITE,
         font=self._font_display, border_width=1.5, shadow_offset=3.0,
         align="right_top",
       )
@@ -1358,7 +1365,7 @@ class HudRenderer(Widget):
     # 경계에서 6px가 아니라 pad(24px)만큼 안쪽으로 들이고, (2) "route=숫자"
     # 아래 한 줄(약 40px) 띄운 위치에서 시작하도록 상단기준(right_top)으로 변경.
     edge_x = box_x + box_w - pad
-    eta_top = box_y + 175  # route= 상단(95) + route 한 줄(~40) + 빈 줄(~40)
+    eta_top = box_y + 175 - content_shift_y  # route= 상단(95) + route 한 줄(~40) + 빈 줄(~40)
     # [33차] 사용자 요청: "도착:" 거리/시간 텍스트가 회전 아이콘 초록박스와
     # 겹쳐 보여, 이 두 줄만 별도로 글자 크기를 40 -> 32로 줄임(폭이 줄어
     # 겹침 해소). eta_size(40)는 신호과속 배지/도로명/회전거리 등 다른
@@ -1392,7 +1399,7 @@ class HudRenderer(Widget):
     # [29차] by(초록박스 기준선)를 sdi_descr("신호과속") 배치에도 재사용하기
     # 위해 if 블록 밖으로 이동.
     bx = box_x + pad + 80  # 초록박스 절반 폭(80)만큼 안쪽 -> 박스 좌측 끝이 pad에 맞춰짐
-    by = box_y + 190       # 초록박스(-95~+115)의 세로 중심이 박스 정중앙(200)에 오도록
+    by = box_y + 190 - content_shift_y  # 초록박스(-95~+115)의 세로 중심이 박스 정중앙(200)에 오도록
 
     if x_turn_info > 0:
       if info["atc_type"]:
