@@ -199,6 +199,37 @@ function bindLogsMenu() {
   button.addEventListener("click", () => { openLogsMenu().catch(() => {}); });
 }
 
+// Refreshes whichever tab is currently visible. Dashcam and screen-recording
+// each keep their own load functions (and the screen tab layers photos on
+// top of videos), so route the click to the right combination instead of
+// re-running every loader regardless of what is on screen.
+async function refreshActiveLogsTab() {
+  if (logsActiveTab === "screen") {
+    await Promise.all([
+      loadScreenrecordVideos().catch(() => {}),
+      loadScreenshots().catch(() => {}),
+    ]);
+  } else {
+    await loadDashcamRoutes().catch(() => {});
+  }
+}
+
+function bindLogsRefresh() {
+  const button = document.getElementById("logsRefreshButton");
+  if (!button) return;
+  if (button.dataset.bound === "1") return;
+  button.dataset.bound = "1";
+  button.addEventListener("click", () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.classList.add("is-spinning");
+    refreshActiveLogsTab().finally(() => {
+      button.disabled = false;
+      button.classList.remove("is-spinning");
+    });
+  });
+}
+
 function formatRelativeEpoch(epochSeconds) {
   const epoch = Number(epochSeconds || 0);
   if (!Number.isFinite(epoch) || epoch <= 0) return "";
@@ -843,6 +874,7 @@ function bindLogsPage() {
   const routesHost = document.getElementById("dashcamRoutes");
   const screenHost = document.getElementById("screenrecordVideos");
   bindLogsMenu();
+  bindLogsRefresh();
   bindLogsTabs(tabList);
 
   if (!dashcamState.layoutBound) {
