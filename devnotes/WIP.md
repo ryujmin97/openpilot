@@ -1,5 +1,42 @@
 # WIP
 
+## 86차 — 항목22/23/26 push 확인(c74c0ac) + 항목24(41차) 재적용(v1 실패 -> v2로 교체)
+
+세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu HEAD가 `132d85b`가 아니라 이미 `c74c0ac`로 바뀌어
+있음을 확인 -- HANDOFF.md(85차 계속3)에는 v2 스크립트가 여전히 "실행/push 대기"로 남아있던 괴리(16절/
+핵심 발견 27·38과 동일 패턴)를 발견했다. `132d85b`..`c74c0ac` GitHub compare `.diff`로 정확히 12개
+파일(routes.py/screenshots.js/hud_renderer.py/생성번들 3종/index.html/en·ko·zh.js/runtime.js/style.css)이
+변경돼 있고 screenshots.js에 `formatRelativeEpoch`/`formatLogBytes` import가 실제로 존재함을 확인해,
+사용자가 이미 `85cha_item22_23_26_carrot_ryu_v2.ps1`을 실행해 push까지 완료했음을 확정했다(항목
+22/23/26 이식 완료).
+
+이어서 사용자 요청으로 항목 24(41차, commit `da6ad815`, carrotweb 로그탭 새로고침 아이콘)에 착수. 원본
+커밋 patch(index.html/runtime.js/style.css/생성번들 3종, 6개 파일)를 조회하고, 현재 베이스(`c74c0ac`)의
+세 소스 파일에 대해 anchor를 직접 대조(`bindLogsMenu`/`formatRelativeEpoch`/`bindLogsPage`/`.logs-menu`
+등 주변 컨텍스트가 원본 41차 시점과 완전히 동일함을 확인) -> 독립 `git clone`에 Replace-Block 3곳
+(index.html 1곳, runtime.js 2곳, style.css 2곳, 총 5개 치환) 적용, 전부 1회 매치 확인. `npm install &&
+node build.mjs`로 생성 번들 3종 재생성 -> 변경 파일 6개·라인 증감(index.html +8, runtime.js +32,
+style.css +30, logs.css/asset-manifest.json/logs.js)이 원본 41차 커밋과 정확히 일치함을 `git diff
+--stat`으로 확인. `node --check`(runtime.js, 생성 logs.js) 통과, `node --test` 746/747 통과(유일 실패는
+무관한 기존 `ar_projection_golden` 환경 이슈). 반영 스크립트(`86cha_item24_logs_refresh_carrot_ryu.ps1`)
+전달, 실행/push 대기.
+
+**[v1 실행 결과 -> v2로 교체]** 사용자가 v1을 실행한 결과 `[3/6] node --check` 단계에서 `node`가 이
+PC에서 인식되지 않음을 확인(`node --version`, `where.exe node` 모두 실패 -- git commit/push 이전이라
+반영 사고 없음, 15절/18절 안전장치 정상 동작). 45차~85차까지는 반영 스크립트가 사용자 PC에서
+`npm install && node build.mjs`를 직접 실행하는 방식을 문제없이 써왔으나(overview.md에도 "Node.js는
+로컬에 설치 확인됨"으로 기록돼 있었음), 이 세션에서 처음으로 그 전제가 깨진 것을 실증했다. 67차 등
+과거 세션에서 쓰던 방식(소스 수정 + 번들 재생성 전체를 Claude 샌드박스에서 실행한 뒤 결과물을 base64로
+담아 전달)으로 전환해, index.html/runtime.js/style.css Replace-Block 5곳 + `npm install && node
+build.mjs`를 Claude 샌드박스(Linux)에서 실행/검증(anchor 전부 1회 매치, 변경 파일 6개, `node --check`/
+`node --test` 746/747 통과 -- v1과 동일한 검증 결과)하고, 최종 결과 파일 6개를 base64 전체교체로 담은
+`86cha_item24_logs_refresh_carrot_ryu_v2.ps1`로 교체했다. v2는 이 PC에서 node/npm을 전혀 실행하지
+않는다. 페이로드를 완전히 독립된 두 번째 clone(`c74c0ac` 기준 fresh clone)에 적용해 6개 파일 전부
+샌드박스 빌드 결과와 byte-exact 일치함을 재확인했다(9절/16절, 핵심 발견 42 원칙 -- anchor 매치뿐
+아니라 치환 결과 자체를 재확인). **v1(`86cha_item24_logs_refresh_carrot_ryu.ps1`)은 이 PC에서 실행해도
+같은 이유로 다시 막힐 뿐이니 실행하지 말 것 -- v2만 실행.** 실행/push 대기. 실차 검증: 미실시(이 코드
+경로는 41차 이후 61차 리셋으로 한 번 사라졌다가 이번에 처음 재적용되는 것이라, push 확인 후 처음부터
+재검증 필요).
 ## 85차 (+계속3) — 항목22(39차)+23(40차-fix)+26(44차) 재검증, v1 CRLF 실패 -> 핵심 발견 44 -> v2로 수정, 이번 세션에서 독립 재확인
 
 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu HEAD가 이미 `132d85b`(84차2 BOM 제거 커밋)로 push

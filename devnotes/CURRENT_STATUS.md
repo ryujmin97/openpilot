@@ -233,9 +233,9 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
     `.diff`로 원본 37차 수정(asyncio import + _folder_lock 추가 + _ensure_folder() 전체를
     락으로 감싸는 것) 하나뿐임을 재확인). 재적용 순서 11번(마지막) 완료 -- Google Drive
     파이프라인 이식(항목 5~10·12·17·18·20·21) 전부 완료.
-22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 5~10·12·17·18·20·21 전부 없음). content_shift_y 부분은 68차에서 13~16+19 재적용 완료로 anchor 조건 충족, 나머지(routes.py/screenshots.js 등)는 항목 20까지 재적용된 뒤에야 착수 가능. 46차/48차 실기기 검증 기록은 리셋 이전 상태 기준. **[85차]** 현재 베이스(`132d85b`) 위에서 독립 재검증 완료(`py_compile`/`npm test` 746/747 통과), 반영 스크립트 v1 실행 시 anchor 0회 매치로 안전 중단(핵심 발견 44) -> CRLF 정규화 추가한 v2로 교체, 재검증 완료, v2 실행/push 대기.
-23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 22의 screenshots.js가 아직 없음). **[85차]** 항목 22와 함께 현재 베이스 위에서 재검증 완료, v2 반영 스크립트 실행/push 대기(핵심 발견 44 참고).
-24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- 이 항목은 index.html/style.css/runtime.js 새로고침 버튼 자체로, Drive 파이프라인과 무관. **[69차 확인]** hud_renderer.py 계열과 별개 서브시스템이라 61차 리셋 영향 여부는 미확인(다음 세션에서 index.html의 #logsRefreshButton 존재 여부로 재확인 필요, 우선순위는 5~21보다 낮음).
+22. 화면녹화 탭 사진 업로드 UI 신규 구현(체크박스/전체선택/다운로드/전송) + 경로안내 박스 상하 여백 통일(content_shift_y)(39차, commit 797fca2e) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 5~10·12·17·18·20·21 전부 없음). content_shift_y 부분은 68차에서 13~16+19 재적용 완료로 anchor 조건 충족, 나머지(routes.py/screenshots.js 등)는 항목 20까지 재적용된 뒤에야 착수 가능. 46차/48차 실기기 검증 기록은 리셋 이전 상태 기준. **[85차]** 현재 베이스(`132d85b`) 위에서 독립 재검증 완료(`py_compile`/`npm test` 746/747 통과), 반영 스크립트 v1 실행 시 anchor 0회 매치로 안전 중단(핵심 발견 44) -> CRLF 정규화 추가한 v2로 교체, 재검증 완료, v2 실행/push 대기. **[86차 확인]** v2 스크립트가 실제로는 이미 실행/push 완료돼 있었음을 `git ls-remote`+GitHub compare `.diff`로 재확인(commit `c74c0ac`, 변경 파일 12개가 예상과 정확히 일치). 항목 22 이식 완료. 실차 검증: 미실시.
+23. screenshots.js formatRelativeEpoch import 누락 수정(39cha-fix, 40차, commit bdde8326) -- **[69차 정정]** 61차 리셋 이후 미반영 확인됨(전제인 항목 22의 screenshots.js가 아직 없음). **[85차]** 항목 22와 함께 현재 베이스 위에서 재검증 완료, v2 반영 스크립트 실행/push 대기(핵심 발견 44 참고). **[86차 확인]** commit `c74c0ac`로 push 완료 확인(screenshots.js에 `formatRelativeEpoch` import 실제 존재 재확인). 항목 23 이식 완료. 실차 검증: 미실시.
+24. carrotweb 로그탭 새로고침 아이콘 추가(41차, commit da6ad815) -- 이 항목은 index.html/style.css/runtime.js 새로고침 버튼 자체로, Drive 파이프라인과 무관. **[69차 확인]** hud_renderer.py 계열과 별개 서브시스템이라 61차 리셋 영향 여부는 미확인(다음 세션에서 index.html의 #logsRefreshButton 존재 여부로 재확인 필요, 우선순위는 5~21보다 낮음). **[86차]** grep으로 index.html에 `#logsRefreshButton` 0건임을 확인해 새 베이스(`c74c0ac`)에 미반영임을 확정. 원본 41차 patch(index.html/runtime.js/style.css, 총 3곳 5개 치환)를 Claude 샌드박스에서 독립 `git clone`에 적용 -> anchor 전부 1회 매치, `npm install && node build.mjs`로 생성 번들 재생성, 변경 파일 6개·라인 증감이 원본 41차 커밋과 정확히 일치함을 확인, `node --check`/`node --test`(746/747) 통과. v1 반영 스크립트가 사용자 PC의 node/npm 부재로 막혀, 동일 빌드 결과를 base64 전체교체로 담은 v2(`86cha_item24_logs_refresh_carrot_ryu_v2.ps1`)로 교체해 전달, 실행/push 대기.
 25. 온로드 화면에 원형 녹화 버튼 추가(42차, commit 4f81ab75) -- [65차] 새 베이스(4e3b44a8) 위에
     재반영 완료(commit `b152e192`, git ls-remote + commit diff로 확인). 42차 원본 그대로이며,
     깜빡임 효과(44차 항목 28)는 [66차]에서 별도 재적용. 실차 검증: 미실시(git pull 금지 상태 유지 중).
@@ -247,7 +247,7 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
     먼저 있어야 하는 체인임을 추가로 확인(13~16만으로는 anchor 불일치, 19까지 필요). 13→14→15→16→19를
     이번 세션에서 순서대로 재적용(반영 스크립트 실행 대기, 아래 각 항목 줄 참고). 이 다섯 개가 push
     확인되면 항목 22(체크박스/전체선택/업로드/다운로드 툴바 + content_shift_y)와 항목 23(39cha-fix,
-    formatRelativeEpoch import)을 이어서 착수. 다음 세션(또는 이 세션 이어서) 최우선. **[85차]** 항목 11(67차)·13~16+19(68차)·22·23(85차)이 모두 현재 베이스 위에 갖춰진 것을 전제로 항목 26(formatLogBytes import)까지 함께 재검증 완료, v2 반영 스크립트 실행/push 대기(핵심 발견 44 참고).
+    formatRelativeEpoch import)을 이어서 착수. 다음 세션(또는 이 세션 이어서) 최우선. **[85차]** 항목 11(67차)·13~16+19(68차)·22·23(85차)이 모두 현재 베이스 위에 갖춰진 것을 전제로 항목 26(formatLogBytes import)까지 함께 재검증 완료, v2 반영 스크립트 실행/push 대기(핵심 발견 44 참고). **[86차 확인]** commit `c74c0ac`로 push 완료 확인(screenshots.js에 `formatLogBytes` import 실제 존재 재확인). 항목 26 이식 완료. 실차 검증: 미실시.
 27. delete_all_videos를 SCREEN_RECORDING_DIRS 전체 기준으로 확장(44차) -- [66차] 새 베이스
     (b152e192) 위에 재반영 완료(commit `0d511753`, git ls-remote + commit diff로 확인, 원본
     44차 diff와 일치). 실차 검증: 미실시(git pull 금지 상태 유지 중).
