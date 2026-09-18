@@ -1,4 +1,4 @@
-import re
+﻿import re
 import time
 import pyray as rl
 from dataclasses import dataclass
@@ -1423,16 +1423,23 @@ class HudRenderer(Widget):
     # 박스 맨 아래에 배치 ---
     if info["sdi_descr"]:
       label_x = box_x + pad
-      # [29차] 사용자 요청으로 "신호과속" 배지를 박스 맨 아래(다른 하단 상태줄과
-      # 겹쳐 보이던 위치)에서, 바로 위 회전 아이콘 초록박스(하단 경계 by+115)에
-      # 붙는 위치로 이동. 텍스트 높이(size.y)를 먼저 구해 배지 상단이 by+115에
-      # 오도록 label_y(텍스트 기준선)를 역산한다.
-      size = measure_text_cached(self._font_bold, info["sdi_descr"], eta_size)
-      label_y = by + 115 + int(size.y) + 10
+      # [84차] 사용자 요청: 배지 글자 크기를 90%로 축소 + 텍스트가 초록
+      # 배지 밖으로 밀려 보이던 문제 수정. 원인: text_draw.py의
+      # get_text_draw_pos()에 align="left_bottom" 분기가 없어
+      # _draw_text_left_bottom()이 실제로는 "y+6을 텍스트 상단"으로 그리는데
+      # (align="left_top"과 사실상 동일한 동작), 기존 이 블록의 y 계산은
+      # "y가 텍스트 하단"이라고 가정하고 있어 텍스트가 자기 글자 높이만큼
+      # 아래로 밀려 배지 밖으로 나갔었다. 공용 정렬 함수(get_text_draw_pos)는
+      # 다른 호출부(제목/도로명)에 영향을 주지 않도록 그대로 두고, 이 블록
+      # 에서만 실제 동작에 맞춰 배지 안에 세로 중앙 정렬되도록 y를 직접
+      # 보정한다.
+      sdi_size = int(eta_size * 0.9)
+      size = measure_text_cached(self._font_bold, info["sdi_descr"], sdi_size)
       badge_h = max(48, int(size.y + 13))
+      badge_top = by + 115 + 10
       self._draw_round_box(
         label_x - 10,
-        label_y - int(size.y) - 2,
+        badge_top,
         int(size.x) + 20,
         badge_h,
         rl.GREEN,
@@ -1440,8 +1447,9 @@ class HudRenderer(Widget):
         segments=8,
         line_thickness=0,
       )
+      label_y = badge_top - 6 + max(0, (badge_h - int(size.y)) // 2)
       self._draw_text_left_bottom(
-        info["sdi_descr"], label_x, label_y, eta_size, rl.WHITE,
+        info["sdi_descr"], label_x, label_y, sdi_size, rl.WHITE,
         font=self._font_bold, border_width=1.5, shadow_offset=3.0,
       )
     elif road_name_text:
