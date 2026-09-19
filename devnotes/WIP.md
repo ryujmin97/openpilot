@@ -1,5 +1,26 @@
 # WIP
 
+## 93차 계속 — carrot-ms 557e6f6a 반영 완료 확인(carrot-ryu `25f21d4`), e324f67 제외 확정, 89차 검토대상 4건 종결
+
+사용자가 코드/devnotes 두 스크립트 실행 완료를 알려왔다. 실행 로그는 전달되지 않아, 완료로 가정하지 않고 GitHub에서 직접 재확인했다(16절).
+
+**push 확인**: carrot-ryu HEAD `25f21d406d23bfb79ad45a67890cc39e3ad9e67b`(2026-09-19 14:54:13 +0900, "93cha: reapply carrot-ms 557e6f6a - precompiled_worker diagnostics identify model artifact and input size"), 부모 `9eced40`, 변경 파일 정확히 1개(`openpilot/selfdrive/modeld/precompiled_worker.py`, +3/-1), 결과 blob `d04b52ce89e54698215cce8cf84bab62d5e846f7`가 원본 post-image와 일치. carrot-ryu-note HEAD `bd69ab0139874c7e36d6f58552923a291fc98a92`(14:56:57 +0900), 부모 `1f98304`, 변경 파일 4개(CURRENT_STATUS 2/1, HANDOFF 23/22, WIP 20/0, WIP_SYNC 13/0)이고 SHA 고정 raw로 조회한 4개 파일의 sha256이 스크립트에 내장한 사전 계산값과 전부 일치(WIP_SYNC.md의 CRLF 유지). 557e6f6a 반영 완료 확정.
+
+**e324f67 분석**("Require clear persistent vision for distinct stopped-lead handoff", ajouatom 2026-09-19 08:22:02 +0900, carrot-wip `1130b074` cherry-pick, `radar_motion/primary.py` + `test_radar_motion_predictor.py` 2파일 +112/-2): 앞 레이더가 붙잡고 있는 정지 lead(held)를, 5 m를 넘게 더 가까운 다른 정지 물체로 갈아탈 수 있게 조건을 넓힌다(비전이 뚜렷하게 더 가까운 쪽을 지지하고 0.5 s 지속될 때만).
+1. 호출 경로: `radard` 프로세스는 `process_config.py` 177행에서 `openpilot.selfdrive.carrot.radar.radard_dpath`로 뜨고, `DPathRadarController`(controller.py 480~481행)가 `VisionRadarMatcher` 2개를 만들며, 새 분기가 들어가는 `_stationary_closer_handoff_ready`는 primary.py 3672행에서 호출된다.
+2. 새 분기는 붙잡은 정지 점(stationary)과 더 가까운 점(moving) 두 개의 서로 다른 레이더 점이 있어야 하고, 두 점의 거리 차(`stationary.d_rel - moving.d_rel`)가 양수여야 한다. 점이 하나뿐이면 성립할 수 없다.
+3. 이 차량의 실제 설정(사용자가 올린 `params_backup-1.json`): `CarSelected3`="Hyundai Genesis 2015-16", `HyundaiCameraSCC`=1, `EnableRadarTracks`=0, `EnableCornerRadar`=0. opendbc상 DH 2015는 `HYUNDAI_GENESIS`(flags `CHECKSUM_6B | LEGACY`, `MANDO_RADAR` 플래그 없음 = `Bus.radar` DBC 없음).
+4. `radar_interface.py`: `radar_tracks = EnableRadarTracks >= 1`이 False라 트랙 파서는 읽지 않고(`if self.radar_tracks and self.rcp_tracks`), 코너 오브젝트 파서도 `EnableCornerRadar=0`으로 꺼져 있다. 발행되는 것은 `_update_scc`뿐이며 이는 고정 ID(`SCC_TID`) 점 하나만 채운다. 따라서 이 설정에서는 서로 다른 레이더 점 2개가 존재하지 않아 새 분기가 발동할 수 없다(mode 2 SCC fallback도 `stationary_points=()`로 호출하나 이 장치는 mode 0).
+5. 반영해도 이 차량에서 실행되지 않을 가능성이 높고, primary.py(3,885줄)에서 carrot-ms와의 차이만 늘어난다. 원저자의 검증(1,201프레임 차량 replay)은 다른 차량 데이터라 DH 근거가 아니다.
+
+**분석 중 정정**: 분석 중간에 "EnableRadarTracks 기본값 0이면 `radarUnavailable=True`"라고 추론했으나, 실제 설정은 `HyundaiCameraSCC=1`이라 `CAMERA_SCC` 플래그가 켜져 interface.py 197~198행에 의해 `radarUnavailable=False`이다. 결론(레이더 트랙 미사용, SCC 단일 점)은 위 4번의 `radar_tracks=False`로 그대로 유지된다.
+
+**결정**: 사용자 승인 "제외." -- e324f67 제외 확정. 반영 없음, 코드 변경 없음. 재검토 트리거: `EnableRadarTracks`를 0보다 크게 바꾸거나 `EnableCornerRadar`를 켜서 앞 레이더 트랙/코너 오브젝트를 실제로 쓰게 될 때.
+
+**종결**: 89차 검토대상 4건(b4f751f4/4d1a3ded/ec95363a/557e6f6a) 반영 완료, 11건 + e324f67 = 12건 제외 확정으로 carrot-ms 61차 리셋 이후 16건 전부 분류 종결. carrot-ms HEAD는 `e324f67` 그대로(`git ls-remote` 재확인).
+
+한계: `params_backup-1.json`은 백업 파일이라 백업 시점과 현재 장치 값이 같은지는 확인하지 못했다. 위 판단은 정적 코드 읽기이며 실차 검증: 미실시. pytest 미실시. 다음: 다음 세션 시작 시 carrot-ms에 `e324f67` 이후 신규 커밋이 있는지 확인(2절), 없으면 36개 항목 + 재적용분(b4f751f4/4d1a3ded/ec95363a/557e6f6a)의 실차 검증 준비(실기기 배포 여부는 20절 7항에 따라 사용자 판단).
+
 ## 93차 — carrot-ms 557e6f6a(precompiled_worker 진단 메타데이터) 상세 대조 완료, 반영 스크립트 준비(실행/push 대기) + ec95363a push 확인(carrot-ryu `9eced40`)
 
 사용자가 세션 시작 지침(지침 문서 조회)에 이어 "557e6f6a 착수"로 이번 항목을 지정했다. 지침 문서(v2)를 브랜치 URL과 SHA 고정 URL(carrot-ryu-note `1f98304`) 양쪽으로 조회해 두 결과의 sha256이 동일함(`c57f27c3c2c916a0...`)을 확인한 뒤 진행했다. `git ls-remote`로 carrot-ryu HEAD가 `9eced40`(HANDOFF.md 92차에 기록된 base `f1e920d`와 다름), carrot-ryu-note HEAD가 `1f98304`임을 확인해 16절 절차로 재검증했다.

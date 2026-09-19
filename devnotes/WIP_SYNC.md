@@ -3,6 +3,20 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (93차 계속) -- 557e6f6a 반영 완료 확인, e324f67 제외 확정, 89차 검토대상 4건 종결
+
+- carrot-ryu HEAD: 25f21d406d23bfb79ad45a67890cc39e3ad9e67b (93cha: reapply carrot-ms 557e6f6a, 부모 9eced40. `git ls-remote`+blobless clone으로 재검증: 변경 파일 1개 +3/-1, 결과 blob d04b52ce89e5가 원본 post-image와 일치)
+- carrot-ryu-note HEAD: bd69ab0139874c7e36d6f58552923a291fc98a92 (93차 devnotes push 확인 완료, 4개 파일 sha256 일치. 이 devnotes 스크립트 실행/push 대기)
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (변경 없음, `git ls-remote` 확인)
+- 89차 검토대상 4건 처리 현황(최종):
+  1) b4f751f4 -> [반영 완료] carrot-ryu 260565f
+  2) 4d1a3ded -> [반영 완료] carrot-ryu f1e920d
+  3) ec95363a -> [반영 완료] carrot-ryu 9eced40
+  4) 557e6f6a -> [반영 완료] carrot-ryu 25f21d4
+- e324f67(정지 lead 인계) -> [제외 확정, 사용자 승인] 새 분기는 서로 다른 레이더 점 2개가 있어야 하는데, 이 차량 설정(HyundaiCameraSCC=1, EnableRadarTracks=0, EnableCornerRadar=0)에서는 `radar_interface`가 SCC 고정 ID 점 하나만 발행해 발동 불가. 재검토 트리거: EnableRadarTracks>0 또는 EnableCornerRadar 활성화. 상세는 WIP.md 93차 계속.
+- 61차 리셋 이후 carrot-ms 신규 16건 전부 분류 종결: 반영 4건 + 제외 12건.
+- 다음 세션 우선순위: carrot-ms에 e324f67 이후 신규 커밋이 있는지 확인(2절) -> 없으면 36개 항목 + 재적용분 실차 검증 준비.
+
 ## 체크포인트: 2026-09-19 (93차) -- ec95363a push 확인, 557e6f6a 상세 대조 완료·반영 스크립트 준비
 
 - carrot-ryu HEAD: 9eced40e12dba9ecaa71fe4bd25a812d39d956ce (92cha: reapply carrot-ms ec95363a, 부모 f1e920d. `git ls-remote`+blobless clone으로 재검증: 변경 파일 8개 +185/-39, 8개 결과 blob이 원본 patch post-image와 전부 일치). 557e6f6a 반영 스크립트 `93cha_item_557e6f6a_carrot_ryu.ps1` 실행/push 대기(HEAD 변경 전).
