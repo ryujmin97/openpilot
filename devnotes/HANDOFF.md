@@ -2,7 +2,7 @@ Worker: Claude (95차)
 Date: 2026-09-19
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (base: `25f21d406d23bfb79ad45a67890cc39e3ad9e67b`, 변경 없음 -- 이번 세션 코드 변경 없음)
-Note Branch: carrot-ryu-note (base: `f8d92c6600a2092e74215711d94865c35f03e531`, 94차 위. 이번 세션 WIP_SYNC.md/CURRENT_STATUS.md/HANDOFF.md 갱신, 실행/push 대기)
+Note Branch: carrot-ryu-note (base: `5e67047d2114f20b765df9a558a45ace41cc8e5b`, 95차 1차분(WIP_SYNC.md/CURRENT_STATUS.md/HANDOFF.md, 부모 `f8d92c6`) push 완료·SHA 고정 재검증됨. 이번 계속분 WIP.md/FINDINGS.md/HANDOFF.md 갱신, 실행/push 대기)
 carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(변경 없음, 이번 세션 git ls-remote로 happymaj11r/openpilot 재확인) -- 93차와 동일.
 
 작업:
@@ -14,21 +14,24 @@ carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b2
 3. 디바이스가 61차 force reset으로 갈라진 히스토리를 갖고 있어 git pull이 아니라 도구 탭 "브랜치 변경"(재체크아웃/재빌드) 방식이 필요함을 사용자가 지적, non-fast-forward 근거로 확인.
 4. 사용자가 제공한 tmux 로그 2건(변경 전/후)의 metadata.json+부팅 로그로 실제 배포를 독립 재확인: carrot-ryu-v1(c81aef07) -> carrot-ryu(25f21d406d23bfb79ad45a67890cc39e3ad9e67b).
 5. 온로드 스크린샷 1장으로 항목 30~36(스크린샷 캡처 체인) + 13~19(경로안내 박스) 첫 실차 검증 완료(상세: CURRENT_STATUS.md 95차 계속 참고).
+6. 반영 스크립트 사고 3회(콘솔 붙여넣기 한글 깨짐 / 상대경로 WriteAllText / v2 앵커 접두 오기입) 모두 commit 전 안전 중단, v3로 반영 완료: carrot-ryu-note `f8d92c6..5e67047`, 변경 파일 정확히 3개, SHA 고정 raw + `git clone --depth 2`로 개행(WIP_SYNC CRLF 유지)/BOM/HANDOFF 마지막 개행/앵커 결과 재검증(16절).
+7. 이번 계속분: WIP.md 95차 회차 + FINDINGS.md 핵심 발견 45(앵커 0회의 원인 구분법: Linux 재현) 작성. FINDINGS.md가 혼합 개행(상단 CRLF, 890행 이후 LF)임을 발견해 개행 보존 삽입으로 반영.
 
 미완료(다음 세션 최우선):
 1. 항목1·2 및 carrot-ms 4건(카메라 페어링/커브 탈출 지연 등 종방향 관련)의 실주행 검증 -- 정차 스크린샷 1장으로는 판단 불가.
-2. 사용자가 업로드한 route 로그(qcamera.ts+rlog.zst, route 00000436--2edd613f1e--8)의 분석 목적 확인 -- 샌드박스에 openpilot cereal 파싱 환경이 없어 이번 세션엔 보류, 사용자에게 원하는 확인 항목(종방향 제어? Drive 업로드 테스트?) 문의 필요.
+2. route 로그(qcamera.ts+rlog.zst, route 00000436--2edd613f1e--8): 사용자가 "실차 검증에 필요하면 쓰라고 준 것"이라고 답함(별도 분석 요청 아님, 목적 재문의 불필요). 실차 검증 중 필요해지면 그때 사용하며, 이 로그는 현재 샌드박스에 없어 재업로드가 필요하고 openpilot cereal 스키마 파싱 환경도 없어 그 구성부터 필요함.
 3. 화면녹화 탭 사진 업로드 UI(22·23·26)/Drive 파이프라인(5~10·12·17·18·20·21)/녹화 버튼 깜빡임(28) 실차 검증 이월.
 
-검증: tmux1/tmux2 metadata.json의 git_commit 필드 및 tmux.log의 "Carrot GitBranch = ..." 부팅 로그 라인을 직접 grep 대조(11절, 실제 로그 근거). 스크린샷 픽셀 크기(960x480)를 PIL로 직접 측정해 480p(세로기준) 다운스케일과 일치함을 확인. 코드 변경 없어 py_compile 등 정적 검증은 해당 없음.
+검증: 1차분 push는 SHA 고정 raw + `git clone --depth 2`로 재확인(커밋 API 403 -> git 대체). 이번 계속분 스크립트는 Python 시뮬레이션(실제 PowerShell 실행 아님)으로 앵커 1회 매치/개행 보존/결과 텍스트를 검증. tmux1/tmux2 metadata.json의 git_commit 필드 및 tmux.log의 "Carrot GitBranch = ..." 부팅 로그 라인을 직접 grep 대조(11절, 실제 로그 근거). 스크린샷 픽셀 크기(960x480)를 PIL로 직접 측정해 480p(세로기준) 다운스케일과 일치함을 확인. 코드 변경 없어 py_compile 등 정적 검증은 해당 없음.
 
 주의사항:
 - carrot-ryu(코드)는 이번 세션에서 전혀 건드리지 않았으며 93차 상태(25f21d4) 그대로임.
 - "코드 수정 현황"의 항목별 "실차 검증: 미실시" 개별 줄은 이번 세션에서 전부 고치지 않고(리스크 대비 범위 축소), 대신 95차 신규 bullet에 결과를 요약함 -- 다음 세션에서 필요시 항목 13~19/30~36 줄에도 개별 반영 검토.
 - 이전 95차 스크립트 1차 시도는 콘솔에 직접 붙여넣어 한글 리터럴이 콘솔 코드페이지로 깨져 WIP_SYNC.md anchor 0회 매치로 안전 중단됨(commit/push 없음). 원인 확정 후 .ps1 파일 저장+UTF-8 명시 읽기로 교체한 이 스크립트로 재시도.
 - 95차 스크립트 v2는 CURRENT_STATUS.md anchor에 94차 항목 실제 문구에 없는 접두("반영 스크립트 ")를 넣어 anchor 0회 매치로 commit 전 안전 중단됨(반영 사고 없음, 핵심 발견 44와 동일한 증상이나 CRLF가 아니라 앵커 텍스트 자체의 오기입이 원인 -- Linux에서 SHA 고정 원본으로 재현/확정). 앵커를 실제 문구로 정정하고 HANDOFF 마지막 개행 복원(핵심 발견 37)을 추가한 v3로 재시도.
+- FINDINGS.md는 혼합 개행(상단 889줄 CRLF, 890행 이후 LF)이므로 LF 정규화 후 전체 재작성 금지, 개행 보존 삽입만 사용.
 
 다음 작업 후보:
-1. 사용자에게 route 로그 분석 목적 확인 후 해당 방향으로 진행.
+1. 세션 시작 시 carrot-ms에 `e324f67` 이후 신규 커밋이 있는지 확인(2절).
 2. 항목1·2 + carrot-ms 4건 실주행(이동 중) 검증.
 3. 남은 항목(22·23·26·5~10·12·17·18·20·21·28) 실차 검증.

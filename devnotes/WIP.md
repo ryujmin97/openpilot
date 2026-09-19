@@ -1,5 +1,27 @@
 # WIP
 
+## 95차 (devnotes 정리 + 디바이스 배포 확인 · 코드 변경 없음) — carrot-ryu `25f21d4` 디바이스 실배포 확인, 첫 실차 UI 검증, 반영 스크립트 사고 3회(모두 commit 전 안전 중단)
+
+**carrot-ms 재확인(2절)**: `git ls-remote`로 happymaj11r/openpilot(carrot-ms) HEAD가 여전히 `e324f6735d3606800045ed6b28f41e79b17e5498`임을 확인했다(93차 체크포인트와 동일, 신규 커밋 없음).
+
+**디바이스 배포(20절 7항)**: 사용자가 디바이스 현재 상태(carrot-ryu-v1, `c81aef07`)를 확인한 뒤, 도구 탭 "브랜치 변경"(브랜치 목록에서 carrot-ryu 재선택 -> 재체크아웃/재빌드)으로 origin/carrot-ryu로 전환했다. 61차 force reset으로 히스토리가 갈라져 있어 일반 git pull(fast-forward)로는 받을 수 없는 상태였다. 사용자가 올린 tmux 로그 2건(전/후)의 metadata.json git_commit과 부팅 로그 "Carrot GitBranch = ..."로 carrot-ryu-v1(`c81aef07`) -> carrot-ryu(`25f21d406d23bfb79ad45a67890cc39e3ad9e67b`, 93차 최종 HEAD와 일치) 전환을 재확인했다(11절).
+
+**첫 실차 UI 검증(12절, 정차 상태 스크린샷 1장 기준)**: 항목 30~36(스크린샷 캡처 체인)과 항목 13~19(우측하단 경로안내 박스)가 정상임을 확인했다(상세: CURRENT_STATUS.md 95차 계속). 미확인/이월: 항목 1·2(종방향 안전장치), carrot-ms 4건(b4f751f4 등)의 실주행 동작, Drive 업로드 파이프라인, 화면녹화 탭 사진 업로드 UI(22·23·26), 녹화 버튼 깜빡임(28).
+
+**route 로그**: 사용자가 올린 대용량 route 로그(qcamera.ts+rlog.zst, route 00000436--2edd613f1e--8)는 "실차 검증에 필요하면 쓰라고 준 것"이라고 사용자가 밝혔다(별도 분석 요청 아님). 샌드박스에 openpilot cereal 스키마 파싱 환경이 없어 심층 분석은 하지 않았고, 이 로그는 현재 세션 샌드박스에도 남아 있지 않다(필요 시 재업로드).
+
+**반영 스크립트 사고(모두 commit/push 전 안전 중단, 반영 사고 없음)**:
+1. 1차 시도(콘솔에 직접 붙여넣기): 한글 리터럴이 콘솔 코드페이지로 깨져 WIP_SYNC.md anchor 0회 매치로 중단 -> `.ps1` 파일 저장 + UTF-8 명시 읽기로 전환.
+2. 직전 `.ps1`: `Set-Location` 후 상대경로 `WriteAllText`가 .NET 프로세스 작업 디렉터리(콘솔 시작 위치 `C:\WINDOWS\system32`) 기준으로 풀려 실패 -> 절대경로(`Join-Path $RepoRoot ...`)로 고친 `95cha_devnotes_v2.ps1`로 교체(9절 PowerShell 필수 규칙과 같은 사례).
+3. `95cha_devnotes_v2.ps1`: CURRENT_STATUS.md anchor `$csOld`가 `반영 스크립트 실행/push 대기. ...`로 시작했으나 94차 항목의 실제 문구는 `...적용). 실행/push 대기. ...`라서 0회 매치로 중단. SHA 고정 원본(`f8d92c6`)으로 Linux에서 재현했다: 스크립트 앵커 0회 / 접두를 뺀 앵커 1회. 핵심 발견 44(CRLF 정규화 누락)와 증상은 같지만 원인은 앵커 텍스트 오기입임을 확정했다(이 스크립트는 CRLF 정규화가 이미 들어 있었고 Linux에서도 0회이므로). 상세: FINDINGS.md 핵심 발견 45.
+   -> `95cha_devnotes_v3.ps1`: 앵커 정정, HANDOFF 마지막 개행 복원(핵심 발견 37), 치환 결과 검증(핵심 발견 42) 추가. 전달 전에 실제 .ps1에서 앵커를 추출해 SHA 고정 원본에 시뮬레이션하던 중, 새로 넣은 "맨 앞 200자 불변" 검사가 WIP_SYNC.md 앵커(약 128번째 바이트부터 시작)와 겹쳐 정상 치환도 오류로 중단시킬 결함을 발견해 100자로 수정했다.
+
+**push 확인(16절)**: 사용자가 v3 실행 후 `f8d92c6..5e67047` push 성공 로그를 전달했다. 로그만으로 완료 처리하지 않고 재확인했다: carrot-ryu-note HEAD `5e67047d2114f20b765df9a558a45ace41cc8e5b`, 부모 `f8d92c6`, 변경 파일 정확히 3개(CURRENT_STATUS.md +2, HANDOFF.md +21/-19, WIP_SYNC.md +7). SHA 고정 raw로 조회한 결과 WIP_SYNC.md CRLF 238줄 전부 유지, CURRENT_STATUS.md/HANDOFF.md LF 유지, 3개 파일 BOM 없음, HANDOFF.md 마지막 개행 유지, 95차 bullet/체크포인트 각 1개를 확인했다. (커밋 API가 403(rate limit)이라 `git clone --depth 2`로 대체 확인.) carrot-ryu(코드)는 `25f21d4` 그대로다.
+
+**이번 계속분**: WIP.md 95차 회차(이 항목), FINDINGS.md 핵심 발견 45, HANDOFF.md 갱신. 준비 중 FINDINGS.md가 혼합 개행(상단 889줄 CRLF, 890행 이후 LF)임을 발견해, 이 파일은 개행을 보존하는 삽입 방식으로 반영한다.
+
+실차 검증: 위 첫 실차 UI 검증(정차 스크린샷 1장) 범위 외에는 미실시. 코드 변경 없음.
+
 ## 94차 (devnotes 정리만 · 코드 변경 없음) — WIP.md "# WIP" 헤더 중복 제거 + mojibake 구간 안내 추가
 
 사용자 요청(직전 세션 HANDOFF "미완료" 3번, "WIP.md 파일 맨 끝의 mojibake 처리 여부, '# WIP' 헤더 중복 정리 여부")에 따라 두 건을 조사/처리했다.
