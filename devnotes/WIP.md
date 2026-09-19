@@ -1,5 +1,21 @@
 # WIP
 
+## 91차 — 90차 코드 push(carrot-ms b4f751f4 재적용, `260565f`) devnotes 사후 동기화 + 패치 대조/정적 검증, carrot-ms 신규 1건(e324f67) 발견
+
+세션 시작 체크포인트(4절 0단계, `git ls-remote`)로 carrot-ryu-note `b7013c6`(89차 devnotes), carrot-ryu `260565f187a2d934f0e27464457eee63c8ec233a`를 확인했다. HANDOFF.md(89차)는 코드 브랜치를 `0923f83`(변경 없음)으로 기록하고 있어 두 브랜치가 서로 다른 시점을 가리키고 있었다(16절). 조회 결과 `260565f`는 부모가 `0923f83`인 커밋 1개("90cha: reapply carrot-ms b4f751f4 - camera pair sync, curve release confirm window, path_geometry extraction", 2026-09-19 13:06 +0900, 작성자 RYU)였고, WIP.md/HANDOFF.md/CURRENT_STATUS.md/WIP_SYNC.md 어디에도 "90차" 기록이 없었다. 90차 세션이 코드 push까지만 마치고 devnotes 반영 전에 끊긴 것으로 보인다(핵심 발견 27/38과 동일 패턴). 90차 세션 자체의 진행 경위(승인 대화, 당시 실행한 검증)는 devnotes에 남아 있지 않아 확인하지 못했다. 아래는 이번 세션이 GitHub 상태를 독립적으로 재검증한 내용이다. 사용자 승인('진행')을 받은 범위는 이 검증과 devnotes 사후 동기화까지이며, 남은 3건의 코드 반영은 승인 범위 밖이라 착수하지 않았다.
+
+검증 (모두 정적/샌드박스 검증이며 실차 검증이 아니다):
+1. 패치 대조: carrot-ms의 b4f751f4(happymaj11r/openpilot, `git clone --filter=blob:none`)와 carrot-ryu의 260565f를 각각 `git show`로 패치로 뽑아 index 줄을 제외하고 diff했다. 15개 파일(+307/-152) 660줄이 전부 동일하고, 차이는 carrot_man.py 헝크 헤더의 시작 줄번호 한 줄(carrot-ms 1457 / carrot-ryu 1481)뿐이다. 이는 carrot-ryu 파일에서 해당 위치가 24줄 뒤에 있다는 뜻일 뿐 변경 내용 자체는 동일하다.
+2. py_compile: 변경된 .py 11개 전부 통과.
+3. 단위 테스트(260565f 체크아웃, `pytest --noconftest -o addopts=""`, 샌드박스 python3.12): test_camera_sync 5 / test_path_geometry 8 / test_curve_speed 22 / test_precompiled_runner 12, 총 47개 전부 통과. 처음에는 sparse checkout에 openpilot/common이 빠져 test_precompiled_runner가 ModuleNotFoundError로 실패했으나, carrot-ms b4f751f4 원본에서도 동일하게 실패했고 openpilot/common을 추가하자 통과했다 -- 재적용 결함이 아니라 샌드박스 구성 문제였다.
+
+결과: 89차 검토대상 4건 중 b4f751f4는 반영 완료(carrot-ryu `260565f`)로 확인했다. 나머지 3건(4d1a3ded / ec95363a / 557e6f6a)은 미반영이며 반영 승인 기록도 없다(18절 -- 승인 전 착수 금지).
+
+부수 발견 2건:
+(1) carrot-ms(happymaj11r/openpilot) HEAD가 89차 체크포인트(`f19d404a`)보다 1건 앞선 `e324f6735d3606800045ed6b28f41e79b17e5498`("Require clear persistent vision for distinct stopped-lead handoff", ajouatom, 2026-09-19 08:22 +0900)로 갱신돼 있다. 분류/반영 판단은 이월하며 상세는 WIP_SYNC.md 91차 체크포인트 참고.
+(2) WIP_SYNC.md 116행(57차 항목 본문의 fork point 해시 자리)에 널바이트(\x00) 1개가 남아 있다. 87차가 WIP.md에서 정정한 것과 같은 유형으로 보이며 정상 표기는 `02015190f58a4380a433ee0130e6374455dddc2e`(40자리, 앞자리 0가 누락된 상태)다. 이번 세션 범위 밖이라 정정하지 않았고 사용자 결정을 기다린다.
+
+실차 검증: 미실시(코드 변경 없음. 36개 항목 및 90차 b4f751f4 재적용분 전부 미실시). 상세: WIP_SYNC.md 91차 체크포인트, HANDOFF.md 91차 참고.
 ## 89차 — carrot-ms 신규 15건 전수 분석 (2절 동기화), 반영은 다음 세션 이월
 
 88차에서 처음 발견된 carrot-ms 신규 13건(706efb47 대비)을 이어받아 전수 분석했다. 그 사이 carrot-ms가 다시 갱신되어 총 15건(추가 2건: 8e85a02 CCNC leadOne, f19d404a Hyundai CAN FD nearest lead)으로 늘어난 상태를 확인했다. api.github.com rate limit 소진으로 `git clone --filter=blob:none` partial clone으로 전환해 15건 전부의 diff를 직접 대조했다.

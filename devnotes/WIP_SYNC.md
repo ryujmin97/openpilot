@@ -3,6 +3,19 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (91차) -- 90차 코드 push(b4f751f4 재적용) 사후 동기화/검증, carrot-ms 신규 1건(e324f67) 발견
+
+- carrot-ryu HEAD: 260565f187a2d934f0e27464457eee63c8ec233a (부모 0923f83. 90차 커밋 1개 추가: "90cha: reapply carrot-ms b4f751f4 - camera pair sync, curve release confirm window, path_geometry extraction", 2026-09-19 13:06 +0900). 이번 세션은 코드 미변경.
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (89차 체크포인트 f19d404a 대비 1건 추가, `git rev-list --count f19d404a..HEAD` = 1)
+- 89차 검토대상 4건의 처리 현황:
+  1) b4f751f4 -> [반영 완료] carrot-ryu 260565f (90차). 이번 세션에서 원본과 독립 대조 검증(아래).
+  2) 4d1a3ded / ec95363a / 557e6f6a -> [미반영] 반영 승인 기록 없음. 커밋 발생 순서(4d1a3ded -> ec95363a -> 557e6f6a)대로 사용자 승인 후 착수. ec95363a의 augmented_road_view.py/road_markings.py 레인 대시 영역과 render_diagnostics.py 신규 파일은 착수 전 상세 대조 필요(89차 이월 사항 그대로).
+- b4f751f4 반영 검증(정적/샌드박스, 실차 아님): carrot-ms b4f751f4 패치와 carrot-ryu 260565f 패치를 index 줄 제외하고 diff -- 15개 파일 660줄 동일, 차이는 carrot_man.py 헝크 헤더 시작 줄번호 1줄(1457 vs 1481, carrot-ryu 쪽 위치가 24줄 뒤)뿐. 변경 .py 11개 py_compile 통과, 단위 테스트 47개(camera_sync 5/path_geometry 8/curve_speed 22/precompiled_runner 12) 통과. 90차 세션 자체의 승인/검증 경위는 devnotes에 기록이 없어 확인하지 못했다.
+- 신규 e324f67 (ajouatom, 2026-09-19 08:22 +0900, "(cherry picked from commit 1130b07462259e1f6c3950bbe4aeef3b8adc6c61)"): 정지 상태로 유지되던 전방 레이더 lead를 5 m object-spacing 게이트 밖에서도 비전 lead로 인계하는 조건을 추가(비전 매처가 고품질 전방 타깃을 선택하고, 거리/횡방향 비용이 유리하며, 비전 거리 오차가 2.5 m 이하이고 유지 오차의 절반 이하이며, 0.5 s 지속될 때만). 변경 파일 2개(openpilot/selfdrive/carrot/radar_motion/primary.py +29, tests/test_radar_motion_predictor.py +85, 합계 +112/-2).
+  - 분류: CAN FD/Group3 전용이 아닌 radar_motion 공용 코드라 제외 근거(values.py 플래그 기준)가 성립하지 않는다 -> [검토대상, 보류]. DH 2015(LEGACY)가 이 경로를 실제로 타는지와 필요 여부는 아직 판단하지 않았다.
+  - 충돌위험 사전 확인: 두 파일의 carrot-ms e324f67 직전(pre-image) blob과 carrot-ryu 260565f의 blob이 동일(primary.py 59a10980f606b378aee66b36ef6be19d9bf9d6b8, test_radar_motion_predictor.py 3783b522c130bd7e2a8b663c9f25dc7b7880562a) -- 반영하기로 결정되면 충돌 없이 적용 가능한 상태. 반영 여부는 사용자 결정.
+- 기지 이슈(이번 세션 미정정): 이 파일 116행에 널바이트 1개(57차 항목 fork point 해시 자리, 정상 표기 02015190f58a4380a433ee0130e6374455dddc2e). 정정 여부는 사용자 결정.
+- 다음 확인 시점: 남은 3건(4d1a3ded -> ec95363a -> 557e6f6a) 및 e324f67의 반영 여부를 사용자와 정할 때. carrot-ms HEAD가 e324f67에서 다시 바뀌었는지는 착수 전 `git ls-remote`로 가볍게 재확인.
 ## 체크포인트: 2026-09-19 (89차) -- carrot-ms 신규 15건(706efb47 이후) 전수 분석, 반영은 다음 세션 이월
 
 - carrot-ryu HEAD: 0923f8396dacbb61a23e1c394751d8014ddddf5f (변경 없음, 코드 미변경 -- 이번 세션은 분석/기록만)
