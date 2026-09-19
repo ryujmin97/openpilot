@@ -3,6 +3,19 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (93차) -- ec95363a push 확인, 557e6f6a 상세 대조 완료·반영 스크립트 준비
+
+- carrot-ryu HEAD: 9eced40e12dba9ecaa71fe4bd25a812d39d956ce (92cha: reapply carrot-ms ec95363a, 부모 f1e920d. `git ls-remote`+blobless clone으로 재검증: 변경 파일 8개 +185/-39, 8개 결과 blob이 원본 patch post-image와 전부 일치). 557e6f6a 반영 스크립트 `93cha_item_557e6f6a_carrot_ryu.ps1` 실행/push 대기(HEAD 변경 전).
+- carrot-ryu-note HEAD: 1f983041cd7d662f6aaae789d77c0030a1ca2190 (92차 devnotes push 확인 완료, 이 devnotes 스크립트 실행/push 대기)
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (변경 없음, `git ls-remote` 확인)
+- 89차 검토대상 4건 처리 현황(갱신):
+  1) b4f751f4 -> [반영 완료]
+  2) 4d1a3ded -> [반영 완료]
+  3) ec95363a -> [반영 완료] carrot-ryu 9eced40 (92차 스크립트 실행 결과를 93차에서 push/blob 재검증)
+  4) 557e6f6a -> [상세 대조 완료, 반영 스크립트 준비, 실행/push 대기] precompiled_worker.py 1파일(+3/-1). pre-image blob(1c2e2a3b5e)이 carrot-ryu 9eced40과 byte-exact 일치, 신규 참조 값(width/height/input_bytes/manifest['format']/manifest['pickle']['sha256']) 모두 정의·존재 확인, 적용 결과 blob d04b52ce89가 원본 post-image와 일치, py_compile 통과. pytest 미실시.
+- e324f67(정지 lead 인계): 판단 이월 그대로.
+- 다음 세션 우선순위: 557e6f6a 반영 스크립트 실행/push 확인 -> e324f67 필요 여부 판단 -> 36개 항목+재적용분 실차 검증.
+
 ## 체크포인트: 2026-09-19 (92차) -- ec95363a 상세 대조 완료, 반영 스크립트 준비
 
 - carrot-ryu HEAD: f1e920d5c391d3ce44f647f29913a8b996a1a7c2 (변경 없음, ec95363a 반영 스크립트 `92cha_item_ec95363a_carrot_ryu.ps1` 실행/push 대기)

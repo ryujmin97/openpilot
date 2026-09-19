@@ -1,5 +1,25 @@
 # WIP
 
+## 93차 — carrot-ms 557e6f6a(precompiled_worker 진단 메타데이터) 상세 대조 완료, 반영 스크립트 준비(실행/push 대기) + ec95363a push 확인(carrot-ryu `9eced40`)
+
+사용자가 세션 시작 지침(지침 문서 조회)에 이어 "557e6f6a 착수"로 이번 항목을 지정했다. 지침 문서(v2)를 브랜치 URL과 SHA 고정 URL(carrot-ryu-note `1f98304`) 양쪽으로 조회해 두 결과의 sha256이 동일함(`c57f27c3c2c916a0...`)을 확인한 뒤 진행했다. `git ls-remote`로 carrot-ryu HEAD가 `9eced40`(HANDOFF.md 92차에 기록된 base `f1e920d`와 다름), carrot-ryu-note HEAD가 `1f98304`임을 확인해 16절 절차로 재검증했다.
+
+**ec95363a push 확인(16절)**: carrot-ryu `9eced40`(2026-09-19 14:32 +0900, "92cha: reapply carrot-ms ec95363a - batch lane dash geometry, separate UI CPU timing from render waits")의 부모가 `f1e920d`이고, `f1e920d..9eced40` 변경 파일이 정확히 8개(+185/-39, 원본 ec95363a와 동일 규모)임을 blobless clone으로 확인했다. 8개 파일 각각의 결과 blob이 원본 patch의 post-image 인덱스 해시와 전부 일치한다(augmented_road_view.py `64b9edc213`/model_renderer.py `887c628ed2`/render_diagnostics.py `0fd1e19b76`/road_markings.py `356e1b5c20`/test_carrot_model_renderer.py `4939c12528`/test_carrot_model_renderer_lane_visibility.py `aacc28093b`/test_render_diagnostics.py `790d59f921`/test_ui_debug_hud_schema.py `6f9a943cd1`). 이로써 ec95363a는 반영 완료로 확정. carrot-ms(happymaj11r) HEAD는 `e324f67` 그대로(신규 커밋 없음), ryujmin97/openpilot 브랜치 구성은 carrot-ryu/carrot-ryu-note/carrot-ryu-v1 3개로 문서와 일치한다.
+
+**557e6f6a 원본**: `github.com/happymaj11r/openpilot/commit/557e6f6a.patch` 직접 조회. carrot-wip `2fd77be4`의 cherry-pick(ajouatom, 2026-09-18 16:47:40 +0900), 제목 "Identify model artifact and input size in worker diagnostics". 변경은 `openpilot/selfdrive/modeld/precompiled_worker.py` 1파일 +3/-1: 매 추론마다 `diagnostics.record(context=...)`에 넘기는 context에 기존 `gpu_arch` 외에 `format`/`camera_width`/`camera_height`/`input_bytes`/`model_sha256`을 추가한다. 원본 커밋 메시지는 타이밍 메타데이터 전용이며 설정/주행 동작 변경이 없다고 밝히고 있고, 코드상으로도 record 호출의 context 인자만 바뀐다(pipe 프로토콜/컴파일된 그래프 변경 없음).
+
+**충돌/런타임 검증**:
+1. carrot-ryu `9eced40`의 precompiled_worker.py를 SHA 고정 raw로 조회해 `git hash-object`를 계산: `1c2e2a3b5e6dbdfc4545b1595094bf5d81872ada`로 patch의 pre-image(`1c2e2a3b5e`)와 byte-exact 일치 -- 충돌 없음.
+2. 패치가 새로 읽는 값의 존재 확인(KeyError/NameError 위험 점검): `width`/`height`는 main() 29행에서 argv로 정의, `input_bytes`는 66행에서 정의(record 호출 99행보다 앞), `manifest['pickle']['sha256']`는 worker 32행이 이미 사용 중, `manifest['format']`은 installed.json이 `precompiled_model.py`의 `validate_catalog`(`format == 'comma-run-model'` 강제)를 통과한 catalog dict 전체를 그대로 저장한 것(150~153행)이라 항상 존재한다.
+3. 테스트 영향: `tests/test_precompiled_runner.py`의 worker 직접 실행 테스트(`test_worker_reports_real_checksum_failure_before_gpu_access`)는 최소 manifest(`{'pickle': {'sha256'}}`)로 checksum 검증 단계에서 실패하는 경로라 record 호출 지점에 도달하지 않아 영향 없음(코드 읽기로 확인, 실행은 미실시).
+4. modeld.py 280행에 `usbgpu_pkl_path.name == 'model.pkl'` + installed.json 존재 조건 분기가 있음을 grep으로 확인했다(precompiled worker 경로용으로 보이나 호출 흐름 전체를 추적하지는 않았고, DH 2015 실주행이 이 경로를 타는지는 미확인).
+
+**패치 적용/정적 검증(샌드박스)**: blobless/sparse clone(`openpilot/selfdrive/modeld`, `openpilot/common`)에서 `git apply --check` 통과 -> 적용 -> 변경 파일 정확히 1개(+3/-1), `python3 -m py_compile` 통과. 결과 blob `d04b52ce89e54698215cce8cf84bab62d5e846f7`가 patch post-image(`d04b52ce89`)와 일치, CR 0/BOM 없음(LF).
+
+**반영 스크립트**: `93cha_item_557e6f6a_carrot_ryu.ps1` -- 파일 전체를 base64로 교체하되, 실행 시 clone한 파일의 blob이 pre-image와 다르면 아무것도 수정하지 않고 중단(이미 post-image면 무동작 종료). 쓴 뒤 post-image blob/`py_compile`/변경 파일 1개/numstat +3/-1을 모두 검증한 뒤에만 commit/push하고, push 후 `git ls-remote`로 원격 HEAD를 대조한다. 9절 체크리스트(BOM, `core.autocrlf=false`, finally 임시폴더 삭제, `Get-PythonCmd`+EOF 공급, WriteAllBytes+BOM 미삽입 확인, 결과 검증) 전 항목을 명령 출력으로 확인했고 payload 역디코드가 검증된 원본과 byte-exact 일치함도 재확인했다. 단 샌드박스에 PowerShell(pwsh)이 없어 스크립트의 PowerShell 구문 실행 자체는 검증하지 못했다(사용자 첫 실행이 최초 실행).
+
+이번 항목도 새 원칙(2026-09-19, 91차 계속)에 따라 코드 스크립트와 이 devnotes 스크립트를 같은 응답에서 함께 전달한다. 실행/push 대기. pytest 미실시(이번 세션 미실행). 실차 검증: 미실시. 다음: 557e6f6a push 확인 -> e324f67 필요 여부 판단(DH 2015가 radar_motion 정지 lead 인계 경로를 실제로 타는지) -> 36개 항목+재적용분 실차 검증.
+
 ## 92차 — carrot-ms ec95363a(레인 대시/UI CPU 분리) 상세 대조 완료, 반영 스크립트 준비(실행/push 대기)
 
 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu `f1e920d`/carrot-ryu-note `521f0eb`가 91차 계속2 기록과 일치함을 확인하고 이어받았다. HANDOFF.md 91차 계속2의 "다음 세션 최우선" 1번(ec95363a 상세 대조)에 착수.
