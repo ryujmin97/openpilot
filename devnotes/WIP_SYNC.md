@@ -3,6 +3,19 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (92차) -- ec95363a 상세 대조 완료, 반영 스크립트 준비
+
+- carrot-ryu HEAD: f1e920d5c391d3ce44f647f29913a8b996a1a7c2 (변경 없음, ec95363a 반영 스크립트 `92cha_item_ec95363a_carrot_ryu.ps1` 실행/push 대기)
+- carrot-ryu-note HEAD: 521f0ebc55d363c8f3335d62799fafb87bd070da (91차 계속2 기준, 이 devnotes 스크립트 실행/push 대기)
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (변경 없음)
+- 89차 검토대상 4건 처리 현황(갱신):
+  1) b4f751f4 -> [반영 완료]
+  2) 4d1a3ded -> [반영 완료]
+  3) ec95363a -> [상세 대조 완료, 반영 스크립트 준비, 실행/push 대기] 6개 기존 파일의 pre-image blob이 carrot-ryu 현재 blob과 byte-exact 일치(90차 b4f751f4가 건드린 model_renderer.py 포함 -- 시간순 충돌 없음 확인), 신규 파일 2개(render_diagnostics.py/test_render_diagnostics.py)는 미존재 확인. 별도 clone에서 `git apply --check` 통과, 적용 후 8개 파일 py_compile 전부 통과. pytest는 샌드박스 컴파일 의존성 부재로 미실시.
+  4) 557e6f6a -> [미반영] ec95363a 다음 순서, precompiled_worker.py 1파일(+3/-1)
+- e324f67(정지 lead 인계): 판단 이월 그대로.
+- 다음 세션 우선순위: ec95363a 반영 스크립트 실행/push 확인 -> 557e6f6a 착수 -> e324f67 필요 여부 판단.
+
 ## 체크포인트: 2026-09-19 (91차 계속2) -- carrot-ms 4d1a3ded 반영 완료 확인
 
 - carrot-ryu HEAD: f1e920d5c391d3ce44f647f29913a8b996a1a7c2 (91cha-2: reapply carrot-ms 4d1a3ded, 부모 260565f. `git ls-remote`+별도 clone으로 재검증 완료)

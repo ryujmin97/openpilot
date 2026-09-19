@@ -1,5 +1,28 @@
 # WIP
 
+## 92차 — carrot-ms ec95363a(레인 대시/UI CPU 분리) 상세 대조 완료, 반영 스크립트 준비(실행/push 대기)
+
+세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu `f1e920d`/carrot-ryu-note `521f0eb`가 91차 계속2 기록과 일치함을 확인하고 이어받았다. HANDOFF.md 91차 계속2의 "다음 세션 최우선" 1번(ec95363a 상세 대조)에 착수.
+
+**원본 커밋 조회**: `github.com/happymaj11r/openpilot/commit/ec95363a.patch`로 전체 patch(435줄)를 직접 조회(API rate limit 회피, 지침 0절 권고 방식). 커밋 메시지: "Batch lane dash geometry and separate UI CPU work from render waits" — 레인 대시(점선 차선) 보간/투영을 배치로 묶어 렌더 비용을 줄이고, UI 섹션별 renderTiming에 스레드 CPU 시간을 elapsed/스케줄러 대기와 분리해 기록. carrot-wip 커밋 `137c0331`의 cherry-pick.
+
+**대상 파일 8개 분류**:
+- 수정 3개: `openpilot/selfdrive/ui/onroad/augmented_road_view.py`(timing 계측 래핑), `openpilot/selfdrive/ui/onroad/model_renderer.py`(`project_lane_segments` 배치 투영 도입 + `_draw_carrot_overlays`에 timing 계측), `openpilot/selfdrive/ui/road_markings.py`(`lane_dash_segments` interp 배치화 + `project_lane_segments` 신규 함수)
+- 신규 1개: `openpilot/selfdrive/ui/render_diagnostics.py`(`RenderDiagnostics` 클래스, `openpilot/common/runtime_diagnostics.py`의 `RuntimeDiagnostics` 사용)
+- 테스트 수정 3개: `test_carrot_model_renderer.py`(params.calls 카운트를 `len(params.values)` 기준으로 일반화 — `CarrotTireTrajectory` 등 파라미터 개수 변화에 안전), `test_carrot_model_renderer_lane_visibility.py`(`project_lane_segments` 배치 투영이 기존 `_map_line_to_polygon` 결과와 동일함을 확인하는 테스트 2개 추가), `test_ui_debug_hud_schema.py`(AST 기반 uiDebug 렌더-라인 검사기가 `timing.call(name, target, ...)` 래핑을 인식하도록 `_is_attribute` 대상을 `node.args[1]`로 우회)
+- 테스트 신규 1개: `test_render_diagnostics.py`(`RenderDiagnostics.start/call/finish` 단위 테스트)
+
+**충돌/체인 검증**:
+1. 기존 파일 6개의 현재 carrot-ryu(`f1e920d`) blob hash를 `raw.githubusercontent.com`(SHA 고정) + `git hash-object`로 직접 계산 -- 전부 patch의 pre-image 인덱스 해시와 정확히 일치(`b3f11ebec0`/`f4b2fb8a79`/`87ea3e9eee`/`8030571e7c`/`102b9986f5`/`fa5bd0cdba`). 신규 파일 2개는 HTTP 404로 아직 없음을 확인 -- 충돌 없는 순수 신규 생성.
+2. 90차(carrot-ms `b4f751f4`, camera pair sync/curve release confirm window/path_geometry extraction)가 `model_renderer.py`를 이미 건드렸음을 그 원본 patch(`.diff` 파일 목록)로 확인했으나, 시간순으로 `b4f751f4`가 `ec95363a`보다 앞서고 현재 carrot-ryu의 `model_renderer.py` blob이 `ec95363a`의 pre-image와 정확히 일치하므로 체인 순서 충돌이 없음을 실증(1번 검증과 동일 결과가 이를 이미 증명함). `4d1a3ded`(91차 계속2)는 `carrot_modeld.py`/`upstream_baseline/modeld.py.baseline` 2개만 건드려 겹치지 않음.
+3. `render_diagnostics.py`가 임포트하는 `openpilot.common.runtime_diagnostics.RuntimeDiagnostics`가 이미 저장소에 존재하고(`record(context=None, **values)` 시그니처), `RenderDiagnostics.finish()`가 호출하는 `runtime.record(work_ms=..., thread_cpu_ms=..., **self.values)` 형태와 호환됨을 소스로 직접 확인.
+
+**패치 적용/정적 검증(샌드박스)**: `git clone --filter=blob:none --no-checkout --depth 1 --branch carrot-ryu`(sparse-checkout으로 `openpilot/selfdrive/ui`, `openpilot/common`만) 후 `git apply --check` -> 0회 에러(exit 0), `git apply`로 실제 적용해 정확히 8개 파일(수정 6 + 신규 2)만 변경됨을 `git status --short`로 확인. 8개 파일 전부 `python3 -m py_compile` 통과. hud_renderer.py 계열의 옛 스크린샷 API(`consume_pending_screenshot_capture`/`capture_onroad_screenshot`)가 patch 적용 후 `augmented_road_view.py`에 잔여 참조 0건임을 grep으로 재확인 -- 52~54차 render-texture 재설계(54차, 87차 재적용)로 이미 제거된 상태와 이번 패치가 서로 어긋나지 않음. pytest 실제 실행은 샌드박스에 `openpilot.common.params_pyx`(컴파일된 cython 확장) 등 빌드 의존성이 없어 conftest 로드 단계에서 막혀 미실시 -- 11절 원칙대로 "실행했다"고 보고하지 않고 미실시로 명시. 과거 세션들이 이 프로젝트의 pytest 스위트를 실제로 통과시킬 때는 Windows PC(node/npm 계열) 또는 별도 준비된 Linux sandbox(tinygrad_repo 등 포함)를 썼던 것과 동일한 환경 제약.
+
+**반영 스크립트**: 위 검증을 그대로 반영해 8개 파일을 base64 전체교체(패치 적용 후 결과 파일 그대로, anchor 매칭 방식이 아니므로 CRLF/BOM 등 63차·85차류 재발 위험 자체가 없음)하는 `92cha_item_ec95363a_carrot_ryu.ps1` 작성. 9절 "전달 전 필수 자가검증 체크리스트" 전항목 확인: 스크립트 자체 UTF-8 BOM 포함(한글 주석 포함), `git clone`에 `--config core.autocrlf=false`, `finally` 블록에 임시폴더 `Remove-Item -Recurse -Force`(수동 삭제 요청 없음), `Get-PythonCmd`가 `py -3` -> `python3` -> `python` 순으로 실제 `--version` 확인 + 표준입력 EOF 공급(`"" | & ...`) 후 `py_compile` 검증, 대상 파일 쓰기 직후 첫 3바이트 BOM 아님 확인(`WriteAllBytes`로 원본 바이트 그대로 기록하므로 BOM 삽입 자체가 구조적으로 불가능). base64 페이로드를 Python으로 역디코드해 원본 8개 파일과 byte-exact 일치함을 재확인(핵심 발견 42 원칙, anchor가 아니라 전체교체이므로 "결과 재확인"이 곧 이 라운드트립 검증임).
+
+실행/push 대기. 실차 검증: 미실시.
+
 ## 91차 계속2 — carrot-ms 4d1a3ded 반영 완료 확인(carrot-ryu `f1e920d`), check_contracts.py modeld-mirror PASS 재확인
 
 사용자가 `91cha2_4d1a3ded_carrot_ryu.ps1` 실행 로그를 전달했다. clone 단계에서 화면이 멈춘 것처럼 보였던 것은 `--quiet` 옵션 때문에 진행률 표시가 안 나온 것으로 안내했고, 이후 사용자가 완료 로그(`260565f..f1e920d`, 로컬/원격 HEAD 일치)를 전달해 `git ls-remote`와 별도 clone(`git clone --filter=blob:none --no-checkout`)으로 16절 재검증을 수행했다.
