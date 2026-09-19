@@ -35,12 +35,16 @@ def load_mpc_update(path):
             'get_traffic_stop_distance_adjust': get_traffic_stop_distance_adjust,
             'get_traffic_stop_obstacle_distance': get_traffic_stop_obstacle_distance,
             'LaneChangeGapPlan': LaneChangeGapPlan, 'cutout_obstacle_relief': cutout_obstacle_relief}
+  import time
+  ns['time'] = time
+  ns['cloudlog'] = SimpleNamespace(debug=lambda *a, **kw: None, warning=lambda *a, **kw: None, error=lambda *a, **kw: None)
   ns['T_IDXS'] = 10*(np.arange(13)/12)**2
   ns['T_DIFFS'] = np.diff(ns['T_IDXS'], prepend=0.)
   ns['FCW_IDXS'] = ns['T_IDXS'] < 5
   ns['PRED_DANGER_IDXS'] = (ns['T_IDXS'] > .2) & (ns['T_IDXS'] < 3.)
   tree = ast.parse(path.read_text(encoding='utf-8'))
   nodes = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and not node.name.startswith('gen_')]
+  nodes = [node for node in tree.body if isinstance(node, ast.Assign) and any(isinstance(n, ast.Name) and n.id.startswith('GATE_') for t in node.targets for n in ast.walk(t))] + nodes
   exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), 'exec'), ns)
   cls = ns['LongitudinalMpc']
   cls.run = lambda self: None

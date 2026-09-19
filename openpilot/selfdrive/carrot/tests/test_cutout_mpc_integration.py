@@ -50,7 +50,7 @@ def run_update(*, confidence=0., mode="acc", reset=False, enabled=True, second_d
             params=np.zeros((13,8)), prev_a=np.zeros(13), yref=np.zeros((13,6)),
             solver=NS(set=lambda *a:None), set_weights=lambda *a,**kw:None, crash_cnt=0,
             x_sol=np.column_stack([15.*times, np.full(13,15.), np.zeros(13)]), run=lambda:None)
-  def process_lead(l):
+  def process_lead(l, lead_index=0):
     distance, speed = (l.dRel, l.vLead) if l.status else (50., 25.)
     return np.column_stack([distance + speed * times, np.full(13, speed)]), speed
   self.process_lead = process_lead
