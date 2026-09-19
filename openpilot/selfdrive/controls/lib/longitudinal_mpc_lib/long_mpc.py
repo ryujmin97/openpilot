@@ -63,6 +63,13 @@ T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 COMFORT_BRAKE = 2.5
 STOP_DISTANCE = 6.0
 
+# B안(G2T, 98차 devnotes 채택): 리드 감속 게이팅. 절대 시간차/TTC 임계값이라
+# tFollow가 짧으면 평상시에도 g<1이 될 수 있음(미검증, 실차 로그로 관찰).
+GATE_H_LO, GATE_H_HI = 1.5, 2.2      # 시간차 임계값 (s)
+GATE_T_LO, GATE_T_HI = 6.0, 12.0     # TTC 임계값 (s)
+GATE_TAU_G = 1.0                     # 하강 시정수 (s), 상승은 즉시
+GATE_TAU_TARGET = 1.5                # 약화 시 투사 aLeadTau 목표값
+
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.moreRelaxed:
     return 1.0
@@ -296,6 +303,8 @@ class LongitudinalMpc:
     self.time_linearization = 0.0
     self.time_integrator = 0.0
     self.x0 = np.zeros(X_DIM)
+    self._gate_g = np.array([1.0, 1.0])
+    self._gate_last_cloudlog_t = 0.0
     self.set_weights()
 
   def set_cost_weights(self, cost_weights, constraint_cost_weights):
@@ -362,15 +371,38 @@ class LongitudinalMpc:
     lead_xv = np.column_stack((x_lead_traj, v_lead_traj))
     return lead_xv
 
-  def process_lead(self, lead):
+  @staticmethod
+  def _gate_raw(gap, v_ego, v_lead):
+    h = gap / max(v_ego, 1.0)
+    g = np.clip((GATE_H_HI - h) / (GATE_H_HI - GATE_H_LO), 0., 1.)
+    if v_ego - v_lead > 0.1:
+      ttc = gap / (v_ego - v_lead)
+      g = max(g, np.clip((GATE_T_HI - ttc) / (GATE_T_HI - GATE_T_LO), 0., 1.))
+    return float(g)
+
+  def process_lead(self, lead, lead_index):
     v_ego = self.x0[1]
     if lead is not None and lead.status:
       x_lead = lead.dRel
       v_lead = lead.vLead
       a_lead = lead.aLeadK
       a_lead_tau = lead.aLeadTau
+
+      g_raw = self._gate_raw(x_lead, v_ego, v_lead)
+      g_prev = self._gate_g[lead_index]
+      g = g_raw if g_raw > g_prev else g_prev + (g_raw - g_prev) * self.dt / GATE_TAU_G
+      self._gate_g[lead_index] = g
+      a_lead_tau = g * a_lead_tau + (1 - g) * GATE_TAU_TARGET
+
+      if g < 1.0:
+        t = time.monotonic()
+        if t > self._gate_last_cloudlog_t + 1.0:
+          self._gate_last_cloudlog_t = t
+          h = x_lead / max(v_ego, 1.0)
+          cloudlog.debug(f"lead_gate idx={lead_index} g={g:.2f} h={h:.2f} dRel={x_lead:.1f} vEgo={v_ego:.1f} vLead={v_lead:.1f}")
     else:
       # Fake a fast lead car, so mpc can keep running in the same mode
+      self._gate_g[lead_index] = 1.0
       x_lead = 50.0
       v_lead = v_ego + 10.0
       a_lead = 0.0
@@ -408,8 +440,8 @@ class LongitudinalMpc:
     t_follow = carrot.get_T_FOLLOW(personality, v_ego, a_ego)
     jerk_factor = carrot.jerk_factor
 
-    lead_xv_0, lead_v_0 = self.process_lead(radarstate.leadOne)
-    lead_xv_1, lead_v_1 = self.process_lead(radarstate.leadTwo)
+    lead_xv_0, lead_v_0 = self.process_lead(radarstate.leadOne, 0)
+    lead_xv_1, lead_v_1 = self.process_lead(radarstate.leadTwo, 1)
 
     mode = self.mode
     comfort_brake = carrot.comfort_brake
