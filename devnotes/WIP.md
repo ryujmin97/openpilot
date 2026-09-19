@@ -1,5 +1,14 @@
 # WIP
 
+## 89차 — carrot-ms 신규 15건 전수 분석 (2절 동기화), 반영은 다음 세션 이월
+
+88차에서 처음 발견된 carrot-ms 신규 13건(706efb47 대비)을 이어받아 전수 분석했다. 그 사이 carrot-ms가 다시 갱신되어 총 15건(추가 2건: 8e85a02 CCNC leadOne, f19d404a Hyundai CAN FD nearest lead)으로 늘어난 상태를 확인했다. api.github.com rate limit 소진으로 `git clone --filter=blob:none` partial clone으로 전환해 15건 전부의 diff를 직접 대조했다.
+
+우리 차량(HYUNDAI_GENESIS, 제네시스 DH 2015-16)의 values.py 플래그(`CHECKSUM_6B | LEGACY`, CAN FD·RADAR_GROUP3 모두 아님)를 근거로 CAN FD 전용 7건(0beb200a/de6ee634/a6c8220/34cf65fb/5ae4a25/8e85a02/f19d404a)과 Radar Group3 전용 1건(ee8d4353)을 제외 확정했다. CI/문서/테스트픽스처뿐인 3건(845e725b/21b71f00/994683d5)도 제외.
+
+남은 4건(b4f751f4 카메라 프레임 페어링+커브 리팩터, 4d1a3ded 모델셀렉터 미러 동기화, ec95363a UI 레인대시 배치, 557e6f6a 진단로그)은 대상 함수가 carrot-ryu에서 fork 이후 무수정임을 diff로 확인해 충돌위험이 낮다고 판단했으나, 사용자 요청으로 이번 세션은 코드 반영 없이 WIP_SYNC.md 체크포인트 기록까지만 진행했다. 실제 반영은 다음 세션에서 별도 승인 후 착수.
+
+실차 검증: 미실시(이번 세션은 GitHub 조회/분석만, 코드 변경 없음). 상세: WIP_SYNC.md 2026-09-19(89차) 체크포인트 참고.
 ## 88차 — 87차 반영 스크립트 2개 push 확인 (devnotes 정정만, 코드 변경 없음) + carrot-ms 신규 13건 발견
 
 세션 시작 체크포인트(4절 0단계, `git ls-remote`)로 carrot-ryu-note가 `50e7f67`(87차 devnotes 갱신)임을 확인. 이어서 carrot-ryu HEAD를 조회한 결과 `0923f8396dacbb61a23e1c394751d8014ddddf5f`로, HANDOFF.md(87차)에 "실행/push 대기"로 기록돼 있던 항목 30~36 반영 스크립트(`87cha_items30_36_carrot_ryu.ps1`)가 이미 사용자에 의해 실행/push까지 완료돼 있음을 16절에 따라 발견했다(핵심 발견 27/38과 동일 패턴). GitHub commit API로 `0923f83`의 부모가 `ba929b5f2`(86차 베이스)와 정확히 일치하고, 변경 파일 4개(hud_renderer.py/screenshot_button.py/screenshot_capture.py/application.py)가 87차 HANDOFF에 기록된 내용과 동일함을 재확인했다. devnotes 반영 스크립트(`87cha_devnotes_carrot_ryu_note.ps1`)도 이미 실행되어 `50e7f67`(부모 `15cdf6e2e`, 87차 베이스와 일치)로 push 완료돼 있었다.

@@ -3,6 +3,22 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (89차) -- carrot-ms 신규 15건(706efb47 이후) 전수 분석, 반영은 다음 세션 이월
+
+- carrot-ryu HEAD: 0923f8396dacbb61a23e1c394751d8014ddddf5f (변경 없음, 코드 미변경 -- 이번 세션은 분석/기록만)
+- carrot-ms(happymaj11r/openpilot) HEAD: f19d404a47a24806f876ee9d2148c112655816d2 (88차 994683d5 대비 2건 추가 확인: 8e85a02/f19d404a)
+- 마지막 검토 완료 체크포인트(706efb47, 61차 20절 리셋 베이스) 대비 GitHub compare API 기준 ahead_by 15, 88차에서 처음 발견된 13건 + 이번에 추가 확인된 2건 = 총 15건. api.github.com rate limit(60/시간) 소진으로 이번 세션은 `git clone --filter=blob:none`(partial clone) 방식으로 커밋별 diff를 직접 대조했다(bash_tool 있는 세션의 대체 수단, 0단계 원칙과 별개).
+- 우리 차량(HYUNDAI_GENESIS = 제네시스 DH 2015-16)의 values.py 플랫폼 정의를 재확인: `flags=HyundaiFlags.CHECKSUM_6B | HyundaiFlags.LEGACY`로, CAN FD/RADAR_GROUP3 플래그 모두 없음을 확정.
+
+15건 분류 결과:
+1) [제외, CAN FD 전용] 0beb200a/de6ee634/a6c8220/34cf65fb (CAN FD stop retry 실험+게이팅+주행중 설정반영) -- carcontroller.py에 필드가 추가되나 CAN FD 분기(hyundaicanfd.py) 안에서만 소비되어 LEGACY(비-CANFD) 차량인 DH에는 동작 영향 없음.
+2) [제외, CAN FD 전용] 5ae4a25(CAN FD SCC HUD leadOne)/8e85a02(CCNC 전방객체 leadOne)/f19d404a(Hyundai CAN FD 표시 nearest lead) -- 전부 hyundaicanfd.py/CCNC 한정.
+3) [제외, Radar Group3 전용] ee8d4353(Group3 레이더 객체ID CAN 슬롯 이동 버그수정) -- DH는 RADAR_GROUP3 플래그 미설정, radar_interface.py의 group3 분기 자체가 우리 차량 경로에서 호출 안 됨.
+4) [제외, CI/문서/테스트픽스처] 845e725b(.github/workflows tests.yaml만 수정, 1절 원칙상 로컬 clone 작업이라 CI 무관) / 21b71f00(AGENTS.md 문서 5줄) / 994683d5(EV9 전용 cutin_validation_cases.json 회귀 테스트 데이터 추가, 코드 동작 변화 없음).
+5) [검토대상, 보류 -- 사용자 결정으로 이번 세션엔 코드 미반영] b4f751f4(카메라 프레임 페어링 버그수정: 25ms 미만 간격 거부 문제 해소 + 커브 탈출시 0.25초 확인 윈도우로 조기 해제 방지 + path 투영코드를 path_geometry.py로 추출, 동작 동일/성능만 개선) / 4d1a3ded(위 리팩터에 맞춘 model_selector 미러 carrot_modeld.py 동기화, 6절 침습지점 관리 원칙) / ec95363a(레인 대시 렌더링 배치 처리 + UI 진단로그 추가, 렌더 결과물 동일) / 557e6f6a(모델 워커 진단로그 1줄 추가).
+   - 충돌위험 사전 확인: 위 4건이 건드리는 정확한 함수/파일(model_renderer.py의 _build_path_polygon_update_line_data2_carrot / _dist_carrot / _dist3_carrot 3개, modeld.py 프레임 수신부, curve_speed.py의 VisionCurveSpeed 클래스)을 carrot-ryu 현재 코드(0923f83 기준)와 diff 대조한 결과 **byte-identical(fork 이후 무수정)**임을 확인 -- 순수 리팩터/버그수정이라 우리 커스텀과 충돌 없이 적용 가능할 것으로 판단됨. 단, ec95363a가 건드리는 augmented_road_view.py/road_markings.py 레인 대시 영역과 render_diagnostics.py 신규 파일은 이번 세션에서 상세 대조는 하지 않음(다음 반영 착수 세션에서 필요).
+- 사용자에게 4건 반영 여부를 문의한 결과, "코드 반영 없이 WIP_SYNC.md 기록만 먼저" 진행하기로 결정. 실제 반영(9절 방식)은 다음 세션 이후 별도 승인 하에 착수.
+- 다음 확인 시점: 위 4건(b4f751f4→4d1a3ded→ec95363a→557e6f6a 순, 커밋 발생 순서) 반영을 착수할 때 -- ec95363a의 augmented_road_view.py/road_markings.py 상세 대조부터 시작. 또는 carrot-ms HEAD가 f19d404a에서 다시 바뀌었는지 가벼운 git ls-remote 점검할 때.
 ## 체크포인트: 2026-09-17 (64차) -- 20절 이식 항목 4(13차 원본: 시계 좌측 경계 잘림 수정) 재적용
 
 - carrot-ryu HEAD: 4e3b44a81f2fc79c3b6f23ebaee40a1bc73d370b (63차 429f105e 위에 13차 원본
