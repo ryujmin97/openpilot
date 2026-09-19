@@ -1,5 +1,19 @@
 # WIP
 
+## 99차 (Claude) — B안(G2T) 리드 감속 게이팅 코드 설계/구현, long_mpc.py 반영 스크립트 작성(실행/push 대기)
+
+**세션 시작(4절 0단계)**: `git ls-remote`로 carrot-ryu-note HEAD `d5cc1df`를 얻어 SHA 고정 raw로 지침 문서(v2)를 조회했다. HANDOFF.md/CURRENT_STATUS.md/WIP.md(98차)도 같은 SHA로 읽었다. carrot-ryu `25f21d4`, carrot-ms `e324f67` 모두 변경 없음(drift 없음).
+
+**코드 조사**: `openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py`(base `25f21d4`)를 독립 `git clone`(shallow fetch)으로 읽었다. 게이트 입력(dRel/vLead/vEgo)은 `process_lead(self, lead)` 안에서 이미 접근 가능함을 확인 — `update()` 시그니처 변경 불필요. `process_lead()`가 `extrapolate_lead()`에 넘기는 `a_lead_tau`를 게이트로 대체하는 지점이 삽입 위치. `process_lead()`는 leadOne/leadTwo 양쪽에 호출되므로 리드별 게이트 상태(상승 즉시/하강 1 s LPF) 분리가 필요해 `lead_index` 인자를 추가했다. `process_lead()`가 이 파일 밖에서 호출되지 않음(외부 호출자 없음)을 `openpilot/selfdrive/controls` 전체 grep으로 확인해 시그니처 변경의 파급 범위가 없음을 검증했다.
+
+**사용자 결정 3건**: (a) tFollow 절대시간차 문제(h_lo=1.5s가 짧은 tFollow 설정에서 평상시에도 g<1을 유발할 수 있는 한계) — B안 승인된 절대값 그대로 반영하고 실차 로그로 관찰하기로 함(임계값 자체 재설계는 19절 성격이라 보류). (b) 임계값(h_lo/h_hi/t_lo/t_hi)을 Params로 노출할지 — 코드 상수로 고정(10절 최소 변경, params_keys.h 등록 불필요). (c) 게이트 값을 실차 로그에 남길지 — `cloudlog.debug`로 g<1일 때만 초당 1회 경량 기록(기존 `self.last_cloudlog_t` 레이트리밋 패턴 재사용).
+
+**최소 변경안(4개 블록, `long_mpc.py` 한 파일)**: (A) `STOP_DISTANCE` 아래 `GATE_H_LO/HI`, `GATE_T_LO/HI`, `GATE_TAU_G`, `GATE_TAU_TARGET` 모듈 상수 추가(B안 수치: h 1.5~2.2 s, TTC 6~12 s, 하강 시정수 1 s, 투사 목표 1.5). (B) `extrapolate_lead()` 뒤에 `_gate_raw(gap, v_ego, v_lead)` staticmethod 추가(98차 `gating_eval.py`의 `gate_raw()`와 동일한 시간차/TTC 게이트 산식), `process_lead(self, lead, lead_index)`로 시그니처 변경하고 실제 리드 분기 안에서 게이트 계산 → `a_lead_tau = g*a_lead_tau + (1-g)*GATE_TAU_TARGET`(G2T, 투사 감쇠만) → g<1일 때 `cloudlog.debug` 레이트리밋 기록. 가짜 리드 분기에서는 `self._gate_g[lead_index] = 1.0`로 중립 리셋. (C) `reset()`에 `self._gate_g = np.array([1.0, 1.0])`, `self._gate_last_cloudlog_t = 0.0` 초기화 추가. (D) `update()` 안 `process_lead()` 호출 2곳에 `lead_index`(0/1) 인자 추가.
+
+**검증(샌드박스, 실차 아님)**: 4개 블록을 Python으로 원본(base `25f21d4`) 위에 순서대로 적용해 anchor 전부 1회 매치, `python3 -m py_compile` 통과를 확인했다. 반영 스크립트(`99cha_lead_gate_carrot_ryu.ps1`)를 Replace-Block 패턴(63차/85차의 CRLF→LF 정규화 포함)으로 작성하고, 9절 "전달 전 필수 자가검증 체크리스트" 1~6번(BOM 없음/`core.autocrlf=false`/임시폴더 자동삭제/`Get-PythonCmd`+EOF공급/전체쓰기 WriteAllText 무BOM+BOM 재확인/anchor 결과 재확인)을 스크립트 코드 자체로 통과시켰다. 7번(전달할 .ps1에서 앵커 문자열을 추출해 SHA 고정 원본에 재시뮬레이션)도 실제 전달 파일에서 `$Old`/`$New` 4쌍을 정규식으로 추출해 원본에 재적용 → anchor 전부 1회 매치, 결과가 사전 설계 시뮬레이션과 동일, `py_compile` 재통과까지 확인했다. 이 세션은 pwsh(Linux)가 샌드박스에 설치돼 있지 않아 PowerShell 구문 자체의 실행 검증은 못 했고(수동 육안 검토만), Windows PowerShell 5.1 실행 검증도 아니다.
+
+**미결정/다음(다음 세션 최우선)**: (a) 사용자가 `99cha_lead_gate_carrot_ryu.ps1` 실행 → push 확인(GitHub API/raw로 재확인). (b) 실차 배포 후 swaglog에서 `lead_gate` 태그로 g 값이 정상 범위에서 움직이는지, 특히 tFollow가 짧은 구간(123/124류)에서 평상시 g가 지나치게 자주 1 밑으로 떨어지는지 관찰(위 사용자 결정 (a) 관련). (c) 가능하면 97~98차에서 다룬 #5/#8/#22류 재현 상황에서 실제 감속이 완화되는지 확인. (d) 12절: 정적 분석/설계 단계이며 실차 검증은 미실시.
+
 ## 98차 (Claude · 분석/설계 결정 · 코드/지침 변경 없음) — 리드 감속 게이팅 26건 평가, 후보 B안(G2T: 투사 감쇠만, 시간차 2.2→1.5 s / TTC 12→6 s) 채택
 
 **세션 시작(4절 0단계)**: `git ls-remote`로 carrot-ryu-note HEAD `4644f6d`를 얻어 SHA 고정 raw로 지침 문서(v2)를 조회했다(브랜치 URL 조회본과 바이트 동일). HANDOFF.md/CURRENT_STATUS.md도 같은 SHA로 읽었다. carrot-ryu `25f21d4`, carrot-ms `e324f67` 모두 변경 없음. HANDOFF.md의 Note Branch base(`13b49d3`, "97차 반영 push 대기")는 push 이전 값이었고 실제로는 `4644f6d`("97cha: devnotes - ...")로 반영돼 있음을 git clone/git log와 그 커밋의 변경 파일(WIP.md/HANDOFF.md/toolkit 9개)로 확인했다(노트 브랜치 커밋 목록의 GitHub API 조회가 rate limit에 걸려 git clone으로 대체, 16절). 이번 HANDOFF에서 정정.
