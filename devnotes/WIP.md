@@ -1,5 +1,19 @@
 # WIP
 
+## 96차 (지침 문서 갱신 · 코드 변경 없음) — 9절 체크리스트 7번(앵커 시뮬레이션) 추가, 샌드박스 pwsh 실행 검증 도입
+
+**세션 시작(4절 0단계)**: `git ls-remote`로 carrot-ryu-note HEAD `ac45f91`을 얻어 SHA 고정 raw로 지침 문서(v2)를 조회했다(브랜치 URL 조회본과 내용 동일). 이어 HANDOFF.md/CURRENT_STATUS.md를 같은 SHA로 읽었다. carrot-ryu HEAD `25f21d4`(HANDOFF와 일치, 변경 없음), carrot-ms(happymaj11r) HEAD `e324f6735d3606800045ed6b28f41e79b17e5498`(93차 체크포인트와 동일, 신규 커밋 없음, 2절).
+
+**HANDOFF 표기 시차 확인(16절)**: 95차 HANDOFF.md는 Note Branch base를 `5e67047`, 계속분(WIP.md/FINDINGS.md/HANDOFF.md)을 "실행/push 대기"로 적었으나 실제 note HEAD는 `ac45f91`이었다. 클론해서 확인한 결과 `ac45f91`(95cha2)이 바로 그 3개 파일(WIP.md +22, FINDINGS.md +18, HANDOFF.md)이었다. HANDOFF.md가 push 전 상태로 작성된 채 그 push에 함께 실려서 생긴 표기상 시차이며 반영 누락은 아니었다.
+
+**지침 문서 변경(19절 절차)**: 변경 이유(95차 v2 스크립트가 앵커 텍스트 오기입으로 `got 0` 중단 -- 기존 9절 체크리스트 1~6번은 앵커 텍스트 자체를 검증하지 않음, 핵심 발견 45) -> 변경안(9절 "전달 전 필수 자가검증 체크리스트"에 7번 추가) 제시 -> 사용자 승인 -> `96cha_pi_checklist7_v1.ps1` 전달 -> 사용자가 "완료"라고만 보고(실행 로그는 전달되지 않음). 완료로 가정하지 않고 GitHub에서 직접 재확인했다(16절): carrot-ryu-note HEAD `913b6f1`(부모 `ac45f91`), 변경 파일 1개(`devnotes/PROJECT_INSTRUCTIONS_carrot-ryu.md` +4/-0), SHA 고정 raw 파일의 SHA-256 `83bf4294200da038678ce67266696eda40b20585748769f29bd080fa7ff84618`이 사전 계산한 기대 결과와 바이트 단위로 동일, 첫 3바이트 `23 20 43`(BOM 없음), carrot-ryu는 `25f21d4` 그대로.
+
+**검증 방식 변경**: 이전 세션 기록은 "샌드박스에는 PowerShell이 없어 Python으로 시뮬레이션"이었다. 이번 세션에서 샌드박스 허용 도메인(api.github.com, github.com)만으로 GitHub 릴리스의 PowerShell 7.6.6 linux-x64 tarball(약 76MB)을 받아 실행할 수 있음을 확인했다(`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` 지정). 이를 이용해 전달 스크립트를 (1) 구문 파싱(오류 0), (2) 원본 문서를 커밋한 로컬 bare 저장소를 `$RepoUrl`로 바꾼 테스트 사본에 대해 clone->치환->검증->commit->push 전체 실행(결과 파일이 기대 결과와 바이트 동일, 임시 폴더 잔존 0), (3) 음성 테스트 2건(앵커 공백 1개 오기입 -> `got 0`, 원본 SHA-256 불일치)으로 검증했고, 두 경우 모두 push 없이 중단됐다. 한계: Linux의 pwsh 7이지 사용자 PC의 Windows PowerShell 5.1이 아니다(5.1 고유의 콘솔 코드페이지/`Set-Content` 인코딩 동작은 재현하지 못한다). 샌드박스는 세션마다 초기화되므로 필요하면 매번 다시 받아야 한다.
+
+**스크립트 설계 메모**: 대상 파일의 "변경 전 SHA-256"과 "기대 결과 SHA-256"을 미리 계산해 스크립트에 박아 넣고, 원본 해시 불일치/앵커 매치 != 1/결과 해시 불일치 중 하나라도 걸리면 commit 전에 중단하게 했다(1회 매치가 "의도한 결과"까지 보증하지 않는다는 핵심 발견 42와 같은 취지의 강화). git 호출은 종료 코드로만 판정하는 래퍼(`Invoke-Git`)로 감쌌다. Windows PowerShell 5.1에서 네이티브 stderr 진행 출력이 `$ErrorActionPreference='Stop'` 아래 예외가 되는 알려진 동작을 예방하려는 것이며, 이번 세션에서 5.1로 재현하지는 않았다.
+
+**실차 검증**: 대상 아님(문서 변경, 12절 무관). 코드 변경 없음(carrot-ryu `25f21d4` 그대로).
+
 ## 95차 (devnotes 정리 + 디바이스 배포 확인 · 코드 변경 없음) — carrot-ryu `25f21d4` 디바이스 실배포 확인, 첫 실차 UI 검증, 반영 스크립트 사고 3회(모두 commit 전 안전 중단)
 
 **carrot-ms 재확인(2절)**: `git ls-remote`로 happymaj11r/openpilot(carrot-ms) HEAD가 여전히 `e324f6735d3606800045ed6b28f41e79b17e5498`임을 확인했다(93차 체크포인트와 동일, 신규 커밋 없음).

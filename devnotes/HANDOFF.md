@@ -1,35 +1,33 @@
-Worker: Claude (95차)
+Worker: Claude (96차, Claude Sonnet 5)
 Date: 2026-09-19
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (base: `25f21d406d23bfb79ad45a67890cc39e3ad9e67b`, 변경 없음 -- 이번 세션 코드 변경 없음)
-Note Branch: carrot-ryu-note (base: `5e67047d2114f20b765df9a558a45ace41cc8e5b`, 95차 1차분(WIP_SYNC.md/CURRENT_STATUS.md/HANDOFF.md, 부모 `f8d92c6`) push 완료·SHA 고정 재검증됨. 이번 계속분 WIP.md/FINDINGS.md/HANDOFF.md 갱신, 실행/push 대기)
+Note Branch: carrot-ryu-note (base: `913b6f17ce66517fd772af8c50b034be914d9308`, 96차 1차분(PROJECT_INSTRUCTIONS 9절 체크리스트 7번 추가, 부모 `ac45f91`) push 완료·SHA 고정 raw 재검증됨. 이번 devnotes 반영(WIP.md/CURRENT_STATUS.md/HANDOFF.md)은 실행/push 대기)
 carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(변경 없음, 이번 세션 git ls-remote로 happymaj11r/openpilot 재확인) -- 93차와 동일.
 
 작업:
-2절에 따라 carrot-ms 신규 커밋 확인(없음) -> 20절 7항 절차로 carrot-ryu(25f21d4, 36개 항목+carrot-ms 4건)를 디바이스에 실제 배포 -> 사용자 제공 자료로 배포 확인 + 첫 실차 UI 검증.
+4절 0단계로 지침 문서(v2, `ac45f91`)/HANDOFF.md/CURRENT_STATUS.md 확인 -> 2절 carrot-ms 신규 커밋 확인(없음) -> 19절 절차로 지침 문서 9절 체크리스트 7번(앵커 시뮬레이션) 추가 -> 반영 확인.
 
 완료:
-1. git ls-remote(happymaj11r/openpilot)로 carrot-ms HEAD가 여전히 e324f6735d3606800045ed6b28f41e79b17e5498임을 재확인, WIP_SYNC.md 93차 체크포인트와 대조해 신규 커밋 없음 확정.
-2. 사용자가 디바이스 현재 상태(carrot-ryu-v1, c81aef07)를 확인해 줌에 따라 20절 7항(재배포 전 재확인) 충족.
-3. 디바이스가 61차 force reset으로 갈라진 히스토리를 갖고 있어 git pull이 아니라 도구 탭 "브랜치 변경"(재체크아웃/재빌드) 방식이 필요함을 사용자가 지적, non-fast-forward 근거로 확인.
-4. 사용자가 제공한 tmux 로그 2건(변경 전/후)의 metadata.json+부팅 로그로 실제 배포를 독립 재확인: carrot-ryu-v1(c81aef07) -> carrot-ryu(25f21d406d23bfb79ad45a67890cc39e3ad9e67b).
-5. 온로드 스크린샷 1장으로 항목 30~36(스크린샷 캡처 체인) + 13~19(경로안내 박스) 첫 실차 검증 완료(상세: CURRENT_STATUS.md 95차 계속 참고).
-6. 반영 스크립트 사고 3회(콘솔 붙여넣기 한글 깨짐 / 상대경로 WriteAllText / v2 앵커 접두 오기입) 모두 commit 전 안전 중단, v3로 반영 완료: carrot-ryu-note `f8d92c6..5e67047`, 변경 파일 정확히 3개, SHA 고정 raw + `git clone --depth 2`로 개행(WIP_SYNC CRLF 유지)/BOM/HANDOFF 마지막 개행/앵커 결과 재검증(16절).
-7. 이번 계속분: WIP.md 95차 회차 + FINDINGS.md 핵심 발견 45(앵커 0회의 원인 구분법: Linux 재현) 작성. FINDINGS.md가 혼합 개행(상단 CRLF, 890행 이후 LF)임을 발견해 개행 보존 삽입으로 반영.
+1. carrot-ryu `25f21d4`(변경 없음)와 carrot-ms `e324f67`(신규 커밋 없음)을 git ls-remote로 재확인.
+2. 95차 HANDOFF의 note base(`5e67047`)/"push 대기" 표기와 실제 HEAD(`ac45f91`)의 시차를 클론으로 확인(16절): `ac45f91`이 이미 그 3개 파일을 반영한 커밋이었고 반영 누락은 없었음. 이번 HANDOFF에서 base를 정정.
+3. PROJECT_INSTRUCTIONS_carrot-ryu.md 9절 체크리스트에 7번 추가(변경 이유->변경안->사용자 승인->`96cha_pi_checklist7_v1.ps1`). 사용자의 "완료" 보고 후 GitHub에서 직접 재확인: carrot-ryu-note `913b6f1`(부모 `ac45f91`), 변경 파일 1개 +4/-0, SHA 고정 raw가 사전 계산한 기대 결과(SHA-256 `83bf4294200da038678ce67266696eda40b20585748769f29bd080fa7ff84618`)와 바이트 동일, BOM 없음. 실행 로그는 전달되지 않았음.
+4. 샌드박스에서 pwsh 7.6.6(GitHub 릴리스 tarball)을 받아 전달 스크립트를 실제 실행 검증하는 방법을 도입(상세: WIP.md 96차).
 
 미완료(다음 세션 최우선):
-1. 항목1·2 및 carrot-ms 4건(카메라 페어링/커브 탈출 지연 등 종방향 관련)의 실주행 검증 -- 정차 스크린샷 1장으로는 판단 불가.
-2. route 로그(qcamera.ts+rlog.zst, route 00000436--2edd613f1e--8): 사용자가 "실차 검증에 필요하면 쓰라고 준 것"이라고 답함(별도 분석 요청 아님, 목적 재문의 불필요). 실차 검증 중 필요해지면 그때 사용하며, 이 로그는 현재 샌드박스에 없어 재업로드가 필요하고 openpilot cereal 스키마 파싱 환경도 없어 그 구성부터 필요함.
+1. 항목1·2 및 carrot-ms 4건(카메라 페어링/커브 탈출 지연 등 종방향 관련)의 실주행(이동 중) 검증 -- 사용자가 주행 후 결과나 로그를 주면 이어서 봄.
+2. route 로그(qcamera.ts+rlog.zst, route 00000436--2edd613f1e--8): 사용자가 "실차 검증에 필요하면 쓰라고 준 것"이라고 답함(별도 분석 요청 아님). 필요해지면 그때 재업로드를 요청하며, 현재 샌드박스에 없고 openpilot cereal 스키마 파싱 환경도 없어 그 구성부터 필요함.
 3. 화면녹화 탭 사진 업로드 UI(22·23·26)/Drive 파이프라인(5~10·12·17·18·20·21)/녹화 버튼 깜빡임(28) 실차 검증 이월.
 
-검증: 1차분 push는 SHA 고정 raw + `git clone --depth 2`로 재확인(커밋 API 403 -> git 대체). 이번 계속분 스크립트는 Python 시뮬레이션(실제 PowerShell 실행 아님)으로 앵커 1회 매치/개행 보존/결과 텍스트를 검증. tmux1/tmux2 metadata.json의 git_commit 필드 및 tmux.log의 "Carrot GitBranch = ..." 부팅 로그 라인을 직접 grep 대조(11절, 실제 로그 근거). 스크린샷 픽셀 크기(960x480)를 PIL로 직접 측정해 480p(세로기준) 다운스케일과 일치함을 확인. 코드 변경 없어 py_compile 등 정적 검증은 해당 없음.
+검증: 지침 문서 변경은 SHA 고정 raw + `git clone --depth 3`로 재확인(변경 파일 1개, +4/-0, 바이트 동일). 전달 스크립트(`96cha_pi_checklist7_v1.ps1`)는 pwsh 7.6.6(Linux)으로 구문 파싱(오류 0), 로컬 bare 저장소 대상 전체 실행, 음성 테스트 2건(앵커 오기입/원본 SHA 불일치 -> 모두 push 없이 중단)을 거침 -- Windows PowerShell 5.1 실행 검증은 아님. 이번 devnotes 스크립트도 같은 방식으로 검증. 코드 변경 없어 py_compile 등 정적 검증은 해당 없음. 실차 검증 대상 아님(12절 무관).
 
 주의사항:
 - carrot-ryu(코드)는 이번 세션에서 전혀 건드리지 않았으며 93차 상태(25f21d4) 그대로임.
-- "코드 수정 현황"의 항목별 "실차 검증: 미실시" 개별 줄은 이번 세션에서 전부 고치지 않고(리스크 대비 범위 축소), 대신 95차 신규 bullet에 결과를 요약함 -- 다음 세션에서 필요시 항목 13~19/30~36 줄에도 개별 반영 검토.
-- 이전 95차 스크립트 1차 시도는 콘솔에 직접 붙여넣어 한글 리터럴이 콘솔 코드페이지로 깨져 WIP_SYNC.md anchor 0회 매치로 안전 중단됨(commit/push 없음). 원인 확정 후 .ps1 파일 저장+UTF-8 명시 읽기로 교체한 이 스크립트로 재시도.
-- 95차 스크립트 v2는 CURRENT_STATUS.md anchor에 94차 항목 실제 문구에 없는 접두("반영 스크립트 ")를 넣어 anchor 0회 매치로 commit 전 안전 중단됨(반영 사고 없음, 핵심 발견 44와 동일한 증상이나 CRLF가 아니라 앵커 텍스트 자체의 오기입이 원인 -- Linux에서 SHA 고정 원본으로 재현/확정). 앵커를 실제 문구로 정정하고 HANDOFF 마지막 개행 복원(핵심 발견 37)을 추가한 v3로 재시도.
-- FINDINGS.md는 혼합 개행(상단 889줄 CRLF, 890행 이후 LF)이므로 LF 정규화 후 전체 재작성 금지, 개행 보존 삽입만 사용.
+- "코드 수정 현황"의 항목별 "실차 검증: 미실시" 개별 줄은 아직 고치지 않았고(95차 신규 bullet에 결과 요약), 필요시 항목 13~19/30~36 줄에도 개별 반영 검토.
+- FINDINGS.md는 혼합 개행(상단 889줄 CRLF, 890행 이후 LF, 핵심 발견 45 참고)이므로 LF 정규화 후 전체 재작성 금지, 개행 보존 삽입만 사용. WIP.md/CURRENT_STATUS.md/HANDOFF.md는 LF, BOM 없음(WIP.md는 끝 개행 없음, CURRENT_STATUS.md/HANDOFF.md는 끝 개행 있음).
+- 스크립트 전달 시 9절 체크리스트 1~7번(특히 이번에 추가된 7번: 전달할 .ps1에서 앵커를 추출해 SHA 고정 원본에 시뮬레이션)을 명령 출력과 함께 응답에 포함할 것. 앵커는 기억이 아니라 최신 SHA 원본에서 복사.
+- 사용자가 "완료"만 보고하고 로그를 주지 않은 경우에도 완료로 가정하지 말고 GitHub에서 직접 재확인(16절).
+- 콘솔에 스크립트를 직접 붙여넣으면 한글이 깨질 수 있으므로 .ps1 파일 저장 후 실행(95차 사고 참고, WIP.md 95차).
 
 다음 작업 후보:
 1. 세션 시작 시 carrot-ms에 `e324f67` 이후 신규 커밋이 있는지 확인(2절).
