@@ -3,6 +3,18 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (91차 계속2) -- carrot-ms 4d1a3ded 반영 완료 확인
+
+- carrot-ryu HEAD: f1e920d5c391d3ce44f647f29913a8b996a1a7c2 (91cha-2: reapply carrot-ms 4d1a3ded, 부모 260565f. `git ls-remote`+별도 clone으로 재검증 완료)
+- carrot-ryu-note HEAD: 34c5c9bb13af6e64edc793aaf0462f47e48d0cb0 (91차 계속 devnotes push 확인 완료)
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (변경 없음)
+- 89차 검토대상 4건 처리 현황(갱신):
+  1) b4f751f4 -> [반영 완료] carrot-ryu 260565f (90차, 91차에서 검증)
+  2) 4d1a3ded -> [반영 완료] carrot-ryu f1e920d (91차 계속에서 스크립트 작성, 91차 계속2에서 push/blob/계약 재검증 완료)
+  3) ec95363a / 557e6f6a -> [미반영] 다음 순서. ec95363a는 착수 전 상세 대조 필요(augmented_road_view.py/road_markings.py 레인 대시 영역, render_diagnostics.py 신규 파일, 테스트 파일 4개; 변경 파일 8개 +185/-39). 557e6f6a는 openpilot/selfdrive/modeld/precompiled_worker.py 1파일(+3/-1).
+- 계약 재점검(샌드박스, check_contracts.py, carrot-ryu f1e920d 기준): modeld-mirror PASS(반영 전 260565f는 FAIL). 나머지 FAIL 4건은 tinygrad_repo 부재로 인한 샌드박스 한계이며 반영 전후 동일.
+- e324f67(정지 lead 인계): 판단 이월 그대로.
+- 다음 세션 우선순위: ec95363a 상세 대조(변경 8개 파일, augmented_road_view.py/road_markings.py/render_diagnostics.py 우선) -> 반영 여부 정리 -> 승인 시 9절 방식 착수. 이후 557e6f6a, e324f67 필요 여부 판단.
 ## 체크포인트: 2026-09-19 (91차 계속) -- carrot-ms 4d1a3ded 반영 준비, 스크립트 실행/push 대기
 
 - carrot-ryu HEAD: 260565f187a2d934f0e27464457eee63c8ec233a (변경 없음. 4d1a3ded 반영 스크립트 `91cha2_4d1a3ded_carrot_ryu.ps1` 실행/push 대기 -- 다음 세션이 `git ls-remote`로 실제 HEAD를 확인할 것)

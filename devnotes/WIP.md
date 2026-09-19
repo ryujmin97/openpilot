@@ -1,5 +1,19 @@
 # WIP
 
+## 91차 계속2 — carrot-ms 4d1a3ded 반영 완료 확인(carrot-ryu `f1e920d`), check_contracts.py modeld-mirror PASS 재확인
+
+사용자가 `91cha2_4d1a3ded_carrot_ryu.ps1` 실행 로그를 전달했다. clone 단계에서 화면이 멈춘 것처럼 보였던 것은 `--quiet` 옵션 때문에 진행률 표시가 안 나온 것으로 안내했고, 이후 사용자가 완료 로그(`260565f..f1e920d`, 로컬/원격 HEAD 일치)를 전달해 `git ls-remote`와 별도 clone(`git clone --filter=blob:none --no-checkout`)으로 16절 재검증을 수행했다.
+
+확인 결과:
+1. `git ls-remote`: carrot-ryu HEAD `f1e920d5c391d3ce44f647f29913a8b996a1a7c2`, carrot-ryu-note HEAD `34c5c9bb13af6e64edc793aaf0462f47e48d0cb0` (사용자 로그와 일치).
+2. `f1e920d`의 부모는 `260565f` 그대로, 커밋 메시지는 스크립트에 지정한 그대로, 변경 파일 정확히 2개(carrot/model_selector/carrot_modeld.py, carrot/model_selector/upstream_baseline/modeld.py.baseline, +11/-80).
+3. 두 파일의 결과 blob(`9a5a62c678b5f4ce5fef789e28e2a6ec3c870da1`, `2ebe83365471da975dfb005b986ead5b7baa0dad`)이 carrot-ms `4d1a3ded`의 post-image blob과 byte 단위 일치.
+4. `check_contracts.py`를 새 HEAD(`f1e920d`)에 대해 재실행: `modeld-mirror`가 예상대로 PASS로 전환됨(반영 전 260565f에서는 FAIL). 나머지 FAIL 4건(script-paths/tinygrad-pickle-compat/compile-env-guards/wiring)은 샌드박스에 tinygrad_repo가 없는 환경 한계로, 반영 전후 동일해 무관함을 재확인.
+
+이로써 89차 검토대상 4건 중 두 번째(`4d1a3ded`)가 반영 완료로 확정됐다. WIP_SYNC.md/CURRENT_STATUS.md/HANDOFF.md의 해당 표기를 정정하고, 남은 두 건(`ec95363a` -> `557e6f6a`, 커밋 발생 순서) 및 `e324f67` 분류 이월 항목으로 다음 세션을 이어간다. 이번 항목은 devnotes만 갱신하며 코드 변경은 없다.
+
+실차 검증: 미실시(이번 항목은 GitHub 재확인과 샌드박스 계약 점검뿐).
+
 ## 91차 계속 — carrot-ms 4d1a3ded 반영 준비(model selector 미러 carrot_modeld.py + upstream_baseline), WIP_SYNC.md 널바이트 정정
 
 사용자가 91차 devnotes 반영 스크립트 실행을 알려와 GitHub에서 재확인했다(4절/16절): carrot-ryu-note HEAD `b55388c`(부모 `b7013c6`, 변경 파일 4개), SHA 고정 raw 조회로 HANDOFF.md가 91차로 시작하고 WIP.md 최상단이 91차임을, WIP_SYNC.md가 CRLF 163줄/LF 혼입 0/91차 체크포인트 포함임을 확인했다. carrot-ryu는 `260565f` 그대로. 이 시점부터 새 원칙(사용자 지시, 2026-09-19): 코드 변경 시 devnotes 기록도 같은 세션에서 동시에 진행한다. 이번 항목부터 코드 반영 스크립트와 devnotes 스크립트를 같은 응답에서 함께 전달한다.
