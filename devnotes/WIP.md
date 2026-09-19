@@ -1,5 +1,21 @@
 # WIP
 
+## 91차 계속 — carrot-ms 4d1a3ded 반영 준비(model selector 미러 carrot_modeld.py + upstream_baseline), WIP_SYNC.md 널바이트 정정
+
+사용자가 91차 devnotes 반영 스크립트 실행을 알려와 GitHub에서 재확인했다(4절/16절): carrot-ryu-note HEAD `b55388c`(부모 `b7013c6`, 변경 파일 4개), SHA 고정 raw 조회로 HANDOFF.md가 91차로 시작하고 WIP.md 최상단이 91차임을, WIP_SYNC.md가 CRLF 163줄/LF 혼입 0/91차 체크포인트 포함임을 확인했다. carrot-ryu는 `260565f` 그대로. 이 시점부터 새 원칙(사용자 지시, 2026-09-19): 코드 변경 시 devnotes 기록도 같은 세션에서 동시에 진행한다. 이번 항목부터 코드 반영 스크립트와 devnotes 스크립트를 같은 응답에서 함께 전달한다.
+
+남은 3건의 처리 순서는 사용자가 Claude 판단에 위임했다("너가 합리적이라 생각하는것부터"). 커밋 발생 순서상 다음이자 90차 반영의 직접 후속인 4d1a3ded(model selector 미러를 공유 camera_sync에 맞춤)를 먼저 골랐다. 근거:
+1. `carrot/model_selector/check_contracts.py`(표준 라이브러리만 사용)의 `modeld-mirror` 계약이 carrot-ryu 260565f에서 FAIL이다("마지막 미러 리뷰 이후 변경됨: modeld.py"). 90차가 modeld.py를 바꿨는데 upstream_baseline/modeld.py.baseline 스냅샷과 carrot_modeld.py 미러는 그대로이기 때문이다. 샌드박스에서 세 상태를 비교했다: carrot-ms b4f751f4(4d1a3ded 직전) FAIL, carrot-ms 4d1a3ded PASS, carrot-ryu 260565f FAIL. 나머지 FAIL 4건(script-paths/tinygrad-pickle-compat/compile-env-guards/wiring)은 샌드박스에 tinygrad_repo가 없어서이며 세 상태에서 동일하므로 무관하다.
+2. 대상 두 파일(carrot/model_selector/carrot_modeld.py, carrot/model_selector/upstream_baseline/modeld.py.baseline)의 4d1a3ded 직전 blob이 carrot-ryu 260565f의 blob과 동일(각각 `1d9eb7ecc5409f7eca1bed94d8911fd13615325e`, `59ea2ab20b420acc54875cde6914600f2d07f882`)해서 충돌 없이 적용 가능하다.
+
+4d1a3ded 내용(carrot-ms 커밋 메시지 기준): 미러의 자체 FrameMeta와 고정 25 ms 수신 루프를 제거하고 공유 `camera_sync.receive_camera_pair()`를 호출하도록 바꾼다(변경 파일 2개, +11/-80). 커밋이 의도적으로 포팅하지 않은 부분(precompiled_runner의 fused backend publish, dropped-frame 로그 문구 "advancing model history")은 미러에 적용되지 않고 미러의 기존 로그 문구가 유지된다. carrot_modeld.py 쪽 변경은 미러 경로에만 영향을 주며 modeld 본체는 90차에서 이미 같은 변경이 반영돼 있다. DH 2015에서 모델 셀렉터 미러 경로가 실제로 쓰이는지는 확인하지 못했다.
+
+반영 방식: 9절 Replace-Block(carrot_modeld.py 3블록, modeld.py.baseline 4블록). 블록을 4d1a3ded 직전 blob에 순차 적용한 결과가 4d1a3ded의 blob(`9a5a62c678b5f4ce5fef789e28e2a6ec3c870da1` / `2ebe83365471da975dfb005b986ead5b7baa0dad`)과 byte 단위로 일치함을 사전에 확인했다. 반영 스크립트는 실행 시점에도 시작 blob 일치, 블록 1회 매치, 결과 blob 일치, py_compile 순으로 검증하고 하나라도 어긋나면 push 전에 중단한다. 스크립트: `91cha2_4d1a3ded_carrot_ryu.ps1`(carrot-ryu, 사용자 실행 대기), `91cha2_devnotes_carrot_ryu_note.ps1`(carrot-ryu-note, 이 기록).
+
+부수: WIP_SYNC.md의 널바이트 1개를 정정했다(널바이트 + `2015190f58a4380a433ee0130e6374455dddc2e` -> `02015190f58a4380a433ee0130e6374455dddc2e`). 같은 해시가 이 파일의 다른 두 곳(6~7차 체크포인트의 carrot-ryu HEAD/carrot-ms HEAD 줄)에 앞자리 0를 포함한 정상 표기로 있는 것과 앞 회차의 WIP.md 정정 사례(87차)를 근거로 했다. 91차 체크포인트가 이 항목을 116행이라고 적은 것은 91차 체크포인트 13줄이 삽입되기 전 줄 번호다(삽입 후 129행).
+
+실차 검증: 미실시(이번 코드 반영분은 반영 스크립트 실행/push 전이며, 그 후에도 36개 항목 및 b4f751f4/4d1a3ded 재적용분 전부 미실시). 상세: WIP_SYNC.md 91차 계속 체크포인트, HANDOFF.md 참고.
+
 ## 91차 — 90차 코드 push(carrot-ms b4f751f4 재적용, `260565f`) devnotes 사후 동기화 + 패치 대조/정적 검증, carrot-ms 신규 1건(e324f67) 발견
 
 세션 시작 체크포인트(4절 0단계, `git ls-remote`)로 carrot-ryu-note `b7013c6`(89차 devnotes), carrot-ryu `260565f187a2d934f0e27464457eee63c8ec233a`를 확인했다. HANDOFF.md(89차)는 코드 브랜치를 `0923f83`(변경 없음)으로 기록하고 있어 두 브랜치가 서로 다른 시점을 가리키고 있었다(16절). 조회 결과 `260565f`는 부모가 `0923f83`인 커밋 1개("90cha: reapply carrot-ms b4f751f4 - camera pair sync, curve release confirm window, path_geometry extraction", 2026-09-19 13:06 +0900, 작성자 RYU)였고, WIP.md/HANDOFF.md/CURRENT_STATUS.md/WIP_SYNC.md 어디에도 "90차" 기록이 없었다. 90차 세션이 코드 push까지만 마치고 devnotes 반영 전에 끊긴 것으로 보인다(핵심 발견 27/38과 동일 패턴). 90차 세션 자체의 진행 경위(승인 대화, 당시 실행한 검증)는 devnotes에 남아 있지 않아 확인하지 못했다. 아래는 이번 세션이 GitHub 상태를 독립적으로 재검증한 내용이다. 사용자 승인('진행')을 받은 범위는 이 검증과 devnotes 사후 동기화까지이며, 남은 3건의 코드 반영은 승인 범위 밖이라 착수하지 않았다.

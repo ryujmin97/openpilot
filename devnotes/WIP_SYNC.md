@@ -3,6 +3,22 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (91차 계속) -- carrot-ms 4d1a3ded 반영 준비, 스크립트 실행/push 대기
+
+- carrot-ryu HEAD: 260565f187a2d934f0e27464457eee63c8ec233a (변경 없음. 4d1a3ded 반영 스크립트 `91cha2_4d1a3ded_carrot_ryu.ps1` 실행/push 대기 -- 다음 세션이 `git ls-remote`로 실제 HEAD를 확인할 것)
+- carrot-ryu-note HEAD: b55388c6b700885b0c3f5bde66e9e6f3618adf8c (91차 devnotes 반영 확인 완료)
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (91차와 동일)
+- 89차 검토대상 4건 처리 현황:
+  1) b4f751f4 -> [반영 완료] carrot-ryu 260565f (90차, 91차에서 검증)
+  2) 4d1a3ded -> [반영 스크립트 준비, 실행/push 대기] 사용자가 처리 순서를 Claude 판단에 위임(2026-09-19). 90차 반영으로 `modeld-mirror` 계약(check_contracts.py)이 FAIL인 상태를 해소하는 직접 후속이라 먼저 선택.
+  3) ec95363a / 557e6f6a -> [미반영] 반영 승인 기록 없음. 4d1a3ded 다음 순서로 진행 예정이며 ec95363a는 착수 전 상세 대조 필요(augmented_road_view.py/road_markings.py 레인 대시 영역, render_diagnostics.py 신규 파일, 테스트 파일 4개; 변경 파일 8개 +185/-39). 557e6f6a는 openpilot/selfdrive/modeld/precompiled_worker.py 1파일(+3/-1).
+- 4d1a3ded 상세(happymaj11r Hermes Agent, 2026-09-18): "Adapt model selector mirror to shared camera pairing". carrot/model_selector/carrot_modeld.py(미러)에서 자체 FrameMeta와 25 ms 고정 수신 루프를 제거하고 공유 camera_sync.receive_camera_pair()를 호출. carrot/model_selector/upstream_baseline/modeld.py.baseline 스냅샷은 check_contracts.py --sync-baselines로 갱신됨(parse_model_outputs.py.baseline은 변경 없음). +11/-80, 파일 2개. 의도적 미포팅: precompiled_runner의 fused backend publish, dropped-frame 로그 문구(미러는 prepare_only에서 정책 추론을 건너뛰므로 기존 문구가 정확).
+- 충돌위험 사전 확인: 두 파일의 4d1a3ded 직전(pre-image) blob이 carrot-ryu 260565f blob과 동일(carrot_modeld.py 1d9eb7ecc5409f7eca1bed94d8911fd13615325e, modeld.py.baseline 59ea2ab20b420acc54875cde6914600f2d07f882). 스크립트의 Replace-Block 블록(3개+4개)을 pre-image에 순차 적용한 결과가 4d1a3ded의 blob(9a5a62c678b5f4ce5fef789e28e2a6ec3c870da1 / 2ebe83365471da975dfb005b986ead5b7baa0dad)과 byte 일치함을 확인.
+- 계약 점검(샌드박스, check_contracts.py): modeld-mirror -- carrot-ms b4f751f4 FAIL / carrot-ms 4d1a3ded PASS / carrot-ryu 260565f FAIL. 나머지 FAIL 4건은 tinygrad_repo 부재(샌드박스 한계)로 세 상태 동일. 반영 후 carrot-ryu에서 modeld-mirror가 PASS가 되는지는 반영 뒤 재확인 대상.
+- 영향 범위: 모델 셀렉터 미러(carrot_legacy) 경로만. DH 2015에서 이 경로가 실제로 쓰이는지는 미확인. 미러가 쓰이지 않는다면 동작 영향은 없고 계약 baseline 정합만 맞춰진다.
+- e324f67(정지 lead 인계): 판단 이월 그대로.
+- 정정: 앞 91차 체크포인트의 "기지 이슈"(이 파일의 널바이트 1개)는 이번에 정정했다(널바이트 + 2015190f58a4380a433ee0130e6374455dddc2e -> 02015190f58a4380a433ee0130e6374455dddc2e).
+- 다음 확인 시점: 사용자가 반영 스크립트를 실행한 뒤 `git ls-remote`로 carrot-ryu HEAD 확인 -> 부모가 260565f이고 변경 파일이 2개뿐인지 확인하고, 이 파일의 4d1a3ded 항목을 "반영 완료"로 갱신. 이후 ec95363a 착수 전 상세 대조.
 ## 체크포인트: 2026-09-19 (91차) -- 90차 코드 push(b4f751f4 재적용) 사후 동기화/검증, carrot-ms 신규 1건(e324f67) 발견
 
 - carrot-ryu HEAD: 260565f187a2d934f0e27464457eee63c8ec233a (부모 0923f83. 90차 커밋 1개 추가: "90cha: reapply carrot-ms b4f751f4 - camera pair sync, curve release confirm window, path_geometry extraction", 2026-09-19 13:06 +0900). 이번 세션은 코드 미변경.
@@ -126,7 +142,7 @@ hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
 - carrot-ryu HEAD: 9ccf1206a034c5fb5e5f35201553f9fc4e5237e5 (커밋메시지 "55cha: flip render-texture screenshot vertically" 기준)
 - carrot-ms(happymaj11r/openpilot) HEAD: 904fd107b529f4636846bedcf645e102fce007b7 (2026-09-16)
-- fork point(carrot-ryu가 갈라져 나온 carrot-ms 커밋):  2015190f58a4380a433ee0130e6374455dddc2e(6~7차 체크포인트와 동일) -- git merge-base --is-ancestor로 현재 carrot-ryu HEAD의 조상임을 재확인.
+- fork point(carrot-ryu가 갈라져 나온 carrot-ms 커밋): 02015190f58a4380a433ee0130e6374455dddc2e(6~7차 체크포인트와 동일) -- git merge-base --is-ancestor로 현재 carrot-ryu HEAD의 조상임을 재확인.
 - **모델 셀렉터 전용 커밋 41건 전수 조사**: carrot-wip(ajouatom)/carrot-ms(happymaj11r)를 각각 --filter=blob:none bare clone 후 커밋 메시지 집합 비교(api.github.com rate limit 회피, 2절 방식)로 carrot-ms 전용 커밋 117건을 추출, 그중 model_selector/eGPU/modeld mirror 관련 41건을 필터링. git merge-base --is-ancestor <commit> 02015190f5로 표본 10건(최초 도입~최신 mirror 갱신 전 구간 포함) 전수 검증한 결과 **전부 fork point의 조상 -> 이미 carrot-ryu에 반영됨. 신규 반영 대상 0건**. carrot-ryu의 carrot/model_selector/도 fork 이후 무수정 상태이며 upstream 침습 지점 6곳(README 명시) + params_keys.h 등록 모두 정상 확인.
 - **40차에서 "모델셀렉터/Cinque v2"로 분류했던 3건**(Consolidate Carrot development with Cinque v2 / Record Cinque v2 delivery verification / Use Cinque v2 eGPU model from PR 38823)은 이후 carrot-wip 본류에 흡수(merge)돼 더 이상 carrot-ms 전용이 아님 -- 앞으로는 일반 carrot-wip 동기화 경로로 유입됨.
 - **fork point 이후 carrot-ms 전용 신규 커밋 25건**(git log 02015190f5..carrot-ms, 40차의 23건 + 이후 2건: ce8cbffe "Disable C3XL fan supply", 904fd107 "Fix stopping acceleration at -0.5"). 개별 반영 여부 미검토.
