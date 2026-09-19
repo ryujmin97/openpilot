@@ -3,6 +3,13 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-19 (95차) -- carrot-ms e324f67 이후 신규 커밋 없음 재확인, carrot-ryu 25f21d4 디바이스 실배포 확인(20절 7항)
+
+- carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (변경 없음, git ls-remote 재확인 -- 93차 체크포인트와 동일)
+- 디바이스 배포 확인: 사용자가 도구 탭 "브랜치 변경"(브랜치 목록에서 carrot-ryu 재선택 -> 재체크아웃/재빌드)으로 origin/carrot-ryu 전환 실행. 사용자 업로드 tmux 로그 2건(변경 전/후)의 metadata.json git_commit + tmux.log 부팅 로그("Carrot GitBranch = ...")로 carrot-ryu-v1(c81aef07) -> carrot-ryu(25f21d406d23bfb79ad45a67890cc39e3ad9e67b, 93차 최종 HEAD와 일치) 전환을 직접 재확인. 디바이스가 61차 force reset으로 히스토리가 갈라져 있어 git pull이 아니라 "브랜치 변경"(재체크아웃)이 필요했음을 사용자가 확인.
+- 첫 실차 UI 검증 결과 상세는 CURRENT_STATUS.md 95차 계속 참고(스크린샷 캡처 체인 항목30~36 + 경로안내 박스 항목13~19 첫 실차 확인).
+- 다음 세션 우선순위: 항목1·2 및 carrot-ms 4건(b4f751f4 등, 종방향 관련)의 실주행 검증, 사용자 업로드 route 로그(qcamera.ts+rlog.zst) 분석 목적 확인 후 진행.
+
 ## 체크포인트: 2026-09-19 (93차 계속) -- 557e6f6a 반영 완료 확인, e324f67 제외 확정, 89차 검토대상 4건 종결
 
 - carrot-ryu HEAD: 25f21d406d23bfb79ad45a67890cc39e3ad9e67b (93cha: reapply carrot-ms 557e6f6a, 부모 9eced40. `git ls-remote`+blobless clone으로 재검증: 변경 파일 1개 +3/-1, 결과 blob d04b52ce89e5가 원본 post-image와 일치)
