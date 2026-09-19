@@ -1,5 +1,38 @@
 # WIP
 
+## 100차 (Claude) — 99차 게이트 반영 후 회귀 테스트 39개 실패 발견, 테스트 하네스만 수정(코드 변경 없음)
+
+**세션 시작(4절 0단계)**: `git ls-remote`로 carrot-ryu-note HEAD `044a1d1`을 얻어 SHA 고정 raw로 지침 문서(v2)를 조회했다. HANDOFF.md(99차분)도 같은 SHA로 읽었다. carrot-ryu `f87083e`, carrot-ms `e324f67`(변경 없음) 확인.
+
+**HANDOFF.md 정정(16절)**: 99차 HANDOFF.md는 "반영 스크립트 실행/push 대기"로 적혀 있었으나, 실제로는 코드(`f87083e`)·devnotes(`044a1d1`) 둘 다 이미 push 완료돼 있었다. `git diff 25f21d4 f87083e`로 변경 파일이 long_mpc.py 1개뿐이고 99차 설계(GATE_* 상수 / `_gate_raw()` / `process_lead(self, lead, lead_index)` / `reset()` 초기화 / 호출부 2곳)와 정확히 일치함을 재확인했다. 이번 HANDOFF에서 정정.
+
+**업로드 로그(9/18 기록, carrot-ryu-v1 `9ccf1206`)로 패치된 코드(f87083e) 재생 검증**: toolkit/lead_decel(97~98차 등록) 절차로 환경을 복원해(스키마는 `9ccf1206` sparse-checkout) 26개 aLeadK<-1 이벤트를 다시 추출했다(97~98차와 동일). long_mpc.py의 게이트 코드(`GATE_*`/`_gate_raw`/`process_lead`)를 파일에서 그대로 추출해 스텁으로 실행하는 단위검증 도구(`gate_replay.py`, 신규)를 작성해 아래를 확인했다:
+- `_gate_raw()`가 독립 명세(98차 `gating_eval.py`의 `gate_raw()`)와 343개 표본에서 완전히 일치(max|diff|=0).
+- 시간차 1.5 s 미만(h<h_lo, g=1)에서는 패치본이 기존 코드와 비트 단위로 동일(300/300 표본).
+- 하강은 1 s LPF, 상승은 즉시라는 설계대로 동작(LPF 20스텝 후 g=(1-dt/tau)^20 수치 일치).
+- 리드가 사라지면 해당 인덱스만 g=1로 리셋되고 다른 인덱스는 유지됨, `status=False`(leadTwo)도 동일.
+- `cloudlog.debug`는 g<1일 때만 초당 1회 이하로 호출됨, g=1이면 호출 없음.
+- 극단 입력(정지/초근접/원거리)에서 예외·NaN 없음.
+
+이 `gate_replay.py`로 26개 이벤트를 폐루프(97~98차 `mpc_replica`/`closed_loop` 방식 재사용) A/B 비교했다: 기존 코드 결과는 98차 수치와 일치하게 재현됐고, 패치 결과는 98차에 기록된 B안(G2T) 수치와 ±0.01 이내로 일치했다(예: #5 최대감속 -2.10→-1.91, #8 -2.75→-2.30, #22 -2.05→-1.21; 최소 시간차도 각각 개선). 123/124 구간의 tFollow 1.1~1.6대(#18~21)는 g가 0.7~1이라 게이트가 사실상 열려 있어 기존과 결과가 같았고(안전한 방향), tFollow 1.6 평상 추종 구간은 g 평균이 대체로 0.1~0.45로 게이트가 대부분 열려 있었다. #11은 구간 시작 아티팩트라 제외.
+
+**회귀 발견(핵심)**: 99차 게이트 반영 후 기존 테스트 2개 파일에서 총 39개 실패를 발견했다 — `test_cutout_mpc_integration.py` 12개(기존 25f21d4에서는 17개 전부 통과), `test_longitudinal_gap_recovery.py` 27개(기존에는 78개 전부 통과). 두 파일 모두 `ast.parse`로 production `long_mpc.py`의 함수/클래스 노드를 뽑아 stub 네임스페이스에서 `exec`하는 방식(하네스가 소스를 직접 실행)이라, 원인은 실행 코드(long_mpc.py)가 아니라 하네스 자체였다:
+1. `test_cutout_mpc_integration.py`의 가짜 `process_lead(l)`가 인자 1개만 받는데, `update()`가 이제 `process_lead(radarstate.leadOne, 0)`처럼 2개를 넘겨 `TypeError`.
+2. `test_longitudinal_gap_recovery.py`의 stub 네임스페이스(`ns`)에 새로 참조된 `GATE_H_LO/HI`, `GATE_T_LO/HI`, `GATE_TAU_G`, `GATE_TAU_TARGET` 모듈 상수와 `time`, `cloudlog`가 없어 `NameError`.
+
+**최소 수정(테스트 파일 2개, 프로덕션 코드 무변경)**: (a) `process_lead(l)` → `process_lead(l, lead_index=0)`. (b) `load_mpc_update()`의 `ns`에 `time`/`cloudlog`(no-op stub) 추가, `ast.parse` 결과에서 `GATE_`로 시작하는 모듈 레벨 `Assign` 노드를 함수/클래스 노드 앞에 추가로 포함하도록 한 줄 추가. 두 파일 다 SHA 고정 원본(`f87083e`)에서 Replace-Block 앵커 유일 매치(각 1회)를 확인했다.
+
+**검증**: 두 파일을 패치해 `openpilot`(f87083e sparse clone, cereal/opendbc 스키마 포함)에서 `pytest`를 실제로 실행 — 95개 전부 통과(17+78). `py_compile` 통과. 반영 스크립트(`100cha_test_fix_carrot_ryu.ps1`)의 전달본에서 `$Old`/`$New` 3쌍을 정규식으로 추출해 SHA 고정 원본에 재시뮬레이션 → 전부 1회 매치, 재구성한 파일이 사전 설계본과 diff 없음, `py_compile` 재통과, 그 결과로 실제 pytest도 95개 통과까지 재확인했다(9절 체크리스트 7번). 체크리스트 1~6번도 스크립트 코드 자체에서 확인(BOM `EF BB BF`, 모든 `git clone`에 `core.autocrlf=false`, `finally`에 `Remove-Item -Recurse -Force`, `Get-PythonCmd`+EOF 공급, 전체쓰기는 `WriteAllText(...,UTF8Encoding($false))`만 사용 후 BOM 없음 확인, 치환 결과 재확인 로직 존재).
+
+**영향받지 않는 것으로 확인**: `test_following_distance.py`, `test_long_mpc_a_change_cost.py`는 `process_lead`/`GATE_` 심볼을 참조하지 않음을 grep으로 확인(파일 내 매치 0건). 다만 이 두 파일은 `cereal`(capnp 네이티브 빌드)과 `opendbc.can`(C 확장) 전체 빌드가 필요해 이번 세션 샌드박스에서 직접 실행은 못 했다(pycapnp는 설치했으나 opendbc.can 네이티브 모듈이 없어 `ModuleNotFoundError`) — grep 결과로 낮은 위험만 확인했고 실제 실행 검증은 아니다.
+
+**이번 세션에서 하지 못한 것(다음 세션 후보)**: (a) 거리 -10/-20 m 스트레스 시나리오를 f87083e 패치본으로 재실행(98차는 후보 비교용, 이번엔 실제 반영본 검증용으로 다시 필요). (b) 주행 전체(9개 세그먼트 전체, 26개 이벤트 외 구간)에서 게이트 노출 빈도(g<1 비율) 통계. (c) leadTwo 쪽 게이트 동작(98차 분석은 leadOne 기준)은 여전히 실차/시뮬 양쪽에서 확인된 적 없음. (d) `gate_replay.py`를 `devnotes/toolkit/lead_decel/`에 정식 등록(README/CHANGELOG 갱신, 14절) — 이번 세션은 사용자가 나중에 하라고 지시해 보류.
+
+**한계**: (1) MPC는 casadi/IPOPT 복제본(acados 실물 아님), 강한 감속을 과소 재현한다(97~98차와 동일 한계). (2) 로그의 tFollow는 v1(`9ccf1206`) 기준이라 현재 carrot-ryu 설정과 다를 수 있다. (3) v1에만 있던 `SafeFollow` 관련 코드는 기록된 설정(`LeadAccelResponse=0`)에서 꺼져 있었다고 보고 이번 재현 검증에서 무시했다(97~98차와 동일 처리). (4) `cloudlog.debug`가 실제 콤마 디바이스의 swaglog에 정상적으로 남는지는 확인하지 못했다. **정적 분석/오프라인 시뮬레이션 단계이며 실차 검증: 미실시.**
+
+**다음 세션 최우선**: (a) 사용자가 `100cha_test_fix_carrot_ryu.ps1` 실행 → push 확인(GitHub API/raw로 재확인, 16절). (b) 실차 배포 후 swaglog `lead_gate` 태그 관찰(99차부터 이월). (c) 위 "하지 못한 것" (a)(b)(c) 진행 여부 판단. (d) `gate_replay.py` toolkit 등록 여부 사용자 확인.
+
+
 ## 99차 (Claude) — B안(G2T) 리드 감속 게이팅 코드 설계/구현, long_mpc.py 반영 스크립트 작성(실행/push 대기)
 
 **세션 시작(4절 0단계)**: `git ls-remote`로 carrot-ryu-note HEAD `d5cc1df`를 얻어 SHA 고정 raw로 지침 문서(v2)를 조회했다. HANDOFF.md/CURRENT_STATUS.md/WIP.md(98차)도 같은 SHA로 읽었다. carrot-ryu `25f21d4`, carrot-ms `e324f67` 모두 변경 없음(drift 없음).
