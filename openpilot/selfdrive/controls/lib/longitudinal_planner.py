@@ -29,19 +29,9 @@ from openpilot.common.params import Params
 
 LON_MPC_STEP = 0.2  # first step is 0.2s
 A_CRUISE_MIN = -2.0 #-1.2
-A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
-A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
-ALLOW_THROTTLE_THRESHOLD = 0.5
-MIN_ALLOW_THROTTLE_SPEED = 2.5
 RESET_DECEL_RAMP_TIME = 2.0
 
-
-def get_max_accel(v_ego):
-  return np.interp(v_ego, A_CRUISE_MAX_BP, A_CRUISE_MAX_VALS)
-
-def get_coast_accel(pitch):
-  return np.sin(pitch) * -5.65 - 0.3  # fitted from data using xx/projects/allow_throttle/compute_coast_accel.py
 
 
 class LongitudinalPlanner:
@@ -56,7 +46,6 @@ class LongitudinalPlanner:
 
     self.a_desired = init_a
     self.v_desired_filter = FirstOrderFilter(init_v, 2.0, self.dt)
-    self.prev_accel_clip = [ACCEL_MIN, ACCEL_MAX]
     self.output_a_target = 0.0
     self.output_a_target_base = 0.0
     self.output_v_target_now = 0.0
@@ -108,19 +97,10 @@ class LongitudinalPlanner:
       v = np.zeros(len(T_IDXS_MPC))
       a = np.zeros(len(T_IDXS_MPC))
       j = np.zeros(len(T_IDXS_MPC))
-    if len(model_msg.meta.disengagePredictions.gasPressProbs) > 1:
-      throttle_prob = model_msg.meta.disengagePredictions.gasPressProbs[1]
-    else:
-      throttle_prob = 1.0
-    return x, v, a, j, throttle_prob
+    return x, v, a, j
 
   def update(self, sm, carrot):
     self.mpc.mode = 'blended' if sm['selfdriveState'].experimentalMode else 'acc'
-
-    if len(sm['carControl'].orientationNED) == 3:
-      accel_coast = get_coast_accel(sm['carControl'].orientationNED[1])
-    else:
-      accel_coast = ACCEL_MAX
 
     v_ego = sm['carState'].vEgo
     v_cruise_kph = min(sm['carState'].vCruise, V_CRUISE_MAX)
@@ -148,7 +128,6 @@ class LongitudinalPlanner:
     prev_accel_constraint = not (reset_state or sm['carState'].standstill)
 
     if self.mpc.mode == 'acc':
-      #accel_limits = [A_CRUISE_MIN, get_max_accel(v_ego)]
       accel_limits = [A_CRUISE_MIN, carrot.get_carrot_accel(v_ego)]
       curvature_future = get_future_curvature(sm['modelV2'], sm['controlsState'].desiredCurvature)
       a_lat_max = 3.0
@@ -187,14 +166,9 @@ class LongitudinalPlanner:
 
     # Prevent divergence, smooth in current v_ego
     self.v_desired_filter.x = max(0.0, self.v_desired_filter.update(v_ego))
-    x, v, a, j, throttle_prob = self.parse_model(sm['modelV2'])
-    # Don't clip at low speeds since throttle_prob doesn't account for creep
-    self.allow_throttle = True #throttle_prob > ALLOW_THROTTLE_THRESHOLD or v_ego <= MIN_ALLOW_THROTTLE_SPEED
-
-    if not self.allow_throttle:
-      clipped_accel_coast = max(accel_coast, accel_limits_turns[0])
-      clipped_accel_coast_interp = np.interp(v_ego, [MIN_ALLOW_THROTTLE_SPEED, MIN_ALLOW_THROTTLE_SPEED*2], [accel_limits_turns[1], clipped_accel_coast])
-      accel_limits_turns[1] = min(accel_limits_turns[1], clipped_accel_coast_interp)
+    x, v, a, j = self.parse_model(sm['modelV2'])
+    # allowThrottle은 UI(model_renderer) 호환용 메시지 필드라 항상 True로 발행한다.
+    self.allow_throttle = True
 
     if force_slow_decel:
       v_cruise = 0.0
@@ -341,10 +315,6 @@ class LongitudinalPlanner:
       output_v_target_now = min(output_v_target_mpc, output_v_target_now_e2e)
       self.output_should_stop = output_should_stop_e2e or output_should_stop_mpc
 
-    #for idx in range(2):
-    #  accel_clip[idx] = np.clip(accel_clip[idx], self.prev_accel_clip[idx] - 0.05, self.prev_accel_clip[idx] + 0.05)
-    #self.output_a_target = np.clip(output_a_target, accel_clip[0], accel_clip[1])
-    #self.prev_accel_clip = accel_clip
     self.output_a_target_base = output_a_target_base
     self.output_a_target = output_a_target
     self.output_v_target_now = output_v_target_now

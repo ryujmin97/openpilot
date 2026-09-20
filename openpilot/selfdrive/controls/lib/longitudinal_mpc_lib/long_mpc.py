@@ -72,19 +72,6 @@ GATE_T_LO, GATE_T_HI = 6.0, 12.0     # TTC 임계값 (s)
 GATE_TAU_G = 1.0                     # 하강 시정수 (s), 상승은 즉시
 GATE_TAU_TARGET = 1.5                # 약화 시 투사 aLeadTau 목표값
 
-def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
-  if personality==log.LongitudinalPersonality.moreRelaxed:
-    return 1.0
-  elif personality==log.LongitudinalPersonality.relaxed:
-    return 1.0
-  elif personality==log.LongitudinalPersonality.standard:
-    return 1.0
-  elif personality==log.LongitudinalPersonality.aggressive:
-    return 0.5
-  else:
-    raise NotImplementedError("Longitudinal personality not supported")
-
-
 def get_a_change_cost(prev_accel_constraint: bool, a_change_cost_starting: float,
                       response_factor: float = 1.0) -> float:
   base_cost = A_CHANGE_COST if prev_accel_constraint else a_change_cost_starting
@@ -332,7 +319,6 @@ class LongitudinalMpc:
                   a_change_cost_starting=A_CHANGE_COST_STARTING,
                   a_change_cost_factor=1.0,
                   jerk_cost_factor=1.0):
-    #jerk_factor = get_jerk_factor(personality)
     if self.mode == 'acc':
       a_change_cost = get_a_change_cost(
         prev_accel_constraint, a_change_cost_starting, a_change_cost_factor,
