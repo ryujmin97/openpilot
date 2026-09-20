@@ -1,35 +1,37 @@
-Worker: Claude (106차, Claude Sonnet 5)
+Worker: Claude (107차, Claude Sonnet 5)
 Date: 2026-09-20
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (HEAD `67b0aa933df429245fa6aa814c0438b1ca68c23d`, 105차 margin 하이브리드 게이트 반영 완료, 이번 106차 코드 변경 없음)
-Note Branch: carrot-ryu-note (base: `41270f79bcf24698299882e301d9f76119e91103`, 106차 devnotes push 완료를 git ls-remote로 확인. 이번 106차 계속 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+Code Branch: carrot-ryu (HEAD `67b0aa933df429245fa6aa814c0438b1ca68c23d`, 105차 margin 하이브리드 게이트 반영 상태, 107차 코드 변경 없음)
+Note Branch: carrot-ryu-note (base: `5b13e02b43e6a9bc926a3f6a92ae5c80191b4272`, 106차 계속 devnotes push 완료를 git ls-remote로 확인. 이번 107차 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
 carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(93차 확정, 이번 세션도 2절 신규 커밋 확인 안 함 -- 계속 이월)
 
 작업:
-105차 코드로 주행한 실차 로그(route 00000438--9c260778c7, seg 21~25)를 확인하고, 이벤트 16건 중 6건을 base/B(98차 채택)/M105(105차 실제 게이트)로 폐루프 재생 비교했다. 상세는 WIP.md 106차.
+106차 계속의 결정 대기 항목에 대해 사용자가 올린 로그(route 00000438--9c260778c7 seg 21~25)로 실차 로그 확인을 진행했다. 이 로그는 106차에서 분석한 것과 같은 주행분이다(이벤트 16건, lead_gate 291건 일치). 상세는 WIP.md 107차.
 
 완료:
-1. 105차 코드/devnotes push 완료를 GitHub에서 재확인. lead_gate swaglog 291건에서 이상값 없음(g 평균 0.089, m 1.01~1.92).
-2. 폐루프 재생(54회): M105의 base 대비 평균 완화 +0.004 m/s², B는 +0.051(idx8 +0.30, idx9 +0.08). **103차 우려(margin 계열이 idx8에서 B만큼 완화 못함)가 오늘 로그에서도 재현됨** -- 세션 앞부분 요약("의도대로 동작, 우려 재현 안 됨")은 방향을 잘못 읽은 것이라 WIP 106차에서 정정했다.
-3-a. (106차 계속) 튜닝 후보 (b) margin 임계 하향 스윕: 같은 10조합 평균 dAEmin B +0.075 / M1.0-1.2 +0.011 / M0.9-1.1 +0.069 / M0.8-1.0 +0.116 / M0.7-0.9 +0.125. M0.8/1.0이 idx8/9에서 B와 거의 같은 완화. 밴드를 더 내리면 근접/극단 구간에서 게이트가 안 열리는 경향(WIP 106차 계속). 코드 변경 없음.
-3. `gating_eval_105.py` 신규 + `merge_lead_series.py` CLI 인자 추가, toolkit README 갱신(반영 스크립트에 포함).
+1. 자차 실제 급감속 확인(105차 코드 주행 기록): 0.5 s 평균 aEgo < -1.0 구간은 idx8(t=155.3~158.6 s) 1건. 최대 aEgo -1.81, accelCmd -1.68, 시간차 h 2.19~2.55 s인 비위험 상황. 게이트 g가 제동 정점에서 0.96까지 풀림(m 1.24 -> 1.01). t=98.5 s의 -1.65는 0.05 s 센서 스파이크(실제 제동 아님).
+2. 복제본-실차 정합성: 16건 전부 M105 재생 vs 실차 aEgo(0.5 s 중앙값). 평균 |차이| 0.143, 최대 0.34, 평균 RMSE 0.203 m/s².
+3. 미재생 10건(idx 0,1,3,4,10~15, gap 오프셋 0)을 base/B/M105/M0.9-1.1/M0.8-1.0으로 재생: 후보 간 평균 차이 작음(dAEmin B +0.026 / M105 +0.016 / M0.9-1.1 +0.022 / M0.8-1.0 +0.023). 후보 차이는 idx8/9에서 나옴.
+4. toolkit 등록: ego_extract.py, ego_episodes.py, replay_ext.py, real_vs_replay.py (lead_decel/).
 
 미완료(다음 세션 최우선):
-1. 106차 계속 devnotes 반영 스크립트 실행 로그 확인 -> SHA 고정 조회로 재확인(16절).
-2. 사용자 결정(WIP 106차 계속의 표 참고): M105 게이트를 튜닝할지(WIP 106차 "튜닝 후보" a/b/c) 또는 실차 관찰을 더 할지. 튜닝 시 `gating_eval_105.py`의 M105 dict로 재생 후 코드 반영.
-3. 104차 기록 부재 확인(margin_gate_eval.py docstring이 104차를 명시하나 devnotes에 없음) 및 `margin_gate_eval.py`/`gate_replay.py`/`full_gate_stats.py`/`leadtwo_probe.py` toolkit 등록 여부.
-4. idx 0,1,3,4,10~15 재생(이번엔 6건만), 다른 route 로그로 교차 확인.
+1. 107차 devnotes 반영 스크립트 실행 로그 확인 -> SHA 고정 조회로 재확인(16절).
+2. 사용자 결정: `long_mpc.py`의 `GATE_M_LO/HI`를 0.8/1.0으로 변경할지(WIP 107차 "결정 대기"). 변경 시 코드 반영 스크립트(9절 Replace-Block + 정적 검증) 작성, 실차 배포(디바이스 git pull)는 사용자 확인 후. 변경하지 않으면 실차 관찰 계속.
+3. 다른 route(103차 이벤트 26건 셋) 교차 확인, gap 오프셋 -10/-20 확장 재생(미재생 10건은 오프셋 0만 함).
+4. 104차 기록 부재 확인(margin_gate_eval.py docstring이 104차를 명시하나 devnotes에 없음) 및 `margin_gate_eval.py`/`gate_replay.py`/`full_gate_stats.py`/`leadtwo_probe.py` toolkit 등록 여부.
 5. CURRENT_STATUS.md에 99차 게이트 항목 없음 -- 정리 필요.
-6. carrot-ms 신규 커밋 확인(2절), 화면녹화 탭/Drive 파이프라인/녹화 버튼 깜빡임 실차 검증 이월. 실차 배포(디바이스 git pull)는 사용자 확인 후.
+6. carrot-ms 신규 커밋 확인(2절), 화면녹화 탭/Drive 파이프라인/녹화 버튼 깜빡임 실차 검증 이월.
 
-검증: 복제본(mpc_replica, acados 아님) 재생이며 실차 검증: 미실시. 실차 주관 평가 "앞차 반응 좋음"은 수치 검증이 아니다.
+검증: 복제본(mpc_replica, acados 아님) 재생 + 로그 대조이며, 수정 코드(M0.8/1.0)의 실차 검증: 미실시. 실차 로그 항목은 105차 코드로 주행한 기록을 읽은 것이다.
 
 주의사항:
-- 재생 창 이벤트 6건x오프셋 3이라 표본이 작다. idx8/9는 minHw 2 s 이상 비위험 이벤트여서 "안전 문제"가 아니라 "불필요한 제동 미완화" 문제다.
+- 이번 로그는 106차와 같은 주행분이라 독립 표본이 늘지 않았다. 근거 사례는 idx8/9 위주이고 위험 이벤트는 없다(근접/극단 구간 반응은 결론 불가, 복제본 스트레스에서만 확인).
+- idx8/9는 시간차 2 s 이상의 비위험 이벤트여서 "안전 문제"가 아니라 "불필요한 제동 미완화" 문제다.
 - 문제 시 105차 코드 커밋을 `git revert`하면 `f78e51e`(B안)로 복귀.
+- raw aEgo에는 수십 ms짜리 센서 스파이크가 있다(예: t=98.5 s). 실제 제동 판단은 accelCmd/이동평균으로 한다.
 - GitHub API는 rate limit에 자주 걸린다 -- `git ls-remote`/`git clone`(--depth 1) 우선.
-- toolkit 재생 환경은 세션마다 초기화된다: 스키마는 로그를 기록한 커밋(105차 로그는 `67b0aa9`)의 cereal + opendbc car.capnp로 구성.
+- toolkit 재생 환경은 세션마다 초기화된다: 스키마는 로그를 기록한 커밋(105차 로그는 `67b0aa9`)의 cereal + opendbc car.capnp로 구성. 새 toolkit 스크립트는 폴더 배치(`../schema`, `../segs`)를 고정 가정한다(각 파일 docstring).
 
 다음 작업 후보:
-1. 반영 확인 -> 튜닝 여부 결정 -> 필요 시 재생 -> 코드 반영.
-2. 104차/toolkit 등록 여부 확인. 3. carrot-ms 신규 커밋 확인(2절).
+1. 반영 확인 -> GATE_M_LO/HI 결정 -> 필요 시 코드 반영 스크립트.
+2. 다른 route 교차 확인 / 104차·toolkit 등록 여부 / carrot-ms 신규 커밋 확인(2절).
