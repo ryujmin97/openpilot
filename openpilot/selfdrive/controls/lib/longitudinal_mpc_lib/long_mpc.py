@@ -63,9 +63,11 @@ T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 COMFORT_BRAKE = 2.5
 STOP_DISTANCE = 6.0
 
-# B안(G2T, 98차 devnotes 채택): 리드 감속 게이팅. 절대 시간차/TTC 임계값이라
-# tFollow가 짧으면 평상시에도 g<1이 될 수 있음(미검증, 실차 로그로 관찰).
-GATE_H_LO, GATE_H_HI = 1.5, 2.2      # 시간차 임계값 (s)
+# 리드 감속 게이팅(margin_ratio 재설계, 실차 검증 전 잠정값 -- 실차 lead_gate 로그로 튜닝).
+# margin_ratio m = (gap + 정지환산거리(vLead)) / (LEAD_DANGER_FACTOR * 쾌적거리(vEgo, tFollow, cb, sd))
+#   = MPC 위험거리 제약(danger zone)의 여유 비율. m>=GATE_M_HI면 투사 약화(g=0), m<=GATE_M_LO면 현행 투사(g=1).
+# TTC 성분(GATE_T_*)은 margin이 놓치는 접근 속도 기반 조기감지용으로 max() 결합(하이브리드).
+GATE_M_LO, GATE_M_HI = 1.0, 1.2      # margin_ratio 임계값 (무차원)
 GATE_T_LO, GATE_T_HI = 6.0, 12.0     # TTC 임계값 (s)
 GATE_TAU_G = 1.0                     # 하강 시정수 (s), 상승은 즉시
 GATE_TAU_TARGET = 1.5                # 약화 시 투사 aLeadTau 목표값
@@ -304,6 +306,7 @@ class LongitudinalMpc:
     self.time_integrator = 0.0
     self.x0 = np.zeros(X_DIM)
     self._gate_g = np.array([1.0, 1.0])
+    self._gate_ctx = (get_T_FOLLOW(), COMFORT_BRAKE, STOP_DISTANCE)  # (t_follow, comfort_brake, stop_distance), update()가 매 주기 갱신
     self._gate_last_cloudlog_t = 0.0
     self.set_weights()
 
@@ -372,13 +375,14 @@ class LongitudinalMpc:
     return lead_xv
 
   @staticmethod
-  def _gate_raw(gap, v_ego, v_lead):
-    h = gap / max(v_ego, 1.0)
-    g = np.clip((GATE_H_HI - h) / (GATE_H_HI - GATE_H_LO), 0., 1.)
+  def _gate_raw(gap, v_ego, v_lead, t_follow, comfort_brake, stop_distance):
+    d_comf = get_safe_obstacle_distance(v_ego, t_follow, comfort_brake, stop_distance)
+    m = (gap + get_stopped_equivalence_factor(max(v_lead, 0.0))) / max(LEAD_DANGER_FACTOR * d_comf, 1e-3)
+    g = np.clip((GATE_M_HI - m) / (GATE_M_HI - GATE_M_LO), 0., 1.)
     if v_ego - v_lead > 0.1:
       ttc = gap / (v_ego - v_lead)
       g = max(g, np.clip((GATE_T_HI - ttc) / (GATE_T_HI - GATE_T_LO), 0., 1.))
-    return float(g)
+    return float(g), float(m)
 
   def process_lead(self, lead, lead_index):
     v_ego = self.x0[1]
@@ -388,7 +392,8 @@ class LongitudinalMpc:
       a_lead = lead.aLeadK
       a_lead_tau = lead.aLeadTau
 
-      g_raw = self._gate_raw(x_lead, v_ego, v_lead)
+      t_follow_g, comfort_brake_g, stop_distance_g = self._gate_ctx
+      g_raw, margin = self._gate_raw(x_lead, v_ego, v_lead, t_follow_g, comfort_brake_g, stop_distance_g)
       g_prev = self._gate_g[lead_index]
       g = g_raw if g_raw > g_prev else g_prev + (g_raw - g_prev) * self.dt / GATE_TAU_G
       self._gate_g[lead_index] = g
@@ -399,7 +404,7 @@ class LongitudinalMpc:
         if t > self._gate_last_cloudlog_t + 1.0:
           self._gate_last_cloudlog_t = t
           h = x_lead / max(v_ego, 1.0)
-          cloudlog.debug(f"lead_gate idx={lead_index} g={g:.2f} h={h:.2f} dRel={x_lead:.1f} vEgo={v_ego:.1f} vLead={v_lead:.1f}")
+          cloudlog.debug(f"lead_gate idx={lead_index} g={g:.2f} m={margin:.2f} h={h:.2f} dRel={x_lead:.1f} vEgo={v_ego:.1f} vLead={v_lead:.1f}")
     else:
       # Fake a fast lead car, so mpc can keep running in the same mode
       self._gate_g[lead_index] = 1.0
@@ -440,12 +445,13 @@ class LongitudinalMpc:
     t_follow = carrot.get_T_FOLLOW(personality, v_ego, a_ego)
     jerk_factor = carrot.jerk_factor
 
+    comfort_brake = carrot.comfort_brake
+    stop_distance = carrot.stop_distance
+    self._gate_ctx = (t_follow, comfort_brake, stop_distance)
     lead_xv_0, lead_v_0 = self.process_lead(radarstate.leadOne, 0)
     lead_xv_1, lead_v_1 = self.process_lead(radarstate.leadTwo, 1)
 
     mode = self.mode
-    comfort_brake = carrot.comfort_brake
-    stop_distance = carrot.stop_distance
     self.base_desired_distances = np.array([
       desired_follow_distance(v_ego, lead_v_0, comfort_brake, stop_distance, t_follow),
       desired_follow_distance(v_ego, lead_v_1, comfort_brake, stop_distance, t_follow),
