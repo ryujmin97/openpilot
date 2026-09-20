@@ -1,5 +1,37 @@
 # WIP
 
+## 115차 (코드 반영 스크립트 전달 -- 사용자 실행 대기) -- 지침 2절 2번·7번 필터 폐지(반영 확인), dead code 1차 배치 삭제 준비(C01/C12/C16/C06)
+
+**세션 요약**: Worker: Claude (115차, Claude Sonnet 5). 이전 대화가 한도로 중단돼 새 대화에서 이어받았다. 세션 시작 절차: 지침 문서(v2)를 조회하고(carrot-ryu-note `50283ef1`), HANDOFF.md를 확인했다. 시작 시점 GitHub 상태: carrot-ryu `fa75aeab`(114차 코드 `114cha: MAP_TURN_GUIDE_FACTOR 1.05 -> 1.00`가 반영돼 있음, carrot_serv.py 88행 상수 1.00 확인), carrot-ryu-note `50283ef1`, carrot-ms `4bb4b510`, carrot-wip `d2973b3f`(둘 다 이전 세션과 동일).
+
+**1. 지침 2절 필터 폐지 (반영 완료, GitHub diff로 직접 확인)**
+- 이전 세션에서 사용자가 승인: "carrot-wip에 없고 carrot-ms에만 있는 커밋만 추린다"는 2절 2번 항목 필터를 삭제하고 carrot-ms 체크포인트 이후 추가 커밋을 전부 분석한다. carrot-ms `4bb4b510`(camera_sync.py receive_camera_pair 허용오차 10ms -> 20ms, carrot-wip `d2973b3f` cherry-pick)은 (b) 후보로만 기록하고 반영 보류.
+- 이 세션에서 사용자가 2절 7번 항목("모델셀렉터와 무관한 커밋은 기본 제외")도 함께 폐지하도록 지시. 신규 커밋은 종류와 무관하게 전부 개별 분석하고, 제외 시 사유를 WIP_SYNC.md에 기록하며, 반영은 계속 사용자 승인 후에만 한다(4번).
+- 반영: carrot-ryu-note `50283ef1` -> `2358da1c`(2번 항목 + WIP_SYNC 115차 체크포인트) -> `fdaaf452`(7번 항목 + WIP_SYNC 115차 계속). 사용자가 두 스크립트 실행을 알렸고, 이 세션에서 SHA 고정 raw로 변경 줄(PROJECT_INSTRUCTIONS 2절 -3/+5, -2/+5, WIP_SYNC +9, +6)과 개행(PROJECT_INSTRUCTIONS LF, WIP_SYNC CRLF 유지, BOM 없음)을 확인했다. 첫 스크립트에는 7번 항목이 빠져 있었고(이전 세션 스크립트), 그래서 후속 스크립트(v3)로 따로 반영했다.
+- 아직 남은 문구(범위 밖, 바꾸지 않음): 지침 16절 "carrot-ms에 새 커밋(모델셀렉터 관련)이 있는데 ..."와 1절 표의 "carrot-wip + 콤마 모델셀렉터".
+
+**2. dead code 1차 배치 (코드 스크립트 전달 -- 미반영)**
+- 배경: 이전 세션에서 ChatGPT 분석의 dead code 후보를 carrot-ryu 전체 grep으로 재검증했다. 이번 세션에서 carrot-ryu `fa75aeab` codeload tarball 기준으로 다시 grep해 같은 결과를 확인했다(후보 표는 DEAD_CODE_REVIEW.md).
+- 삭제(3개 파일, 9개 블록, 줄 단위 Replace-Block):
+  - `long_mpc.py`: `get_jerk_factor()` 정의와 그 호출이 주석 처리된 줄(`#jerk_factor = get_jerk_factor(personality)`). repo 전체에서 호출 0곳.
+  - `longitudinal_planner.py`: `A_CRUISE_MAX_VALS`/`A_CRUISE_MAX_BP`/`get_max_accel()`(호출이 주석 1곳뿐), `prev_accel_clip`(초기화 1곳 + 주석 처리된 블록뿐), `ALLOW_THROTTLE_THRESHOLD`/`MIN_ALLOW_THROTTLE_SPEED`/`get_coast_accel()`/`accel_coast`/`if not self.allow_throttle:` 분기, `parse_model()`의 `throttle_prob` 계산과 반환.
+  - 유지: `self.allow_throttle = True`(주석만 새로 씀)와 `longitudinalPlan.allowThrottle = bool(self.allow_throttle)` 발행. UI 두 곳(`ui/onroad/model_renderer.py`, `ui/mici/onroad/model_renderer.py`)이 이 필드를 읽고, 클러스터 리플레이(`cluster_route_replay.py`, `cluster_models.py`)도 참조한다. `A_CRUISE_MAX_BP_CARROT`(carrot_functions.py)는 별개 상수라 손대지 않았다.
+- 새로 발견: `openpilot/selfdrive/controls/tests/test_turn_accel.py`의 `test_planner_passes_preview_ceiling_to_mpc_with_existing_slew_limit`가 `update()` 함수 소스를 AST로 잘라 실행하면서 `parse_model`을 5튜플 `(0., 0., 0., 0., 1.)`로 목 처리한다. `parse_model`이 4튜플을 반환하도록 바꾸므로 이 목도 4튜플로 고쳤다(3번째 파일). 이 테스트 이름 목록의 다른 이름(`ACCEL_MAX`, `A_CRUISE_MIN` 등)은 삭제 대상이 아니다.
+- 동작 변화: 없음(정적 분석). 이전 코드는 `self.allow_throttle = True`가 상수라 `if not self.allow_throttle:` 분기와 `accel_coast`가 실행되지 않았다. `throttle_prob`는 계산만 되고 쓰이지 않았다.
+- `test_longitudinal.py`의 "allow_throttle = False" 시나리오 3건(prob_throttle_values)은 이번 변경과 무관하다. 플래너가 이미 gasPressProbs를 무시하고 있었고 이번 삭제도 그 동작을 바꾸지 않는다. 다만 이 시나리오들이 현재 통과하는지는 확인하지 못했다(네이티브 MPC 빌드가 필요해 샌드박스에서 실행 불가).
+- 검증(샌드박스): 수정 3개 파일 `py_compile` 통과. `pyflakes` 원본/수정본 모두 경고 0건(미사용 import 없음). `test_turn_accel.py` 24건 통과 -- 원본에서도 24건, 수정본에서도 24건(루트 conftest/pyproject 설정을 우회해 실행: `-c /dev/null --noconftest`, 원래 설정은 네이티브 `params_pyx`가 없어 로드 불가). 삭제 대상 이름을 repo 전체에서 다시 grep해 3개 파일에 잔존 0건 확인. 전달 스크립트에서 앵커를 추출해 SHA 고정 원본(`fa75aeab`)에 시뮬레이션: 9개 블록 모두 매치 1회, 결과가 작업 트리와 바이트 동일. PowerShell 문법 자체는 샌드박스에 pwsh가 없어 실행해 보지 못했다(정적 확인만). 실차 검증: 미실시.
+- 되돌리기: `git revert <이 코드 커밋>`(carrot-ryu).
+- 보류: VW MEB(`is_volkswagen_meb`/`is_vw_meb`, 후보 C10/C15)는 5개 파일에 걸쳐 있어(grep 줄 수 기준: cruise.py 3, controlsd.py 8(import 포함), steer_ratio.py 2, longitudinal_planner.py 4(import 포함), test_controlsd.py 1, drive_helpers.py 정의 1) 이번 배치에서 뺐고 별도 세션에서 다룬다.
+
+**미완료/다음 세션 우선순위**:
+1. 코드 스크립트(`115cha_deadcode_batch1_code_carrot_ryu-v1.ps1`)와 이 devnotes 스크립트의 실행 확인. 사용자가 push 로그를 전달하기 전까지는 GitHub 반영으로 간주하지 않는다(18절). 다음 세션은 git ls-remote로 두 브랜치 HEAD를 확인하고 longitudinal_planner.py의 삭제 반영을 SHA 고정 raw로 확인.
+2. 코드 반영 후 실차 배포 시점은 사용자 확인 후. 동작 변화가 없는 삭제라 별도 관찰 항목은 없지만, 배포 후 첫 주행에서 플래너 예외 로그(swaglog)가 없는지 확인하면 안전하다.
+3. dead code 후속 배치: C10/C15(VW MEB) 별도 세션, 나머지 후보는 DEAD_CODE_REVIEW.md 표 기준으로 grep 재검증 후 진행.
+4. carrot-ms `4bb4b510` 반영 여부는 사용자 판단 대기(WIP_SYNC.md 115차).
+5. (이월) 114차 항목: 스크립트 반영 후 MAP_TURN_GUIDE_FACTOR 실차 관찰, 급감속 구간이 운전자 제동인지 시스템 감속인지 확인, 110차 GATE_M 0.8/1.0 관찰, 견고성 스윕 재개(선택).
+
+CURRENT_STATUS.md는 이번에도 갱신하지 않았다.
+
 ## 114차 (코드 반영 스크립트 전달 -- 사용자 실행 대기) -- MAP_TURN_GUIDE_FACTOR 1.05 -> 1.00 (분기·톨게이트 안내 지점 200m 이내 route 반영비율 100%)
 
 **세션 요약**: Worker: Claude (114차, Claude Sonnet 5). 세션 시작 절차: 지침 문서(v2)를 SHA 고정으로 조회(carrot-ryu-note `d75d879f`)하고 HANDOFF.md를 확인했다. 사용자가 113차 계속 devnotes 스크립트 push 완료를 알렸고(note HEAD `d75d879f`의 커밋 `113cha-cont`로 확인), carrot-ryu HEAD는 `c7b5a010` 그대로다(git ls-remote). 사용자 결정: MAP_TURN_GUIDE_FACTOR를 1.05에서 1.00으로 바꿔서 코딩.
