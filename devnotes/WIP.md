@@ -1,5 +1,55 @@
 # WIP
 
+## 108차 계속 (Claude · 분석/도구 · 코드 변경 없음 · 수정 코드 실차 검증 미실시) — 복제본 보정(ACCEL_MIN -4.0, 실제 Params, 플래너 x0/게이트 재구성): 단발 해는 실차 궤적과 RMSE 0.02~0.09로 일치, 폐루프는 여전히 실차보다 약함(seg 113 -2.6 vs -4.0)
+
+**세션 시작 확인**: 지침 문서(v2) SHA 고정 조회(커밋 `3c24e76`, 브랜치 URL 조회와 내용 동일, 43195 B) -> HANDOFF.md(108차) 확인 -> `git ls-remote`로 carrot-ryu `67b0aa9`, carrot-ryu-note `3c24e76` 확인. 108차 devnotes가 이 HEAD에 반영돼 있음(WIP 최상단이 108차). 코드 변경 없음.
+
+**요청/경과**: 사용자가 "이어서 계속"만 보냄. 직전 108차 계속 세션(이 저장소에는 기록되지 않음)이 "a0을 더 정확히 근사해 한 번 더 시도할지, 여기서 기록만 할지"를 물은 채 도구 한도로 끊겼고 명시적 선택이 없어, 재시도 쪽으로 진행했다. 업로드: seg 113/146 zip(직전과 동일 로그), `ego_extract2.py`(직전 세션 산출물), `params_backup.json`(장치 Params 백업). 스키마는 로그 커밋 `67b0aa9` 기준으로 재구성했고, 확장 추출 결과는 직전과 동일(cs 12011, cc 12010, lp 2400, rs 2400, swaglog lead_gate 116, ss 12009).
+
+**정정(직전 세션 채팅 요약)**: 직전 요약은 "ACCEL_MIN 수정으로 복제본 최솟값이 실차와 맞아 이번 급정거의 원인은 게이트가 아니라 a_min 오류와 폐루프 방법론"이라고 결론 쪽으로 기울었다. 이번 재검증으로 이 결론은 지지되지 않는다. open-loop의 -4.0은 최대 2.5 s 앞까지의 계획 궤적 최솟값이지 인가 명령이 아니고, 폐루프에서는 ACCEL_MIN을 -4.0으로 고쳐도 명령이 -2.6대에 머문다(아래). 게이트가 원인일 가능성은 배제되지 않았다.
+
+**확인한 사실(코드/설정)**
+- `ACCEL_MIN`: `67b0aa9`의 `opendbc_repo/opendbc/car/interfaces.py`에서 -4.0(주석 `#3.5`). toolkit `mpc_replica.py`의 `solve`/`process_lead` 기본값은 -3.5(낡은 값).
+- `params_backup.json`(스냅샷 시점이 로그와 같은지는 미확인): StopDistanceCarrot 700 -> `stop_distance` 7.0 m(`/100.`), MyDrivingMode 3 = Normal(계수 1.0), comfortBrake 코드 기본 2.4(Normal에서 그대로), LongitudinalPersonality 3 = moreRelaxed(TFollowGap4 160, 로그 tFollow 1.60~1.65와 일치, jerk_factor 1.0), AChangeCostStarting 150(로그 aChangeCost는 전 구간 200 = prev_accel_constraint True 경로), LeadAccelResponse 0(gap margin 0), SpeedTFFactor 10, TFollowDecelBoost 10, LongActuatorDelay 20, VEgoStopping 5. 107차 역산값(cb 2.47, sd 11.6)은 desiredDistance 재현 오차가 두 조합 모두 +2~4 m라 서로 구분되지 않고, open-loop RMSE도 두 조합이 같다(0.091).
+- 로그의 `longitudinalPlan.accels`는 acados 13점 원해가 아니라 `ModelConstants.T_IDXS[:17]`(0~2.5 s)에 `np.interp`로 재보간된 값이다. 직전까지 toolkit은 이 점을 놓쳤다. `interp(action_t=0.25, accels)`는 aTargetBase와 RMSE 0.024로 일치(action_t = LongActuatorDelay 0.2 + DT_MDL 0.05).
+- 플래너 x0: `x0[2]` = `a_desired` = `interp(0.05, T_IDXS[:17], 직전 cycle accels)`, `x0[1]` = `v_desired_filter.x`(FirstOrderFilter rc 2.0 s, dt 0.05, cycle 후 `x += dt*(a+a_prev)/2`), `prev_a = interp(T+0.05, T, 직전 a_solution)`.
+- 게이트 재구성(long_mpc `_gate_raw`/`process_lead` 그대로, 리드 정지환산은 항상 COMFORT_BRAKE 2.5)이 swaglog g와 일치: g 재구성/swaglog = 0.27/0.23(3.82 s), 1.00/1.00(5.40 s), 0.47/0.48(6.41 s), 0.16/0.16(7.46 s), 0.09/0.08(2.80 s).
+- 액추에이터: 로그 accelCmd -> aEgo를 1차 지연으로 적합하면 지연 0, 시정수 약 0.3 s(RMSE 0.13).
+
+**open-loop 단발 재생(실제 x0·prev_a·게이트 재구성, a_min -4.0, cb 2.4/sd 7.0, aChangeCost 로그값)**: 복제본 해와 로그 accels(17점) 비교.
+| 구간 | cycle | 궤적 RMSE | 첫 스텝 abs 오차 평균/최대 |
+|---|---|---|---|
+| seg 113 3.0~6.5 s (급정거) | 70 | 0.091 (게이트 무시 0.147, cb 2.47/sd 11.6도 0.091) | 0.054/0.237 |
+| seg 146 19~25 s (idx1 이벤트) | 120 | 0.035 (레이더 1 cycle 지연 가정 0.019) | 0.016/0.069 |
+| seg 113 10~14 s (온화) | 80 | 0.155 (원인 미확인) | 0.002/0.003 |
+- 레이더 시차: 플래너가 직전 cycle radarState를 본다고 가정(입력을 1 cycle 뒤로)하면 seg 113 3.9~5.2 s RMSE 0.135 -> 0.087, 최솟값 오차 -0.142 -> +0.005. 반대 방향(1 cycle 앞)은 0.212로 나쁨. 폐루프에서는 시차 0/1 결과가 거의 같았다.
+- seg 113 램프 구간(4.1~4.75 s)에서는 복제본 첫 스텝이 실차보다 0.06~0.24 약했다(3.9~5.0 s 평균 0.108). 램프 밖에서는 +-0.03. 계획 궤적은 실차와 같이 -4.0(a_min)에 닿는다.
+
+**폐루프 재생(보정 설정: cb 2.4/sd 7.0, a_min -4.0, action_t 0.25, 지연 0/시정수 0.3 s, x0·게이트 재구성, 리드는 로그 그대로 외생 입력, 레이더 시차 1 cycle)**
+| | aEmin | aCmdMin | minGap | minHw | minTTC | gMax |
+|---|---|---|---|---|---|---|
+| seg 113 none(게이트 없음) | -2.62 | -2.69 | 44.0 | 1.93 | 8.53 | 1.00 |
+| seg 113 M105(현행) | -2.59 | -2.65 | 43.9 | 1.92 | 8.47 | 1.00 |
+| seg 113 M0.9/1.1 | -2.49 | -2.55 | 43.4 | 1.90 | 8.32 | 1.00 |
+| seg 113 M0.8/1.0 | -2.16 | -2.22 | 42.2 | 1.86 | 8.14 | 0.80 |
+| seg 113 실차 | raw -4.05(0.5 s 중앙값 -3.58) | accelCmd -4.00 | 45.9 | - | - | - |
+| seg 146 M105 / none / M0.8/1.0 | -1.40 / -1.47 / -1.07 | -1.43 / -1.50 / -1.08 | 44.1 / 44.9 / 41.5 | 1.94 / 1.97 / 1.86 | 12.1 / 12.4 / 11.7 | 1.00 / 1.00 / 0.26 |
+| seg 146 실차 | raw -1.92 | accelCmd -1.95 | 46.6 | - | - | - |
+- seg 113 시계열: 3.05 s부터 복제본 명령이 실차 aTargetBase보다 약하다(-0.26 vs -0.34). 4.45 s -1.74 vs -3.05, 4.65 s -2.57 vs -4.16. 이후 복제본은 -2.65 근처에서 정체한다. 종료 시점(9 s) 자차 속도는 복제본 67.2 km/h, 실차 72.0 km/h.
+- 이전 재생(a_min -3.5, cb 2.47/sd 11.6, x0 근사)과 비교해 폐루프 aEmin은 seg 113 -2.69 -> -2.59로 사실상 그대로이며, 보정만으로 실차 -4.0은 재현되지 않는다.
+
+**해석(가설, 미검증)**
+- 사실: 실제 상태(x0/prev_a/게이트)를 주면 복제본 단발 해가 실차 궤적을 재현한다(RMSE 0.02~0.09). 즉 이번 급정거의 계획 궤적은 게이트가 완전히 열리고(g=1.0) aLeadK -6.7 투사가 유지된 조건에서 이 MPC 정식화가 내는 해와 같다.
+- 사실: 현행 게이트(M105)는 이 이벤트에서 억제 효과가 사실상 없다(복제본 none -2.62, M105 -2.59; g가 4.3 s에 1.0). M0.8/1.0은 g 최대 0.81(seg 146 0.26)로 부분 억제해 복제본 기준 seg 113 약 0.43, seg 146 약 0.33 m/s² 완화한다.
+- 가설: 폐루프에서 복제본이 약해지는 원인은 램프 구간의 첫 스텝 편향 0.06~0.24가 a_change_cost(200, 첫 2 s에 prev_a 유지)로 다음 cycle에 이월·증폭되는 것으로 보인다. 편향 자체의 원인은 SQP_RTI 1회 반복 해와 IPOPT 수렴 해의 차이일 수 있으나 acados 실물이 없어 확인 못 했다.
+- 한계: 급정거 표본 1건(seg 113), 앞차는 이후 재가속. 복제본 폐루프가 실차보다 약해 효과 크기는 불확실하다. params_backup가 로그 당시 값인지 미확인.
+
+**결정 대기(이월)**: `long_mpc.py`의 `GATE_M_LO/HI`를 0.8/1.0으로 바꿀지. 보정 후에도 방향(완화)은 같고 현행 게이트가 이 이벤트에서 무효라는 근거가 추가됐지만, 폐루프 정합이 깨진 범위라 이것만으로 확정하기엔 부족하다. 이번 세션 코드 변경 없음.
+
+**toolkit**: 신규 3개 등록. `ego_extract2.py`(확장 추출: leadTwo/cutOut/aChangeCost/leadPreview*/accels 포함, 사용자 업로드본 그대로), `openloop108.py`(플래너 x0·게이트 재구성 단발 검증, 환경변수 RSHIFT/ONLYP), `closedloop108.py`(보정 폐루프 what-if, 변형 none/M105/M0.8-1.0/M0.9-1.1, 환경변수 RSHIFT). 기존 `mpc_replica.py` 등은 수정하지 않았다(기본값 a_min -3.5, cb 2.47/sd 11.6은 그대로이며 새 도구가 인자로 덮어쓴다). 새 도구의 폴더 배치는 `../toolkit`(mpc_replica.py), `../schema`, `../segs`, `out/ego2.pkl`.
+
+**검증**: 정적 분석/로그 대조/복제본(casadi/IPOPT, acados 아님) 재생이며 수정 코드(M0.8/1.0)의 실차 검증: 미실시. 로그는 105차 코드(`67b0aa9`)로 주행한 기록을 읽은 것이다. 로그 원본은 사용자 Drive zip이며 저장소에 커밋하지 않았다(13절).
+
 ## 108차 (Claude · 분석 · 코드 변경 없음 · 수정 코드 실차 검증 미실시) — 신규 로그(seg 113/146) 자차 급정거 실측: accelCmd -4.0 도달, 복제본이 강한 리드 감속에서 실차보다 약하게 나옴
 
 **세션 시작 확인**: 지침 문서(v2) SHA 고정 조회(커밋 `73a28c1`, 브랜치 URL 조회와 내용 동일, 43195 B) -> HANDOFF.md(107차) 확인 -> `git ls-remote`로 carrot-ryu `67b0aa9`, carrot-ryu-note `73a28c1` 확인. 107차 devnotes 반영 검증: `73a28c1`의 부모가 `5b13e02`, numstat WIP +62/-0, CHANGELOG +3/-0, README +13/-0, HANDOFF +20/-18(교체), toolkit 신규 4개 `py_compile` 통과, 9개 파일 BOM/CR 없음.

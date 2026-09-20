@@ -42,3 +42,15 @@ rlog.zst에서 carState/radarState.leadOne/longitudinalPlan을 뽑아 리드 감
 | `real_vs_replay.py` | (1) 실차 aEgo(0.5 s 중앙값) vs 복제본 M105 정합성 16건 (2) idx 0,1,3,4,10~15 후보 비교. `out/ext_*.pkl` 16개 필요 |
 
 폴더 배치(작업 폴더 기준 상대경로 고정): 작업 폴더에 `out/`, 상위에 `../schema/`(로그 기록 커밋의 cereal + car.capnp), `../segs/<route>--<n>/rlog.zst`. 107차 순서: `parse_lead_log.py ../schema ../segs out/all.pkl` -> `merge_lead_series.py main=21-25` -> `events.py` -> `ego_extract.py` -> `ego_episodes.py`; 복제본 대조는 이벤트별 `replay_ext.py <idx> M105`(idx 0~15, 후보 비교용 idx는 `M105,base,B,M0.8/1.0,M0.9/1.1`) 후 `real_vs_replay.py`. 재생은 CPU 1코어 기준 이벤트당 약 10 s x 변형 수이며 병렬 실행하면 그만큼 느려진다(`setsid nohup`). 결과 해석은 WIP.md 107차.
+
+### 108차 계속 추가 (복제본 보정 검증: ego_extract2.py, openloop108.py, closedloop108.py)
+
+복제본을 코드/Params 기준으로 보정하고 플래너 내부 상태를 로그에서 재구성해 검증하는 도구. 실차 검증 아님(로그 확인). 폴더 배치는 `../toolkit`(mpc_replica.py), `../schema`(로그 커밋 스키마), `../segs`(세그먼트 폴더), `out/ego2.pkl` 고정(각 파일 docstring 참고). 이 도구들은 기존 `mpc_replica.py` 기본값(a_min -3.5, cb 2.47/sd 11.6)을 인자로 덮어쓴다(a_min -4.0 = 67b0aa9 ACCEL_MIN, cb 2.4/sd 7.0 = params_backup.json).
+
+| 파일 | 역할 |
+|---|---|
+| `ego_extract2.py` | ego_extract.py 확장 추출: longitudinalPlan(source/aChangeCost/leadPreview*/accels 등)과 radarState leadOne+leadTwo(cutOut 포함), swaglog `lead_gate`, selfdriveState. `out/ego2.pkl` = dict(cs, cc, lp, rs, sw, ss). `../schema`, `../segs/*/rlog.zst` 필요 |
+| `openloop108.py` | `openloop108.py <seg> <t_from> <t_to> [tag]`: 플래너 x0(v_desired_filter, a_desired)·prev_a·게이트 g를 로그에서 재구성해 사이클마다 복제본을 1회 풀고 로그 accels(17점, 0~2.5 s)와 비교. 변형 P(cb 2.4/sd 7.0)/Pnogate/Old(2.47/11.6). swaglog g 대조 출력. 환경변수 `RSHIFT=1`(레이더 입력을 1 cycle 지연), `ONLYP=1`(변형 P만). 결과 `out/ol108_<tag>.pkl` |
+| `closedloop108.py` | `closedloop108.py <seg> <t_from> <t_to> <variant> [tag]`: 보정 폐루프 what-if(리드는 로그 외생 입력, 자차 시정수 0.3 s, action_t 0.25). variant: none / M105 / M0.8/1.0 / M0.9/1.1(게이트 후보, TTC 6/12 s 고정). 환경변수 `RSHIFT`. 결과 `out/cl108_<tag>_<variant>.pkl`. 시작 상태는 t_from 직전까지 로그로 재구성 |
+
+실행 예: `python3 ego_extract2.py`(run/ 폴더에서) -> `ONLYP=1 python3 openloop108.py 113 3.0 6.5 a` -> `RSHIFT=1 python3 closedloop108.py 113 2.0 9.0 M105 113`. 단일 코어 기준 IPOPT 1회 약 0.3~0.4 s(폐루프 변형 1개, 7 s 구간 약 35 s). 백그라운드는 `setsid nohup ... < /dev/null`. 결과 해석과 한계(폐루프 복제본이 강한 리드 감속에서 실차보다 약함)는 WIP.md 108차 계속 참고.

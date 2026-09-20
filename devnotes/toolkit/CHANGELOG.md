@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-20 (108차 계속)
+- lead_decel/ 추가: ego_extract2.py, openloop108.py, closedloop108.py (복제본 보정·플래너 상태 재구성 검증, README 참고). 기존 스크립트는 변경 없음(mpc_replica.py 기본 a_min -3.5와 cb/sd는 낡은 값이며 새 도구가 인자로 덮어씀)
+
 ## 2026-09-20 (107차)
 - lead_decel/ 추가: ego_extract.py, ego_episodes.py, replay_ext.py, real_vs_replay.py (실차 로그 대조, README 참고). 106차 추가분(gating_eval_105.py 신규, merge_lead_series.py CLI 인자)은 README에만 있고 CHANGELOG에 없어 여기에 함께 기록(2026-09-20, 106차)
 
