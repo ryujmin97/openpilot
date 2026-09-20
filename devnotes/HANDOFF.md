@@ -2,7 +2,7 @@ Worker: Claude (106차, Claude Sonnet 5)
 Date: 2026-09-20
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (HEAD `67b0aa933df429245fa6aa814c0438b1ca68c23d`, 105차 margin 하이브리드 게이트 반영 완료, 이번 106차 코드 변경 없음)
-Note Branch: carrot-ryu-note (base: `91e5956ba02bd24307061db5a07d708933ef27d8`. 106차 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+Note Branch: carrot-ryu-note (base: `41270f79bcf24698299882e301d9f76119e91103`, 106차 devnotes push 완료를 git ls-remote로 확인. 이번 106차 계속 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
 carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(93차 확정, 이번 세션도 2절 신규 커밋 확인 안 함 -- 계속 이월)
 
 작업:
@@ -11,11 +11,12 @@ carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b2
 완료:
 1. 105차 코드/devnotes push 완료를 GitHub에서 재확인. lead_gate swaglog 291건에서 이상값 없음(g 평균 0.089, m 1.01~1.92).
 2. 폐루프 재생(54회): M105의 base 대비 평균 완화 +0.004 m/s², B는 +0.051(idx8 +0.30, idx9 +0.08). **103차 우려(margin 계열이 idx8에서 B만큼 완화 못함)가 오늘 로그에서도 재현됨** -- 세션 앞부분 요약("의도대로 동작, 우려 재현 안 됨")은 방향을 잘못 읽은 것이라 WIP 106차에서 정정했다.
+3-a. (106차 계속) 튜닝 후보 (b) margin 임계 하향 스윕: 같은 10조합 평균 dAEmin B +0.075 / M1.0-1.2 +0.011 / M0.9-1.1 +0.069 / M0.8-1.0 +0.116 / M0.7-0.9 +0.125. M0.8/1.0이 idx8/9에서 B와 거의 같은 완화. 밴드를 더 내리면 근접/극단 구간에서 게이트가 안 열리는 경향(WIP 106차 계속). 코드 변경 없음.
 3. `gating_eval_105.py` 신규 + `merge_lead_series.py` CLI 인자 추가, toolkit README 갱신(반영 스크립트에 포함).
 
 미완료(다음 세션 최우선):
-1. 106차 devnotes 반영 스크립트 실행 로그 확인 -> SHA 고정 조회로 재확인(16절).
-2. 사용자 결정: M105 게이트를 튜닝할지(WIP 106차 "튜닝 후보" a/b/c) 또는 실차 관찰을 더 할지. 튜닝 시 `gating_eval_105.py`의 M105 dict로 재생 후 코드 반영.
+1. 106차 계속 devnotes 반영 스크립트 실행 로그 확인 -> SHA 고정 조회로 재확인(16절).
+2. 사용자 결정(WIP 106차 계속의 표 참고): M105 게이트를 튜닝할지(WIP 106차 "튜닝 후보" a/b/c) 또는 실차 관찰을 더 할지. 튜닝 시 `gating_eval_105.py`의 M105 dict로 재생 후 코드 반영.
 3. 104차 기록 부재 확인(margin_gate_eval.py docstring이 104차를 명시하나 devnotes에 없음) 및 `margin_gate_eval.py`/`gate_replay.py`/`full_gate_stats.py`/`leadtwo_probe.py` toolkit 등록 여부.
 4. idx 0,1,3,4,10~15 재생(이번엔 6건만), 다른 route 로그로 교차 확인.
 5. CURRENT_STATUS.md에 99차 게이트 항목 없음 -- 정리 필요.
