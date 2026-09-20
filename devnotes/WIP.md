@@ -1,5 +1,19 @@
 # WIP
 
+## 112차 (완료) — 라우트 감속 정체 후 급감속 현상 근본원인 분석, FINDINGS.md 기록
+
+**세션 요약**: 사용자 제보(라우트 감속이 130km/h에서 멈췄다가 뒤늦게 감속되는 느낌)를 업로드된 실주행 rlog(제네시스 DH, 세그먼트 00000438--9c260778c7--155, 약 60초)로 재현/분석. carrot_navi_route()의 역산(backward integration) 로직을 Python으로 그대로 재현해 시뮬레이션한 결과, route 목표속도 계산이 v_ego를 입력으로 쓰지 않는 구조적 문제를 확인. 코드 수정은 하지 않음(분석만). FINDINGS.md에 112차 항목으로 기록·반영 완료(carrot-ryu-note `c4d4426`, 부모 `58e88c7`).
+
+**분석 상세(요약, 전체는 FINDINGS.md 112차 참고)**:
+- t=41.2~43.9초(2.7초) 동안 desiredSource=="route"이고 desiredSpeed가 130.0km/h로 고정인 채 vEgo(106.6->109.6km/h)만 계속 증가, t=44.2초에 vturn(비전 커브)으로 전환되며 130->97까지 0.6초 만에 급락
+- carrot_navi_route()의 역산 시뮬레이션: 같은 도로 형상이면 v_ego가 100/120/145km/h 어느 값이어도 출력이 동일 -> V_CURVE_LOOKUP_BP/VALS + AutoNaviSpeedDecelRate 고정 상수만으로 정해지는 순수 물리적 상한선임을 확인
+- 사용 도구: `parse_route.py`(신규, toolkit README 미등록 -- rlog.zst에서 carState/carrotMan을 파싱해 pkl로 저장하는 1회성 조회 스크립트. capnp schema는 로그 기록 시점 커밋(carrot-ryu `a430d114`, 110차 상태) 기준으로 구성). 13절 원칙에 따라 업로드된 route 로그(zip)는 어느 브랜치에도 커밋하지 않았고 세션 종료와 함께 사라짐(별도 외부 저장 없음)
+
+**다음 세션 우선순위**:
+1. (111차부터 이월) 실차 배포(디바이스 pull) 시점 -- 사용자 확인 후. 배포 후 swaglog `lead_gate`의 g/m 관찰(110차 GATE_M 0.8/1.0)
+2. 라우트 감속 정체/급감속 수정 방향 검토 -- FINDINGS.md 112차의 두 후보(v_ego 기준 캡핑 / route↔vturn 전환 rate limit) 중 어느 쪽으로 갈지, vturn과의 상호작용/우선순위 로직 추가 조사부터 시작
+3. (이월) 견고성 스윕 재개, vE 기준 need-cap 재설계 등 -- 111차 HANDOFF.md 미완료 3~5번과 동일
+
 ## 111차 (완료) — 110차 반영 재검증 + carrot-ms 2절 점검(e324f67→a23a77b, 신규 21건 전부 반영 보류)
 
 **세션 요약**: 110차 코드/devnotes 반영(carrot-ryu `a430d11`, carrot-ryu-note `bf20985`)을 SHA 고정 조회 + 격리 pytest로 독립 재검증(문제 없음). 이어서 2절 carrot-ms 동기화 점검 수행 -- 체크포인트 `e324f67`(93/95차 확정) 이후 신규 21건을 전수 분류, 전부 사용자 승인 하에 반영 보류 확정. 코드 변경 없음.
