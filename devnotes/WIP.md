@@ -1,5 +1,31 @@
 # WIP
 
+## 102차 (Claude · 분석 전용 · 코드/지침 변경 없음) — leadTwo 0건의 원인 확인: 이 차량 구성은 레이더 포인트가 SCC 단일 타깃뿐
+
+**세션 시작 확인**: 101차와 같은 세션의 연속이다. 지침 문서(v2)는 101차 시작 시 SHA 고정(`b10177b`)으로 조회했고, 이번 회차 시작 시 `git ls-remote`로 carrot-ryu-note HEAD `c2d9d8d`, carrot-ryu `f78e51e`(변경 없음)를 확인했다. 101차 반영 커밋 `c2d9d8d`는 `b10177b` 대비 `devnotes/HANDOFF.md`, `devnotes/WIP.md` 2개만 바꿨고(+69/-27) 지침 문서는 그대로다. SHA 고정 raw로 받은 두 파일이 101차 페이로드와 바이트 단위로 일치함도 확인했다(16절).
+
+**계기(101차 정정)**: 101차 기록은 leadTwo를 "이 데이터로 검증 불가, 리드 2대가 동시에 잡힌 로그를 확보해야 한다"고만 적었다. 사용자가 "leadTwo는 제네시스 DH에서는 레이더 트랙이 안 돼서 그런 것 아닌가"라고 지적했으나 101차 기록에는 반영되지 않았다. 이번 회차에 그 가설을 로그와 코드로 확인했다. 101차 기록은 불변이라 여기서 정정한다.
+
+**로그 확인(업로드 로그 9/18, carrot-ryu-v1 `9ccf1206`, 9개 세그먼트)**:
+- `liveTracks`: 10,799개 메시지 중 포인트 0개 3건, 포인트 1개 10,796건이다. 나타난 `trackId`는 0뿐이다(SCC11 단일 타깃 ID).
+- `radarState`: 10,798개 중 leadOne 활성 10,770개이고, 그중 `radar=True`가 10,664개, `False`가 106개다. leadTwo 활성은 0개다.
+- `carParams`: `radarUnavailable=False`, `carFingerprint=HYUNDAI_GENESIS`, `openpilotLongitudinalControl=True`. 즉 레이더가 없는 구성이 아니라, 레이더가 대상을 한 개만 주는 구성이다.
+
+**코드 확인(carrot-ryu `f78e51e`, 읽기 기반 추론이며 실행으로 검증하지 않음)**:
+- `opendbc_repo/opendbc/car/hyundai/radar_interface.py`: `SCC_TID = 0`, SCC11 스트림에서 단일 포인트(`radarSource="scc"`)를 만든다. raw 레이더 트랙은 `radar_tracks` 설정과 0x500 계열 메시지가 있어야 하며, 코드 주석에 레거시 CAN에서 raw 트랙을 켜면 일부 현대/기아 차종에서 SCC11 스트림이 꺼진다고 적혀 있다.
+- `openpilot/selfdrive/carrot/radar/radard_dpath.py`가 `DPathRadarController`(`radar_motion/controller.py`, `lead_selection.py`)를 호출하고, leadTwo는 `select_dpath_lead_two`와 SCC 전용 경로(`_scc_lead_two_independently_supported`)에서 만든다. SCC 전용 경로도 같은 레이더의 전방 객체 목록 또는 코너 레이더 포인트의 독립적 지지를 요구한다. 이 로그처럼 포인트가 SCC 하나뿐이면 조건을 채울 수 없다.
+
+**결론(해석)**: 이 차량·현재 레이더 구성에서는 leadTwo가 "그 구간에 우연히 없었다"가 아니라 구조적으로 나오지 않을 가능성이 높다. 그렇다면 leadTwo 게이트(`lead_index=1`)의 실주행 노출은 사실상 없다고 볼 수 있고, 검증은 100차 단위검증(합성 입력, `status=False`/리드 소실 시 해당 인덱스만 리셋 등)으로만 이루어진 상태다. 따라서 101차의 "leadTwo 검증용 로그 확보" 항목은 우선순위를 낮춘다.
+
+**한계**: (1) 로그는 v1 코드(`9ccf1206`)로 기록됐고 읽은 코드는 `f78e51e`라서 그 사이 leadTwo 로직이 바뀌었을 수 있다. (2) `modelV2.leadsV3`의 1번 항목 확률이 평균 0.993으로 나왔으나, 두 번째 리드인지 시간대별 가설 슬롯인지 확인하지 못해 결론에서 제외했다. (3) raw 레이더 트랙 등 다른 구성에서는 결과가 달라질 수 있고, 제네시스 DH에서 그것이 가능한지는 확인하지 않았다(사용자 의견은 "레이더 트랙이 안 된다"). **정적 분석/로그 재생 단계이며 실차 검증: 미실시.**
+
+**임계값 재검토 의견은 유지**: 101차 미완료 2번(`GATE_H_HI` 2.2 s와 정속 headway 2.24 s의 겹침, 감속 리드 표본의 88.3%에서 g<0.5)은 그대로 이월한다. 이번 회차에서 바뀐 것은 leadTwo 해석뿐이다.
+
+**도구**: `leadtwo_probe.py`(liveTracks 포인트 수/`trackId`/leadOne.radar/carParams 집계)는 세션 샌드박스에만 있고 toolkit 미등록이다. `gate_replay.py`, `full_gate_stats.py`와 함께 등록 여부를 사용자에게 확인해야 한다(14절).
+
+**다음 세션 후보**: (a) 사용자가 이 회차 devnotes 스크립트(`102cha_devnotes_carrot_ryu_note.ps1`) 실행/push 후 `git ls-remote`로 확인(16절). (b) 임계값(`GATE_H_HI` 등) 재검토 여부 판단(사용자가 조정안 설계나 다른 드라이브 로그 검증을 고르면 진행). (c) toolkit 등록 여부 확인. (d) 실차 배포 후 swaglog `lead_gate` 태그 관찰(99차부터 이월). (e) carrot-ms 4건, 화면녹화/Drive 관련 실차 검증 이월.
+
+
 ## 101차 (Claude · 분석 전용 · 코드/지침 변경 없음) — 반영본(f87083e) 기준 스트레스 재검증, 전체 주행 게이트 노출 통계, "상시 개입" 해석 정정
 
 **세션 시작(4절 0단계)**: `git ls-remote`로 carrot-ryu-note HEAD `b10177b`, carrot-ryu HEAD `f78e51e`를 얻었다. SHA 고정 raw로 지침 문서(v2)와 HANDOFF.md(100차분)를 읽었고, 지침은 브랜치 URL 사본과 내용이 동일했다. carrot-ms `e324f67`은 변경 없음. GitHub API가 rate limit에 걸려 blobless clone(`git log`/`git diff`)으로 대체했다.
