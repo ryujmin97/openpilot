@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-20 (109차)
+- lead_decel/ 추가: closedloop_ncap.py (필요 감속 기반 명령 상한 what-if, README 참고). d_target=HFLOOR×vL 구조 폐기 결정. 기존 스크립트는 변경 없음.
+
 ## 2026-09-20 (108차 계속2)
 - lead_decel/ 추가: closedloop_jlim.py (closedloop108.py + 출력단 저크 제한 J_MAX 환경변수, README 참고). 기존 스크립트는 변경 없음. 직전 채팅의 TF_FLOOR 변형 코드는 자료에 없어 등록하지 않음.
 

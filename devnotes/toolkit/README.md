@@ -64,3 +64,13 @@ rlog.zst에서 carState/radarState.leadOne/longitudinalPlan을 뽑아 리드 감
 | `closedloop_jlim.py` | `J_MAX=<m/s^3> python3 closedloop_jlim.py <seg> <t_from> <t_to> <variant> [tag]`. `J_MAX` 기본 999(비활성 = `closedloop108.py`와 동일). 결과 `out/cl108_<tag>_<variant>.pkl`. 파일 상단 docstring/사용법은 `closedloop108.py` 것을 그대로 두었다(파일명만 다름) |
 
 실행 예: `J_MAX=6 python3 closedloop_jlim.py 113 2.0 9.0 M105 jl113`. 108차 계속2 결과: seg 113/146에서 J_MAX 6 이상은 완전 무효, 4에서도 최솟값이 오히려 0.01 강해짐(복제본 최대 강화 저크가 seg 113 -4.66 m/s³뿐). 한계와 해석은 WIP.md 108차 계속2 참고.
+
+### 109차 추가 (필요 감속 기반 명령 상한 what-if: closedloop_ncap.py)
+
+`closedloop108.py`/`closedloop_jlim.py`와 같은 재구성 규칙 + 매 사이클 실시간(causal) 필요 감속으로 그 사이클의 MPC `a_min`만 교체하는 what-if. 실차 검증 아님(로그 확인 + 합성 stress). 폴더 배치는 `closedloop108.py`와 같다(`../toolkit`, `../schema`, `../segs`, `out/ego2.pkl`). event 모드는 로그 필요, stress 모드는 로그 불필요(합성 시나리오).
+
+| 파일 | 역할 |
+|---|---|
+| `closedloop_ncap.py` | `event <seg> <t_from> <t_to> <gate_variant> [tag]` 또는 `stress <v0_kph> <gap0_m> <lead_decel> <gate_variant> [tag]`. 환경변수 `NCAP`(0/1, 기본1), `NCAP_MARGIN`(기본0.6), `NCAP_HFLOOR`(기본1.2, 초), `RSHIFT`(event만). `d_target=NCAP_HFLOOR×vL` 기준. 결과 `out/ncap_ev_*.pkl` / `out/ncap_st_*.pkl` |
+
+109차 결과: `d_target=HFLOOR×vL` 구조가 리드 급감속 시 avail을 다시 키워 cap을 역방향으로 풀어버리는 결함 확인(리드 속도가 줄면 목표거리도 같이 줄어듦). hfloor 1.0~3.0 전 구간에서 stress(94km/h, 앞차 -5m/s² 지속) 안전 여유가 baseline(무제한)보다 나쁨. 이 구조는 폐기, vE 기준 재설계는 별도 검증 필요. 한계와 해석은 WIP.md 109차 참고.
