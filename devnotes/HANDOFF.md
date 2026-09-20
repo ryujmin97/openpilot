@@ -1,41 +1,37 @@
-Worker: Claude (103차, Claude Sonnet 5)
+Worker: Claude (105차, Claude Sonnet 5)
 Date: 2026-09-20
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `f78e51e0bfe01e14ce70cc7eafc3323c5981a8a7`, 100차 테스트 하네스 수정까지 push 완료. 이번 세션도 코드 변경 없음, git ls-remote로 재확인)
-Note Branch: carrot-ryu-note (base: `e9fb10304a1eae251e6187696d36f06a4d89135e`, 102차 devnotes push 완료를 git ls-remote로 재확인. 이번 103차 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
-carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(93차 확정, 이번 세션은 2절 신규 커밋 확인 자체를 하지 않음 -- 다음 세션 최우선)
+Code Branch: carrot-ryu (base: `f78e51e0bfe01e14ce70cc7eafc3323c5981a8a7`. 이번 105차 코드 변경은 반영 스크립트 `105cha_carrot_ryu_margin_gate.ps1` 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+Note Branch: carrot-ryu-note (base: `fd995bd619d45ac755bda3cf6f789674a07540d8`, 103차 devnotes push 완료를 git ls-remote로 확인. 이번 105차 devnotes 반영은 실행/push 대기)
+carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(93차 확정, 이번 세션도 2절 신규 커밋 확인 안 함 -- 계속 이월)
 
 작업:
-분석 전용 세션(코드/지침 변경 없음). 102차에서 설계 합의된 margin_ratio 기반 게이트 재설계(GATE_H_HI 등 절대 초 단위 게이트를, long_mpc.py의 위험거리 정의(LEAD_DANGER_FACTOR=0.8 x d_comf) 대비 비율로 교체)의 후보값(lo, hi) 탐색을 이어서 진행했다. 컨테이너 파일시스템이 세션마다 초기화되어, 102차에서 만든 로그 파싱 환경/toolkit 스크립트를 전부 재구성하는 것부터 시작했다(사용자가 동일 로그 zip 재업로드, WIP.md 102차 항목에 남겨둔 margin_gate_eval.py 전체 소스로 복원).
+사용자 결정("검증은 나중에 하고 우선 코드 적용한 후 실차검증으로 수정")에 따라 리드 감속 게이트를 margin_ratio 하이브리드로 carrot-ryu `long_mpc.py`에 적용하는 코드/테스트/반영 스크립트를 작성했다.
 
 완료:
-1. 102차 재현: 로그 zip(route `0000042f--32975bbd0f`, 9세그먼트) 재추출 -> 스키마(`9ccf1206`)/toolkit 8개 스크립트 재획득 -> parse/merge/events 재실행 -> 26건 이벤트 표가 102차와 완전히 동일하게 재현됨을 확인.
-2. margin_ratio 전체 표본(10,770개) 분포 재확인(p50=1.294, 설계 예측 1.25와 근접) 및 (lo,hi) 후보 스윕 확장 -- `(1.0, 1.2)`가 유력: 전체 표본 `g==0` 90.0%, `g`평균 0.025(기존 게이트의 `g<1` 98.1%와 대비).
-3. `(1.0,1.2)`/`(1.0,1.3)` 후보와 `base`/`B`(기존 채택 G2T)를 26건 이벤트 전체에 대해 off=0으로 폐루프 재생 비교 -- 토큰 한도로 idx 0~13(14건)까지만 완료.
-4. 완료분에서 핵심 발견: 넓은 밴드(1.0/1.2~1.3)는 비-위험 구간에서 개입을 잘 억제하지만(전체 표본 통계와 일치), 정작 게이트를 만든 근거 사례 idx5/idx8에서 `aEmin`이 `base` 대비 개선이 거의 없거나(idx8: `-2.75`로 동일) 오히려 근소 악화(idx5: `-2.10`→`-2.17`)됨. 반면 102차에서 테스트한 좁은 밴드(0.6~0.8/0.9~1.1)는 idx5는 개선하지만 idx22는 아예 무반응(`gMax=0.00`). 두 요구(평상시 무반응 vs 위험 시 확실한 반응)를 동시에 만족하는 (lo,hi)를 아직 못 찾았다.
-5. 잠정 가설(11절, 미확정): margin_ratio가 순간 gap/정지거리 스냅샷만 쓰고 aLeadK(리드 감속 조짐)를 직접 반영하지 않아 반응이 항상 늦다 -- 기존 TTC 성분이 하던 조기감지 역할을 대신 못 할 가능성. 다음 세션 검증 필요.
+1. 지침 문서 v2 전체 조회(SHA 고정본 == 브랜치 URL 조회본), HANDOFF/WIP 최상단 확인, 두 브랜치 HEAD 재확인.
+2. `long_mpc.py`: `GATE_H_LO/HI`(1.5/2.2s) 게이트를 `margin_ratio`(m = (gap + 정지환산거리(vLead)) / (0.8 * 쾌적거리(vEgo, tFollow, cb, sd)))로 교체, `GATE_M_LO/HI = 1.0/1.2`, TTC 6/12s 성분은 `max()` 결합(하이브리드), 나머지 상수(`GATE_TAU_G=1.0`, `GATE_TAU_TARGET=1.5`) 동일. `process_lead()` 시그니처는 유지하고 `update()`가 `self._gate_ctx`로 tFollow/comfort_brake/stop_distance를 전달. `lead_gate` swaglog에 `m=` 추가.
+3. 신규 단위 테스트 `test_lead_gate_margin.py` 8개(샌드박스 8 passed), 기존 `test_cutout_mpc_integration.py` 17 passed(수정 전후 동일).
+4. 반영 스크립트를 PowerShell 7.4.6로 로컬 베어 저장소에 끝까지 드라이런(푸시 결과 == 작업본 바이트 일치, 임시 폴더 정리 확인).
 
 미완료(다음 세션 최우선):
-1. idx 14~25(12건) margin(1.0,1.2)/(1.0,1.3) vs base/B off=0 스윕 마저 실행(WIP.md 103차 "재현 방법" 커맨드 참고, 로그 zip 재업로드 필요).
-2. margin_ratio와 TTC를 max()로 병행하는 하이브리드 안 설계/검증 -- "반응이 항상 늦다" 가설이 맞다면 유력한 해결 방향.
-3. (lo,hi) 밴드 세밀 탐색 재개 -- "평상시 g==0 비율 높음"과 "idx5/8/22 off=0에서 aEmin 실질 개선"을 동시 만족하는 조합 탐색.
-4. 승자 후보 확정 후 gap_offset 스트레스(-10,-20) 포함 최종 비교표 -> 사용자 확정 -> 그제서야 실제 코드(GATE_H_HI 등) 변경 착수.
-5. `margin_gate_eval.py`를 포함해 `gate_replay.py`(100차)/`full_gate_stats.py`(101차)/`leadtwo_probe.py`(102차)의 devnotes/toolkit/lead_decel/ 정식 등록 여부 사용자 확인(14절, 101차부터 이월, 세션 리셋마다 재구성 비용이 반복됨).
-6. carrot-ms 신규 커밋 확인(2절) -- 이번 세션에서 하지 않음, 다음 세션 시작 시 수행.
-7. 실차 배포 후 swaglog `lead_gate` 태그 관찰(99차부터 이월).
-8. leadTwo: 이 구성에서는 구조적으로 나오지 않을 가능성이 높음(102차 결론), 필요해질 때 재확인.
-9. carrot-ms 4건, 화면녹화 탭 사진 업로드 UI(항목 22·23·26)/Drive 파이프라인/녹화 버튼 깜빡임(28) 실차 검증 이월(97~102차와 동일, 계속 이월 중).
+1. 두 반영 스크립트(코드/devnotes) 실행 로그 확인 -> GitHub SHA 고정 조회로 실제 반영 재확인(16절).
+2. 실차 배포(디바이스 git pull은 사용자 확인 후) 및 swaglog `lead_gate`(g, m) 관찰 -> 튜닝(WIP 105차 "튜닝 가이드").
+3. 104차 기록 부재 확인: 업로드된 `margin_gate_eval.py` docstring이 104차를 명시하지만 devnotes에 104차 회차가 없다. 사용자에게 104차 내용/결과 확인.
+4. `margin_gate_eval.py`(+ `gate_replay.py`/`full_gate_stats.py`/`leadtwo_probe.py`)의 devnotes/toolkit/lead_decel/ 정식 등록 여부 사용자 확인(14절, 세션 리셋마다 복구 비용 반복).
+5. CURRENT_STATUS.md에 99차 게이트 항목이 없음(이번 세션은 수정 안 함) -- 정리 필요.
+6. carrot-ms 신규 커밋 확인(2절), 화면녹화 탭 사진 업로드 UI(항목 22·23·26)/Drive 파이프라인/녹화 버튼 깜빡임(28) 실차 검증 이월.
+7. (보류) idx 14~25 재생, 하이브리드 폐루프 평가, gap_offset 스트레스(-10,-20).
 
-검증: 정적 분석/로그 재생 통계이며 실차 검증: 미실시. mpc_replica는 acados 실물이 아니므로 margin(1.0,1.2/1.3) vs base/B 비교는 절대값보다 개입 시점의 상대적 늦음/빠름 경향으로 해석.
+검증: 정적 분석/샌드박스 단위 테스트이며 실차 검증: 미실시. 이번 하이브리드 조합의 폐루프 재생 검증도 미실시.
 
 주의사항:
-- "gMean이 0에 가깝다"만으로 위험 사례 무반응을 단정하지 않는다 -- idx5처럼 gMean 0.5대인데도 aEmin 개선이 없는 반례가 있었다(반드시 aEmin/minGap 등 물리량과 함께 확인).
-- 컨테이너 파일시스템은 세션마다 초기화된다 -- "샌드박스 전용" 표기된 산출물(margin_gate_eval.py 등)은 다음 세션 시작 시 실제로 사라져 있다는 것을 이번 세션이 직접 겪었다. toolkit 정식 등록(14절) 지연이 계속되면 이 복구 비용이 매 세션 반복된다.
-- HANDOFF.md의 "push 대기" 표기를 실제 상태와 대조 없이 그대로 믿지 않는다(16절).
+- 103차 재생에서 margin 단독(1.0/1.2)은 idx8에서 base와 동일(-2.75)해 기존 B(-2.31)보다 못했다. 하이브리드가 이를 보완하는지는 재생하지 않았으므로, 위험 상황 감속 억제가 기존 B보다 나쁠 수 있다. 문제 시 105차 코드 커밋을 `git revert`하면 `f78e51e`(B안)로 복귀.
+- 정상 추종 평형 m=1.25(GATE_M_HI=1.2는 여유 0.05). tFollow가 동적으로 커지거나 실제 gap이 평형보다 짧은 구간에서 g가 올라갈 수 있다 -- 로그로 확인.
+- GitHub API는 rate limit에 자주 걸린다 -- `git ls-remote`/`git clone`(--depth 1)을 우선 사용.
+- HANDOFF의 "push 대기" 표기를 실제 상태와 대조 없이 믿지 않는다(16절).
 
 다음 작업 후보:
-1. idx 14~25 margin/base/B 스윕 완료.
-2. margin_ratio + TTC 하이브리드 설계.
-3. (lo,hi) 재탐색, 승자 확정.
-4. toolkit 등록 여부 확인 후 등록.
-5. carrot-ms 신규 커밋 확인(2절), 실차 배포 후 lead_gate 로그 관찰.
+1. 반영 확인 -> 실차 lead_gate 로그 관찰/튜닝.
+2. 104차 기록 확인, toolkit 등록 여부 확인.
+3. carrot-ms 신규 커밋 확인(2절).

@@ -1,5 +1,43 @@
 # WIP
 
+## 105차 (Claude · 코드 변경(long_mpc.py, 반영 스크립트 실행/push 대기) · 실차 검증 미실시) — 리드 감속 게이트를 margin_ratio 하이브리드(margin 1.0~1.2 + TTC 6~12s)로 교체
+
+**세션 시작 확인**: 지침 문서(v2, 커밋 `fd995bd`) 전체 조회(브랜치 URL 조회본과 SHA 고정본이 바이트 단위로 동일함을 확인) -> HANDOFF.md(103차) -> `git ls-remote`로 carrot-ryu `f78e51e`(변경 없음)/carrot-ryu-note `fd995bd`(103차 devnotes push 완료) 재확인. GitHub API는 이 세션에서 rate limit에 걸려 `git ls-remote`/`git clone`으로 대체했다.
+
+**16절 확인 사항(불일치)**:
+1. 사용자가 재업로드한 `margin_gate_eval.py` docstring이 "104차에 재구성"이라고 적고, 103차 버전에 없던 후보 형식(`lo:hi+T` 하이브리드, `lo:hi+F<tau>` vLead 저역통과)을 담고 있다. 그러나 devnotes의 최상단 회차는 103차이고 104차 기록은 없다. 즉 104차 세션이 있었는데 devnotes가 반영되지 않았을 가능성이 있다(무엇을 실행했고 어떤 결과가 나왔는지 이 세션은 알 수 없음). 이 세션은 그 번호를 이어받지 않고 105차로 기록한다. 104차 결과를 알고 있다면 사용자가 알려주면 WIP에 보충한다.
+2. HANDOFF(103차)의 note base는 `e9fb103`, 실제 HEAD는 `fd995bd` -- 103차 devnotes가 push된 결과로 정상(부모가 `e9fb103`).
+
+**사용자 결정**: "검증은 나중에 하고 우선 코드 적용한 후 실차 검증으로 수정하자". HANDOFF(103차)의 "승자 후보 확정 -> 최종 비교표 -> 사용자 확정 후 코드 변경" 절차 중 idx 14~25 재생/하이브리드 평가/gap_offset 스트레스를 건너뛰고 코드를 먼저 반영하는 것이며, 그 위험은 아래 "위험"에 명시한다.
+
+**코드 변경(carrot-ryu, `long_mpc.py`, 기준 `f78e51e`)**:
+- 게이트를 절대 시간차(`GATE_H_LO/HI` = 1.5/2.2s)에서 `margin_ratio` 기반으로 교체: `m = (gap + get_stopped_equivalence_factor(vLead)) / (LEAD_DANGER_FACTOR * get_safe_obstacle_distance(vEgo, tFollow, comfort_brake, stop_distance))` -- MPC danger-zone 제약과 같은 정의의 여유 비율. `g_raw = clip((GATE_M_HI - m)/(GATE_M_HI - GATE_M_LO), 0, 1)`, `GATE_M_LO/HI = 1.0/1.2`.
+- TTC 성분(`GATE_T_LO/HI = 6/12`)은 유지하고 `max()`로 결합(하이브리드). 103차 잠정 가설(margin은 스냅샷 지표라 접근 조짐에 늦다)에 대한 대응이며, 이 조합 자체는 폐루프 재생으로 평가한 적이 없다(margin_gate_eval.py의 `lo:hi+T` 후보 형식과 같은 정의).
+- 상승 즉시/하강 시정수 `GATE_TAU_G=1.0`, 약화 목표 `GATE_TAU_TARGET=1.5`는 기존과 동일.
+- `process_lead()` 시그니처는 그대로 두고(테스트 하네스가 `process_lead(l, lead_index=0)`로 스텁하므로 100차 회귀 재발 방지), `update()`가 `carrot.comfort_brake`/`stop_distance`/`t_follow`를 `self._gate_ctx`로 넘기도록 했다(`comfort_brake`/`stop_distance` 대입을 `process_lead` 호출 앞으로 이동, 이후 사용처 동일). `__init__`에서 `_gate_ctx`를 기본값으로 초기화.
+- `_gate_raw()`가 `(g, m)`을 반환. swaglog `lead_gate` 로그에 `m=`이 추가됨(형식: `lead_gate idx= g= m= h= dRel= vEgo= vLead=`).
+- 신규 테스트 `openpilot/selfdrive/controls/tests/test_lead_gate_margin.py`(8개): 정상 추종 평형에서 m=1.25/g=0, 위험거리 경계 m=1.0/g=1, 밴드 중간 g=0.5, 저속 정지 리드 접근에서 TTC 성분 작동, 인자로 받은 tFollow 반영, `process_lead`의 즉시 상승/`GATE_TAU_G` 하강/리드 없음 시 g 리셋.
+- 반영 스크립트: `105cha_carrot_ryu_margin_gate.ps1`(base `f78e51e` 확인 후 6개 블록 Replace-Block 각 1회 매치, py_compile, pytest, 커밋 파일 정확히 2개 확인).
+
+**정적 검증(샌드박스, 실차 아님)**: 신규 테스트 8 passed. 기존 `test_cutout_mpc_integration.py` 17 passed(수정 전 원본과 수정본 모두 동일). PowerShell 7.4.6로 스크립트를 로컬 베어 저장소에 대해 끝까지 드라이런해 푸시된 `long_mpc.py`/테스트가 작업본과 바이트 단위로 일치함을 확인했다(Windows PowerShell 5.1은 샌드박스에 없어 5.1 실행은 미확인). `test_long_mpc_a_change_cost.py`는 샌드박스에 capnp/acados가 없어 실행하지 못했다(해당 테스트가 쓰는 `A_CHANGE_COST`/`get_a_change_cost`는 이번 변경 범위 밖).
+
+**위험(미검증 명시)**:
+- 103차 폐루프 재생에서 margin 단독(1.0/1.2)은 게이트를 만든 근거 사례 idx8에서 `aEmin`이 base와 동일(-2.75), 기존 채택 B(G2T)는 -2.31로 더 나았다. 이번 하이브리드가 그 격차를 메우는지는 재생하지 않았으므로 알 수 없다 -- 위험 상황 감속 억제 성능이 기존 B(현재 carrot-ryu의 코드)보다 나쁠 수 있다.
+- 되돌리기: 이 변경은 단일 커밋이므로 문제 시 해당 커밋을 `git revert`하면 `f78e51e`의 B안 동작으로 복귀한다.
+- 정상 추종 평형(gap = tFollow*v + stop_distance)에서 m=1/LEAD_DANGER_FACTOR=1.25이므로 `GATE_M_HI=1.2`는 평형보다 조금 아래(여유 0.05)다. tFollow가 동적으로 커지는 구간(`carrot.get_T_FOLLOW`)이나 실제 gap이 평형보다 짧은 구간에서는 m이 1.2 아래로 내려가 g가 올라갈 수 있다(로그로 확인 필요).
+
+**실차 검증 후 튜닝 가이드(가설, 미검증)**: swaglog `lead_gate`의 `g`/`m`을 함께 본다. 위험 상황에서 감속이 늦다면 `GATE_M_HI`/`GATE_M_LO`를 올리거나(더 일찍 g>0) `GATE_T_HI`를 올린다(예 12->15). 평상시 불필요한 개입(정상 추종에서 g<1이 잦음)이면 `GATE_M_HI`를 낮춘다. 조정 단위는 상수 1~2개씩.
+
+**미완료(다음 세션)**:
+1. 이 세션의 코드/devnotes 두 스크립트 실행 결과(로그) 확인 후 GitHub SHA 고정 조회로 재확인(16절).
+2. 실차 배포(디바이스 git pull은 CURRENT_STATUS 기준 계속 금지 상태 -- 사용자 확인 후) 및 `lead_gate` 로그 관찰.
+3. 104차 기록 여부 확인(위 16절 1번). `margin_gate_eval.py` 정식 등록(14절)은 사용자 확인 대기 -- 이번 세션은 등록하지 않았다.
+4. idx 14~25 재생, 하이브리드 재생 평가, gap_offset 스트레스는 필요해질 때 재개(사용자가 보류 결정).
+5. CURRENT_STATUS.md에 99차 게이트 항목이 아직 없음(이번 세션은 수정하지 않음 -- 80KB 교체형 파일이라 별도 정리 필요).
+6. carrot-ms 신규 커밋 확인(2절, 계속 이월), 화면녹화 탭/Drive 관련 실차 검증 이월.
+
+**검증**: 정적 분석/샌드박스 단위 테스트이며 실차 검증: 미실시. 로그 재생(폐루프) 검증도 이번 하이브리드 조합에 대해 미실시.
+
 ## 103차 (Claude · 분석 전용 · 코드/지침 변경 없음, 세션 도중 토큰 한도로 중단) — margin_ratio 게이트 후보 스윕 진행 중 체크아웃
 
 **세션 시작 확인**: 지침 문서(v2, 커밋 `e9fb103`) SHA 고정 조회 -> HANDOFF.md/CURRENT_STATUS.md(102차) 확인 -> `git ls-remote`로 carrot-ryu `f78e51e`(변경 없음)/carrot-ryu-note `e9fb103`(102차 devnotes push 완료, 부모 `c2d9d8d`와 정확히 이어짐) 재확인, 4절 절차 그대로 수행했다.
