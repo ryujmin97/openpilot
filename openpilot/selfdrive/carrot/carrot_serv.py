@@ -82,6 +82,29 @@ import collections
 COUNTDOWN_NEW_TARGET_MIN_JUMP_M = 20.0
 SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S = 3.0
 
+# route(내비 경로 곡률) 목표속도에 곱하는 MapTurnSpeedFactor를, 분기·톨게이트 안내 지점에
+# 다가갈 때만 낮춘다(113차). 일반 굽이는 기존 배율을 그대로 쓴다.
+MAP_TURN_GUIDE_TURN_INFOS = (3, 4, 6)  # xTurnInfo: 3 좌 분기/차로변경, 4 우 분기/차로변경, 6 톨게이트
+MAP_TURN_GUIDE_FACTOR = 1.05           # 안내 지점 NEAR_M 이내에서 쓰는 반영비율(배율 1.05 = 105%)
+MAP_TURN_GUIDE_NEAR_M = 200.0          # 이 거리 이내: MAP_TURN_GUIDE_FACTOR 고정
+MAP_TURN_GUIDE_FAR_M = 300.0           # 이 거리 이상: 기존 MapTurnSpeedFactor(route 지평선 300 m와 같음)
+
+
+def map_turn_speed_factor(base, turn_info, dist_to_turn):
+  """route 반영비율. 분기·톨게이트 안내 지점 FAR_M~NEAR_M 구간에서 base -> GUIDE_FACTOR로 선형 전환.
+
+  base(MapTurnSpeedFactor)보다 커지지는 않는다(base가 더 작으면 base 유지).
+  """
+  if turn_info not in MAP_TURN_GUIDE_TURN_INFOS:
+    return base
+  guide = min(base, MAP_TURN_GUIDE_FACTOR)
+  if dist_to_turn <= MAP_TURN_GUIDE_NEAR_M:
+    return guide
+  if dist_to_turn >= MAP_TURN_GUIDE_FAR_M:
+    return base
+  ratio = (dist_to_turn - MAP_TURN_GUIDE_NEAR_M) / (MAP_TURN_GUIDE_FAR_M - MAP_TURN_GUIDE_NEAR_M)
+  return guide + (base - guide) * ratio
+
 
 class CarrotServ:
   def __init__(self):
@@ -1478,7 +1501,8 @@ class CarrotServ:
     if self.turnSpeedControlMode in [1,2]:
       speed_n_sources.append((max(abs(vturn_speed), self.autoCurveSpeedLowerLimit), "vturn"))
 
-    route_speed = max(route_speed * self.mapTurnSpeedFactor, self.autoCurveSpeedLowerLimit)
+    route_factor = map_turn_speed_factor(self.mapTurnSpeedFactor, self.xTurnInfo, self.xDistToTurn)
+    route_speed = max(route_speed * route_factor, self.autoCurveSpeedLowerLimit)
     if self.turnSpeedControlMode == 2:
       if -500 < self.xDistToTurn < 500:
         speed_n_sources.append((route_speed, "route"))
