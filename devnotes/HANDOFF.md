@@ -1,37 +1,34 @@
-Worker: Claude (105차, Claude Sonnet 5)
+Worker: Claude (106차, Claude Sonnet 5)
 Date: 2026-09-20
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base: `f78e51e0bfe01e14ce70cc7eafc3323c5981a8a7`. 이번 105차 코드 변경은 반영 스크립트 `105cha_carrot_ryu_margin_gate.ps1` 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
-Note Branch: carrot-ryu-note (base: `fd995bd619d45ac755bda3cf6f789674a07540d8`, 103차 devnotes push 완료를 git ls-remote로 확인. 이번 105차 devnotes 반영은 실행/push 대기)
+Code Branch: carrot-ryu (HEAD `67b0aa933df429245fa6aa814c0438b1ca68c23d`, 105차 margin 하이브리드 게이트 반영 완료, 이번 106차 코드 변경 없음)
+Note Branch: carrot-ryu-note (base: `91e5956ba02bd24307061db5a07d708933ef27d8`. 106차 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
 carrot-ms 마지막 검토/동기화 체크포인트: `e324f6735d3606800045ed6b28f41e79b17e5498`(93차 확정, 이번 세션도 2절 신규 커밋 확인 안 함 -- 계속 이월)
 
 작업:
-사용자 결정("검증은 나중에 하고 우선 코드 적용한 후 실차검증으로 수정")에 따라 리드 감속 게이트를 margin_ratio 하이브리드로 carrot-ryu `long_mpc.py`에 적용하는 코드/테스트/반영 스크립트를 작성했다.
+105차 코드로 주행한 실차 로그(route 00000438--9c260778c7, seg 21~25)를 확인하고, 이벤트 16건 중 6건을 base/B(98차 채택)/M105(105차 실제 게이트)로 폐루프 재생 비교했다. 상세는 WIP.md 106차.
 
 완료:
-1. 지침 문서 v2 전체 조회(SHA 고정본 == 브랜치 URL 조회본), HANDOFF/WIP 최상단 확인, 두 브랜치 HEAD 재확인.
-2. `long_mpc.py`: `GATE_H_LO/HI`(1.5/2.2s) 게이트를 `margin_ratio`(m = (gap + 정지환산거리(vLead)) / (0.8 * 쾌적거리(vEgo, tFollow, cb, sd)))로 교체, `GATE_M_LO/HI = 1.0/1.2`, TTC 6/12s 성분은 `max()` 결합(하이브리드), 나머지 상수(`GATE_TAU_G=1.0`, `GATE_TAU_TARGET=1.5`) 동일. `process_lead()` 시그니처는 유지하고 `update()`가 `self._gate_ctx`로 tFollow/comfort_brake/stop_distance를 전달. `lead_gate` swaglog에 `m=` 추가.
-3. 신규 단위 테스트 `test_lead_gate_margin.py` 8개(샌드박스 8 passed), 기존 `test_cutout_mpc_integration.py` 17 passed(수정 전후 동일).
-4. 반영 스크립트를 PowerShell 7.4.6로 로컬 베어 저장소에 끝까지 드라이런(푸시 결과 == 작업본 바이트 일치, 임시 폴더 정리 확인).
+1. 105차 코드/devnotes push 완료를 GitHub에서 재확인. lead_gate swaglog 291건에서 이상값 없음(g 평균 0.089, m 1.01~1.92).
+2. 폐루프 재생(54회): M105의 base 대비 평균 완화 +0.004 m/s², B는 +0.051(idx8 +0.30, idx9 +0.08). **103차 우려(margin 계열이 idx8에서 B만큼 완화 못함)가 오늘 로그에서도 재현됨** -- 세션 앞부분 요약("의도대로 동작, 우려 재현 안 됨")은 방향을 잘못 읽은 것이라 WIP 106차에서 정정했다.
+3. `gating_eval_105.py` 신규 + `merge_lead_series.py` CLI 인자 추가, toolkit README 갱신(반영 스크립트에 포함).
 
 미완료(다음 세션 최우선):
-1. 두 반영 스크립트(코드/devnotes) 실행 로그 확인 -> GitHub SHA 고정 조회로 실제 반영 재확인(16절).
-2. 실차 배포(디바이스 git pull은 사용자 확인 후) 및 swaglog `lead_gate`(g, m) 관찰 -> 튜닝(WIP 105차 "튜닝 가이드").
-3. 104차 기록 부재 확인: 업로드된 `margin_gate_eval.py` docstring이 104차를 명시하지만 devnotes에 104차 회차가 없다. 사용자에게 104차 내용/결과 확인.
-4. `margin_gate_eval.py`(+ `gate_replay.py`/`full_gate_stats.py`/`leadtwo_probe.py`)의 devnotes/toolkit/lead_decel/ 정식 등록 여부 사용자 확인(14절, 세션 리셋마다 복구 비용 반복).
-5. CURRENT_STATUS.md에 99차 게이트 항목이 없음(이번 세션은 수정 안 함) -- 정리 필요.
-6. carrot-ms 신규 커밋 확인(2절), 화면녹화 탭 사진 업로드 UI(항목 22·23·26)/Drive 파이프라인/녹화 버튼 깜빡임(28) 실차 검증 이월.
-7. (보류) idx 14~25 재생, 하이브리드 폐루프 평가, gap_offset 스트레스(-10,-20).
+1. 106차 devnotes 반영 스크립트 실행 로그 확인 -> SHA 고정 조회로 재확인(16절).
+2. 사용자 결정: M105 게이트를 튜닝할지(WIP 106차 "튜닝 후보" a/b/c) 또는 실차 관찰을 더 할지. 튜닝 시 `gating_eval_105.py`의 M105 dict로 재생 후 코드 반영.
+3. 104차 기록 부재 확인(margin_gate_eval.py docstring이 104차를 명시하나 devnotes에 없음) 및 `margin_gate_eval.py`/`gate_replay.py`/`full_gate_stats.py`/`leadtwo_probe.py` toolkit 등록 여부.
+4. idx 0,1,3,4,10~15 재생(이번엔 6건만), 다른 route 로그로 교차 확인.
+5. CURRENT_STATUS.md에 99차 게이트 항목 없음 -- 정리 필요.
+6. carrot-ms 신규 커밋 확인(2절), 화면녹화 탭/Drive 파이프라인/녹화 버튼 깜빡임 실차 검증 이월. 실차 배포(디바이스 git pull)는 사용자 확인 후.
 
-검증: 정적 분석/샌드박스 단위 테스트이며 실차 검증: 미실시. 이번 하이브리드 조합의 폐루프 재생 검증도 미실시.
+검증: 복제본(mpc_replica, acados 아님) 재생이며 실차 검증: 미실시. 실차 주관 평가 "앞차 반응 좋음"은 수치 검증이 아니다.
 
 주의사항:
-- 103차 재생에서 margin 단독(1.0/1.2)은 idx8에서 base와 동일(-2.75)해 기존 B(-2.31)보다 못했다. 하이브리드가 이를 보완하는지는 재생하지 않았으므로, 위험 상황 감속 억제가 기존 B보다 나쁠 수 있다. 문제 시 105차 코드 커밋을 `git revert`하면 `f78e51e`(B안)로 복귀.
-- 정상 추종 평형 m=1.25(GATE_M_HI=1.2는 여유 0.05). tFollow가 동적으로 커지거나 실제 gap이 평형보다 짧은 구간에서 g가 올라갈 수 있다 -- 로그로 확인.
-- GitHub API는 rate limit에 자주 걸린다 -- `git ls-remote`/`git clone`(--depth 1)을 우선 사용.
-- HANDOFF의 "push 대기" 표기를 실제 상태와 대조 없이 믿지 않는다(16절).
+- 재생 창 이벤트 6건x오프셋 3이라 표본이 작다. idx8/9는 minHw 2 s 이상 비위험 이벤트여서 "안전 문제"가 아니라 "불필요한 제동 미완화" 문제다.
+- 문제 시 105차 코드 커밋을 `git revert`하면 `f78e51e`(B안)로 복귀.
+- GitHub API는 rate limit에 자주 걸린다 -- `git ls-remote`/`git clone`(--depth 1) 우선.
+- toolkit 재생 환경은 세션마다 초기화된다: 스키마는 로그를 기록한 커밋(105차 로그는 `67b0aa9`)의 cereal + opendbc car.capnp로 구성.
 
 다음 작업 후보:
-1. 반영 확인 -> 실차 lead_gate 로그 관찰/튜닝.
-2. 104차 기록 확인, toolkit 등록 여부 확인.
-3. carrot-ms 신규 커밋 확인(2절).
+1. 반영 확인 -> 튜닝 여부 결정 -> 필요 시 재생 -> 코드 반영.
+2. 104차/toolkit 등록 여부 확인. 3. carrot-ms 신규 커밋 확인(2절).

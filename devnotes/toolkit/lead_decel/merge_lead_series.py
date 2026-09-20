@@ -2,10 +2,13 @@
 사용: (작업 폴더에서) merge_lead_series.py   # out/all.pkl 필요. pairs는 연속 세그먼트 묶음 — 실제 로그에 맞게 수정할 것.
 열: t(구간 시작 기준 초), vE_kph, vL_kph, dRel, desiredDistance, margin=dRel-desiredDistance, aLeadK, aTarget, aTargetBase, accels 등.
 """
+import sys
 import pandas as pd, numpy as np
 d = pd.read_pickle('out/all.pkl')
 cs, rs, lp = d['cs'], d['rs'], d['lp']
 pairs = {'32/33':(32,33), '37/38':(37,38), '39/40':(39,40), '123/124':(123,124), '34':(34,34)}
+if len(sys.argv) > 1:   # 106차: 인자로 구간 지정 가능, 예) merge_lead_series.py main=21-25 (인자가 있으면 위 기본 pairs 대신 사용)
+    pairs = {a.split('=')[0]: tuple(int(x) for x in a.split('=')[1].split('-')) for a in sys.argv[1:]}
 out = {}
 for name,(a,b) in pairs.items():
     l = lp[lp.seg.between(a,b)].sort_values('t_abs').reset_index(drop=True)
