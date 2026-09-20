@@ -1,5 +1,26 @@
 # WIP
 
+## 113차 (코드 반영 스크립트 전달 -- 사용자 실행 대기) -- 분기·톨게이트 안내 지점에서만 route 반영비율(MapTurnSpeedFactor) 낮춤, 112차 진단 정정
+
+**세션 요약**: Worker: Claude (113차, Claude Sonnet 5). 재업로드된 rlog(세그먼트 155)와 현재 코드를 대조해 112차 원인 진단을 정정했다(FINDINGS.md 113차). 요지: route가 130에서 멈춘 것은 v_ego 미반영이 아니라 원시값 96.3에 곱해진 배율 1.35(기기 설정 135) 때문이고, 130->97 급락은 route가 아니라 vturn(비전)이 커브 22m 전에 처음 커브를 본 순간의 min() 전환이다. 사용자가 배율을 135로 둔 이유는 일반 굽이에서 route 원시값이 너무 보수적이라 느꼈기 때문이며, 원시값만으로는 일반 굽이와 실제 커브를 구분할 수 없어 배율 값 하나로는 해결되지 않는다. 그래서 안내 종류가 분기(3/4)·톨게이트(6)이고 안내 지점이 가까울 때만 배율을 낮추는 방향으로 코딩하기로 결정(사용자 결정).
+
+**코드 변경(carrot-ryu, 미반영 -- 스크립트 실행 대기)**: `openpilot/selfdrive/carrot/carrot_serv.py`
+- 모듈 상수 4개(`MAP_TURN_GUIDE_TURN_INFOS=(3,4,6)`, `MAP_TURN_GUIDE_FACTOR=1.05`, `MAP_TURN_GUIDE_NEAR_M=200`, `MAP_TURN_GUIDE_FAR_M=300`)와 순수 함수 `map_turn_speed_factor(base, turn_info, dist_to_turn)` 추가. 안내 종류가 3/4/6이 아니면 base 그대로, 안내 지점 300m 이상이면 base, 200m 이하(통과 후 xDistToTurn -50까지 포함)이면 min(base, 1.05), 그 사이는 선형 보간. base가 1.05 이하면 절대 올리지 않음.
+- update_navi()의 `route_speed = max(route_speed * self.mapTurnSpeedFactor, ...)`를 `route_factor = map_turn_speed_factor(self.mapTurnSpeedFactor, self.xTurnInfo, self.xDistToTurn)`를 곱하도록 변경. 다른 곳(vturn, 안내 로직, 파라미터, debugText 형식)은 변경 없음. 새 Params 키 없음(params_keys.h 변경 없음).
+- 신규 테스트 `openpilot/selfdrive/carrot/tests/test_map_turn_guide_factor.py`(ast로 상수·함수만 실행, cereal 불필요; 배선 확인 포함).
+- 상수 값의 근거: 로그의 route 원시값이 안내 지점 190m 이내에서 96~101, route 지평선 300m(carrot_navi_route의 get_path_after_distance 300). 초기값이며 다른 로그로 확인 필요.
+- 로그 해석 참고: route= 표시값은 이제 배율이 적용된 값이다. 배율은 carrotMan의 xTurnInfo/xDistToTurn으로 같은 공식으로 재계산해 원시값을 되돌릴 수 있다.
+
+**되돌리기**: `git revert <이번 코드 커밋>` 또는 `MAP_TURN_GUIDE_FACTOR`를 MapTurnSpeedFactor 이상으로 올리면 사실상 무효.
+
+**검증**: 정적 분석 + 코드 정독. 단위 테스트 15건 통과(샌드박스, 원본 코드에서는 수집 단계에서 실패하는 음성 대조 확인). `py_compile` 통과. 반영 스크립트는 로컬 저장소 대상 시뮬레이션 실행으로 결과 파일이 로컬 패치본과 바이트 단위로 같음을 확인. 실차 검증: 미실시.
+
+**미완료/다음 세션 우선순위**:
+1. 코드 반영 스크립트(`113cha_route_guide_factor_code.ps1`) 실행 확인 -- 이 회차 시점에는 GitHub 반영으로 간주하지 않음(18절). 다음 세션은 git ls-remote로 carrot-ryu HEAD를 확인.
+2. 46~50s 급제동(aEgo -1.4~-2.2, desiredSpeed가 vEgo보다 높은데도 감속)의 원인 소스 규명 -- 로그만으로 가능, 코드 변경 불필요.
+3. 실차 배포 후 분기/톨게이트 앞에서 route 목표가 vEgo 아래로 내려가는 지점(거리)과 체감 확인, 필요 시 1.05/200/300 조정. 다른 분기·굽이 로그 1~2건으로 원시값 대 vturn 비교.
+4. (111차부터 이월) 110차 GATE_M 0.8/1.0 실차 관찰, 견고성 스윕 재개(선택).
+
 ## 112차 (완료) — 라우트 감속 정체 후 급감속 현상 근본원인 분석, FINDINGS.md 기록
 
 **세션 요약**: 사용자 제보(라우트 감속이 130km/h에서 멈췄다가 뒤늦게 감속되는 느낌)를 업로드된 실주행 rlog(제네시스 DH, 세그먼트 00000438--9c260778c7--155, 약 60초)로 재현/분석. carrot_navi_route()의 역산(backward integration) 로직을 Python으로 그대로 재현해 시뮬레이션한 결과, route 목표속도 계산이 v_ego를 입력으로 쓰지 않는 구조적 문제를 확인. 코드 수정은 하지 않음(분석만). FINDINGS.md에 112차 항목으로 기록·반영 완료(carrot-ryu-note `c4d4426`, 부모 `58e88c7`).
