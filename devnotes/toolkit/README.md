@@ -54,3 +54,13 @@ rlog.zst에서 carState/radarState.leadOne/longitudinalPlan을 뽑아 리드 감
 | `closedloop108.py` | `closedloop108.py <seg> <t_from> <t_to> <variant> [tag]`: 보정 폐루프 what-if(리드는 로그 외생 입력, 자차 시정수 0.3 s, action_t 0.25). variant: none / M105 / M0.8/1.0 / M0.9/1.1(게이트 후보, TTC 6/12 s 고정). 환경변수 `RSHIFT`. 결과 `out/cl108_<tag>_<variant>.pkl`. 시작 상태는 t_from 직전까지 로그로 재구성 |
 
 실행 예: `python3 ego_extract2.py`(run/ 폴더에서) -> `ONLYP=1 python3 openloop108.py 113 3.0 6.5 a` -> `RSHIFT=1 python3 closedloop108.py 113 2.0 9.0 M105 113`. 단일 코어 기준 IPOPT 1회 약 0.3~0.4 s(폐루프 변형 1개, 7 s 구간 약 35 s). 백그라운드는 `setsid nohup ... < /dev/null`. 결과 해석과 한계(폐루프 복제본이 강한 리드 감속에서 실차보다 약함)는 WIP.md 108차 계속 참고.
+
+### 108차 계속2 추가 (출력단 저크 제한 what-if: closedloop_jlim.py)
+
+`closedloop108.py`에 출력단 rate limiter를 더한 도구. 실차 검증 아님(로그 확인). MPC 내부 가정(게이트/tau/tf/prev_a/warm)은 그대로 두고 실행 명령 a_cmd만 "더 세지는 방향"으로 `J_MAX` m/s³ 이하로 서서히 강화하고 완화는 즉시 반영한다. 폴더 배치와 입출력은 `closedloop108.py`와 같다(`../toolkit`, `../schema`, `../segs`, `out/ego2.pkl`).
+
+| 파일 | 역할 |
+|---|---|
+| `closedloop_jlim.py` | `J_MAX=<m/s^3> python3 closedloop_jlim.py <seg> <t_from> <t_to> <variant> [tag]`. `J_MAX` 기본 999(비활성 = `closedloop108.py`와 동일). 결과 `out/cl108_<tag>_<variant>.pkl`. 파일 상단 docstring/사용법은 `closedloop108.py` 것을 그대로 두었다(파일명만 다름) |
+
+실행 예: `J_MAX=6 python3 closedloop_jlim.py 113 2.0 9.0 M105 jl113`. 108차 계속2 결과: seg 113/146에서 J_MAX 6 이상은 완전 무효, 4에서도 최솟값이 오히려 0.01 강해짐(복제본 최대 강화 저크가 seg 113 -4.66 m/s³뿐). 한계와 해석은 WIP.md 108차 계속2 참고.
