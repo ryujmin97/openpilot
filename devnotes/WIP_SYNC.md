@@ -3,6 +3,15 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-21 (115차) -- 2절 carrot-wip 배타 필터 폐지, carrot-ms 신규 1건(4bb4b510) 후보 기록
+
+- carrot-ryu HEAD: fa75aeab7b63233db4c4942021675f0536ee7160 (변경 없음)
+- carrot-ms(happymaj11r/openpilot) HEAD: 4bb4b5104542f0f133c3034315d5f3786f90df84 (111차 체크포인트 a23a77b 대비 신규 1건, git 프로토콜로 재확인)
+- 신규 1건: 4bb4b510 "Tolerate bounded camera timestamp jitter without dropping valid EV9 frames" -- carrot-wip(ajouatom/openpilot) 현재 HEAD(d2973b3f)의 cherry-pick으로 확인(git show -s로 동일 제목/해시 대조). 기존 2절 필터("carrot-wip에 없고 carrot-ms에만 있는 커밋만 추린다")를 그대로 적용했다면 자동 제외됐을 커밋.
+- 2절 필터 폐지(사용자 승인, 2026-09-21): 위 4bb4b510을 실제로 열어본 결과 openpilot/selfdrive/modeld/camera_sync.py의 receive_camera_pair() 카메라 SOF 페어링 허용오차를 10ms 고정값에서 20ms bounded로 완화하는 변경이었고, 이 함수는 openpilot/selfdrive/modeld/modeld.py와 carrot/model_selector/carrot_modeld.py 양쪽 실행경로에서 호출되며 use_extra_client 조건(와이드카메라 보유 여부로 결정되는 일반 로직, eGPU/EV9 전용 게이트 아님)에 걸림 -- carrot-wip에 이미 있다는 사실만으로 내 차량 관련성을 미리 걸러내면 안 된다는 것이 실증됨. 앞으로는 carrot-ms 체크포인트 이후 신규 커밋 전체를 개별 분석한다(PROJECT_INSTRUCTIONS_carrot-ryu.md 2절 갱신, 19절 절차).
+- 4bb4b510 개별 판단: [후보, 반영 보류] carrot-ryu 현재 camera_sync.py blob(b810d2aa)이 이 커밋의 pre-image blob과 byte-exact 일치 확인(git hash-object) -- 반영한다면 상수 1개 추가 + 1줄 교체뿐인 깔끔한 단일 파일 변경. 다만 커밋 메시지 자체가 "Vehicle validation remains outstanding"이라고 명시해 upstream도 실차 미검증 상태 -- 사용자 판단으로 이번 세션엔 반영하지 않고 후보로만 기록.
+- 다음 확인 시점: carrot-ms HEAD가 4bb4b510에서 다시 바뀌었는지, 또는 사용자가 4bb4b510 반영 여부를 다시 논의할 때.
+
 ## 체크포인트: 2026-09-20 (111차) -- carrot-ms e324f67 이후 신규 21건 전수 분류, 전부 반영 보류 확정
 
 - carrot-ryu HEAD: a430d114f17e8b9579392071f7828324cc8bb329 (변경 없음, 110차 GATE_M_LO/HI 0.8/1.0. 이번 세션은 재검증만 수행: SHA 고정 조회로 long_mpc.py 70행 확인 + 격리 환경에서 test_lead_gate_margin.py 재실행 8 passed)

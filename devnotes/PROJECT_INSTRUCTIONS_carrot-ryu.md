@@ -65,9 +65,11 @@ carrot-ms는 매번 재생성(rebase)되어 hash가 바뀌므로 커밋 메시�
 추적한다.
 
 1. `WIP_SYNC.md`에서 마지막으로 검토·반영 완료로 기록된 커밋 목록 확인
-2. GitHub API로 happymaj11r/openpilot(carrot-ms)과 ajouatom/openpilot(carrot-wip)의
-   커밋 메시지를 비교해, carrot-wip에 없고 carrot-ms에만 있는 커밋(= 모델셀렉터 관련
-   기능)만 추린다
+2. GitHub API/git으로 happymaj11r/openpilot(carrot-ms) 체크포인트 이후 신규 커밋
+   전체를 대상으로 한다 -- carrot-wip(ajouatom/openpilot)에도 있는지 여부로 미리
+   걸러내지 않는다(과거 "carrot-wip에 없고 carrot-ms에만 있는 커밋만 추린다" 필터는
+   폐지, 115차. carrot-wip에 이미 있는 커밋도 carrot-ms를 통해 새로 노출된 이상 내
+   차량 관련성은 별개로 판단해야 함이 실증됨 -- 상세는 WIP_SYNC.md 115차 참고)
 3. 그중 WIP_SYNC.md에 이미 검토된 것 제외 → 미검토 커밋만 내 차량에 필요한지 판단
 4. 필요하면 사용자에게 어떤 커밋을 어떻게 반영할지 제안 → 승인 후 9절 방식으로 반영
 5. 반영 결과(가져온 커밋/제외한 커밋과 이유/충돌 여부)를 WIP_SYNC.md에 기록
