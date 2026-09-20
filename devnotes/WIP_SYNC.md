@@ -3,6 +3,11 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-21 (116차) -- carrot-ms 4bb4b510(camera_sync 스큐 허용오차 10ms→20ms) 적용 승인 및 반영 스크립트 준비
+
+- carrot-ryu HEAD: 0e1bef52eb36eb01d683898be4561c243083c160 (변경 없음, 115차 dead code 배치 반영 상태). carrot-ms(happymaj11r/openpilot) HEAD: 4bb4b5104542f0f133c3034315d5f3786f90df84 (변경 없음, 신규 커밋 없음).
+- 4bb4b510 개별 판단 갱신: [적용 승인] 115차에서 "후보, 반영 보류"로 남겨둔 4bb4b510을 상세 분석(diff, DH2015+C3X 실행 경로 추적, 10ms 하드리밋의 실패 사례 원인, 20ms 완화의 부작용 범위) 후 순수 upstream 버그 수정(콤마 C3X 기기 공통, 차량 브랜드/EV9 전용 아님)으로 재확인. 사용자 승인(2026-09-21).
+- 반영 방식: camera_sync.py에 MAX_CAMERA_SKEW_NS 상수 추가 + 임계값 교체, test_camera_sync.py에 회귀 테스트 4종(파라미터라이즈 포함 10 케이스) 추가. carrot-ms 4bb4b510 파일과 byte-exact 동일하게 반영 예정(상세는 WIP.md 116차 참고). 사용자 스크립트 실행 대기 -- push 확인 전까지 "반영 완료"로 간주하지 않는다(16절).
 ## 체크포인트: 2026-09-21 (115차 계속) -- 2절 7번 항목("모델셀렉터와 무관한 커밋 기본 제외") 폐지
 
 - carrot-ryu-note push 2358da1(2절 2번 항목 carrot-wip 배타 필터 폐지 + 아래 115차 체크포인트) 이후 추가 반영. carrot-ryu HEAD fa75aeab(변경 없음), carrot-ms HEAD 4bb4b510(변경 없음).

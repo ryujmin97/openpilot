@@ -1,5 +1,38 @@
 # WIP
 
+## 116차 (코드 반영 스크립트 전달 -- 사용자 실행 대기) -- carrot-ms 4bb4b510(camera_sync 스큐 허용오차 10ms→20ms) 적용 승인, 반영 스크립트 준비
+
+**세션 요약**: Worker: Claude (116차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `133cbbd3`) 조회 및 HANDOFF.md 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `0e1bef52`, carrot-ryu-note `133cbbd3` (직전 세션 push 결과와 일치 확인, 16절).
+
+**분석 (HANDOFF 미완료 2번 항목: carrot-ms `4bb4b510` 판단)**
+- `4bb4b510`(carrot-wip `d2973b3f` cherry-pick) diff 확인: `openpilot/selfdrive/modeld/camera_sync.py`에 `MAX_CAMERA_SKEW_NS = 20_000_000` 상수를 추가하고 `receive_camera_pair()`의 SOF 스큐 하드리밋을 10ms에서 이 상수로 교체. `test_camera_sync.py`에 EV9 실측 스큐(12.6~13.2ms) 기반 회귀 테스트 4종(파라미터라이즈 포함 10 케이스) 추가. `AGENTS.md`/`docs/c3_preupload_warp.md`는 기록용 문서 변경뿐, 동작과 무관.
+- 현재 carrot-ryu `0e1bef52`의 `camera_sync.py`는 `4bb4b510`의 부모(`a23a77b1`) 시점 파일과 byte-exact 동일 -- 로컬 커스터마이징 없음, 앵커 충돌 위험 없음.
+- `receive_camera_pair()`는 `openpilot/selfdrive/modeld/modeld.py`와 `carrot/model_selector/carrot_modeld.py` 양쪽에서 `use_extra_client` 조건(와이드카메라 보유 여부로 결정되는 일반 로직, 차량 브랜드/EV9 전용 게이트 아님) 하에 호출됨을 코드에서 직접 확인. 콤마 C3X는 와이드카메라를 갖고 있어 DH2015+C3X 경로도 이 로직을 그대로 사용한다.
+- 10ms 하드리밋의 실패 모드: commit 메시지 근거에 따르면 EV9 세그먼트에서 카메라 스트림 자체는 완전한데 SOF 스큐가 12.6~13.2ms라 유효한 main 프레임 4개가 버려지고 그 결과 무효 odometry가 발행됐다. 카메라 IRQ 타이밍 지터 문제로 기기 공통 특성이지 EV9 전용 결함이 아니다.
+- 20ms로 완화해도 리샌크 루프(10회 제한)/타임아웃/오래된 프레임 폐기 로직은 그대로 유지되고, 신규 상수도 카메라 주기(50ms)의 절반보다 충분히 작아 안전 마진이 있다.
+- 결론: DH 전용으로 필요한 변경이 아니라 콤마 C3X 기기 전반에 적용되는 순수 upstream 버그 수정. 변경 자체가 상수 1개 추가 + 1줄 교체로 국소적이다. **적용 권장**으로 판정, 사용자 승인(2026-09-21) 받음.
+
+**검증 (샌드박스)**
+- `camera_sync.py`/`test_camera_sync.py` 앵커 치환을 carrot-ryu `0e1bef52` 원본에 시뮬레이션 -- 전달할 `.ps1` 파일에서 실제로 추출한 앵커 문자열로 재시뮬레이션했고, 각 파일 2개 앵커 모두 정확히 1회 매치. 치환 결과가 carrot-ms `4bb4b510`(happymaj11r/openpilot) 실제 파일과 byte-exact 동일함을 diff로 확인(핵심 발견 45 절차).
+- `py_compile`, `pyflakes` 통과(0건 경고).
+- pytest로 `test_camera_sync.py` 전체 실행 -- 기존 5건 + 신규 10건(파라미터라이즈 포함) 총 15건 통과. commit 메시지의 "Fifteen focused camera synchronization tests pass"와 일치.
+- 동작 변화: 카메라 SOF 페어링 허용오차만 10ms -> 20ms로 완화(리샌크 루프/타임아웃 등 그 외 로직은 동일).
+- 실차 검증: 미실시(upstream/carrot-ms 쪽도 commit 메시지에 "vehicle validation remains outstanding"으로 명시돼 있어 이와 별개).
+
+**실행 순서와 명령**
+```
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+& "$HOME\Downloads\116cha_camera_sync_code_carrot_ryu-v1.ps1"
+& "$HOME\Downloads\116cha_camera_sync_devnotes_carrot_ryu_note-v1.ps1"
+```
+- 코드 스크립트: carrot-ryu HEAD가 `0e1bef52`가 아니면 아무것도 바꾸지 않고 중단한다. `camera_sync.py`/`test_camera_sync.py` 2개 파일만 수정, py_compile 확인 후 push한다.
+- devnotes 스크립트(이 파일이 반영하는 것): WIP.md에 116차 회차 추가, WIP_SYNC.md에 `4bb4b510` 반영 체크포인트 추가, HANDOFF.md 교체.
+
+**미완료(다음 세션 우선순위)**:
+1. 실차 배포(디바이스 pull) 여부 -- 사용자 확인 후. dead code 1차 배치(115차)와 이번 camera_sync 변경(116차)을 함께 배포할지 개별 배포할지도 사용자 판단 필요.
+2. dead code 후속 배치: C10/C15(VW MEB, 5개 파일) -- 별도 세션. 추적은 devnotes/DEAD_CODE_REVIEW.md.
+3. (이월) 114차 MAP_TURN_GUIDE_FACTOR 1.00 실차 관찰, 110차 GATE_M 0.8/1.0 관찰, 견고성 스윕 재개(선택). CURRENT_STATUS.md는 이번에도 갱신하지 않았다.
+
 ## 115차 계속 (완료) -- dead code 1차 배치 반영 확인(carrot-ryu `0e1bef52`, note `d10d2382`)
 
 **세션 요약**: Worker: Claude (115차 계속, Claude Sonnet 5). 사용자가 코드 스크립트와 devnotes 스크립트 실행 완료를 알렸다(로그 없이 "완료"). 로그로 판단하지 않고 GitHub에서 직접 확인했다(16절). 앞 회차 헤더의 "사용자 실행 대기"는 그 시점 표기다.
