@@ -65,22 +65,25 @@ def test_steady_following_is_fully_relaxed():
 
 
 def test_margin_at_danger_boundary_is_fully_engaged():
-  # 위험거리 경계(gap + 정지환산거리 = 0.8 * 쾌적거리) 이하에서는 g = 1
+  # margin이 GATE_M_LO 이하에서는 g = 1 (TTC 성분은 g를 키우기만 하므로 margin 성분만으로 1이 되는지 확인)
+  lo = load()[0]["GATE_M_LO"]
   v_ego, v_lead = 20., 10.
   d_comf = v_ego ** 2 / (2 * COMFORT_BRAKE) + T_FOLLOW * v_ego + STOP_DISTANCE
-  gap = 0.8 * d_comf - v_lead ** 2 / (2 * COMFORT_BRAKE)
+  gap = lo * 0.8 * d_comf - v_lead ** 2 / (2 * COMFORT_BRAKE)
   g, m = raw(v_ego, v_lead, gap)
-  assert m == pytest.approx(1.0)
-  assert g == 1.0
+  assert m == pytest.approx(lo)
+  assert g == pytest.approx(1.0)
   assert raw(v_ego, v_lead, gap * 0.8)[0] == 1.0
 
 
 def test_margin_band_is_linear_between_lo_and_hi():
   v = 20.
   d_comf = v ** 2 / (2 * COMFORT_BRAKE) + T_FOLLOW * v + STOP_DISTANCE
-  gap = 1.1 * 0.8 * d_comf - v ** 2 / (2 * COMFORT_BRAKE)   # m = 1.1 (밴드 중간), 접근 없음(TTC 성분 0)
+  consts = load()[0]
+  mid = (consts["GATE_M_LO"] + consts["GATE_M_HI"]) / 2
+  gap = mid * 0.8 * d_comf - v ** 2 / (2 * COMFORT_BRAKE)   # m = 밴드 중간, 접근 없음(TTC 성분 0)
   g, m = raw(v, v, gap)
-  assert m == pytest.approx(1.1)
+  assert m == pytest.approx(mid)
   assert g == pytest.approx(0.5)
 
 
@@ -99,8 +102,8 @@ def test_gate_uses_tfollow_and_comfort_brake_passed_in():
   v = 20.
   gap = steady_gap(v)
   assert raw(v, v, gap, T_FOLLOW)[0] == 0.
-  # 더 긴 tFollow를 요구하면 같은 gap이 위험 쪽이 됨
-  assert raw(v, v, gap, 2.5)[0] > 0.
+  # 더 긴 tFollow를 요구하면 같은 gap이 위험 쪽이 됨 (m이 GATE_M_HI 아래로 내려가도록 충분히 큰 값 사용)
+  assert raw(v, v, gap, 3.5)[0] > 0.
 
 
 def lead(d, v, a=-0.5, tau=1.5):
@@ -115,7 +118,7 @@ def test_process_lead_relaxes_aleadtau_when_far_and_keeps_it_when_close():
   assert self._gate_g[0] == 0.
   # 위험 상황: 즉시 g=1 (상승은 즉시)
   d_comf = 20. ** 2 / (2 * COMFORT_BRAKE) + T_FOLLOW * 20. + STOP_DISTANCE
-  near = lead(0.8 * d_comf - 20. ** 2 / (2 * COMFORT_BRAKE) - 1., 20.)
+  near = lead((ns["GATE_M_LO"] - 0.1) * 0.8 * d_comf - 10. ** 2 / (2 * COMFORT_BRAKE), 10.)   # m = GATE_M_LO - 0.1 (리드 10 m/s)
   M.process_lead(self, near, 0)
   assert self._gate_g[0] == 1.0
 

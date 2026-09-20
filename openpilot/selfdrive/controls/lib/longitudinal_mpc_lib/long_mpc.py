@@ -67,7 +67,7 @@ STOP_DISTANCE = 6.0
 # margin_ratio m = (gap + 정지환산거리(vLead)) / (LEAD_DANGER_FACTOR * 쾌적거리(vEgo, tFollow, cb, sd))
 #   = MPC 위험거리 제약(danger zone)의 여유 비율. m>=GATE_M_HI면 투사 약화(g=0), m<=GATE_M_LO면 현행 투사(g=1).
 # TTC 성분(GATE_T_*)은 margin이 놓치는 접근 속도 기반 조기감지용으로 max() 결합(하이브리드).
-GATE_M_LO, GATE_M_HI = 1.0, 1.2      # margin_ratio 임계값 (무차원)
+GATE_M_LO, GATE_M_HI = 0.8, 1.0      # margin_ratio 임계값 (무차원). 110차: 1.0/1.2 -> 0.8/1.0 (복귀 시 105차 값 1.0/1.2)
 GATE_T_LO, GATE_T_HI = 6.0, 12.0     # TTC 임계값 (s)
 GATE_TAU_G = 1.0                     # 하강 시정수 (s), 상승은 즉시
 GATE_TAU_TARGET = 1.5                # 약화 시 투사 aLeadTau 목표값
