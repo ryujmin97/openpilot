@@ -1,5 +1,20 @@
 # WIP
 
+## 116차 계속 (완료) -- camera_sync 스큐 완화 반영 확인(carrot-ryu `62ae74dc`, note `03ba2f7f`)
+
+**세션 요약**: Worker: Claude (116차 계속, Claude Sonnet 5). 사용자가 두 스크립트 실행 후 "푸시 완료"를 알렸다. 로그로 판단하지 않고 GitHub에서 직접 확인했다(16절).
+
+**확인 결과**
+- carrot-ryu `62ae74dc`(부모 `0e1bef52`), 커밋 메시지 `116cha: widen camera SOF pairing skew tolerance 10ms->20ms (carrot-ms 4bb4b510 cherry-pick)`. 변경 파일은 정확히 2개(`camera_sync.py`, `test_camera_sync.py`). raw 조회 내용이 스크립트 전달 전 사전 시뮬레이션 결과와 byte-exact 동일(LF, BOM 없음).
+- carrot-ryu-note `03ba2f7f`(부모 `133cbbd3`), 변경 파일은 정확히 3개(`HANDOFF.md`, `WIP.md`, `WIP_SYNC.md`). raw 조회 내용이 사전 시뮬레이션 결과와 byte-exact 동일(HANDOFF.md/WIP.md는 LF·BOM 없음, WIP_SYNC.md는 CRLF 유지·BOM 없음).
+
+**상태**: carrot-ms `4bb4b510`(camera_sync SOF 페어링 허용오차 10ms→20ms) 반영 완료. 동작 변화는 카메라 스큐 허용범위 확대뿐이며 근거/검증 내역은 WIP.md 116차 참고. 실차 검증: 미실시. 되돌리기: `git revert 62ae74dc`(carrot-ryu).
+
+**미완료/다음 세션 우선순위**:
+1. 실차 배포(디바이스 pull) 시점 -- 사용자 확인 후. dead code 1차 배치(115차, `0e1bef52`)와 camera_sync 변경(116차, `62ae74dc`)을 함께 배포할지 개별 배포할지 포함. 배포 후 swaglog로 플래너 예외/카메라 페어링 이상이 없는지 확인.
+2. dead code 후속 배치: C10/C15(VW MEB, 5개 파일) -- 별도 세션. 추적은 DEAD_CODE_REVIEW.md.
+3. (이월) 114차 MAP_TURN_GUIDE_FACTOR 1.00 실차 관찰, 110차 GATE_M 0.8/1.0 관찰, 견고성 스윕 재개(선택). CURRENT_STATUS.md는 이번에도 갱신하지 않았다.
+
 ## 116차 (코드 반영 스크립트 전달 -- 사용자 실행 대기) -- carrot-ms 4bb4b510(camera_sync 스큐 허용오차 10ms→20ms) 적용 승인, 반영 스크립트 준비
 
 **세션 요약**: Worker: Claude (116차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `133cbbd3`) 조회 및 HANDOFF.md 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `0e1bef52`, carrot-ryu-note `133cbbd3` (직전 세션 push 결과와 일치 확인, 16절).
