@@ -85,7 +85,7 @@ SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S = 3.0
 # route(내비 경로 곡률) 목표속도에 곱하는 MapTurnSpeedFactor를, 분기·톨게이트 안내 지점에
 # 다가갈 때만 낮춘다(113차). 일반 굽이는 기존 배율을 그대로 쓴다.
 MAP_TURN_GUIDE_TURN_INFOS = (3, 4, 6)  # xTurnInfo: 3 좌 분기/차로변경, 4 우 분기/차로변경, 6 톨게이트
-MAP_TURN_GUIDE_FACTOR = 1.05           # 안내 지점 NEAR_M 이내에서 쓰는 반영비율(배율 1.05 = 105%)
+MAP_TURN_GUIDE_FACTOR = 1.00           # 안내 지점 NEAR_M 이내에서 쓰는 반영비율(배율 1.00 = 100%)
 MAP_TURN_GUIDE_NEAR_M = 200.0          # 이 거리 이내: MAP_TURN_GUIDE_FACTOR 고정
 MAP_TURN_GUIDE_FAR_M = 300.0           # 이 거리 이상: 기존 MapTurnSpeedFactor(route 지평선 300 m와 같음)
 
