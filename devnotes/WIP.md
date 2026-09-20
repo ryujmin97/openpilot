@@ -1,5 +1,21 @@
 # WIP
 
+## 115차 계속 (완료) -- dead code 1차 배치 반영 확인(carrot-ryu `0e1bef52`, note `d10d2382`)
+
+**세션 요약**: Worker: Claude (115차 계속, Claude Sonnet 5). 사용자가 코드 스크립트와 devnotes 스크립트 실행 완료를 알렸다(로그 없이 "완료"). 로그로 판단하지 않고 GitHub에서 직접 확인했다(16절). 앞 회차 헤더의 "사용자 실행 대기"는 그 시점 표기다.
+
+**확인 결과**
+- carrot-ryu `0e1bef52`(부모 `fa75aeab`), 커밋 메시지 `115cha: remove dead code batch 1 (get_jerk_factor, A_CRUISE_MAX_*/get_max_accel, prev_accel_clip, throttle/coast calc); keep allowThrottle field`, 3개 파일 +5/-49. codeload tarball의 longitudinal_planner.py, long_mpc.py, test_turn_accel.py가 이 세션 작업본과 바이트 단위로 같다(LF, BOM 없음). 삭제 대상 이름 10개가 3개 파일에 잔존하지 않고, `longitudinalPlan.allowThrottle = bool(self.allow_throttle)` 발행은 유지돼 있다.
+- carrot-ryu-note `d10d2382`(부모 `fdaaf452`), 3개 파일(DEAD_CODE_REVIEW.md 신규 21줄, HANDOFF.md, WIP.md 115차). SHA 고정 raw 내용이 스크립트가 만들기로 한 내용과 바이트 단위로 같다(LF, BOM 없음). 이 devnotes는 코드 push 전에 쓴 것이라 DEAD_CODE_REVIEW.md 상태 칸과 HANDOFF.md가 "실행 대기"로 남아 있어 이번 후속 스크립트로 갱신한다.
+
+**상태**: dead code 1차 배치(C01 get_jerk_factor, C12 prev_accel_clip, C16 get_max_accel/A_CRUISE_MAX_*, C06 throttle/coast 계산부) 제거 완료. 동작 변화 없음은 정적 분석 근거이며, 이 세션의 샌드박스 검증(py_compile, pyflakes, test_turn_accel 24건)은 WIP.md 115차 참고. 실차 검증: 미실시. 되돌리기: `git revert 0e1bef52`.
+
+**미완료/다음 세션 우선순위**:
+1. 실차 배포(디바이스 pull) 시점 -- 사용자 확인 후. 배포 후 첫 주행에서 플래너 예외가 없는지 swaglog로 확인.
+2. dead code 후속 배치: C10/C15(VW MEB, 5개 파일)는 별도 세션. 추적은 DEAD_CODE_REVIEW.md.
+3. carrot-ms `4bb4b510` 반영 여부 사용자 판단 대기(WIP_SYNC.md 115차).
+4. (이월) 114차 MAP_TURN_GUIDE_FACTOR 1.00 실차 관찰, 110차 GATE_M 0.8/1.0 관찰, 견고성 스윕 재개(선택). CURRENT_STATUS.md는 이번에도 갱신하지 않았다.
+
 ## 115차 (코드 반영 스크립트 전달 -- 사용자 실행 대기) -- 지침 2절 2번·7번 필터 폐지(반영 확인), dead code 1차 배치 삭제 준비(C01/C12/C16/C06)
 
 **세션 요약**: Worker: Claude (115차, Claude Sonnet 5). 이전 대화가 한도로 중단돼 새 대화에서 이어받았다. 세션 시작 절차: 지침 문서(v2)를 조회하고(carrot-ryu-note `50283ef1`), HANDOFF.md를 확인했다. 시작 시점 GitHub 상태: carrot-ryu `fa75aeab`(114차 코드 `114cha: MAP_TURN_GUIDE_FACTOR 1.05 -> 1.00`가 반영돼 있음, carrot_serv.py 88행 상수 1.00 확인), carrot-ryu-note `50283ef1`, carrot-ms `4bb4b510`, carrot-wip `d2973b3f`(둘 다 이전 세션과 동일).

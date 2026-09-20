@@ -8,14 +8,14 @@ carrot-ryu의 dead code(호출/참조되지 않는 코드) 정리 추적 문서.
 
 | 후보 | 위치 | repo 전체 참조 | 상태 |
 |---|---|---|---|
-| C01 `get_jerk_factor()` | long_mpc.py | 자기 파일의 주석 1곳뿐, 호출 0곳 | 1차 배치 삭제 스크립트 전달(115차, 실행 대기) |
-| C12 `prev_accel_clip` | longitudinal_planner.py | 초기화 1곳 + 주석 블록뿐, 읽는 곳 0곳 | 1차 배치 삭제 스크립트 전달(115차, 실행 대기) |
-| C16 `get_max_accel()` + `A_CRUISE_MAX_VALS/BP` | longitudinal_planner.py | 자기 파일의 주석 1곳뿐. `A_CRUISE_MAX_BP_CARROT`(carrot_functions.py)는 별개 상수 | 1차 배치 삭제 스크립트 전달(115차, 실행 대기) |
-| C06 throttle/coast 계산부 | longitudinal_planner.py | 계산부는 `self.allow_throttle = True` 상수 때문에 실행되지 않음. 메시지 필드 `allowThrottle`은 UI 2곳과 클러스터 리플레이가 읽음 | 계산부만 1차 배치에서 삭제(필드와 `self.allow_throttle = True`는 유지). 스크립트 전달(115차, 실행 대기) |
+| C01 `get_jerk_factor()` | long_mpc.py | 자기 파일의 주석 1곳뿐, 호출 0곳 | 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
+| C12 `prev_accel_clip` | longitudinal_planner.py | 초기화 1곳 + 주석 블록뿐, 읽는 곳 0곳 | 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
+| C16 `get_max_accel()` + `A_CRUISE_MAX_VALS/BP` | longitudinal_planner.py | 자기 파일의 주석 1곳뿐. `A_CRUISE_MAX_BP_CARROT`(carrot_functions.py)는 별개 상수 | 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
+| C06 throttle/coast 계산부 | longitudinal_planner.py | 계산부는 `self.allow_throttle = True` 상수 때문에 실행되지 않음. 메시지 필드 `allowThrottle`은 UI 2곳과 클러스터 리플레이가 읽음 | 계산부만 1차 배치에서 삭제(필드와 `self.allow_throttle = True`는 유지). 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
 | C10/C15 VW MEB(`is_volkswagen_meb`/`is_vw_meb`) | drive_helpers.py 정의 + cruise.py, controlsd.py, steer_ratio.py, longitudinal_planner.py, test_controlsd.py | 5개 파일에서 사용 중. `CP.brand == "volkswagen"`이 DH2015에서 항상 False라 각 분기는 죽은 경로이나 제거 범위가 큼 | 보류 -- 별도 세션 |
 
 ## 115차 -- 1차 배치 (C01 + C12 + C16 + C06 계산부)
 
 - 대상 커밋 기준: carrot-ryu `fa75aeab`. 삭제 3개 파일(long_mpc.py, longitudinal_planner.py, test_turn_accel.py의 `parse_model` 목 반환값 5튜플 -> 4튜플).
 - 검증과 동작 변화 없음 근거는 WIP.md 115차 참고. 실차 검증: 미실시.
-- 상태: 코드 스크립트 `115cha_deadcode_batch1_code_carrot_ryu-v1.ps1` 전달, 사용자 실행 대기.
+- 상태: 코드 스크립트 `115cha_deadcode_batch1_code_carrot_ryu-v1.ps1` 실행·push 완료 확인(carrot-ryu `0e1bef52`, 부모 `fa75aeab`, 3개 파일 +5/-49). 실차 검증: 미실시. 실차 배포 시점은 사용자 확인 후.
