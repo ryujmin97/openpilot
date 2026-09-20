@@ -1,5 +1,30 @@
 # WIP
 
+## 111차 (완료) — 110차 반영 재검증 + carrot-ms 2절 점검(e324f67→a23a77b, 신규 21건 전부 반영 보류)
+
+**세션 요약**: 110차 코드/devnotes 반영(carrot-ryu `a430d11`, carrot-ryu-note `bf20985`)을 SHA 고정 조회 + 격리 pytest로 독립 재검증(문제 없음). 이어서 2절 carrot-ms 동기화 점검 수행 -- 체크포인트 `e324f67`(93/95차 확정) 이후 신규 21건을 전수 분류, 전부 사용자 승인 하에 반영 보류 확정. 코드 변경 없음.
+
+**재검증 상세**:
+- carrot-ryu `a430d11` 위에 `67b0aa9` 대비 커밋 1개만 존재(`git log --oneline` 확인)
+- `long_mpc.py` 70행 `GATE_M_LO, GATE_M_HI = 0.8, 1.0` 확인(SHA 고정 raw 조회), 파일 첫 3바이트 BOM 없음(`23 21 2f`)
+- `test_lead_gate_margin.py`를 long_mpc.py와 함께 격리 폴더로 분리해 pytest 재실행 -> 8 passed
+- carrot-ryu-note `bf20985` 위에 `abcda6c` 대비 커밋 1개만 존재, WIP.md `## 110차` 헤더 1개, HANDOFF.md 첫 줄 110차 일치
+- ryujmin97/openpilot 브랜치 구성: carrot-ryu/carrot-ryu-note/carrot-ryu-v1 세 개만 존재(1절 문서와 일치)
+
+**carrot-ms 2절 점검 상세**:
+- carrot-ms(happymaj11r) 현재 HEAD `a23a77b`. 이전 체크포인트 `e324f67`(93/95차) 대비 `git rev-list --count e324f67..a23a77b` = 21건
+- 21건 전부 `git merge-base --is-ancestor <sha> 2723a8e`(ajouatom/carrot-wip HEAD)로 확인한 결과 NOT_IN_WIP -- carrot-ms 고유 추가분(모델셀렉터/부가기능)임을 확인
+- 분류 및 제외 사유 상세는 WIP_SYNC.md 111차 체크포인트 참고. 요약:
+  - 블루투스 리모컨(Cinque v3) 관련 14건(페어링/HID/크루즈 제스처 11건 + 하드웨어 통합/브랜치 정리 3건): 사용자가 해당 리모컨 미보유 확인 -> 제외
+  - World Model 실험 기록 2건: AGENTS.md 문서만 수정, 코드 변경 없음 -> 제외(반영할 코드 자체가 없음)
+  - Hyundai 리드 표시 횡위치 보정 1건(8b5a9ae): `opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py`만 수정(CAN FD 전용). DH 2015는 89차에서 확정한 대로 `HyundaiFlags.CHECKSUM_6B|LEGACY`로 CAN FD 미해당 -> 제외(기존 f19d404/8e85a02/5ae4a25와 동일 근거)
+  - C3 eGPU 이미지/워프 검증 4건: 사용자가 eGPU 미보유 확인 -> 제외
+- AGNOS_VERSION이 launch_env.sh에서 `19.6.3-carrot` -> `19.8-carrot-bt1`로 바뀐 것을 확인했으나, 이는 범용 안정판이 아니라 위 블루투스 리모컨용 트라이얼 빌드(커밋 메시지 "Trial AGNOS 19.8 native Bluetooth", 후속 문서 "remote input validation pending")임을 확인 -- 동일 사유로 반영 보류.
+
+**다음 세션 우선순위**:
+1. 실차 배포(디바이스 pull) 시점 -- 사용자 확인 후. 배포 후 swaglog `lead_gate`의 g/m 관찰(110차 GATE_M 0.8/1.0).
+2. carrot-ms 후속 신규 커밋 여부는 필요 시 가벼운 `git ls-remote`로 점검(체크포인트는 `a23a77b`로 최신화됨). AGNOS가 안정판(비-bt1)으로 나오면 재검토.
+3. 견고성 스윕 재개(94/60/110 km/h 조합, 72건 중 6건만 완료, 결과 미확인) -- 선택.
 ## 110차 (Claude · 분석 기록 + 코드 변경(long_mpc.py GATE_M_LO/HI 0.8/1.0, 반영 스크립트 실행/push 대기) · 수정 코드 실차 검증 미실시) — GATE 0.8/1.0 결정 재구성 결과 기록과 코드 반영
 
 **세션 시작 확인**: 지침 문서(v2) SHA 고정 조회(커밋 `abcda6c`, 43195 B) -> HANDOFF.md(109차) 확인 -> `git ls-remote`로 carrot-ryu `67b0aa9`, carrot-ryu-note `abcda6c` 확인. 109차 devnotes가 이 HEAD에 반영돼 있음(직전 HANDOFF의 "실행/push 대기" 해소).

@@ -3,6 +3,19 @@
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
+## 체크포인트: 2026-09-20 (111차) -- carrot-ms e324f67 이후 신규 21건 전수 분류, 전부 반영 보류 확정
+
+- carrot-ryu HEAD: a430d114f17e8b9579392071f7828324cc8bb329 (변경 없음, 110차 GATE_M_LO/HI 0.8/1.0. 이번 세션은 재검증만 수행: SHA 고정 조회로 long_mpc.py 70행 확인 + 격리 환경에서 test_lead_gate_margin.py 재실행 8 passed)
+- carrot-ryu-note HEAD: bf20985ed47844ed7fa5af3865e6dac314f8c38f (110차 devnotes push 확인 완료. 이번 111차 devnotes 반영은 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+- carrot-ms(happymaj11r/openpilot) HEAD: a23a77b1aa8b007d6b22bb19f2a1992b84d9b7d4 (이전 체크포인트 e324f67, 93/95차 확정 대비 신규. `git rev-list --count e324f67..a23a77b` = 21건. 21건 전부 `git merge-base --is-ancestor`로 carrot-wip(ajouatom/openpilot) HEAD 2723a8eba98404c4fa86701a2d2a49543a1028e9에 없음을 확인 -- carrot-ms 고유 추가분(모델셀렉터/부가기능)임을 확인)
+- 21건 분류(전부 제외, 사용자 승인 2026-09-20):
+  1) 블루투스 리모컨(Cinque v3) 페어링/HID/크루즈 제스처 11건(6ec3369/5bad3dd/5e595fd/471b477/fedc90c/a7c6e38/5077775/a5b5c64/532d866/794bfdb/6ea8936) -- [제외] 사용자가 해당 리모컨 미보유 확인
+  2) Cinque v3 하드웨어 통합/브랜치 정리 3건(d4599bf/851bccb/7624951) -- [제외] 1)과 세트, 하드웨어 종속
+  3) World Model 실험 브랜치 기록 2건(079bf07/0b33895) -- [제외] AGENTS.md 문서만 수정, 코드 변경 없음("no user-facing behavior changes")
+  4) Hyundai 리드 표시 횡위치 보정 1건(8b5a9ae) -- [제외] opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py만 수정(CAN FD 전용). DH 2015는 HyundaiFlags.CHECKSUM_6B|LEGACY로 CAN FD 미해당(89차 확정) -- 기존 f19d404/8e85a02/5ae4a25와 동일 근거
+  5) C3 eGPU 이미지 준비/워프 검증 4건(4ecede0/cd6dfef/495caf5/a23a77b) -- [제외] 사용자가 eGPU 미보유 확인
+- AGNOS_VERSION 별도 확인: launch_env.sh가 5bad3dd에서 "19.6.3-carrot" -> "19.8-carrot-bt1"로 바뀌어 a23a77b까지 그대로 유지됨. 커밋 메시지("Trial AGNOS 19.8 native Bluetooth with pinned Cinque v3 runtime")와 후속 문서(5e595fd, "remote input validation pending")로 볼 때 범용 안정판이 아니라 Cinque v3 블루투스 리모컨용 트라이얼 빌드임을 확인 -- 1)과 같은 사유로 제외.
+- 다음 확인 시점: carrot-ms HEAD가 a23a77b에서 다시 바뀌었는지 다음 2절 점검 때 git ls-remote로 확인. carrot-ms가 "-bt1"이 아닌 안정판 AGNOS 19.8(또는 그 이상)을 내놓으면 재검토.
 ## 체크포인트: 2026-09-19 (95차) -- carrot-ms e324f67 이후 신규 커밋 없음 재확인, carrot-ryu 25f21d4 디바이스 실배포 확인(20절 7항)
 
 - carrot-ms(happymaj11r/openpilot) HEAD: e324f6735d3606800045ed6b28f41e79b17e5498 (변경 없음, git ls-remote 재확인 -- 93차 체크포인트와 동일)
