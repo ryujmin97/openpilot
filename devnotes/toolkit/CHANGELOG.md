@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-20 (113차 계속)
+- route_decel/ 추가: route_extract.py (route 감속 분석 -- extract/show/replay 3모드, README 참고). 기존 스크립트는 변경 없음.
+
 ## 2026-09-20 (109차)
 - lead_decel/ 추가: closedloop_ncap.py (필요 감속 기반 명령 상한 what-if, README 참고). d_target=HFLOOR×vL 구조 폐기 결정. 기존 스크립트는 변경 없음.
 

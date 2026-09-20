@@ -1,5 +1,20 @@
 # FINDINGS
 
+## 2026-09-20 (113차 계속) -- 46~50초 급제동의 원인은 운전자 브레이크(pedalPressed)로 확정: 113차 항목의 "원인 소스 미규명" 정정, 새 배율을 같은 로그에 산술 재계산
+
+**정정 대상**: 바로 아래 113차 항목의 "46~50s 제동 원인 소스는 미규명"과 "desiredSpeed가 vEgo보다 높은데도 감속이 시작됐다" 부분. 18절에 따라 113차 항목은 수정하지 않고 이 항목을 위에 추가한다.
+
+**근거(같은 세그먼트 155 rlog를 재업로드받아 이 세션에서 직접 파싱, toolkit `route_decel/route_extract.py`)**:
+- 46.00s에 selfdriveState가 enabled -> disabled(alertType `pedalPressed/userDisable`)로 바뀌고 onroadEvents에 pedalPressed가 50.0s까지 이어진다. carState.brakePressed=True는 46.02~50.6s, 이 구간 carControl.longActive=False, accel 명령 0.00(46.02~50.8s). vEgo 108.3 -> 78km/h, aEgo 약 -1.2~-2.4 m/s^2는 **운전자가 브레이크를 밟아 생긴 감속**이지 시스템 출력이 아니다.
+- 이 구간에서 longitudinalPlan.aTarget이 aEgo를 그대로 따라간 것은, selfdriveState가 enabled가 아닐 때 longitudinal_planner.py의 reset_state가 a_desired를 aEgo로 초기화하기 때문이다(carrot-ryu `a430d114` 소스 143~167행 확인). 이 구간의 desiredSpeed/route 값은 제어에 쓰이지 않았다.
+- 브레이크 직전의 시스템 자체 감속: 44.8s부터 accel 명령 -0.09 -> -0.79(45.8s), aEgo -0.76(46.0s). 출처는 vturn(97~111). 이때 steerOverride 이벤트(44.75s, 44.95~45.56s, 운전자 조향)도 있었다. 운전자가 46.00s에 브레이크를 밟은 이유는 로그로 알 수 없다.
+- 45.4s에 nRoadLimitSpeed 100 -> 40, xTurnInfo 4 -> 6(톨게이트), xDistToTurn 약 564m로 갱신. 50.84s부터 vCruise 120 -> 87(disabled 상태에서 바뀜, 원인은 조사하지 않음).
+- 따라서 "급감속"이 이 46~50s 구간을 가리킨다면 route/vturn 목표속도 문제가 아니라 운전자 제동이다. 사용자가 체감한 구간이 어느 쪽인지는 확인하지 않았다.
+
+**새 배율(113차 반영, carrot-ryu `c7b5a010`)을 같은 로그에 산술 재계산**(`route_extract.py replay ... 1.35`; route=값/1.35로 원시값을 되돌린 뒤 map_turn_speed_factor와 같은 공식 적용, 플래너/차량 시뮬레이션이 아님):
+- (20Hz 전체 행 기준) 새 목표는 안내 지점 205m 이전에는 대체로 vEgo보다 높고, 205m(38.1s)에 처음 vEgo 아래로 내려갔다가 원시값 요동으로 149m(40.06s)까지 다시 위로 올라가는 순간이 있으며, 그 뒤로는 계속 아래에 머문다(차이 -0.6 이하로 시작해 41.2~44.0s(113~28m)에는 -4.3~-8.1km/h, 목표 약 101.1 vs vEgo 106.6~109.2). 기존 130 대비, 계속 아래에 머무는 시점 기준으로 vturn 인수(44.2s)보다 약 4.1초, 처음 내려간 시점 기준으로 약 6.1초 먼저다. 새 목표 101.1은 vturn 최저값 97과 4km/h 차이라 인수 시 낙차도 작아진다.
+- 한계: 설계에 쓴 같은 로그로 확인한 것(표본 밖 검증 없음), 플래너가 이 목표에 어떤 감속 크기로 반응할지는 모름, 실차 검증 미실시. guide 배율을 1.0으로 낮추면 같은 구간 목표는 약 96.3(-10~-13km/h).
+
 ## 2026-09-20 (113차) -- 112차 원인 진단 정정: route 정체는 "v_ego 미반영"이 아니라 MapTurnSpeedFactor 배율(x1.35) 때문이고, 130->97 급락은 route가 아니라 vturn(비전)
 
 **정정 대상**: 아래 112차 항목의 "route 목표속도가 v_ego를 반영하지 않는 구조적 원인"과 "v_ego 100/120/145km/h 어느 값이어도 출력 동일" 서술. 18절에 따라 112차 항목은 수정하지 않고 이 항목을 위에 추가한다.

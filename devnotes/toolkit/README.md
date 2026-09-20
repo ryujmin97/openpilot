@@ -74,3 +74,13 @@ rlog.zst에서 carState/radarState.leadOne/longitudinalPlan을 뽑아 리드 감
 | `closedloop_ncap.py` | `event <seg> <t_from> <t_to> <gate_variant> [tag]` 또는 `stress <v0_kph> <gap0_m> <lead_decel> <gate_variant> [tag]`. 환경변수 `NCAP`(0/1, 기본1), `NCAP_MARGIN`(기본0.6), `NCAP_HFLOOR`(기본1.2, 초), `RSHIFT`(event만). `d_target=NCAP_HFLOOR×vL` 기준. 결과 `out/ncap_ev_*.pkl` / `out/ncap_st_*.pkl` |
 
 109차 결과: `d_target=HFLOOR×vL` 구조가 리드 급감속 시 avail을 다시 키워 cap을 역방향으로 풀어버리는 결함 확인(리드 속도가 줄면 목표거리도 같이 줄어듦). hfloor 1.0~3.0 전 구간에서 stress(94km/h, 앞차 -5m/s² 지속) 안전 여유가 baseline(무제한)보다 나쁨. 이 구조는 폐기, vE 기준 재설계는 별도 검증 필요. 한계와 해석은 WIP.md 109차 참고.
+
+### 113차 계속 추가 (route 감속 분석: route_decel/route_extract.py)
+
+route(내비 경로) 목표속도/안내 정보와 자차 거동을 rlog 1개에서 뽑아 20Hz로 병합하고, 배율 변경(`carrot_serv.map_turn_speed_factor`)을 로그에 산술 재계산하는 도구. 실차 검증 아님(로그 확인, 플래너/차량 시뮬레이션 아님).
+
+| 파일 | 역할 |
+|---|---|
+| `route_decel/route_extract.py` | `extract <schema_dir> <rlog.zst> <out.pkl>`: carState/carControl/longitudinalPlan/carrotMan/radarState/selfdriveState를 carrotMan 20Hz로 병합(t는 첫 carState 기준 초, `route`는 szPosRoadName 안 `route=` 디버그값). `show <out.pkl> <t0> <t1> [step]`: 구간 표(vE/aEgo/brakeP/accel/longActive/state/des/src/route/vTurn/xTurn/xDist). `replay <out.pkl> <t0> <t1> <base> [near far guide]`: route=값/base로 원시값을 되돌리고 안내 종류 3/4/6이면 far~near 선형·near 이내 guide 배율을 적용한 새 목표와 vE와의 차이 출력(base는 로그 당시 MapTurnSpeedFactor/100, 예 1.35) |
+
+스키마는 **로그를 기록한 커밋** 기준으로 받는다(113차 로그: carrot-ryu `a430d114`의 `openpilot/cereal/*.capnp`, `openpilot/cereal/include/`, `opendbc_repo/opendbc/car/car.capnp`를 한 폴더에). 의존: pycapnp, zstandard, pandas, numpy. 실행 예: `route_extract.py extract ../schema <route>--<n>/rlog.zst out/r.pkl` -> `route_extract.py show out/r.pkl 44 52` -> `route_extract.py replay out/r.pkl 36 45 1.35`. `route=` 값은 이 도구를 쓰려면 debugText 형식(`route=숫자`)이 유지돼야 한다(hud_renderer도 이 형식을 파싱). 113차 결과와 해석은 FINDINGS.md 113차 계속 참고.
