@@ -813,15 +813,6 @@ def vec3(point: Vec3) -> rl.Vector3:
     return rl.Vector3(point.x, point.y, point.z)
 
 
-def rectangles_overlap(
-    left: tuple[float, float, float, float],
-    right: tuple[float, float, float, float],
-) -> bool:
-    lx, ly, lw, lh = left
-    rx, ry, rw, rh = right
-    return lx < rx + rw and lx + lw > rx and ly < ry + rh and ly + lh > ry
-
-
 def camera_forward(camera) -> tuple[float, float, float] | None:
     dx = float(camera.target.x - camera.position.x)
     dy = float(camera.target.y - camera.position.y)
@@ -853,18 +844,6 @@ def world_to_screen_label_anchor(point, camera, width: int, height: int):
     if not math.isfinite(screen.x) or not math.isfinite(screen.y):
         return None
     return screen
-
-
-def label_rect_inside_bounds(
-    rect: tuple[float, float, float, float],
-    bounds: tuple[float, float, float, float],
-) -> bool:
-    x, y, width, height = rect
-    left, top, right, bottom = bounds
-    values = (x, y, width, height, left, top, right, bottom)
-    if not all(math.isfinite(value) for value in values):
-        return False
-    return x >= left and y >= top and x + width <= right and y + height <= bottom
 
 
 class ClusterUiRenderer:
@@ -2130,13 +2109,6 @@ class ClusterUiRenderer:
                 (*WHITE[:3], 220),
                 anchor="center",
             )
-
-    def render_to_file(self, state: ClusterUiState, output_path: str | Path) -> None:
-        image = self._render_to_image(state)
-        try:
-            rl.export_image(image, str(output_path))
-        finally:
-            rl.unload_image(image)
 
     def render_to_png_bytes(self, state: ClusterUiState, portrait_upload: bool = False) -> bytes:
         profile_stage = self._profile_start()
@@ -3626,22 +3598,6 @@ class ClusterUiRenderer:
         self._profile_add_elapsed("draw_scene.vehicle_badges.project", project_ms)
         self._profile_add_elapsed("draw_scene.vehicle_badges.layout", layout_ms)
         self._profile_add_elapsed("draw_scene.vehicle_badges.text", text_ms)
-
-    def _world_label_bounds(
-        self,
-        left: float,
-        top: float,
-        right: float,
-        bottom: float,
-    ) -> tuple[float, float, float, float]:
-        sx = self.width / DESIGN_WIDTH
-        sy = self.height / DESIGN_HEIGHT
-        return (
-            left * sx,
-            top * sy,
-            self.width - right * sx,
-            self.height - bottom * sy,
-        )
 
     def _draw_vehicle_box(self, vehicle: VehicleBox) -> None:
         half_width = vehicle.width_m * 0.5
@@ -6802,57 +6758,6 @@ class ClusterUiRenderer:
         self._draw_text("eGPU", EGPU_STATUS_CENTER_X, TOP_STATUS_CENTER_Y + 1.0,
                         EGPU_STATUS_FONT_SIZE, GREEN, anchor="center")
 
-    def _draw_drive_status_box(
-        self,
-        text: str,
-        center_x: float,
-        center_y: float,
-        box_size: float,
-        font_size: float,
-        text_color: tuple[int, int, int],
-    ) -> None:
-        box_x = center_x - box_size * 0.5
-        box_y = center_y - box_size * 0.5
-        rect = rl.Rectangle(box_x, box_y, box_size, box_size)
-        roundness = max(0.0, min(1.0, DRIVE_STATUS_BOX_RADIUS / max(1.0, box_size)))
-        rl.draw_rectangle_rounded_lines_ex(rect, roundness, 12, GEAR_STATUS_OUTLINE_WIDTH, rl_color(text_color))
-        self._draw_text(
-            text,
-            center_x,
-            center_y + 1,
-            font_size,
-            text_color,
-            anchor="center",
-        )
-
-    def _draw_follow_gap_status(self, state: ClusterUiState, bottom_y: float) -> None:
-        x = FOLLOW_STATUS_CENTER_X - FOLLOW_STATUS_W * 0.5
-
-        gap_count = 0 if state.cruise_gap is None else int(clamp(float(state.cruise_gap), 1.0, float(FOLLOW_STATUS_GAP_BARS)))
-        bar_w = FOLLOW_GAP_BAR_W * FOLLOW_GAP_BAR_SCALE
-        bar_h = FOLLOW_GAP_BAR_H * FOLLOW_GAP_BAR_SCALE * 2.0
-        bar_r = FOLLOW_GAP_BAR_R * FOLLOW_GAP_BAR_SCALE
-        bar_step = FOLLOW_GAP_BAR_STEP_X * FOLLOW_GAP_BAR_SCALE
-        bars_total_w = bar_w + bar_step * (FOLLOW_STATUS_GAP_BARS - 1)
-        icon_x = x + FOLLOW_STATUS_W - FOLLOW_GAP_ICON_W
-        icon_y = bottom_y - FOLLOW_GAP_ICON_H
-        bar_x = icon_x - bars_total_w - 3.0
-        bar_y = bottom_y - bar_h
-        for index in range(FOLLOW_STATUS_GAP_BARS):
-            active = index >= FOLLOW_STATUS_GAP_BARS - gap_count
-            self._rounded_rect(
-                bar_x + index * bar_step,
-                bar_y,
-                bar_w,
-                bar_h,
-                bar_r,
-                FOLLOW_GAP_ACTIVE if active else FOLLOW_GAP_INACTIVE,
-                None,
-                0.0,
-            )
-
-        self._draw_follow_vehicle_icon(icon_x, icon_y)
-
     def _draw_network_status(self, state: ClusterUiState, bottom_y: float) -> None:
         theme = self._current_theme()
         tint = WHITE if state.network_connected else theme.muted
@@ -6866,20 +6771,6 @@ class ClusterUiRenderer:
             tint,
             alpha,
         )
-
-    def _draw_follow_vehicle_icon(self, x: float, y: float) -> None:
-        texture = self._follow_vehicle_texture
-        if texture is None:
-            theme = self._current_theme()
-            car_x = x + FOLLOW_GAP_ICON_W * 0.5
-            car_y = y + FOLLOW_GAP_ICON_H * 0.5
-            self._rounded_rect(car_x - 16, car_y - 8, 32, 16, 5.0, theme.muted, None, 0.0)
-            self._rounded_rect(car_x - 7, car_y - 14, 15, 8, 4.0, theme.muted, None, 0.0)
-            return
-
-        source = rl.Rectangle(0.0, 0.0, float(texture.width), float(texture.height))
-        dest = rl.Rectangle(x, y, FOLLOW_GAP_ICON_W, FOLLOW_GAP_ICON_H)
-        rl.draw_texture_pro(texture, source, dest, rl.Vector2(0.0, 0.0), 0.0, rl_color(WHITE))
 
     def _draw_bottom_aligned_texture_icon(
         self,

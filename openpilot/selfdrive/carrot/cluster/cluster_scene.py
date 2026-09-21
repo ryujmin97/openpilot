@@ -5,7 +5,6 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
-from statistics import median
 
 from cluster_config import (
     AMBER,
@@ -710,114 +709,6 @@ def dashed_lane_start_cursor_m(start_m: float, dash_m: float, gap_m: float) -> f
     return DRIVE_VIEW_REAR_VISIBLE_M - cycles_to_visible * cycle_m
 
 
-def dashed_centerline_segments(
-    centerline: tuple[Vec3, ...],
-    dash_m: float = LANE_DASH_LENGTH_M,
-    gap_m: float = LANE_DASH_GAP_M,
-) -> tuple[tuple[Vec3, ...], ...]:
-    if len(centerline) < 2:
-        return ()
-
-    cycle_m = dash_m + gap_m
-    segments: list[tuple[Vec3, ...]] = []
-    current_dash: list[Vec3] = []
-    distance_m = 0.0
-    dash_phase_m = lane_dash_phase_m(centerline, dash_m, gap_m)
-    previous = centerline[0]
-    eps = 0.0001
-
-    for current in centerline[1:]:
-        segment_dx = current.x - previous.x
-        segment_dy = current.y - previous.y
-        segment_dz = current.z - previous.z
-        segment_m = math.sqrt(segment_dx * segment_dx + segment_dy * segment_dy + segment_dz * segment_dz)
-        if segment_m <= 0.001:
-            previous = current
-            continue
-
-        segment_start_m = distance_m
-        segment_end_m = distance_m + segment_m
-        cursor_m = segment_start_m
-        cursor_point = previous
-
-        while cursor_m < segment_end_m - eps:
-            cycle_offset_m = lane_dash_cycle_offset(cursor_m, dash_phase_m, cycle_m, dash_m, eps)
-            in_dash = cycle_offset_m < dash_m
-            boundary_m = cursor_m + (dash_m - cycle_offset_m if in_dash else cycle_m - cycle_offset_m)
-            next_m = min(segment_end_m, boundary_m)
-            if next_m <= cursor_m + eps:
-                next_m = segment_end_m
-
-            next_point = lerp_vec3(previous, current, (next_m - segment_start_m) / segment_m)
-            if in_dash:
-                append_unique_point(current_dash, cursor_point)
-                append_unique_point(current_dash, next_point)
-                if boundary_m <= next_m + eps and len(current_dash) >= 2:
-                    segments.append(tuple(current_dash))
-                    current_dash = []
-            elif len(current_dash) >= 2:
-                segments.append(tuple(current_dash))
-                current_dash = []
-
-            cursor_m = next_m
-            cursor_point = next_point
-
-        distance_m = segment_end_m
-        previous = current
-
-    if len(current_dash) >= 2:
-        segments.append(tuple(current_dash))
-    return tuple(segments)
-
-
-def lane_marking_segments_for_marking(
-    marking: LaneMarking,
-    steering: float,
-    lane_width_m: float,
-    start_m: float,
-    end_m: float,
-    extend_before_model: bool = False,
-    longitudinal_scale: float = 1.0,
-) -> tuple[tuple[Vec3, ...], ...]:
-    if marking.model_points:
-        centerline = model_line_centerline(
-            marking.model_points,
-            start_m,
-            end_m,
-            0.0,
-            marking.model_lateral_shift_m,
-            longitudinal_scale,
-        )
-        if len(centerline) < 2:
-            if not extend_before_model:
-                return ()
-        else:
-            if extend_before_model:
-                centerline = extend_model_centerline_rearward(
-                    centerline,
-                    start_m,
-                )
-            if marking.style == "solid":
-                return (centerline,)
-            return dashed_centerline_segments(centerline)
-
-    if marking.style == "solid":
-        return (lane_centerline(marking.offset, steering, lane_width_m, start_m, end_m, STATIC_LINE_STEPS, 0.0),)
-
-    segments: list[tuple[Vec3, ...]] = []
-    dash_m = LANE_DASH_LENGTH_M
-    cycle_m = dash_m + LANE_DASH_GAP_M
-    cursor = dashed_lane_start_cursor_m(start_m, dash_m, LANE_DASH_GAP_M)
-    while cursor < end_m:
-        dash_start = max(cursor, start_m)
-        dash_end = min(cursor + dash_m, end_m)
-        if dash_end > dash_start + 0.001:
-            segment = lane_centerline(marking.offset, steering, lane_width_m, dash_start, dash_end, 6, 0.0)
-            segments.append(segment)
-        cursor += cycle_m
-    return tuple(segments)
-
-
 def strips_from_centerline_width_specs(
     points: tuple[Vec3, ...],
     specs: tuple[tuple[float, Color, float], ...],
@@ -1190,11 +1081,6 @@ def model_line_render_points_and_key(
     while len(_MODEL_LINE_RENDER_POINT_KEY_CACHE) > MODEL_LINE_RENDER_POINT_KEY_CACHE_LIMIT:
         _MODEL_LINE_RENDER_POINT_KEY_CACHE.popitem(last=False)
     return render_points, point_key
-
-
-def model_line_points_for_render(model_points: tuple[ModelPathPoint, ...]) -> tuple[ModelPathPoint, ...]:
-    render_points, _ = model_line_render_points_and_key(model_points, MODEL_LINE_RENDER_POINT_LIMIT)
-    return render_points
 
 
 def cached_model_line_strip_groups(
@@ -1806,22 +1692,6 @@ def radar_point_display_priority(point: RadarPoint, state: ClusterUiState) -> tu
     )
 
 
-def corner_radar_common_lateral_speed_mps(points: tuple[RadarPoint, ...], state: ClusterUiState) -> float:
-    candidates = [
-        point.lateral_speed_mps
-        for point in points
-        if point.source == "cornerRadar"
-        and point.lateral_speed_mps is not None
-        and (point.valid is None or point.valid > 0)
-        and (absolute_speed_kph := radar_point_absolute_speed_kph(point, state)) is not None
-        and abs(absolute_speed_kph) <= RADAR_STATIC_OBJECT_SPEED_KPH
-    ]
-    if len(candidates) < CORNER_RADAR_EGO_LATERAL_COMP_MIN_POINTS:
-        return 0.0
-    offset = float(median(candidates)) * CORNER_RADAR_EGO_LATERAL_COMP_GAIN
-    return clamp(offset, -CORNER_RADAR_EGO_LATERAL_COMP_MAX_MPS, CORNER_RADAR_EGO_LATERAL_COMP_MAX_MPS)
-
-
 def radar_point_display_lateral_speed_mps(point: RadarPoint, lateral_speed_offset_mps: float = 0.0) -> float | None:
     if point.lateral_speed_mps is None:
         return None
@@ -1848,10 +1718,6 @@ def radar_point_heading_lateral_speed_mps(
         CORNER_RADAR_HEADING_YAW_COMP_MAX_MPS,
     )
     return lateral_speed_mps + yaw_lateral_mps
-
-
-def detected_vehicle_is_rear_corner_summary(vehicle: DetectedVehicle) -> bool:
-    return vehicle.label in ("LR", "RR") and vehicle_source_is_adas(vehicle.source)
 
 
 def detected_vehicle_is_rear_car_state_summary(vehicle: DetectedVehicle) -> bool:
@@ -2707,11 +2573,6 @@ def radar_point_matches_static_road_edge(point: RadarPoint, state: ClusterUiStat
     return edge_distance <= RADAR_ROAD_EDGE_STATIONARY_CLEARANCE_M and (absolute_static or relative_static)
 
 
-def radar_point_is_outside_road_edges(point: RadarPoint, state: ClusterUiState, lane_width_m: float) -> bool:
-    outside_m = radar_point_road_edge_outside_distance_m(point, state, lane_width_m)
-    return outside_m is not None and outside_m > RADAR_ROAD_EDGE_OUTSIDE_MARGIN_M
-
-
 def radar_point_road_edge_outside_distance_m(
     point: RadarPoint,
     state: ClusterUiState,
@@ -2971,61 +2832,6 @@ def blend_camera(start: CameraSpec, end: CameraSpec, amount: float) -> CameraSpe
         position=blend_vec3(start.position, end.position, amount),
         target=blend_vec3(start.target, end.target, amount),
         fovy_deg=start.fovy_deg + (end.fovy_deg - start.fovy_deg) * amount,
-    )
-
-
-def translate_vec3_x(point: Vec3, shift_x_m: float) -> Vec3:
-    return Vec3(point.x + shift_x_m, point.y, point.z)
-
-
-def translate_vehicle_box_x(vehicle: VehicleBox, shift_x_m: float) -> VehicleBox:
-    if abs(shift_x_m) <= 0.0001:
-        return vehicle
-    return VehicleBox(
-        center=translate_vec3_x(vehicle.center, shift_x_m),
-        right_x=vehicle.right_x,
-        right_y=vehicle.right_y,
-        forward_x=vehicle.forward_x,
-        forward_y=vehicle.forward_y,
-        width_m=vehicle.width_m,
-        length_m=vehicle.length_m,
-        height_m=vehicle.height_m,
-        body_color=vehicle.body_color,
-        side_color=vehicle.side_color,
-        rear_color=vehicle.rear_color,
-        top_highlight=vehicle.top_highlight,
-        outline_color=vehicle.outline_color,
-        confidence=vehicle.confidence,
-        label=vehicle.label,
-        source=vehicle.source,
-        longitudinal_m=vehicle.longitudinal_m,
-        relative_speed_mps=vehicle.relative_speed_mps,
-        absolute_speed_kph=vehicle.absolute_speed_kph,
-        acceleration_mps2=vehicle.acceleration_mps2,
-        ttc_s=vehicle.ttc_s,
-        cut_in=vehicle.cut_in,
-        primary=vehicle.primary,
-        annotate=vehicle.annotate,
-    )
-
-
-def translate_radar_marker_x(marker: RadarPointMarker, shift_x_m: float) -> RadarPointMarker:
-    if abs(shift_x_m) <= 0.0001:
-        return marker
-    return RadarPointMarker(
-        center=translate_vec3_x(marker.center, shift_x_m),
-        radius_m=marker.radius_m,
-        color=marker.color,
-        label=marker.label,
-        longitudinal_m=marker.longitudinal_m,
-        lateral_m=marker.lateral_m,
-        relative_speed_mps=marker.relative_speed_mps,
-        absolute_speed_kph=marker.absolute_speed_kph,
-        lateral_speed_mps=marker.lateral_speed_mps,
-        relative_accel_mps2=marker.relative_accel_mps2,
-        probability=marker.probability,
-        valid=marker.valid,
-        in_my_lane=marker.in_my_lane,
     )
 
 

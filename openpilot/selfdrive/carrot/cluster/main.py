@@ -152,30 +152,6 @@ def route_log_kind_for_path(path: Path, fallback: str) -> str:
     return fallback
 
 
-def route_state_cutin_candidates(state: object) -> tuple[CutinAlertCandidate, ...]:
-    detected_vehicles = getattr(state, "detected_vehicles", ()) or ()
-    candidates = tuple(
-        CutinAlertCandidate(
-            int(-1 if getattr(vehicle, "radar_track_id", None) is None else getattr(vehicle, "radar_track_id")),
-            float(getattr(vehicle, "longitudinal_m", 0.0) or 0.0),
-            float(getattr(vehicle, "lateral_m", 0.0) or 0.0),
-            float(getattr(vehicle, "relative_speed_mps", 0.0) or 0.0),
-        )
-        for vehicle in detected_vehicles
-        if bool(getattr(vehicle, "cut_in", False))
-        and str(getattr(vehicle, "source", "")) == "radarState"
-    )
-    if candidates:
-        return candidates
-    if bool(getattr(state, "recorded_cutin_active", False)):
-        return (CutinAlertCandidate(-2, 0.0, 0.0, 0.0),)
-    return ()
-
-
-def route_state_has_cutin(state: object) -> bool:
-    return bool(route_state_cutin_candidates(state))
-
-
 def route_state_recorded_cutin_sound_candidates(state: object) -> tuple[CutinAlertCandidate, ...]:
     if not bool(getattr(state, "recorded_cutin_sound", False)):
         return ()
