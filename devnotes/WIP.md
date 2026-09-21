@@ -1,5 +1,25 @@
 # WIP
 
+## 123차 (스크립트 준비 -- 실행/push 대기) -- DEAD_CODE_REVIEW 4차 배치 C그룹 삭제 스크립트 작성/검증
+
+**세션 요약**: Worker: Claude (123차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `4853319`) git ls-remote SHA 고정으로 조회, HANDOFF.md(122차)/CURRENT_STATUS.md 확인 후 이어받았다(4절). 시작 시점 GitHub: carrot-ryu `2efdd2e2`(121차, 변화 없음), carrot-ryu-note `4853319`(122차, HANDOFF 기록과 일치, 16절). 사용자가 122차 devnotes 반영 push 완료를 알려왔고("푸시완료"), `git ls-remote`로 이미 GitHub에 반영돼 있음을 직접 재확인했다.
+
+**작업 1 (11절 재확인)**: 119차에서 승인된 A→B→C 순서의 마지막 단계인 C그룹(cluster 계열) 착수 전, codeload tarball로 대상 커밋(`2efdd2e2`) 최신 상태를 다시 받아 18개 대상 함수가 여전히 정의 1곳 + (그룹 내부 상호호출 제외) 외부 참조 0곳임을 저장소 전체 grep(`--include=*.py`, tinygrad_repo/opendbc_repo 제외)으로 재확인했다. `cluster_scene.py`의 `corner_radar_common_lateral_speed_mps` 삭제로 `from statistics import median` import(119차가 예고한 미사용 import 5건 중 1건)도 함께 고아가 됨을 확인.
+
+**작업 2 (삭제 적용)**: `ast.parse`로 각 함수의 정확한 시작줄(데코레이터 포함)/끝줄을 산출해 3개 파일에서 삭제 -- `cluster_renderer.py`(모듈 최상위 함수 2개 + `ClusterUiRenderer` 메서드 5개, -109줄), `cluster_scene.py`(모듈 최상위 함수 9개 + 미사용 import 1줄, -194줄), `main.py`(모듈 최상위 함수 2개, -24줄), 합계 -327줄(119차 추산 "약 300줄"과 부합). 삭제 후 남는 빈 줄 수를 원본 규칙(최상위 함수 사이 2줄/메서드 사이 1줄)과 동일하게 맞췄다.
+
+**작업 3 (검증)**: 3개 파일 `py_compile` 전부 통과. `pyflakes`로 삭제 전/후 경고를 비교해 완전히 동일함을 확인(`cluster_scene.py`의 기존 무관 경고 1건만 잔존, 줄 번호만 삭제분만큼 이동). `git hash-object`로 원본(pre-image)과 결과(post-image) 블롭 해시를 계산해 스크립트에 가드로 박아 넣었다. 별도의 완전히 새로운 `git clone`(carrot-ryu, `--config core.autocrlf=false`)에서 전달할 .ps1 파일 자체에 담긴 base64 페이로드를 그대로 추출해 pre-image 해시 일치 확인 → 파일쓰기(바이트 그대로, BOM 없음 확인) → post-image 해시 일치 확인 → `py_compile` → `git commit`까지 스크립트 로직을 처음부터 재현했고, 결과 커밋의 `git show --numstat`이 3개 파일 +0/-327(cluster_renderer.py -109/cluster_scene.py -194/main.py -24)로 예상과 정확히 일치함을 확인했다(9절 항목 7, 16절). 이 재현은 Linux 샌드박스(bash)에서 이루어진 것이며 Windows PowerShell 5.1에서의 실제 실행은 아니다. pytest는 conftest/`params_pyx` 컴파일 의존성이 샌드박스에 없어 여전히 미실시(11절, 기존 세션들과 동일한 제약).
+
+**결과물**: 반영 스크립트(`123cha_item_c_group_dead_code_carrot_ryu.ps1`) -- 스크립트 자체가 순수 ASCII라 BOM 불필요, `core.autocrlf=false`, 임시폴더 자동삭제(`finally` 블록), `Get-PythonCmd`(py -3 -> python3 -> python, EOF 공급) 패턴, pre/post 블롭 해시 가드 포함. 9절 "전달 전 필수 자가검증 체크리스트" 전항목 통과 확인(응답에 검증 명령 출력 포함).
+
+**완료**: C그룹 대상 확정/재확인, 삭제 적용, py_compile/pyflakes 검증, 반영 스크립트 작성/자가검증, devnotes(WIP.md/HANDOFF.md/CURRENT_STATUS.md/DEAD_CODE_REVIEW.md) 갱신.
+
+**미완료(다음 세션 최우선)**: 1. 코드 스크립트(`123cha_item_c_group_dead_code_carrot_ryu.ps1`) 실행/push 확인 -- push 확인되면 119차 A/B/C 4차 배치 전체 종결(DEAD_CODE_REVIEW.md 갱신). 2. CURRENT_STATUS.md 97~114차 구간 상세 catch-up(122차부터 이월). 3. C그룹 포함 115~121차 dead code 전체 실차 배포/검증(사용자 확인 후).
+
+**검증**: devnotes 조회(GitHub SHA 고정) + codeload tarball 재확인(11절) + 독립 clone 스크립트 로직 재현(9절/16절). 실차 검증: 미실시(코드 자체가 아직 push되지 않음).
+
+**사용자 첫 실행 결과 (123차 계속)**: 사용자가 코드 스크립트(v1)를 실행했으나 [1/6] `git clone` 단계에서 `error: RPC failed; curl 56 schannel: server closed abruptly (missing close_notify)` / `fatal: early EOF`로 실패했다. `git commit`/`push` 이전이고 `finally` 블록이 임시 폴더를 삭제해 GitHub·로컬 모두 변경 없음(15절/18절 안전장치 정상 동작). 같은 시각 Claude 샌드박스에서는 `git clone --depth 1`이 8초에 성공(HEAD `2efdd2e2`)해 저장소/브랜치 문제가 아니라 사용자 PC 쪽 일시적 TLS(schannel) 연결 끊김으로 판단한다(추정, 재현은 못 함). 재발 방지로 두 스크립트의 clone을 `--depth 1` + 최대 3회 재시도(3회차는 `-c http.sslBackend=openssl`)로 교체한 `-v2`를 전달했다(9절 버전표시 규칙). Claude는 v1 페이로드를 독립적으로 재검증했다: 코드 스크립트 3개 파일의 post blob hash 3/3 일치, GitHub `2efdd2e2`의 pre-image blob hash 3/3 일치, 삭제 정의 18개(7+9+2)·추가 0줄·-327줄, 저장소 전체 `git grep -w` 결과 잔여 참조가 전부 삭제 세트 내부, post 3개 py_compile 통과 및 pyflakes 신규 경고 0건. 함께 받은 v1 devnotes 스크립트는 pwsh 7.6.6 `Parser::ParseFile`로 검증한 결과 4057행 `$Files` 배열 끝의 후행 쉼표로 `Missing expression after ','` 파싱 오류가 있어(사용자가 아직 실행하기 전에 발견) v2에서 제거했다. 이 devnotes 본문의 "대상 함수 12개"는 실제 삭제 정의 18개(119차 목록과 일치)의 오기여서 v2에서 정정했다. 이 검증은 Linux 샌드박스(pwsh 7.6.6)이며 Windows PowerShell 5.1 실행은 아니다. 실차 검증: 미실시.
+
 ## 122차 (devnotes 갱신 · 코드 변경 없음) -- 115~121차 dead code cleanup 실차 배포 확인 + CURRENT_STATUS.md 동기화 지연 발견/정정
 
 **세션 요약**: Worker: Claude (122차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `6f97820`)를 git ls-remote SHA 고정으로 조회, HANDOFF.md(121차)와 CURRENT_STATUS.md를 순서대로 확인해 이어받았다(4절). carrot-ryu HEAD `2efdd2e2`(121차, 이번 세션 변경 없음), 이번 세션은 carrot-ms(happymaj11r) 신규 커밋 확인/동기화 작업을 별도로 하지 않음(2절 대상 아님, devnotes 전용 세션).
