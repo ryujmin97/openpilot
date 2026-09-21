@@ -1,5 +1,19 @@
 # FINDINGS
 
+## 핵심 발견 49 (126차) -- test_latcontrol.py 3-인자 생성자 호출 불일치는 carrot-ryu 회귀가 아니라 carrot-wip/carrot-ms 원본부터 존재하는 문제
+
+**배경**: 125차에서 발견한 `test_latcontrol.py::test_saturation`의 `TypeError`(WIP.md 125차 기록, HANDOFF 125차 미완료 3번)의 원인/도입 시점을 조사했다.
+
+**조사 방법**: (1) carrot-ryu(`a0f4c5a5f`)를 blobless partial clone해 대상 5개 파일(`controls/tests/test_latcontrol.py`, `controls/lib/latcontrol.py`/`latcontrol_pid.py`/`latcontrol_torque.py`/`latcontrol_angle.py`, `controls/lib/tests/test_latcontrol.py`)의 `git log --oneline`을 확인 -- 전부 61차 리셋의 단일 스쿼시 커밋(`Squash carrot-wip lebowski updates`) 하나만 나오고, 그 이후 carrot-ryu 자체 커밋에서 수정된 적이 없다. (2) happymaj11r/openpilot(carrot-ms, `3756e6d5702ff6ebd2c54d12f2e25e587dca4d99`)와 ajouatom/openpilot(carrot-wip, `3d93b7eed6caf284a70a853b14c4ed9f9a4c49b2`)에서 동일 5개 파일을 직접 raw 조회해 carrot-ryu와 대조.
+
+**확인**: 5개 파일 전부 carrot-ryu/carrot-ms/carrot-wip 사이에 byte 단위로 동일했다. `controls/tests/test_latcontrol.py::test_saturation`은 `controller(CP.as_reader(), CI, DT_CTRL)`로 3-인자 호출하지만, `LatControl`(base)/`LatControlPID`/`LatControlTorque`/`LatControlAngle` 4개 클래스 생성자는 원본부터 전부 `__init__(self, CP, CI)` 2-인자만 받는다. 즉 **이 불일치는 carrot-ryu의 61차 베이스 리셋이나 그 이후 개별 커밋 반영에서 생긴 회귀가 아니라, carrot-wip 원본 자체에 이미 존재하던 깨진 테스트가 carrot-ms를 거쳐 변경 없이 상속된 것**이다.
+
+**추가 발견(부수적)**: `controls/lib/tests/test_latcontrol.py`라는 별도의 중복 테스트 파일이 존재한다. 이 파일은 생성자 호출은 2-인자로 맞지만, `interfaces[car_name]`을 `(CarInterface, CarController, CarState, RadarInterface)` 4-튜플로 언패킹하는 옛날 opendbc 인터페이스 API를 사용해 현재 opendbc 버전과는 그 나름대로 어긋나 있다(이것도 carrot-ms/carrot-wip에 동일하게 존재, carrot-ryu에서 만든 게 아님).
+
+**처리 방향**: 18절상 carrot-ms/carrot-wip 원본은 수정 대상이 아니다. carrot-ryu 로컬에서만 테스트 파일을 고치는 방안은 이번 세션에서는 보류(원인 확정까지만 수행, 실차 로직과 무관한 낮은 우선순위 항목).
+
+**검증**: carrot-ryu/carrot-ms/carrot-wip 3개 저장소 직접 raw 조회 + 5개 파일 전체 대조(11절 원칙, 추측 없이 원본 확인). 실차 검증: 해당 없음.
+
 ## 핵심 발견 48 (121차) -- B그룹 v1 스크립트에서 핵심 발견 46/44(Windows CRLF checkout)가 재발: pre-blob 해시 가드는 EOL 불일치를 잡지 못하고, `core.eol=crlf` 재현 테스트가 없으면 Linux 검증만으로는 놓친다
 
 **배경**: 120차 A그룹 스크립트는 CRLF 정규화와 `core.eol=crlf` 재현 양성 테스트를 갖췄지만, 121차 B그룹 v1(`121cha_deadcode_batchB_code_carrot_ryu-v1.ps1`)은 LF 앵커만 매칭했고 채팅 사본에는 `core.eol=crlf` 테스트 기록이 없다. 사용자 PC(Windows PowerShell 5.1)에서 v1은 사전 blob 가드 5개를 통과한 뒤 3단계에서 `max_abs anchor matched 0 times (expected 1)`로 안전 중단됐다(commit/push 없음). 원인은 핵심 발견 46과 같은 `.gitattributes`의 `* text=auto`다(carrot-ryu `b98620e8` GitHub blob은 CR 0개, Windows 작업 트리는 CRLF).

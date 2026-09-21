@@ -227,6 +227,8 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 
 - **[125차]** pytest를 실제 CI 조건(conftest.py 포함)으로 최초 실행. acados OCP 솔버 코드생성/컴파일(`long_mpc.py`)과 `msgq.ipc_pyx` 컴파일까지 전부 해결해, 목표였던 105~110차 margin_ratio 게이트(`test_lead_gate_margin.py`) + 113~114차 route 커브 감속(`test_map_turn_guide_factor.py`) 23/23 전부 통과 확인(pytest-cpp/randomly/xdist/asyncio 로드된 실제 `pyproject.toml` 조건). 범위를 넓힌 `controls/tests/`+`carrot/tests/` 전체 실행(1928 passed/59 failed/85 errors)에서 실패 대부분은 이 샌드박스의 구조적 한계(`pyray` 미설치, OpenCV/ONNX 버전 불일치, 일부 opendbc 차량 DBC 미생성)로 확인됐으나, `test_latcontrol.py::test_saturation`이 `LatControlPID/Torque/Angle`을 인자 3개(`CP, CI, DT_CTRL`)로 호출하는데 실제 생성자는 전부 `(CP, CI)`만 받아 `TypeError`가 나는 것을 코드 대조로 확정(원인/도입 시점은 미조사, 다음 세션 이월). 재현 절차를 `devnotes/toolkit/pytest_ci_setup.sh`로 등록, 완전 재초기화된 컨테이너에서 그 스크립트 하나로 동일 결과가 재현됨을 확인. 상세: WIP.md 125차.
 
+- **[126차, devnotes만 · 코드 변경 없음]** 125차 미완료 3번(`test_latcontrol.py` 시그니처 불일치 원인)을 조사 -- carrot-ryu/carrot-ms/carrot-wip 3개 저장소 직접 대조로, 이 `TypeError`가 carrot-ryu 자체 회귀가 아니라 carrot-wip 원본부터 존재하던 문제(carrot-ms를 거쳐 변경 없이 상속)임을 확정. 별도의 중복 테스트 파일(`controls/lib/tests/test_latcontrol.py`, 옛날 opendbc 4-튜플 API 사용)도 발견, 이것도 원본에 동일 존재. 실차 로직과 무관해 이번 세션에서는 수정 없이 기록만 함(FINDINGS.md 핵심 발견 49). 코드 변경 없음.
+
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.

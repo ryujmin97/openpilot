@@ -1,5 +1,19 @@
 # WIP
 
+## 126차 (devnotes만 · 코드 변경 없음) -- test_latcontrol.py 시그니처 불일치는 carrot-ryu 회귀가 아니라 원본(carrot-wip/carrot-ms)부터 존재하는 문제로 확정
+
+**배경**: 125차 미완료 3번(`test_latcontrol.py::test_saturation`의 `TypeError` 원인/도입 시점 조사, `git log -p`로 `latcontrol*.py` 변경 이력 대조)을 이어받았다.
+
+**조사**: carrot-ryu(`a0f4c5a5f`)에서 blobless partial clone으로 `git log --oneline -- <경로>`를 확인한 결과, `openpilot/selfdrive/controls/tests/test_latcontrol.py`/`openpilot/selfdrive/controls/lib/latcontrol*.py`/`openpilot/selfdrive/controls/lib/tests/test_latcontrol.py` 전부 61차 베이스 리셋의 단일 스쿼시 커밋(`Squash carrot-wip lebowski updates`) 이후 carrot-ryu 자체 이력에서 한 번도 수정된 적이 없다 -- 즉 carrot-ryu 안에서 시그니처가 바뀐 적이 없다.
+
+원본과 직접 대조: happymaj11r/openpilot(carrot-ms, `3756e6d5702ff6ebd2c54d12f2e25e587dca4d99`)와 ajouatom/openpilot(carrot-wip, `3d93b7eed6caf284a70a853b14c4ed9f9a4c49b2`)에서 같은 5개 파일(대상 테스트, latcontrol.py/latcontrol_pid.py/latcontrol_torque.py/latcontrol_angle.py)을 직접 조회한 결과 carrot-ryu와 byte 단위로 동일했다. `test_saturation`은 `controller(CP.as_reader(), CI, DT_CTRL)` 3-인자로 호출하지만 `LatControl`(base)/`LatControlPID`/`LatControlTorque`/`LatControlAngle` 4개 클래스 전부 `__init__(self, CP, CI)` 2-인자만 받는 것도 원본부터 동일 -- **이 TypeError는 carrot-ryu의 61차 리셋이나 그 이후 커밋 반영 과정에서 생긴 회귀가 아니라, carrot-wip 원본 자체에 이미 존재하던 깨진 테스트가 carrot-ms를 거쳐 그대로 상속된 것**이다.
+
+**추가 발견**: `openpilot/selfdrive/controls/lib/tests/test_latcontrol.py`라는 별도의 중복 테스트 파일이 존재하며, 이건 생성자 인자 수(2개)는 맞지만 `interfaces[car_name]`을 `(CarInterface, CarController, CarState, RadarInterface)` 4-튜플로 언패킹하는 옛날 opendbc 인터페이스 API를 쓰고 있어 현재 opendbc와는 이것대로 어긋난다(둘 다 원본에 동일하게 존재, carrot-ryu에서 만든 것 아님).
+
+**처리**: 18절상 carrot-ms/carrot-wip 원본은 직접 수정 대상이 아니고, 이 문제는 실차 로직과 무관한 테스트 인프라 문제라 이번 세션에서는 carrot-ryu 로컬 수정 없이 원인 확정 기록만 남기고 넘어간다(FINDINGS.md 핵심 발견 49). 필요해지면 다음 세션에 carrot-ryu 로컬 테스트 파일만 별도로 고치는 방안을 사용자 승인 하에 진행할 수 있다.
+
+**검증**: carrot-ryu/carrot-ms/carrot-wip 3개 저장소 직접 조회 + diff 대조(11절: 추측 아님, 원본 3곳 확인). 실차 검증: 해당 없음(정적 테스트 인프라 조사, 12절 무관). 코드 변경 없음.
+
 ## 125차 -- pytest를 실제 CI 조건(conftest.py 포함)으로 최초 실행 성공, 재사용 스크립트 등록
 
 **배경**: 92차 등 여러 세션이 "샌드박스에 conftest/컴파일 의존성이 없어 pytest 미실시"로 기록해왔다(11절: 그동안 실제로 시도해서 확인한 적은 없었음). 124차에서 params_pyx 컴파일까지는 성공했으나 long_mpc.py의 acados 솔버 코드생성/컴파일이 남아 도구 호출 한도로 중단됐었다. 이번 세션에서 그 나머지를 전부 완료했다.
