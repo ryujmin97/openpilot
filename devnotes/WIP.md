@@ -1,5 +1,31 @@
 # WIP
 
+## 118차 (완료) -- web_upload.py/upload.py 구 웹 업로드 경로(3차 배치) 삭제(carrot-ryu `df7da7d5`)
+
+**세션 요약**: Worker: Claude (118차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `e0ba99b1`) 조회, HANDOFF.md(117차) 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `22b101f6`, carrot-ryu-note `e0ba99b1` (HANDOFF 기록과 일치, 16절).
+
+**경위**: 채팅에 사용자가 붙여넣은 이전 대화 사본에 "3차 배치 후보(web_upload.py/upload.py)" 분석이 포함돼 있었으나, DEAD_CODE_REVIEW.md에는 해당 배치 기록이 전혀 없어 이번 세션에서 직접 검증한 것이 아님을 먼저 확인했다(3절 원칙: GitHub 상태 > 붙여넣어진 과거 사본). 사용자에게 알리고 재검증부터 시작.
+
+**검증 (carrot-ryu `22b101f6` tarball, 11절)**: 채팅 초안의 9개(사실상 8개 항목 그룹) 후보 대부분은 확인됐으나 2가지 오차를 발견해 정정했다.
+- 오차 1: 초안이 "생존"으로 분류한 `api_url()`이 실제로는 죽은 함수(호출자가 전부 삭제 대상 함수들뿐, carrot_man.py에는 참조 0곳) — 9번째 삭제 대상으로 추가.
+- 오차 2: 영향받는 테스트를 초안은 11개로 추산했으나, `test_web_upload.py`를 함수 단위로 파싱해 다시 세어보니 17개(`api_url` 전용 테스트 1개 포함).
+- `run_upload_segments()`(현재 대시캠 업로드 진입점)는 16차 전환 이후 `gdrive_upload.upload_file_resumable()`만 사용하며, 옛 경로 함수들은 프로덕션 호출자가 전혀 없음을 grep으로 확정.
+- 생존 확인(삭제하지 않음): `carrot_logs_web_target()`/`post_tmux_web()`/`selected_upload_settings()`/`web_upload_settings()`/`toss_upload_settings()` — carrot_man.py(로그탭 업로드)에서 실제 사용 중.
+
+**작업 (코드, carrot-ryu `df7da7d5`, 부모 `22b101f6`)**: 커밋 메시지 `118cha: remove dead legacy web-upload path (...)`, 3개 파일 +5/-814.
+- web_upload.py: `create_web_upload_session()`/`_sync()`, `upload_folder_to_web()`, `send_web_upload_complete()`, `check_web_upload_health()`, `tmux_web_target()`, `_session_payload()`/`_session_token()`, `api_url()` 삭제. 이제 쓰이지 않는 `json`/`time`/`urllib.parse`/`Sequence`/`aiohttp.ClientSession`/`ClientTimeout` import도 함께 정리.
+- server/features/dashcam/upload.py: `resolve_upload_target()`, `upload_target_settings()` 삭제(완전 고아). 둘만 쓰던 `selected_upload_settings`/`read_web_settings` import 정리.
+- server/tests/test_web_upload.py: 위 심볼을 참조하던 테스트 17개 + `FakeResponse`/`FakeRequestContext`/`FakeSession` 헬퍼 삭제, `upload`/`carrot_man_module` 미사용 import 정리. 사이에 끼어 있던 무관한 catalog 테스트 3개는 유지.
+- 삭제 방식: 전면 재작성(9절 "코드 파일 — 신규/전면 재작성" 방식, 변경 범위가 넓어 Replace-Block보다 안전하다고 판단).
+
+**검증 (샌드박스 정적)**: 세 파일 모두 py_compile 통과, ast.parse 통과. 전달할 `.ps1`의 here-string에서 추출한 3개 파일 내용이 시뮬레이션 결과와 byte-exact 일치(체크리스트 7). 삭제된 심볼에 대한 잔여 참조 0건(grep 재확인). pytest 자체 실행은 샌드박스에 conftest.py/컴파일 의존성이 없어 미실시 — 정적 grep + py_compile 근거만. 실차 검증: 미실시.
+
+**GitHub 재확인 (16절, 코드 스크립트 실행 후)**: 사용자 로그만으로 판단하지 않고 직접 확인했다. `git ls-remote`로 carrot-ryu HEAD `df7da7d5`(push 로그 `22b101f6..df7da7d5`와 일치), 커밋 `.patch`로 변경 파일 정확히 3개와 파일별 추가/삭제(upload.py 1/18, test_web_upload.py 2/569, web_upload.py 2/227, 합계 +5/-814) 확인. 같은 SHA의 codeload tarball(opendbc_repo 제외)에서 삭제한 9개 심볼의 잔여 참조를 grep해 0건(upload_jobs.py docstring의 역사적 언급 1건 제외)임을 확인했고, `web_upload`를 import하는 4개 파일(carrot_man.py, web_settings.py, upload_jobs.py, test_web_upload.py)이 쓰는 이름이 모두 web_upload.py에 정의돼 있음을 AST로 확인했다. py_compile 3파일 통과, 세 파일 모두 CR 0/BOM 없음. pyflakes와 pytest는 실행하지 못했다(샌드박스에 pyflakes 없음, conftest.py/컴파일 의존성 부재). 초기 초안의 "+2/-811"은 실제 push 결과(+5/-814)와 달라 정정했다.
+
+**사고와 교정 (노트 스크립트 v1 중단 -> v2)**: 코드 스크립트 push 후 실행한 노트 스크립트 v1(`118cha_web_upload_dead_code_notes_carrot_ryu_note-v1.ps1`)이 3단계 WIP.md 앵커 확인에서 안전 중단됐다(commit/push 없음, 임시 폴더 정리까지 로그로 확인). WIP.md는 `e0ba99b1` 그대로 117차 헤더로 시작했으므로 다른 세션이 먼저 갱신한 것이 아니었고, 원인은 스크립트 자체의 결함 두 가지였다. (1) `.ps1` 파일이 CRLF라 여러 줄 `$WipAnchor` 문자열에 `\r\n`이 들어갔는데 GitHub의 WIP.md는 LF(CR 0)라 `StartsWith`가 실패. (2) 같은 앵커가 큰따옴표 문자열이라 안의 `` `22b101f6` ``의 백틱이 PowerShell 이스케이프로 처리돼 사라졌다(pwsh에서 `"a`22b`)"`가 `a22b)`로 평가됨을 확인) -- LF로만 고친 v1도 같은 지점에서 실패함을 pwsh로 재현해 원인이 둘임을 분리 확인했다. 앵커를 우회했더라도 here-string 3개도 CRLF라 WIP.md/HANDOFF.md/DEAD_CODE_REVIEW.md에 CRLF가 섞여 커밋될 뻔했고, WIP 항목 뒤 빈 줄이 빠져 새 항목이 117차 헤더에 붙는 문제와 DEAD_CODE_REVIEW.md 마지막 개행 누락도 함께 발견해 고쳤다. 117차 v1 사고(저장소 checkout의 CRLF)와는 원인이 다르다(이쪽은 스크립트 파일 자체의 개행). 조치(v2): `.ps1`을 LF로 생성, 앵커를 작은따옴표 here-string으로 변경, 앵커/템플릿의 `\r\n`을 `\n`으로 정규화, 쓴 뒤 세 파일의 CR 0 검사와 numstat 검증(WIP.md 삭제 0/삽입 예상치 일치) 추가, carrot-ryu/note HEAD 기대값 검증 추가. 샌드박스에서 pwsh 7.4.6으로 로컬 bare 저장소를 대상으로 v1 실패 재현과 v2 end-to-end 실행을 확인했다(Windows PowerShell 5.1이 아닌 pwsh 7에서의 실행이라 5.1 실동작은 사용자 실행 로그로 확인해야 한다). FINDINGS.md 기록 여부는 다음 세션 결정.
+
+**주의사항**: upload_jobs.py의 docstring(337행 부근, "[15차->16차 전환]" 설명)은 옛 함수 이름(`upload_folder_to_web`)을 역사적 설명으로 언급만 할 뿐 호출은 아니라서 손대지 않았다(10절 최소 변경 원칙).
+
 ## 117차 (완료) -- VW MEB(ID.4/ID.5) dead code 삭제 반영 확인(carrot-ryu `22b101f6`)
 
 **세션 요약**: Worker: Claude (117차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `ccbef14`) 조회, HANDOFF.md 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `62ae74dc`, carrot-ryu-note `ccbef14` (HANDOFF 기록과 일치, 16절). 사용자가 DEAD_CODE_REVIEW.md 후보 C10/C15(VW MEB) 삭제를 승인했다.
