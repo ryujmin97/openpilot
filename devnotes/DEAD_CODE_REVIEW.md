@@ -14,6 +14,7 @@ carrot-ryu의 dead code(호출/참조되지 않는 코드) 정리 추적 문서.
 | C06 throttle/coast 계산부 | longitudinal_planner.py | 계산부는 `self.allow_throttle = True` 상수 때문에 실행되지 않음. 메시지 필드 `allowThrottle`은 UI 2곳과 클러스터 리플레이가 읽음 | 계산부만 1차 배치에서 삭제(필드와 `self.allow_throttle = True`는 유지). 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
 | C10/C15 VW MEB(`is_volkswagen_meb`/`is_vw_meb`) | drive_helpers.py 정의 + cruise.py, controlsd.py, steer_ratio.py, longitudinal_planner.py, test_controlsd.py | 5개 파일에서 사용 중. `CP.brand == "volkswagen"`이 DH2015에서 항상 False라 각 분기는 죽은 경로이나 제거 범위가 큼 | 제거 완료(117차, carrot-ryu `22b101f6`, 7개 파일 +9/-153, 실차 검증 미실시) |
 | 신규(118차) `web_upload.py`/`server/.../upload.py` 구 웹 업로드 경로 | web_upload.py(`create_web_upload_session`/`_sync`, `upload_folder_to_web`, `send_web_upload_complete`, `check_web_upload_health`, `tmux_web_target`, `_session_payload`/`_session_token`, `api_url`) + `server/features/dashcam/upload.py`(`resolve_upload_target`, `upload_target_settings`) | 9개 심볼 모두 프로덕션 참조 0곳(테스트만 참조, `check_web_upload_health`는 테스트도 0곳으로 완전 고아) | 제거 완료(118차, carrot-ryu `df7da7d5`, 3개 파일 +5/-814, 실차 검증 미실시) |
+| 신규(120차) A그룹 완전 고아: `live_runtime`(broker/contract/normalize/snapshot) + `carrot_man.py`/`carrot_serv.py` + dashcam/services 헬퍼 | def 29개(broker.py의 msgpack 인코딩 경로/`hello_*`/`debug_stats`, `build_live_hello`, `safe_chain`/`pick_first`, `calculate_angle`/`receive_*`, `_update_system_time`, `segment_creation_key`/`service_fields`/`current_upload_metadata`/`has_running_job`/`is_known_action`/`get_device_network`/`run_cmd_debug`/`_clear_drive_content_catalog_cache`/`finish_job`/`last_map_at` 등) | 30개 이름 모두 저장소 전체 참조 0곳(삭제 후 재확인) | 삭제 스크립트 준비(120차, 실행/push 대기, 17개 파일 +1/-302, 실차 검증 미실시) |
 
 ## 115차 -- 1차 배치 (C01 + C12 + C16 + C06 계산부)
 
@@ -49,3 +50,10 @@ carrot-ryu의 dead code(호출/참조되지 않는 코드) 정리 추적 문서.
 - 제외(오탐/보류): `apply_deadzone`(opendbc `gm/carcontroller.py`가 사용, 1차 스캔이 opendbc 제외 범위였던 탓에 오탐), `.vendor/` 외부 라이브러리, 프레임워크 오버라이드(`do_POST`/`do_DELETE`/`handle_starttag`), `_ingest_*`(동적 호출), 테스트에서만 참조되는 10개(보류, 특히 `_draw_navi_traffic_light_panel`은 `test_cluster_navi.py`의 회귀 가드), 고아 상수 67개/미사용 import 46개/참조 없는 params 키 10개(이번 배치 범위 아님).
 - 검증(시험 삭제, 반영 아님): 52 def + `blinker_manager.py` 삭제 시험본이 22개 파일 모두 py_compile 통과, pyflakes 정의되지않은이름 경고 전후 동일(2건), 새 미사용 import 5건 발견(추가 정리 필요: `cluster_scene.py`의 `statistics.median`, `dashcam/upload.py`의 `HAS_PARAMS`/`Params`, `broker.py`의 `json`/`build_live_hello`). pytest 실패/에러 목록(36건) 삭제 전후 동일(통과 개수는 컴파일 의존성 부재로 비교 못함).
 - 상태: 조사 완료, 삭제 미실시. 사용자가 A → B → C 순서로 배치별 승인 후 진행하기로 결정(119차, WIP.md 참고). 각 배치 삭제 직전 11절(codeload tarball 재확인)을 다시 수행한다.
+
+## 120차 -- 4차 배치 A그룹 삭제 스크립트 (조사는 119차 참고)
+
+- 대상 커밋 기준: carrot-ryu `df7da7d5`(118차 HEAD). 변경 17개 파일, def 29개 삭제, 순 +1/-302줄. 삭제 내용은 WIP.md 120차 참고.
+- 119차 조사 대비 확정 사항: 119차 A그룹 목록의 연쇄 항목(`_load_msgpack`/`msgpack` 전역, `last_payload_*` 속성, `contract.py`의 `build_live_hello`/`LIVE_ENCODING_MSGPACK`)까지 포함해 삭제한다. 삭제로 미사용이 되는 import는 `broker.py`(`json`/`importlib`/`LIVE_ENCODING_MSGPACK`/`build_live_hello`), `contract.py`(`typing.Iterable`), `live_runtime/__init__.py`(재수출 2개), `dashcam/upload.py`(`HAS_PARAMS`/`Params`)를 함께 정리했다. 연쇄 고아 후보(`_prune_jobs`, `_touch_job`, `route_creation_key`, `_update_alive_map`)는 다른 호출부가 남아 유지.
+- 검증: tarball blob이 GitHub blob과 일치, `py_compile` 17개 통과, pyflakes 경고 원본과 동일(19건, 신규 0), 삭제 대상 30개 이름 잔여 참조 0건, pytest(`--noconftest`) 삭제 전/후 863 passed/11 failed/25 collection errors로 실패 목록 동일. 실차 검증: 미실시.
+- 상태: 코드 스크립트 `120cha_deadcode_batchA_code_carrot_ryu-v1.ps1` 전달, 사용자 실행/push 대기. push 확인 전에는 "제거 완료"로 쓰지 않는다(원칙 3). B그룹은 A그룹 push 확인 후 착수하며, 각 배치 착수 전 11절(codeload tarball 재확인)을 다시 수행한다.

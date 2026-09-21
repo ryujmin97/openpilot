@@ -1,5 +1,30 @@
 # WIP
 
+## 120차 (스크립트 준비 -- 실행/push 대기) -- DEAD_CODE_REVIEW 4차 배치 중 A그룹 삭제 스크립트 작성/검증
+
+**세션 요약**: Worker: Claude (120차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `e69b3c5`) 조회, 세션 시작 시 GitHub 상태 재확인(16절): carrot-ryu `df7da7d5`(118차 HEAD, 변화 없음), carrot-ryu-note `e69b3c56`(119차, 4개 파일 재확인 완료). 119차에서 사용자가 승인한 A → B → C 순차 진행에 따라 A그룹 삭제 스크립트를 작성했다. **코드 스크립트는 아직 실행/push 전이므로 A그룹은 "제거 완료"가 아니다.**
+
+**작업 1 (샌드박스 초기화 사고와 재현)**: 작업 도중 샌드박스 파일시스템이 초기화되어(`/home/claude/work` 소멸) 앞선 편집본과 tarball이 모두 사라졌다. 같은 SHA(`df7da7d5`)의 codeload tarball을 다시 받고, 편집 로직을 재현 가능한 스크립트(`apply_A.py`, 모든 치환은 정확히 1회 매치 assert)로 만들어 다시 적용했다. 기존 턴에서 이미 나왔던 편집 결과(파일 목록, 변경 내용)와 같은 범위다. 핵심 발견 39(4)와 같은 계열의 위험이므로, 중간 산출물은 세션 안에서 스크립트/문서로 바로 남기는 편이 안전하다.
+
+**작업 2 (A그룹 범위, 확정)**: 17개 파일, def 29개 삭제(연쇄 고아 포함), 순 +1/-302줄.
+- `server/live_runtime/broker.py`: `_load_msgpack`/`msgpack` 전역, `_coerce_payload_bytes`, `_encode_transport_value`, `_encode_msgpack_payload`, `hello_meta`, `hello_payload_bytes`, `_encode_snapshot`, `_encode_payload`, `debug_stats`, `last_payload_bytes`/`last_payload_encoding` 속성, 미사용이 된 `json`/`importlib`/`LIVE_ENCODING_MSGPACK`/`build_live_hello` import.
+- `server/live_runtime/contract.py`: `build_live_hello`, `LIVE_ENCODING_MSGPACK`, `typing.Iterable` import. `server/live_runtime/__init__.py`: 위 두 이름의 재수출 제거.
+- `server/live_runtime/normalize.py`(`safe_chain`/`pick_first`), `server/live_runtime/snapshot.py`(`_service_alive_map`/`_alive_subset`).
+- `carrot_man.py`(`calculate_angle`, `receive_fixed_length_data`, `receive_double`, `receive_float`), `carrot_serv.py`(`_update_system_time` + 주석 처리된 호출 줄).
+- dashcam/services 헬퍼: `catalog.py`(`segment_creation_key`), `replay_schema.py`(`service_fields`), `dashcam/upload.py`(`current_upload_metadata` + `HAS_PARAMS`/`Params` import), `upload_jobs.py`(`has_running_job`), `tools/actions.py`(`is_known_action`), `services/device_info.py`(`get_device_network`), `services/time_sync.py`(`run_cmd_debug`), `services/web_settings.py`(`_clear_drive_content_catalog_cache`), `gdrive_upload.py`(`finish_job`), `carrot_navi/media_pipeline.py`(`last_map_at` property).
+- 119차에 "삭제 후 새 미사용 import"로 예고됐던 `broker.py`의 `json`/`build_live_hello`, `dashcam/upload.py`의 `HAS_PARAMS`/`Params`는 이 배치에서 함께 정리했다(`cluster_scene.py`의 `statistics.median`은 C그룹 소관).
+- 연쇄 고아 재확인: `_prune_jobs`(gdrive_upload.py 381행에서 계속 호출), `_touch_job`, `route_creation_key`, `_update_alive_map`은 다른 호출부가 남아 있어 유지.
+
+**작업 3 (검증, 정적/샌드박스)**:
+- tarball 17개 파일의 blob 해시가 GitHub 실제 blob(blobless fetch + `git ls-tree`)과 전부 일치.
+- `py_compile` 17개 통과. pyflakes 경고는 원본 19건 -> 편집 후 19건으로 동일(신규 0건, 나머지는 원본에 이미 있던 미사용 import).
+- 저장소 전체 `grep -w`로 삭제 대상 30개 이름(def 29 + `LIVE_ENCODING_MSGPACK`) 잔여 참조 0건(py/js/mjs/html/json/md).
+- pytest(`openpilot/selfdrive/carrot/server/tests` + `openpilot/selfdrive/carrot/tests`): conftest가 `params_pyx` 컴파일 산출물을 요구해 `--noconftest -o addopts="" --continue-on-collection-errors`로 실행. 삭제 전/후 모두 863 passed, 11 failed, 25 collection errors이고 FAILED/ERROR 목록 36건이 완전히 동일(119차에 기록된 36건과도 일치). 통과 개수까지 비교한 것은 이번이 처음이나 실제 CI 조건(conftest 포함)은 아니다.
+
+**작업 4 (반영 스크립트)**: `120cha_deadcode_batchA_code_carrot_ryu-v1.ps1`(코드, carrot-ryu만). 구조: 임시 clone(`core.autocrlf=false`) -> 파일별 사전 blob 해시 가드(`git hash-object`, 불일치 시 중단) -> CRLF 정규화 후 앵커 정확히 1회 매치 치환 -> 사후 blob 해시 가드 -> `compile()` 구문 검사(`Get-PythonCmd` + stdin EOF, `.pyc` 미생성) -> 잔여 참조 `git grep` 0건 -> `git add` 후 index blob/파일 17개/numstat(+1/-302)/untracked 0 확인 -> commit -> push(강제 push 없음) -> finally에서 임시 폴더 삭제. 스크립트 검증은 샌드박스 pwsh 7.4.6(Linux, Windows PowerShell 5.1 아님)으로 구문 파싱 + 로컬 bare 저장소 전체 실행(양성 2회: 일반, `core.eol=crlf` 체크아웃 재현 환경) + 음성 1회(원격 파일 1개를 미세 변경 -> 사전 blob 불일치로 push 없이 중단) 수행. 사용자 PC(Windows)에서의 실행은 미확인이다.
+
+**주의/한계**: 이 devnotes 스크립트를 코드 스크립트보다 먼저 실행해도 코드에는 영향이 없다. 반영 순서는 무관하지만 다음 세션은 반드시 `git ls-remote`로 carrot-ryu HEAD가 `df7da7d5`인지(미실행) 아니면 A그룹 커밋인지(실행 완료)를 확인하고, 후자면 17개 파일 결과 blob이 스크립트에 박힌 사후 blob과 일치하는지 SHA 고정 조회로 재확인한다(16절). 실차 검증: 미실시(삭제 대상은 전부 참조 0곳이라 동작 변화는 없을 것으로 정적 분석했을 뿐이다).
+
 ## 119차 (완료) -- FINDINGS.md 핵심 발견 46/47 기록, DEAD_CODE_REVIEW 4차 배치 후보(A/B/C 그룹) 조사
 
 **세션 요약**: Worker: Claude (119차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `6da52393`) 조회, HANDOFF.md(118차) 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `df7da7d5`, carrot-ryu-note `6da52393` (HANDOFF 기록과 일치, 16절). 이번 세션은 코드 변경 없음, carrot-ryu-note만 갱신.
