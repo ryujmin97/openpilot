@@ -1,5 +1,15 @@
 # WIP
 
+## 122차 (devnotes 갱신 · 코드 변경 없음) -- 115~121차 dead code cleanup 실차 배포 확인 + CURRENT_STATUS.md 동기화 지연 발견/정정
+
+**세션 요약**: Worker: Claude (122차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `6f97820`)를 git ls-remote SHA 고정으로 조회, HANDOFF.md(121차)와 CURRENT_STATUS.md를 순서대로 확인해 이어받았다(4절). carrot-ryu HEAD `2efdd2e2`(121차, 이번 세션 변경 없음), 이번 세션은 carrot-ms(happymaj11r) 신규 커밋 확인/동기화 작업을 별도로 하지 않음(2절 대상 아님, devnotes 전용 세션).
+
+**작업 1 (CURRENT_STATUS.md 동기화 지연 발견)**: CURRENT_STATUS.md를 직접 조회한 결과 가장 최근 기록이 96차(지침 문서 v2 9절 체크리스트 7번 추가)에서 멈춰 있고, 그 이후 97~121차 사이 실제로 진행된 작업(115~121차 dead code cleanup 포함, HANDOFF.md/WIP.md 기준 확인됨)이 이 파일에는 전혀 반영되지 않은 채 방치돼 있음을 확인했다(16절). 97~114차 각 세션의 세부 내용은 이 세션에서 개별 조회하지 않았으므로 여기서는 재구성하지 않고(11절: 추측 금지), 갭이 있다는 사실 자체와 최신 확인 가능한 사실만 우선 기록한다. 상세 catch-up이 필요하면 다음 세션에서 97~114차 WIP.md 구간을 순서대로 조회해 채울 것.
+
+**작업 2 (115~121cha 실차 배포 확인, 사용자 보고 기준)**: 사용자가 디바이스 도구 탭의 git pull 로그 캐처(재부팅 화면, `fa75aeab7`→`2efdd2e25` fast-forward, 6개 커밋: 115cha/116cha/117cha/118cha/120cha/121cha, 35개 파일 +71/-1486)와 함께 "푸시완료. 실차 검증 이상없이 작동"이라고 확인해왔다. HANDOFF.md(121차) 미완료 2번(6건 미배포 누적)이 이 보고로 해소됨. 12절 원칙에 따라 표기: 이는 사용자가 실제 주행 후 보고한 실차 검증이며(정적 분석 아님), 다만 개별 기능 단위 검증(예: camera SOF 페어링 skew tolerance 변경의 실제 효과, dead code 제거 후 특정 기능 개별 확인 등)까지 세분화해 확인된 것은 아니고 "전체적으로 이상 없이 작동"이라는 총괄 보고임을 구분해 기록한다.
+
+**작업 3 (devnotes 반영)**: WIP.md(이 항목)/HANDOFF.md/CURRENT_STATUS.md 3개 파일 갱신. 코드 변경 없음. 실차 검증: 115~121cha 6건 - 사용자 실차 주행 확인(이상 없음), 세부 기능별 재검증은 미실시.
+
 ## 121차 (완료) -- DEAD_CODE_REVIEW 4차 배치 B그룹 삭제 완료(carrot-ryu `2efdd2e2`), v1 스크립트 CRLF 재발 사고와 v2
 
 **세션 요약**: Worker: Claude (121차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `0d1daba`)를 `git ls-remote` SHA 고정으로 조회하고 HANDOFF.md(120차 계속)를 확인해 이어받았다. 시작 시점 GitHub: carrot-ryu `b98620e8`, carrot-ryu-note `0d1daba5`(HANDOFF 기록과 일치, 16절). 이 회차는 채팅에 앞선 세션의 사본이 붙은 채로 이어졌고(3절: 참고만 함), 아래 "작업 1"의 검증 수치는 그 사본에 적힌 것으로 이 세션에서 재현하지 않았다.
