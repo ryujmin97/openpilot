@@ -117,11 +117,6 @@ class ModelEntry:
     minimum_selector_version: int = 0
     raw: dict = field(default_factory=dict)
 
-    @property
-    def onnx_filenames(self) -> list[str]:
-        return sorted(self.files.keys())
-
-
 def _min_selector_version(raw: dict) -> int | None:
     """Entry's minimum selector version; None when unparseable.
 

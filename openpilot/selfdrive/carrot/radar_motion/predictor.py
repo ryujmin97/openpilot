@@ -301,10 +301,6 @@ class RadarMotionPrediction:
   def probability(self) -> float:
     return self.cut_in_probability
 
-  @property
-  def path_exit_probability(self) -> float:
-    return self.cut_out_probability
-
 
 @dataclass(frozen=True)
 class RadarMotionCutIn:
@@ -652,12 +648,6 @@ def _path_geometry(
     ))
     accumulated_s += length
   return points, tuple(segments)
-
-
-def _radar_path(
-  path: Sequence[tuple[float, float]],
-) -> tuple[tuple[float, float], ...]:
-  return _path_geometry(_path_key(path))[0]
 
 
 @lru_cache(maxsize=256)

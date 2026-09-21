@@ -123,8 +123,3 @@ def start(action: str, fn: JobFn) -> Job:
 
 def get(job_id: str) -> Job | None:
     return _jobs.get(job_id)
-
-
-def list_recent(limit: int = 16) -> list[Job]:
-    items = sorted(_jobs.values(), key=lambda j: j.updated_at, reverse=True)
-    return items[:limit]

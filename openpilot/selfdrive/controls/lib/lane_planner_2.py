@@ -34,9 +34,6 @@ def lerp(start, end, t):
   t = clamp(t, 0.0, 1.0)
   return (start * (1.0 - t)) + (end * t)
 
-def max_abs(a, b):
-  return a if abs(a) > abs(b) else b
-
 class LanePlanner:
   def __init__(self):
     self.ll_t = np.zeros((TRAJECTORY_SIZE,))
@@ -251,41 +248,3 @@ class LanePlanner:
     self.offset_total = self.lane_offset_filtered.x
 
     return path_xyz, laneline_active
-
-  def calculate_plan_yaw_and_yaw_rate(self, path_xyz):
-    if path_xyz.shape[0] < 3:
-        # 너무 짧으면 직진 가정
-        N = path_xyz.shape[0]
-        return np.zeros(N), np.zeros(N)
-
-    # x, y 추출
-    x = path_xyz[:, 0]
-    y = path_xyz[:, 1]
-
-    # 모두 동일한 점인지 확인
-    if np.allclose(x, x[0]) and np.allclose(y, y[0]):
-        return np.zeros(len(x)), np.zeros(len(x))
-
-    # 안전한 diff 계산
-    dx = np.diff(x)
-    dy = np.diff(y)
-    mask = (dx == 0) & (dy == 0)
-    dx[mask] = 1e-4
-    dy[mask] = 0.0
-
-    yaw = np.arctan2(dy, dx)
-    yaw = np.append(yaw, yaw[-1])  # N-1 → N
-    yaw = np.unwrap(yaw)
-
-    dx_full = np.clip(np.diff(x), 1e-4, None)
-    yaw_rate = np.diff(yaw) / dx_full
-    yaw_rate = np.append(yaw_rate, yaw_rate[-1])
-    yaw_rate = np.append(yaw_rate, 0.0)
-
-    # NaN/Inf 방어
-    if np.any(np.isnan(yaw_rate)) or np.any(np.isinf(yaw_rate)):
-        yaw_rate = np.zeros_like(yaw_rate)
-    if np.any(np.isnan(yaw)) or np.any(np.isinf(yaw)):
-        yaw = np.zeros_like(yaw)
-
-    return yaw, yaw_rate
