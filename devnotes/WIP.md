@@ -1,5 +1,23 @@
 # WIP
 
+## 125차 -- pytest를 실제 CI 조건(conftest.py 포함)으로 최초 실행 성공, 재사용 스크립트 등록
+
+**배경**: 92차 등 여러 세션이 "샌드박스에 conftest/컴파일 의존성이 없어 pytest 미실시"로 기록해왔다(11절: 그동안 실제로 시도해서 확인한 적은 없었음). 124차에서 params_pyx 컴파일까지는 성공했으나 long_mpc.py의 acados 솔버 코드생성/컴파일이 남아 도구 호출 한도로 중단됐었다. 이번 세션에서 그 나머지를 전부 완료했다.
+
+**진행**: acados OCP 솔버 코드생성이 `ACADOS_SOURCE_DIR` 환경변수 미설정 시 잘못된 경로를 추측해 실패하는 문제를 `acados` 패키지(comma-deps-acados wheel, `acados.DIR`/`TEMPLATE_DIR` 상수 보유)의 실제 설치 경로를 가리키도록 `ACADOS_SOURCE_DIR`/`ACADOS_PYTHON_INTERFACE_PATH`/`TERA_PATH` 3개 환경변수로 해결 -- `python3 long_mpc.py`(SConscript가 실행하는 것과 동일한 커맨드)로 acados_solver_long.c 등 전체 C 코드 생성 성공. 이어서 SConscript의 빌드 파일 목록 그대로 `gcc -shared`로 솔버 라이브러리(`libacados_ocp_solver_long.so`) 링크(qpOASES_e는 버전접미사 `.so.3.1`만 있어 심볼릭 링크 필요), acados_template의 `acados_ocp_solver_pyx.pyx`를 `cython`으로 변환 후 numpy 헤더 포함해 `acados_ocp_solver_pyx.so`로 컴파일 -- `long_mpc.py`가 런타임에 import하는 바로 그 모듈. `LongitudinalMpc()` 인스턴스화까지 정상 확인.
+
+conftest.py 자체가 import하는 `msgq.ipc_pyx`(`openpilot.system.manager.manager` -> `cereal.messaging` 경유)도 같은 방식(Cython/C++ Extension, pthread만 필요)으로 빌드해 conftest.py가 정상 로드되도록 함.
+
+**결과 (실제 pytest 실행, 랜덤 아님)**:
+- 목표였던 `test_lead_gate_margin.py`(105~110차 margin_ratio 게이트) + `test_map_turn_guide_factor.py`(113~114차 route 커브 감속) -- **23/23 전부 통과**, pytest-cpp/pytest-randomly/pytest-xdist/pytest-asyncio가 전부 로드된 실제 `pyproject.toml` addopts(`-Werror --strict-config --strict-markers -n auto --dist=loadgroup`) 조건.
+- 범위를 넓혀 `openpilot/selfdrive/controls/tests/` + `openpilot/selfdrive/carrot/tests/` 전체 실행: **1928 passed, 59 failed, 85 errors**. 실패/에러를 표본 확인한 결과 대부분 이 샌드박스 환경의 구조적 한계였다: (1) `pyray`(raylib 바인딩) 미설치로 인한 cluster/UI 계열 ImportError 다수, (2) 이 환경의 OpenCV 4.13.0이 xiaoge의 ONNX 모델(`lane.onnx`/`v_asm_model.onnx`) 포맷을 파싱 못 함, (3) 일부 차량(Toyota new_mc/Nissan Leaf 등) DBC가 `opendbc_repo/opendbc/dbc/generator/`에서 별도 생성 단계가 더 필요해 이 스크립트만으로는 없음(`test_latcontrol.py`의 HONDA/TOYOTA/NISSAN 케이스가 이 때문에 실패).
+- **주의 필요 발견 1건(추측 아님, 코드 대조로 확정, 원인 미조사)**: `test_latcontrol.py::TestLatControl::test_saturation`가 `LatControlTorque(CP, CI, DT_CTRL)`/`LatControlPID(...)`/`LatControlAngle(...)`를 인자 3개로 호출하는데, 실제 `LatControlPID`/`LatControlTorque`/`LatControlAngle`/`LatControl`(base) 4개 클래스 전부 `__init__(self, CP, CI)`만 받는다(DBC가 정상 로드된 GM 케이스에서 `TypeError: takes 3 positional arguments but 4 were given`로 실제 재현). 이 테스트가 원래부터 이 상태였는지(97~114차 이전부터 stale), 그 사이 어느 세션에서 시그니처가 바뀌었는지는 이번 세션에서 조사하지 않았다 -- 다음 세션에서 `git log -p`로 `latcontrol*.py` 변경 이력 대조 필요.
+- `test_longitudinal_gap_recovery.py`도 다수 실패했으나 확인한 표본은 전부 opendbc DBC 미생성(Toyota/GM 등) 파생 실패였다.
+
+**재사용 도구**: 위 전체 절차(clone -> apt -> pip -> capnp 헤더생성 -> params_pyx/msgq Cython 빌드 -> acados 코드생성/컴파일)를 `devnotes/toolkit/pytest_ci_setup.sh`로 등록했다. 완전히 새로 초기화된 컨테이너에서 이 스크립트 하나로 처음부터 끝까지 재현되는 것을 이번 세션에서 직접 재현해 확인(스크립트 실행 -> 목표 2개 파일 23/23 재통과). 세션(대화)마다 파일시스템이 초기화되므로 다음에 pytest를 돌리는 세션은 이 스크립트부터 실행할 것.
+
+**한계**: acados 코드생성/컴파일이 이 문서(9절)가 다루는 Windows PowerShell/디바이스 반영 절차와는 무관한, Claude 샌드박스 전용 절차임을 명확히 한다(12절과 무관 -- 이건 실차 검증이 아니라 정적 테스트 인프라). 이번에 통과한 23개 테스트는 전부 단위 테스트 수준(105~110차/113~114차 게이트·라우트 상수 로직)이며, 실차 검증 항목(110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00)을 대체하지 않는다.
+
 ## 124차 (devnotes만 · 코드 변경 없음) -- 115~123차 dead code 4차 배치 A/B/C 전체 실차 검증 완료
 
 **세션 요약**: 사용자가 carrot-ryu `a0f4c5a5f`(123차 C그룹)까지 실제 디바이스에 배포했음을 위젯 실행 로그(`git reset --hard` -> `2efdd2e25`, `git pull` -> `a0f4c5a5f` Fast-forward, 3개 파일 +0/-327)로 확인해 주었고, 재부팅 후 실차 주행으로 검증한 결과 이상 없음을 확인했다(11절/12절: 실제 배포 로그 + 사용자의 실차 판단 근거, 정적 분석이 아니라 실차 확인).

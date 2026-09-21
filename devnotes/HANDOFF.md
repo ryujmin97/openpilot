@@ -1,33 +1,37 @@
-Worker: Claude (124차, Claude Sonnet 5)
+Worker: Claude (125차, Claude Sonnet 5)
 Date: 2026-09-22
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (`a0f4c5a5fb932be1525311d2ed61f5382a4bd6d2`, 123차 C그룹 dead code 삭제 커밋. 이번 세션에서 사용자가 실차 배포/검증까지 완료했음을 확인. 코드 변경 없음)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base `6b66f163c917310f66768693b81ba3889fa81a11`. 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
-carrot-ms 마지막 검토/동기화 체크포인트: `4bb4b510`(116차, camera_sync 스큐 허용오차 10ms->20ms) 반영 완료. 이번 세션도 carrot-ms 신규 커밋 확인/동기화 작업 없음.
+Code Branch: carrot-ryu (`a0f4c5a5fb932be1525311d2ed61f5382a4bd6d2`, 123차 C그룹 dead code 삭제. 이번 세션 코드 변경 없음)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base `3f4882f671b69a7b6d338f1ad3e0fe04d0fe0526`, 124차 catch-up. 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+carrot-ms 마지막 검토/동기화 체크포인트: `e324f67`(93~95차). 이번 세션도 carrot-ms 신규 커밋 확인/동기화 작업 없음 -- 여전히 최우선 이월.
 
 작업:
-1. 사용자가 제공한 실차 디바이스 위젯 로그(git reset --hard -> `2efdd2e25`, git pull -> `a0f4c5a5f` Fast-forward)로 123차 C그룹까지 배포됐음을 재확인, 재부팅 후 실차 주행 검증 완료(이상 없음)를 devnotes에 기록.
-2. DEAD_CODE_REVIEW.md의 C그룹 상태 줄에 실차 검증 완료를 추가, WIP.md에 124차 항목 신설.
+1. 124차에서 도구 호출 한도로 중단됐던 pytest CI 환경 구성을 이어받아 완료: acados OCP 솔버(`long_mpc.py`) 코드생성 -- `ACADOS_SOURCE_DIR`/`ACADOS_PYTHON_INTERFACE_PATH`/`TERA_PATH` 환경변수를 acados wheel(comma-deps-acados) 실제 설치 경로로 지정해 해결 -- 및 gcc 링크/Cython 컴파일까지 전부 완료.
+2. conftest.py가 import하는 `msgq.ipc_pyx`도 동일 방식(Cython/C++ Extension)으로 컴파일.
+3. 목표 테스트(`test_lead_gate_margin.py`, `test_map_turn_guide_factor.py`)를 실제 `pyproject.toml` addopts(pytest-cpp/randomly/xdist/asyncio 전부 로드) 조건으로 실행 -- 23/23 통과.
+4. 범위를 `openpilot/selfdrive/controls/tests/`+`openpilot/selfdrive/carrot/tests/` 전체로 넓혀 실행(1928 passed/59 failed/85 errors), 실패/에러 표본을 확인해 대부분 샌드박스 환경 한계(pyray 미설치/OpenCV·ONNX 버전 불일치/일부 opendbc 차량 DBC 미생성)임을 확정, `test_latcontrol.py::test_saturation`의 시그니처 불일치(TypeError) 1건은 원인 미조사인 채로 발견 기록.
+5. 전체 재현 절차를 `devnotes/toolkit/pytest_ci_setup.sh`로 등록, 완전 재초기화된 컨테이너에서 스크립트만으로 동일 결과가 재현됨을 재확인.
 
 완료:
-1. carrot-ryu `a0f4c5a5f`(부모 `2efdd2e25`, 3파일 +0/-327)이 GitHub HEAD와 일치함을 재확인(16절).
-2. CURRENT_STATUS.md(122차)와 대조해 115~121차(이미 실차 확인)에 123차 C그룹을 더해 4차 배치(A/B/C) 전체가 실차 검증 완료로 종결됨을 확인.
-3. devnotes 2개 파일(WIP.md 신규 항목 / DEAD_CODE_REVIEW.md 상태 정정) 갱신.
+1. HANDOFF.md 124차 미완료 4번("pytest를 실제 CI 조건으로 실행한 적이 없음")을 해소 -- 목표 테스트 23/23 통과, 재사용 스크립트 등록까지 완료.
+2. WIP.md 125차 신규 항목, toolkit/README.md 125차 섹션, toolkit/pytest_ci_setup.sh 신규 파일, CURRENT_STATUS.md 125차 항목 추가.
 
 미완료(다음 세션 최우선):
-1. 이 스크립트(`124cha_realvehicle_verified_carrot_ryu_note-v1.ps1`) 실행/push 확인 -- GitHub SHA 고정 조회로 재확인(16절).
-2. CURRENT_STATUS.md 97~114차 구간 상세 catch-up(122차부터 이월)과 115~124차 항목 이식 -- 여러 세션째 이월 중.
-3. carrot-ms 신규 커밋 확인(2절) -- 지난 체크포인트(93~95차, `e324f67`) 이후 재확인이 오래 방치됨.
-4. pytest를 실제 CI 조건(conftest 포함)으로 실행한 적이 없음 -- 계속 이월.
-5. 114차/110차 이월 실차 관찰 항목(MAP_TURN_GUIDE_FACTOR 1.00, GATE_M 0.8/1.0)은 여전히 미확인.
+1. 이 스크립트(`125cha_pytest_ci_devnotes.ps1`) 실행/push 확인 -- GitHub SHA 고정 조회로 재확인(16절).
+2. carrot-ms 신규 커밋 확인(2절) -- 93~95차 체크포인트(`e324f67`) 이후 여전히 미확인, 여러 세션째 이월 중.
+3. `test_latcontrol.py::test_saturation`의 `LatControlPID/Torque/Angle(CP, CI, DT_CTRL)` 3-인자 호출 vs 실제 `(CP, CI)` 2-인자 생성자 불일치 -- `git log -p`로 `latcontrol*.py`/`test_latcontrol.py` 변경 이력 대조해 언제부터/왜 어긋났는지 확인 필요(11절: 아직 추측 단계, 회귀인지 원래부터 stale이었는지 불명).
+4. 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00 -- 둘 다 실차 미검증.
+5. CURRENT_STATUS.md 97~114차 구간 상세 catch-up -- 여러 세션째 이월 중(122차부터).
+6. (선택, 낮은 우선순위) opendbc 일부 차량 DBC 생성 단계를 `pytest_ci_setup.sh`에 추가하면 `test_latcontrol.py`/`test_longitudinal_gap_recovery.py`의 opendbc 파생 실패를 더 줄일 수 있음 -- 이번 세션 범위 밖으로 보류.
 
-검증: GitHub 커밋 대조 + 사용자 실차 로그/판단. 실차 검증: 완료(4차 배치 A/B/C 전체, 사용자 확인).
+검증: 실제 pytest 실행(23/23 목표 테스트, 확장 실행 1928/59/85), 완전 재초기화 컨테이너에서 스크립트 재현으로 이중 확인. 실차 검증: 해당 없음(코드 변경 없음, 정적 테스트 인프라 작업).
 
 주의사항:
-- 코드 변경 없음(devnotes만).
-- 이번 실차 확인은 삭제 대상 각각을 개별로 트리거한 것이 아니라 정상 주행 범위 내 이상 없음 확인이다. 사용성이 낮은 경로(예: `/api/live_runtime`, 클러스터 디스플레이)를 실제로 쓰는 경우라면 추가 관찰이 유효할 수 있다.
+- 코드 변경 없음(devnotes + toolkit 스크립트만).
+- pytest_ci_setup.sh는 Claude 샌드박스 전용이며 콤마 디바이스/사용자 PC와 무관.
+- `test_latcontrol.py` 발견 사항은 "테스트가 깨져있다"는 사실만 확정된 것이고, 프로덕션 코드(`latcontrol_*.py`)의 실제 동작 결함인지는 별개 -- 혼동 주의.
 
 다음 작업 후보:
 1. carrot-ms 신규 커밋 확인(2절) 착수.
-2. CURRENT_STATUS.md catch-up.
-3. 114차/110차 이월 관찰 항목, dead code 5차 배치 필요 여부는 사용자 판단 대기.
+2. test_latcontrol.py 시그니처 불일치 원인 조사.
+3. 110차/114차 실차 관찰 항목.

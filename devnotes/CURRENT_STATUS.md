@@ -225,6 +225,8 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 
 - **[123차 계속, C그룹 삭제 반영 확인 · 119차 A/B/C 4차 배치 종결 · devnotes 정리 · 지침 9절 8·9번 추가 -- 스크립트 준비, 실행/push 대기]** 사용자가 v2 스크립트 2개 실행 완료를 알려와 로그 없이 GitHub에서 직접 재확인했다(16절): carrot-ryu `a0f4c5a5`(부모 `2efdd2e2`, 3개 파일 +0/-327, 결과 blob 3개가 스크립트 `Post` 값과 일치, 삭제한 18개 이름 HEAD 전체 잔여 참조 0건), carrot-ryu-note `24bab81e`(부모 `4853319`, 4개 파일 blob 4개 일치). 사용자 첫 실행(v1)은 clone 단계 schannel early EOF로 push 없이 중단됐고(임시 폴더 정리, 변경 없음) v2(`--depth 1` + 최대 3회 재시도)로 성공했다. devnotes v1은 4057행 후행 쉼표 파싱 오류가 있어(pwsh 파서로 실행 전 발견) v2에서 제거하고 본문 "12개"를 실제 삭제 수 18개로 정정했다. 이로써 119차 A/B/C 4차 배치가 전부 push 완료됐다(120차 A `b98620e8`, 121차 B `2efdd2e2`, 123차 C `a0f4c5a5`). 지침 9절 자가검증 체크리스트에 8번(전달 전 pwsh 구문 검증)·9번(로컬 bare 저장소 일반/CRLF 두 모드 실행)을 19절 절차(사용자 승인)로 추가했다 -- 이 스크립트의 2번째 커밋. 실차 검증: C그룹 미실시(115~121차는 122차 기록 참고). 이 파일의 97~121차 구간 catch-up은 여전히 미완료. 상세: WIP.md 123차 계속, HANDOFF.md 참고.
 
+- **[125차]** pytest를 실제 CI 조건(conftest.py 포함)으로 최초 실행. acados OCP 솔버 코드생성/컴파일(`long_mpc.py`)과 `msgq.ipc_pyx` 컴파일까지 전부 해결해, 목표였던 105~110차 margin_ratio 게이트(`test_lead_gate_margin.py`) + 113~114차 route 커브 감속(`test_map_turn_guide_factor.py`) 23/23 전부 통과 확인(pytest-cpp/randomly/xdist/asyncio 로드된 실제 `pyproject.toml` 조건). 범위를 넓힌 `controls/tests/`+`carrot/tests/` 전체 실행(1928 passed/59 failed/85 errors)에서 실패 대부분은 이 샌드박스의 구조적 한계(`pyray` 미설치, OpenCV/ONNX 버전 불일치, 일부 opendbc 차량 DBC 미생성)로 확인됐으나, `test_latcontrol.py::test_saturation`이 `LatControlPID/Torque/Angle`을 인자 3개(`CP, CI, DT_CTRL`)로 호출하는데 실제 생성자는 전부 `(CP, CI)`만 받아 `TypeError`가 나는 것을 코드 대조로 확정(원인/도입 시점은 미조사, 다음 세션 이월). 재현 절차를 `devnotes/toolkit/pytest_ci_setup.sh`로 등록, 완전 재초기화된 컨테이너에서 그 스크립트 하나로 동일 결과가 재현됨을 확인. 상세: WIP.md 125차.
+
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.

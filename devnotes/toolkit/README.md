@@ -84,3 +84,13 @@ route(내비 경로) 목표속도/안내 정보와 자차 거동을 rlog 1개에
 | `route_decel/route_extract.py` | `extract <schema_dir> <rlog.zst> <out.pkl>`: carState/carControl/longitudinalPlan/carrotMan/radarState/selfdriveState를 carrotMan 20Hz로 병합(t는 첫 carState 기준 초, `route`는 szPosRoadName 안 `route=` 디버그값). `show <out.pkl> <t0> <t1> [step]`: 구간 표(vE/aEgo/brakeP/accel/longActive/state/des/src/route/vTurn/xTurn/xDist). `replay <out.pkl> <t0> <t1> <base> [near far guide]`: route=값/base로 원시값을 되돌리고 안내 종류 3/4/6이면 far~near 선형·near 이내 guide 배율을 적용한 새 목표와 vE와의 차이 출력(base는 로그 당시 MapTurnSpeedFactor/100, 예 1.35) |
 
 스키마는 **로그를 기록한 커밋** 기준으로 받는다(113차 로그: carrot-ryu `a430d114`의 `openpilot/cereal/*.capnp`, `openpilot/cereal/include/`, `opendbc_repo/opendbc/car/car.capnp`를 한 폴더에). 의존: pycapnp, zstandard, pandas, numpy. 실행 예: `route_extract.py extract ../schema <route>--<n>/rlog.zst out/r.pkl` -> `route_extract.py show out/r.pkl 44 52` -> `route_extract.py replay out/r.pkl 36 45 1.35`. `route=` 값은 이 도구를 쓰려면 debugText 형식(`route=숫자`)이 유지돼야 한다(hud_renderer도 이 형식을 파싱). 113차 결과와 해석은 FINDINGS.md 113차 계속 참고.
+
+### 125차 추가 (pytest CI 환경 재현: pytest_ci_setup.sh)
+
+Claude 샌드박스에서 conftest.py를 포함한 실제 pytest CI 조건을 재현하는 원클릭 설치 스크립트. 92차 등에서 "샌드박스에 컴파일 의존성이 없어 미실시"로 기록됐던 전제가 실제로는 틀렸음을 124~125차에서 확인하고 그 절차를 기록한 것. 콤마 디바이스/사용자 PC용이 아니며, 대화(세션)가 바뀌면 파일시스템이 초기화되므로 pytest를 다시 돌리려면 매번 이 스크립트부터 실행해야 한다.
+
+| 파일 | 역할 |
+|---|---|
+| `pytest_ci_setup.sh` | `bash pytest_ci_setup.sh [branch]`(기본 carrot-ryu): clone -> apt(capnproto/libzmq) -> pip(Cython/pycapnp/comma-deps-json11/comma-deps-acados 등) -> cereal capnp C++ 헤더 생성 -> `openpilot.common.params_pyx`/`msgq.ipc_pyx` Cython 컴파일 -> `long_mpc.py`용 acados OCP 솔버 코드생성(`ACADOS_SOURCE_DIR` 등 3개 환경변수로 acados wheel 경로 지정) + gcc 링크 + Cython 래퍼 컴파일까지 전부 자동화. 끝에 params/msgq/long_mpc import+instantiate 자가검증 포함 |
+
+실행 후: `cd /home/claude/repo && export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo && python3 -m pytest <경로...>`. 알려진 한계: opendbc 일부 차량(Toyota new_mc/Nissan Leaf 등) DBC는 `opendbc_repo/opendbc/dbc/generator/`에서 별도 생성 단계가 더 필요해 이 스크립트만으로는 없음 -- 그 DBC를 쓰는 CarInterface 생성 테스트는 실패한다(125차 발견, 미해결). `pyray`(cluster/UI)와 xiaoge ONNX 모델(이 환경 OpenCV 버전과 포맷 불일치)도 이 스크립트 범위 밖. 125차 실행 결과(23/23 목표 테스트 통과, 전체 확장 시 1928 passed/59 failed/85 errors)와 발견 사항은 WIP.md 125차 참고.
