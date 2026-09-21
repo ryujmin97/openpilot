@@ -281,6 +281,22 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
    그대로 추출해 대상 파일의 SHA 고정 원본에 시뮬레이션한다(매치 정확히 1회 + 치환 결과 텍스트
    확인). 앵커는 기억이 아니라 최신 SHA 원본에서 복사하고, 새로 추가한 검증 코드도 같은 방식으로
    시뮬레이션하며, 그 출력을 응답에 포함한다(핵심 발견 45).
+8. `.ps1`을 전달하기 전에 `pwsh`(PowerShell 7)의 파서로 구문 오류가 0건인지 확인한다:
+   `[System.Management.Automation.Language.Parser]::ParseFile($Path,[ref]$tokens,[ref]$errs)` 후
+   `$errs.Count`와 오류 메시지(줄/열)를 출력한다. PowerShell은 파일 전체를 실행 전에 파싱하므로 배열
+   리터럴의 후행 쉼표(`@(..., )`)처럼 한 곳만 틀려도 스크립트가 시작 즉시 죽는다(123차 devnotes v1
+   4057행). 같은 파서가 후행 쉼표 합성 파일을 오류로 잡는지 대조군도 한 번 확인한다. 샌드박스에 pwsh가
+   없으면 GitHub 릴리스 tarball(`https://github.com/PowerShell/PowerShell/releases/download/vX.Y.Z/powershell-X.Y.Z-linux-x64.tar.gz`)을
+   직접 받아 설치한다(`api.github.com`은 rate limit으로 실패할 수 있음). PowerShell 7 파서 기준이며
+   Windows PowerShell 5.1 실행을 대신하지 않는다.
+9. 반영 스크립트(코드/devnotes)는 전달 전에 로컬 bare 저장소를 대상으로 끝까지 실행해 본다. 대상
+   브랜치의 SHA 고정 트리로 만든 bare 저장소를 `$RepoUrl`로 쓰고(시뮬레이션용 사본은 저장소 URL과
+   Linux용 경로 구분자만 바꾸고 로직은 그대로 둔다), 두 모드로 실행한다: (a) 일반 체크아웃, (b) Windows
+   CRLF 체크아웃 재현(`GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.eol GIT_CONFIG_VALUE_0=crlf`). 각
+   모드에서 push된 커밋의 `git show --numstat`(변경량이 의도와 같은지), 파일별 blob hash(스크립트의
+   `Post` 값과 일치), 이어붙이기형 파일은 기존 줄 삭제 없이 삽입만 있는지를 출력으로 확인한다(CRLF
+   체크아웃 때문에 앵커 매치가 실패해 안전 중단된 사례: 121차 v1, 핵심 발견 48). 이 검증도 Windows
+   PowerShell 5.1 실제 실행이 아니라는 한계를 결과 보고에 명시한다.
 
 **공통 원칙**
 - 코드는 carrot-ryu, devnotes는 carrot-ryu-note — 한 스크립트에 두 브랜치를
