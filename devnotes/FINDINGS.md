@@ -1,5 +1,19 @@
 # FINDINGS
 
+## 핵심 발견 48 (121차) -- B그룹 v1 스크립트에서 핵심 발견 46/44(Windows CRLF checkout)가 재발: pre-blob 해시 가드는 EOL 불일치를 잡지 못하고, `core.eol=crlf` 재현 테스트가 없으면 Linux 검증만으로는 놓친다
+
+**배경**: 120차 A그룹 스크립트는 CRLF 정규화와 `core.eol=crlf` 재현 양성 테스트를 갖췄지만, 121차 B그룹 v1(`121cha_deadcode_batchB_code_carrot_ryu-v1.ps1`)은 LF 앵커만 매칭했고 채팅 사본에는 `core.eol=crlf` 테스트 기록이 없다. 사용자 PC(Windows PowerShell 5.1)에서 v1은 사전 blob 가드 5개를 통과한 뒤 3단계에서 `max_abs anchor matched 0 times (expected 1)`로 안전 중단됐다(commit/push 없음). 원인은 핵심 발견 46과 같은 `.gitattributes`의 `* text=auto`다(carrot-ryu `b98620e8` GitHub blob은 CR 0개, Windows 작업 트리는 CRLF).
+
+**재현(121차, 샌드박스)**: 실제 carrot-ryu `b98620e8`을 clone해 로컬 bare 저장소를 만들고, `GIT_CONFIG_GLOBAL`에 `core.eol=crlf`를 둔 pwsh 7.4.6(Linux)에서 v1을 실행했다. 사용자 로그와 같은 지점(104행)에서 같은 메시지로 중단됐다. 같은 조건에서 v2는 4개 파일 모두 `working-tree EOL: CRLF`로 감지하고 끝까지 통과했다.
+
+**왜 사전 blob 가드가 통과했나**: 가드는 `git hash-object <경로>`를 쓰는데, 경로를 주면 커밋 시점과 같은 EOL 정규화(clean 변환)를 거쳐 LF 기준 blob 해시를 계산한다. 그래서 "파일 내용이 기대한 blob과 같다"는 보증은 되지만, 작업 트리 바이트가 LF라는 보증은 아니다. 앵커 매칭은 작업 트리 바이트를 그대로 읽기 때문에 따로 정규화가 필요하다.
+
+**수정안(121차 v2에 적용)**: 읽을 때 CRLF를 LF로 정규화해 앵커를 매칭하고, 편집 후 원래 EOL로 되돌려 쓴다(`Read-TextLf`/`Write-TextLike`). git이 add 시점에 LF로 정규화하므로 사후 blob은 LF 기준 기대값과 byte-exact로 일치한다. 대안으로 핵심 발견 46처럼 clone에 `--config core.eol=lf`를 주는 방법도 있다. 어느 쪽이든 Windows 체크아웃을 재현한 양성 테스트로 확인해야 한다.
+
+**제안(19절 승인 필요, 아직 지침에 반영하지 않음)**: 9절 자가검증 체크리스트에 "코드 저장소를 대상으로 하는 스크립트는 샌드박스에서 `core.eol=crlf`를 준 환경으로 양성 실행한 출력을 전달 시 포함한다"를 추가하는 안. 현재 체크리스트 7번(앵커 시뮬레이션)은 EOL 조건을 명시하지 않아 이번 재발을 막지 못했다.
+
+**검증**: 샌드박스 재현(v1 실패/v2 통과), 사용자 PC 실행 로그(v2 성공), GitHub 직접 재조회로 커밋 `2efdd2e2`의 blob 4개가 기대값과 일치함을 확인. 실차 검증 대상 아님(devnotes/체크아웃 설정 문제, 12절 무관).
+
 ## 핵심 발견 46 (117차) -- `.gitattributes`의 `* text=auto`로 인한 Windows CRLF checkout이 다시 재현됨, 원인 제거로 대응(85차 핵심 발견 44는 대증 처방이었음)
 
 **배경**: 핵심 발견 44(85차)는 `Invoke-ReplaceBlock` 함수 자체의 CRLF 정규화 누락을 고쳐 증상을 막았을 뿐, 원인인 `.gitattributes`의 `* text=auto`는 그대로 두었다. 117차에서 같은 원인이 다른 경로(치환 전 "CR 포함" 안전검사)로 다시 걸렸다.

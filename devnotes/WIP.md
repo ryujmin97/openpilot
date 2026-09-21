@@ -1,5 +1,23 @@
 # WIP
 
+## 121차 (완료) -- DEAD_CODE_REVIEW 4차 배치 B그룹 삭제 완료(carrot-ryu `2efdd2e2`), v1 스크립트 CRLF 재발 사고와 v2
+
+**세션 요약**: Worker: Claude (121차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `0d1daba`)를 `git ls-remote` SHA 고정으로 조회하고 HANDOFF.md(120차 계속)를 확인해 이어받았다. 시작 시점 GitHub: carrot-ryu `b98620e8`, carrot-ryu-note `0d1daba5`(HANDOFF 기록과 일치, 16절). 이 회차는 채팅에 앞선 세션의 사본이 붙은 채로 이어졌고(3절: 참고만 함), 아래 "작업 1"의 검증 수치는 그 사본에 적힌 것으로 이 세션에서 재현하지 않았다.
+
+**작업 1 (B그룹 스크립트 v1 작성, 채팅 사본 기준)**: 대상은 `controls/lib/desire_lib/blinker_manager.py` 파일 통째(106줄), `controls/lib/lane_planner_2.py`의 `max_abs`/`calculate_plan_yaw_and_yaw_rate`, `carrot/model_selector/jobs.py`의 `list_recent`, `manifest.py`의 `onnx_filenames`, `radar_motion/predictor.py`의 `path_exit_probability`/`_radar_path`. 5개 파일, 순 +0/-167줄. 사본에는 codeload tarball 재확인, 저장소 전체 참조 0건, `test_radar_motion_predictor.py` 388 passed 유지, `model_selector` `test_recompile.py` 10 passed 유지가 적혀 있다. 스크립트 `121cha_deadcode_batchB_code_carrot_ryu-v1.ps1`의 구조는 Replace-Block 4건 + `git rm`, 사전/사후 blob 해시 가드, `py_compile`, 잔여 참조 `git grep`, commit/push다.
+
+**작업 2 (사용자 PC 첫 실행 -- git 실행 불가 창)**: Windows PowerShell 5.1.26100.9168(관리자)에서 v1을 실행하자 1단계 `git -C $Tmp rev-parse HEAD`가 null이라 중단됐다(commit/push 없음). 그 창에서 `where.exe git`은 출력이 없었고 `git --version`은 출력 없이 별도 창이 떴다 사라졌다. 다른 창의 `Get-Command git`은 `C:\Program Files\Git\cmd\git.exe`(PATH에 `Git\cmd` 포함)로 정상이었다. PowerShell을 종료하고 관리자로 다시 열자 `git --version`(2.55.0.windows.3)과 clone/`rev-parse`가 정상 동작했다. 그 창이 왜 git을 실행하지 못했는지는 재현하지 못해 원인 미확정이다. v2에 `git --version` 출력이 비면 중단하는 가드를 추가했다.
+
+**작업 3 (v1 재실행 -- 3단계 안전 중단, CRLF 재발)**: 정상 창에서 v1을 재실행하자 1~2단계(clone, 사전 blob 가드 5개)는 통과했고 3단계에서 `max_abs anchor matched 0 times (expected 1)`로 중단됐다(commit/push 없음, 임시 폴더 삭제됨). 원인은 `.gitattributes`의 `* text=auto`다. Windows에서는 `core.autocrlf=false`로 clone해도 작업 트리가 CRLF가 되는데 v1 앵커는 LF만 매칭했다. 사전 blob 가드가 통과한 이유는 `git hash-object <경로>`가 커밋 시점과 같은 정규화를 거치기 때문이다. 즉 핵심 발견 46(117차)/44(85차)의 재발이다(FINDINGS.md 핵심 발견 48). 샌드박스에서 실제 carrot-ryu `b98620e8`을 clone해 로컬 bare 저장소를 만들고 `core.eol=crlf`를 준 pwsh 7.4.6(Linux)에서 v1을 돌리자 사용자 로그와 같은 지점(104행, 같은 메시지)에서 중단돼 원인을 재현했다. 120차 A그룹 스크립트에는 이 조건의 양성 테스트와 CRLF 정규화가 있었으나, v1에는 이어지지 않았고 채팅 사본에도 그 조건의 테스트 기록이 없다.
+
+**작업 4 (v2)**: `121cha_deadcode_batchB_code_carrot_ryu-v2.ps1`. 변경은 (1) 파일을 읽을 때 CRLF를 LF로 정규화해 앵커를 매칭하고 편집 뒤 원래 EOL로 되돌려 쓰는 `Read-TextLf`/`Write-TextLike`, (2) 각 파일의 작업 트리 EOL 출력, (3) 시작 시 `git --version` 가드다. 삭제 대상/앵커/blob 해시는 v1과 같다. 샌드박스 검증(pwsh 7.4.6 Linux, `core.eol=crlf`, 로컬 bare): 사전 blob 5개 통과, 4개 파일 모두 `working-tree EOL: CRLF` 감지, 사후 blob 4개가 기대값과 byte-exact 일치, `py_compile` 4개 통과, 잔여 참조 7개 심볼 0건, numstat 일치, push 성공, 커밋된 blob에 BOM/CR 없음. 체크리스트(BOM, `--config core.autocrlf=false`, finally 삭제, `Get-PythonCmd`, UTF8 no BOM 쓰기)를 전달 전에 확인했다. 파일 첫 3바이트/CR 검사는 dash의 `$'\r'` 문제(핵심 발견 46)를 피해 python으로 했다.
+
+**작업 5 (push 확인, 16절)**: 사용자가 v2를 실행한 로그가 끝까지 도달했다(Windows PowerShell 5.1, `py -3`, 1~8단계 전부 통과, `SUCCESS`). 로그에만 의존하지 않고 GitHub를 직접 재조회했다: `git ls-remote` carrot-ryu `2efdd2e25b42c78ea94f7366424fde695a13b15a`, 커밋 메시지 `121cha: dead code batch B - remove blinker_manager.py + 6 orphan defs (DEAD_CODE_REVIEW B group)`, 부모 `b98620e8`, 변경 5개 파일 +0/-167(jobs.py 5, manifest.py 5, predictor.py 10, blinker_manager.py 106, lane_planner_2.py 41). HEAD의 4개 파일 blob이 스크립트 `Post`와 일치(lane_planner_2.py `e8a2e5de`, jobs.py `3994fc86`, manifest.py `3f451b08`, predictor.py `9b5f918f`)하고 `blinker_manager.py`는 HEAD에 없다. SHA 고정 raw로 받은 `jobs.py`에서 `list_recent` 0건. 120차 계속에서 "미확인"으로 남았던 Windows PowerShell 버전은 5.1로 확인됐다.
+
+**미배포 누적**: 실차 배포(디바이스 pull) 대기 코드 변경이 115차(`0e1bef52`)/116차(`62ae74dc`)/117차(`22b101f6`)/118차(`df7da7d5`)/120차 A그룹(`b98620e8`)/121차 B그룹(`2efdd2e2`) 6건이 됨. 실차 검증: 미실시(삭제 대상은 전부 참조 0곳이라 동작 변화는 없을 것으로 정적 분석했을 뿐이다).
+
+**주의/한계**: v2의 샌드박스 검증은 Windows PowerShell 5.1이 아니라 pwsh 7.4.6(Linux)이었고, 실제 5.1 실행은 사용자 PC 로그가 근거다. pytest는 여전히 `--noconftest` 조건이며 실제 CI 조건의 실행은 미실시다. C그룹은 착수 전 11절(codeload tarball 재확인, 대상 커밋 `2efdd2e2`)을 다시 수행한다.
+
 ## 120차 계속 (A그룹 push 확인 완료) -- DEAD_CODE_REVIEW 4차 배치 A그룹 제거 완료 확인 + devnotes 상태 정정
 
 **세션 요약**: 사용자가 코드/노트 스크립트 push 완료를 알려 와서 GitHub에서 직접 재확인했다(16절, 로그 없이 사용자 보고만 받은 상태였음). `git ls-remote`: carrot-ryu `b98620e8e5c02e8985a0a89daab1ef002e8674c3`, carrot-ryu-note `d70389a27ef514466abf85cf838471fd5e3b17a4`.
