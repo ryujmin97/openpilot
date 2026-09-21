@@ -1,5 +1,37 @@
 # WIP
 
+## 117차 (완료) -- VW MEB(ID.4/ID.5) dead code 삭제 반영 확인(carrot-ryu `22b101f6`)
+
+**세션 요약**: Worker: Claude (117차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `ccbef14`) 조회, HANDOFF.md 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `62ae74dc`, carrot-ryu-note `ccbef14` (HANDOFF 기록과 일치, 16절). 사용자가 DEAD_CODE_REVIEW.md 후보 C10/C15(VW MEB) 삭제를 승인했다.
+
+**작업 (코드, carrot-ryu `22b101f6`, 부모 `62ae74dc`)**: 커밋 메시지 `117cha: remove VW MEB (ID.4/ID.5) dead code (DEAD_CODE_REVIEW C10/C15)`, 7개 파일 +9/-153. `CP.brand == "volkswagen"`이 제네시스 DH2015에서 항상 False라 `is_vw_meb` 분기는 실행될 수 없는 경로였다.
+- drive_helpers.py: `is_volkswagen_meb()` 정의와 `VolkswagenFlags` import 삭제(중복돼 있던 `import numpy as np` 1줄도 함께 사라짐).
+- cruise.py: `VCruiseCarrot.__init__`의 `is_vw_meb`, `update_v_cruise`의 MEB set/resume 시 상시조향 복구 블록 삭제.
+- controlsd.py: MEB 곡률 폐루프 PID(`meb_curvature_pid`, `MultiplicativeUnwindPID`/`MEB_CURVATURE_*` import, `LAT_CURVATURE_SATURATION_ACCEL`), 곡률 계산의 `elif self.is_vw_meb` 분기, 계기판 HUD 블록(`naviSpeedLimit`/`naviEventType`/`naviEventSpeed`/`leadLimiting` 설정), `steer_limited_by_safety`의 MEB 분기, steer ratio 호출의 `is_vw_meb` 인자 삭제. 삭제 후 읽는 곳이 없어진 `self.atc_turn_speed`도 함께 삭제.
+- longitudinal_planner.py: `is_vw_meb`와 FCW MEB 게이트(`crash_cnt` 문턱 15, `meb_suppress`) 삭제. FCW 조건은 기존 비MEB 조건 `crash_cnt > 2 and not standstill and not reset_state` 그대로.
+- steer_ratio.py: `resolve_vehicle_model_steer_ratio()`의 `is_vw_meb` 인자/분기 삭제.
+- 테스트: test_steer_ratio.py 호출 4곳 인자 제거 + `test_vw_meb_always_uses_live_ratio` 삭제, test_controlsd.py의 `controls.is_vw_meb = False` 삭제.
+- 유지한 것: opendbc_repo의 VW 코드 전체, `car.capnp`의 HUD 필드(스키마라 건드리지 않음), `brand="volkswagen"`을 단순 문자열 파라미터로 쓰는 테스트(test_controlsd/test_plannerd_clock/test_front_radar_cutin), plannerd.py의 VW 언급 주석(참조 아님).
+- 참고: 이전 세션의 작업본(/tmp)은 샌드박스 초기화로 사라져, SHA `62ae74dc` 원본에서 22개 편집(줄 범위 기반)으로 처음부터 다시 만들었다. 이전 초안에 없던 테스트 2개 파일과 `atc_turn_speed` 정리가 이 과정에서 추가됐다.
+
+**사고와 교정 (반영 스크립트 v1 중단 -> v2)**: v1(`117cha_vw_meb_dead_code_v1.ps1`)은 치환 단계 전에 "CR 문자 포함" 검사로 안전하게 중단됐고 아무것도 push되지 않았다. 원인: 저장소 `.gitattributes`의 `* text=auto` 때문에 Windows에서는 `core.autocrlf=false`만으로는 working tree가 CRLF로 checkout된다(GitHub에 저장된 blob은 LF, CR 0개). 소형 저장소로 재현 확인(`core.eol=crlf`이면 CR 3개, `core.eol=lf`이면 0개). 조치(v2): clone에 `--config core.eol=lf` 추가, 치환 후 `git diff --numstat`이 파일별 예상 줄 수와 정확히 일치해야만 진행. 주의: 샌드박스 셸에서 `grep -c $'\r'`은 CR을 세지 못해 v1 전달 전 "CR 0개" 확인은 신뢰할 수 없는 검사였다. CR 유무는 python 등으로 바이트 단위로 확인한다. 앞으로 Windows에서 carrot-ryu를 clone해 텍스트를 치환하는 스크립트는 `core.eol=lf`를 함께 지정한다. FINDINGS.md에는 아직 기록하지 않았다(핵심 발견 번호 체계 확인 후 다음 세션에서 결정).
+
+**검증 (샌드박스 정적/단위)**
+- 전달할 `.ps1`에서 추출한 22개 앵커가 원본에서 모두 정확히 1회 매치, 치환 결과가 검증된 수정본과 byte-exact 일치. `py_compile` 7개 파일 통과. `pyflakes`는 새 경고 없음(기존 중복 import 경고 1건이 사라짐).
+- `test_steer_ratio.py` + `test_controlsd.py`: 원본 51건 통과 -> 수정본 50건 통과(차이 1건은 삭제한 VW 전용 테스트).
+- controls/tests + car 전체(`--noconftest`, 수집 가능한 것만): 원본 425 passed/28 failed/70 errors, 수정본 424 passed/28 failed/70 errors. 실패 28건은 원본과 동일(`test_longitudinal_gap_recovery`, MPC 컴파일 모듈 부재). 16개 파일은 컴파일 모듈/hypothesis 부재로 양쪽 모두 수집 불가였고 `test_cruise_speed.py`, `test_carrot_cruise_buttons.py` 등이 여기에 포함되어 cruise.py 변경은 컴파일/pyflakes까지만 확인했다.
+- 사용자 실행 로그: 22개 블록 모두 매치 1회, py_compile 7개 exit 0, numstat 예상과 일치(cruise 0/11, controlsd 3/107, drive_helpers 0/8, longitudinal_planner 2/15, steer_ratio 1/4, test_controlsd 0/1, test_steer_ratio 3/7), commit `22b101f`, push `62ae74d..22b101f`.
+- GitHub 직접 재확인(16절): `git ls-remote`로 carrot-ryu `22b101f623bd6ce07fa4ed1a655144058d3530dc`, 커밋 `.patch`로 변경 파일 정확히 7개와 커밋 메시지 확인(API는 rate limit이라 `.patch`로 대체), SHA 고정 raw 7개 파일이 검증된 수정본과 byte-exact 일치(LF, CR 0).
+
+**동작 변화**: 제네시스(hyundai)에서는 `is_vw_meb`가 항상 False라 실행 경로가 바뀌지 않는다(코드 분석 기준). 되돌리기: `git revert 22b101f6`(carrot-ryu). 실차 검증: 미실시.
+
+**미배포 누적**: 115차 dead code 1차 배치(`0e1bef52`), 116차 camera_sync(`62ae74dc`), 117차 VW MEB 삭제(`22b101f6`) 세 변경이 모두 미배포다. 디바이스에서 pull하면 한 번에 반영된다.
+
+**미완료/다음 세션 우선순위**:
+1. 실차 배포(디바이스 pull) 시점 -- 사용자 확인 후. 세 변경을 함께 배포할지 개별 배포할지 포함. 배포 후 swaglog로 플래너/controlsd 예외와 카메라 페어링 이상 여부 확인.
+2. dead code 후속 배치가 남아 있는지 DEAD_CODE_REVIEW.md 기준으로 재점검(C10/C15 완료로 문서상 보류 후보는 없음).
+3. (이월) 114차 MAP_TURN_GUIDE_FACTOR 1.00 실차 관찰, 110차 GATE_M 0.8/1.0 관찰, 견고성 스윕 재개(선택). CURRENT_STATUS.md는 이번에도 갱신하지 않았다.
+
 ## 116차 계속 (완료) -- camera_sync 스큐 완화 반영 확인(carrot-ryu `62ae74dc`, note `03ba2f7f`)
 
 **세션 요약**: Worker: Claude (116차 계속, Claude Sonnet 5). 사용자가 두 스크립트 실행 후 "푸시 완료"를 알렸다. 로그로 판단하지 않고 GitHub에서 직접 확인했다(16절).

@@ -12,10 +12,16 @@ carrot-ryu의 dead code(호출/참조되지 않는 코드) 정리 추적 문서.
 | C12 `prev_accel_clip` | longitudinal_planner.py | 초기화 1곳 + 주석 블록뿐, 읽는 곳 0곳 | 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
 | C16 `get_max_accel()` + `A_CRUISE_MAX_VALS/BP` | longitudinal_planner.py | 자기 파일의 주석 1곳뿐. `A_CRUISE_MAX_BP_CARROT`(carrot_functions.py)는 별개 상수 | 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
 | C06 throttle/coast 계산부 | longitudinal_planner.py | 계산부는 `self.allow_throttle = True` 상수 때문에 실행되지 않음. 메시지 필드 `allowThrottle`은 UI 2곳과 클러스터 리플레이가 읽음 | 계산부만 1차 배치에서 삭제(필드와 `self.allow_throttle = True`는 유지). 제거 완료(115차, carrot-ryu `0e1bef52`, 실차 검증 미실시) |
-| C10/C15 VW MEB(`is_volkswagen_meb`/`is_vw_meb`) | drive_helpers.py 정의 + cruise.py, controlsd.py, steer_ratio.py, longitudinal_planner.py, test_controlsd.py | 5개 파일에서 사용 중. `CP.brand == "volkswagen"`이 DH2015에서 항상 False라 각 분기는 죽은 경로이나 제거 범위가 큼 | 보류 -- 별도 세션 |
+| C10/C15 VW MEB(`is_volkswagen_meb`/`is_vw_meb`) | drive_helpers.py 정의 + cruise.py, controlsd.py, steer_ratio.py, longitudinal_planner.py, test_controlsd.py | 5개 파일에서 사용 중. `CP.brand == "volkswagen"`이 DH2015에서 항상 False라 각 분기는 죽은 경로이나 제거 범위가 큼 | 제거 완료(117차, carrot-ryu `22b101f6`, 7개 파일 +9/-153, 실차 검증 미실시) |
 
 ## 115차 -- 1차 배치 (C01 + C12 + C16 + C06 계산부)
 
 - 대상 커밋 기준: carrot-ryu `fa75aeab`. 삭제 3개 파일(long_mpc.py, longitudinal_planner.py, test_turn_accel.py의 `parse_model` 목 반환값 5튜플 -> 4튜플).
 - 검증과 동작 변화 없음 근거는 WIP.md 115차 참고. 실차 검증: 미실시.
 - 상태: 코드 스크립트 `115cha_deadcode_batch1_code_carrot_ryu-v1.ps1` 실행·push 완료 확인(carrot-ryu `0e1bef52`, 부모 `fa75aeab`, 3개 파일 +5/-49). 실차 검증: 미실시. 실차 배포 시점은 사용자 확인 후.
+
+## 117차 -- 2차 배치 (C10/C15 VW MEB)
+
+- 대상 커밋 기준: carrot-ryu `62ae74dc`. 삭제 7개 파일(drive_helpers.py, cruise.py, controlsd.py, longitudinal_planner.py, steer_ratio.py, test_steer_ratio.py, test_controlsd.py). 후보 표에 적힌 5개 파일 외에 test_steer_ratio.py(`is_vw_meb` 인자 전달 4곳)와 삭제 후 고아가 된 `atc_turn_speed`(controlsd.py)가 추가로 확인돼 함께 정리했다.
+- 유지: opendbc_repo의 VW 코드, `car.capnp`의 HUD 필드(스키마). 검증과 동작 변화 없음 근거는 WIP.md 117차 참고. 실차 검증: 미실시.
+- 상태: 코드 스크립트 `117cha_vw_meb_dead_code_v2.ps1` 실행·push 완료 확인(carrot-ryu `22b101f6`, 부모 `62ae74dc`, 7개 파일 +9/-153). v1은 CRLF checkout 때문에 치환 전 안전 중단(WIP.md 117차 참고). 실차 검증: 미실시. 실차 배포 시점은 사용자 확인 후.
