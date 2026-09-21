@@ -371,6 +371,3 @@ def refresh_device_network() -> Dict[str, Any]:
   return deepcopy(data)
 
 
-def get_device_network(force: bool = False) -> Dict[str, Any]:
-  """Compatibility entry point: only an explicit force may perform I/O."""
-  return refresh_device_network() if force else get_device_network_snapshot()

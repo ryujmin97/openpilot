@@ -255,11 +255,6 @@ def get_path_after_distance(start_index, coordinates, current_position, distance
     return path_after_distance, start_index, closest_point
 
 
-def calculate_angle(point1, point2):
-    delta_lon = point2[0] - point1[0]
-    delta_lat = point2[1] - point1[1]
-    return math.degrees(math.atan2(delta_lat, delta_lon))
-
 # Convert GPS coordinates to relative x, y coordinates based on a reference point and heading
 def gps_to_relative_xy(gps_path, reference_point, heading_deg):
     ref_lon, ref_lat = reference_point
@@ -687,15 +682,6 @@ class CarrotMan:
     msg['xState'] = self.xState
     msg['trafficState'] = self.trafficState
     return json.dumps(msg)
-
-  def receive_fixed_length_data(self, sock, length):
-    buffer = b""
-    while len(buffer) < length:
-      data = sock.recv(length - len(buffer))
-      if not data:
-        raise ConnectionError("Connection closed before receiving all data")
-      buffer += data
-    return buffer
 
 
   def carrot_man_thread(self):
@@ -1349,14 +1335,6 @@ class CarrotMan:
         return None
       data.extend(packet)
     return data
-
-  def receive_double(self, sock):
-    double_data = self.recvall(sock, 8)  # Double은 8바이트
-    return struct.unpack('!d', double_data)[0]
-
-  def receive_float(self, sock):
-    float_data = self.recvall(sock, 4)  # Float은 4바이트
-    return struct.unpack('!f', float_data)[0]
 
 
   def send_routes(self, coords, from_navd=False):

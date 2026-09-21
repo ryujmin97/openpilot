@@ -97,12 +97,6 @@ def route_creation_key(route: str) -> tuple[int, int, str, str]:
   return (0, 0, value, value)
 
 
-def segment_creation_key(segment: str) -> tuple[int, int, str, str, int, str]:
-  parts = str(segment or "").split("--")
-  route = "--".join(parts[:-1]) if len(parts) >= 2 else str(segment or "")
-  return (*route_creation_key(route), segment_index(segment), str(segment or ""))
-
-
 def segment_is_complete(segment: str) -> bool:
   """Return true only for an unlocked segment with a finalized log source."""
   segment_path = os.path.join(DASHCAM_ROOT, str(segment or ""))

@@ -47,10 +47,6 @@ def normalize_action(action: object) -> str:
   return str(action or "").strip()
 
 
-def is_known_action(action: object) -> bool:
-  return normalize_action(action) in KNOWN_TOOL_ACTIONS
-
-
 def validate_action(action: object) -> Optional[Tuple[str, str]]:
   normalized = normalize_action(action)
   if normalized:

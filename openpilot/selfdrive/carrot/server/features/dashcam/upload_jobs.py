@@ -56,11 +56,6 @@ def jobs() -> dict[str, dict[str, Any]]:
   return _jobs
 
 
-def has_running_job() -> bool:
-  expire_stale_jobs()
-  return any(job.get("status") == "running" for job in _jobs.values())
-
-
 def running_job() -> dict[str, Any] | None:
   expire_stale_jobs()
   for job in _jobs.values():

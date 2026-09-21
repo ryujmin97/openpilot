@@ -12,15 +12,6 @@ def safe_get(obj: Any, attr: str, default: Any = None) -> Any:
     return default
 
 
-def safe_chain(obj: Any, *attrs: str, default: Any = None) -> Any:
-  current = obj
-  for attr in attrs:
-    current = safe_get(current, attr, default=None)
-    if current is None:
-      return default
-  return current
-
-
 def safe_float(value: Any, default: float | None = None) -> float | None:
   try:
     if value is None:
@@ -83,13 +74,6 @@ def to_list(value: Any, limit: int | None = None) -> list[Any]:
   if limit is not None:
     return data[:limit]
   return data
-
-
-def pick_first(*values: Any, default: Any = None) -> Any:
-  for value in values:
-    if value is not None:
-      return value
-  return default
 
 
 def to_transport_safe(value: Any) -> Any:

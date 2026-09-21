@@ -423,19 +423,6 @@ def _set_job_progress(job: dict[str, Any] | None, sent: int, total: int, message
   _touch_job(job)
 
 
-def finish_job(job: dict[str, Any] | None, *, ok: bool, result: dict[str, Any] | None = None, error: str | None = None) -> None:
-  if not job:
-    return
-  job["status"] = "done" if ok else "failed"
-  job["result"] = result
-  job["error"] = error
-  if ok:
-    job["percent"] = 100
-    job["message"] = "완료"
-  _touch_job(job)
-  _prune_jobs()
-
-
 def _prune_jobs() -> None:
   finished = [j for j in _upload_jobs.values() if j.get("status") in ("done", "failed")]
   if len(finished) <= UPLOAD_JOB_KEEP_COUNT:

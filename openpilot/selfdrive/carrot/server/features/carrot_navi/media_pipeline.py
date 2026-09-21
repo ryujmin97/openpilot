@@ -39,10 +39,6 @@ class CarrotNaviMediaPipeline:
   def initialization_present(self) -> bool:
     return self._initialization is not None
 
-  @property
-  def last_map_at(self) -> float:
-    return self._last_map_at
-
   def status(self, now: float | None = None) -> dict[str, Any]:
     current = time.monotonic() if now is None else now
     map_age_ms = int(max(0.0, current - self._last_map_at) * 1000) if self._last_map_at else None

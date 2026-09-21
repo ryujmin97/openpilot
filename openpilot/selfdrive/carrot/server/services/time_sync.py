@@ -9,24 +9,6 @@ TIME_SYNC_THRESHOLD_SEC = 10
 TIME_SYNC_DEBUG_DEFAULT = True
 
 
-def run_cmd_debug(cmd: list[str]) -> dict:
-  try:
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-    return {
-      "cmd": cmd,
-      "returncode": proc.returncode,
-      "stdout": (proc.stdout or "").strip(),
-      "stderr": (proc.stderr or "").strip(),
-    }
-  except Exception as e:
-    return {
-      "cmd": cmd,
-      "returncode": -1,
-      "stdout": "",
-      "stderr": str(e),
-    }
-
-
 def sync_system_time_from_browser(epoch_ms: int, timezone_name: str, debug: bool = False) -> dict:
   server_epoch = int(time.time())
   target_epoch = int(epoch_ms // 1000)

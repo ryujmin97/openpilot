@@ -178,13 +178,6 @@ def field_definition(service: str, path: str) -> dict[str, Any] | None:
   return None
 
 
-def service_fields(service: str) -> list[dict[str, Any]]:
-  for entry in current_schema_catalog():
-    if entry["service"] == service:
-      return [dict(field) for field in entry["fields"]]
-  return []
-
-
 def service_definition(service: str) -> dict[str, Any] | None:
   for entry in current_schema_catalog():
     if entry["service"] == service:

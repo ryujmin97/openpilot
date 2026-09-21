@@ -1634,17 +1634,6 @@ class CarrotServ:
 
     pm.send('navInstructionCarrot', inst)
 
-  def _update_system_time(self, epoch_time_remote, timezone_remote):
-    epoch_time = int(time.time())
-    if epoch_time_remote > 0:
-      epoch_time_offset = epoch_time_remote - epoch_time
-      print(f"epoch_time_offset = {epoch_time_offset}")
-      if abs(epoch_time_offset) > 60:
-        os.system(f"sudo timedatectl set-timezone {timezone_remote}")
-        formatted_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(epoch_time_remote))
-        print(f"Setting system time to: {formatted_time}")
-        os.system(f'sudo date -s "{formatted_time}"')
-
   def set_time(self, epoch_time, timezone):
     import datetime
     new_time = datetime.datetime.utcfromtimestamp(epoch_time)
@@ -1708,8 +1697,6 @@ class CarrotServ:
 
         if not PC:
           self.set_time(int(epoch), timezone_remote)
-
-      #self._update_system_time(int(json.get("epochTime")), timezone_remote)
 
     if "carrotCmd" in json:
       #print(json.get("carrotCmd"), json.get("carrotArg"))

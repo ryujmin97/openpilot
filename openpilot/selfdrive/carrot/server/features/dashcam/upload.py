@@ -12,7 +12,6 @@ from ...services.dashcam_upload_report import (
   upload_message_lines as upload_message_lines,
   upload_share_text as upload_share_text,
 )
-from ...services.params import HAS_PARAMS, Params
 
 
 def param_text(params: Any, key: str, default: str = "unknown") -> str:
@@ -78,10 +77,6 @@ def upload_metadata(params: Any) -> dict[str, str]:
     "commit": git_text(["rev-parse", "--short", "HEAD"], "unknown"),
     "commitDate": git_text(["show", "-s", "--date=format:%Y-%m-%d %H:%M:%S", "--format=%cd", "HEAD"], "unknown"),
   }
-
-
-def current_upload_metadata() -> dict[str, str]:
-  return upload_metadata(Params() if HAS_PARAMS else None)
 
 
 def decode_obfuscated(value: str, key: str) -> str:

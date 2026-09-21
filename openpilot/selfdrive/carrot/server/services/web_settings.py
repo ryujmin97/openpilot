@@ -176,14 +176,6 @@ def _catalog_signature(path: str) -> Tuple[int, int]:
   return stat.st_mtime_ns, stat.st_size
 
 
-def _clear_drive_content_catalog_cache(path: Optional[os.PathLike] = None) -> None:
-  with _catalog_cache_lock:
-    if path is None:
-      _catalog_cache.clear()
-    else:
-      _catalog_cache.pop(os.path.abspath(os.fspath(path)), None)
-
-
 def load_drive_content_catalog(path: Optional[os.PathLike] = None) -> Dict[str, Any]:
   catalog_path = os.path.abspath(os.fspath(path or DRIVE_CONTENT_CATALOG_PATH))
   for attempt in range(2):

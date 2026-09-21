@@ -125,18 +125,6 @@ def build_snapshot(
   )
 
 
-def _service_alive_map(sm: Any) -> dict[str, bool]:
-  try:
-    names = list(sm.data.keys())
-  except Exception:
-    names = []
-  return {name: _service_alive(sm, name) for name in names}
-
-
-def _alive_subset(service_alive: dict[str, bool], names: list[str] | tuple[str, ...]) -> dict[str, bool]:
-  return {name: bool(service_alive.get(name, False)) for name in names}
-
-
 def _service_alive(sm: Any, name: str) -> bool:
   try:
     return bool(sm.alive[name])
