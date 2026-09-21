@@ -6,8 +6,6 @@ from typing import Any
 from aiohttp import ClientSession, ClientTimeout
 
 from openpilot.system.hardware import HARDWARE
-from openpilot.selfdrive.carrot.web_upload import selected_upload_settings
-
 from ...config import DASHCAM_DEFAULT_DISCORD_KEY, DASHCAM_DEFAULT_DISCORD_WEBHOOK
 from ...services.dashcam_upload_report import (
   discord_content,
@@ -15,7 +13,6 @@ from ...services.dashcam_upload_report import (
   upload_share_text as upload_share_text,
 )
 from ...services.params import HAS_PARAMS, Params
-from ...services.web_settings import read_web_settings
 
 
 def param_text(params: Any, key: str, default: str = "unknown") -> str:
@@ -136,17 +133,3 @@ async def send_discord_webhook(url: str, payload: dict[str, Any]) -> dict[str, A
         return {"configured": True, "ok": False, "status": resp.status, "error": text[:500]}
   except Exception as e:
     return {"configured": True, "ok": False, "error": str(e)}
-
-
-def resolve_upload_target() -> dict[str, str]:
-  try:
-    settings = read_web_settings()
-  except Exception:
-    settings = {}
-  target, base_url, token = selected_upload_settings(settings)
-  return {"kind": target, "base_url": base_url, "token": token}
-
-
-def upload_target_settings() -> tuple[str, str]:
-  target = resolve_upload_target()
-  return target["base_url"], target["token"]
