@@ -1,5 +1,26 @@
 # WIP
 
+## 119차 (완료) -- FINDINGS.md 핵심 발견 46/47 기록, DEAD_CODE_REVIEW 4차 배치 후보(A/B/C 그룹) 조사
+
+**세션 요약**: Worker: Claude (119차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `6da52393`) 조회, HANDOFF.md(118차) 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `df7da7d5`, carrot-ryu-note `6da52393` (HANDOFF 기록과 일치, 16절). 이번 세션은 코드 변경 없음, carrot-ryu-note만 갱신.
+
+**작업 1 (FINDINGS 기록)**: 118차 HANDOFF/WIP에 "미결정"으로 남아있던 두 사고를 핵심 발견 46(117차 checkout CRLF, `.gitattributes` `* text=auto` 원인을 Linux에서 독립 재현)과 핵심 발견 47(118차 `.ps1` CRLF + 큰따옴표 백틱 이스케이프, pwsh 7.4.6을 직접 받아 실측)로 정리했다. 상세는 FINDINGS.md 해당 항목 참고. 샌드박스에 pwsh를 설치해 실제 실행 검증이 가능함을 이번에 처음 확인했다(95차 FINDINGS에는 "샌드박스에 PowerShell 없음"으로 기록돼 있었음).
+
+**작업 2 (DEAD_CODE_REVIEW 4차 배치 후보 조사)**: carrot-ryu `df7da7d5` tarball을 받아 first-party 범위(selfdrive/carrot, controls/lib, carrot/model_selector, tools/carrot_route_vault)의 정의를 AST로 추출하고, 코드/문자열/비-py 파일/테스트로 구분해 참조를 토큰 단위로 센 뒤, 죽은 함수에서만 호출되는 함수까지 연쇄로 추적하는 스크립트를 만들어 실행했다(11절, 심볼 단위 grep 원칙과 같은 목적을 자동화). 최종 후보는 저장소 전체 `grep -w`로 재확인했다.
+- 최종 후보: def 52개(연쇄 호출로만 쓰이는 8개 포함) + 파일 통째 1개(`controls/lib/desire_lib/blinker_manager.py`, 어디서도 import되지 않음). 22개 파일, 본문 합계 약 630줄.
+- 오탐 제외 확인: `apply_deadzone`은 1차 스캔이 opendbc 제외 범위였던 탓에 후보로 잡혔으나, `opendbc_repo/opendbc/car/gm/carcontroller.py`가 import함을 grep으로 확인해 제외. `.vendor/turing-smart-screen-python-main`(외부 라이브러리), `do_POST`/`do_DELETE`/`handle_starttag`(프레임워크 오버라이드), `_ingest_*`(carrot_navi 쪽 `getattr(self, f"_ingest_{service}")` 동적 호출)도 후보에서 제외.
+- 보류: 테스트에서만 참조되는 10개(특히 `_draw_navi_traffic_light_panel`은 `test_cluster_navi.py`가 "이 경로는 그려지면 안 된다"는 회귀 가드로 monkeypatch 중이라, 삭제하려면 테스트도 함께 손대야 함). 고아 상수 67개, 미사용 import 46개(대부분 `cluster_ui.py` 재수출), 참조 없는 params 키 10개(upstream 키로 보임)도 이번 배치에서는 제외.
+- 그룹 분류(위험도순): A(live_runtime `broker.py`/`normalize.py`/`snapshot.py` + `carrot_man.py`/`carrot_serv.py` + dashcam/services 잔여 헬퍼, 완전 고아), B(`controls/lib/desire_lib/blinker_manager.py`/`lane_planner_2.py` + model_selector + `radar_motion/predictor.py`), C(cluster `cluster_renderer.py`/`cluster_scene.py`/`main.py`, 약 300줄, 규모 최대).
+- 샌드박스 시험 삭제(반영 아님, 검증 전용): 52개 def + `blinker_manager.py` 삭제를 시험 복사본에 적용해 22개 파일 모두 `py_compile` 통과 확인. pyflakes "정의되지 않은 이름" 경고는 삭제 전후 동일(2건). 새 미사용 import 5건 발견(`cluster_scene.py`의 `statistics.median`, `dashcam/upload.py`의 `HAS_PARAMS`/`Params`, `broker.py`의 `json`/`build_live_hello`) -- 실제 배치에서 함께 정리 필요. 코드로 확인한 연쇄 고아: `_load_msgpack`/`msgpack` 전역, `last_payload_*` 속성, `contract.py`의 `build_live_hello`/`LIVE_ENCODING_MSGPACK`.
+- pytest: `openpilot/selfdrive/carrot/server/tests` + `openpilot/selfdrive/carrot/tests`를 삭제 전/후 복사본에 각각 실행, 실패/에러 목록(36건)이 완전히 동일함을 확인했다. 다만 샌드박스에 컴파일 모듈이 없어 실패/에러가 많고(11절/12절, 이전 세션들과 동일한 한계) 통과 개수 비교는 하지 못했으므로 이 결과는 회귀 없음의 근거로는 약하고, 참조 0건 grep + pyflakes가 주 근거다.
+- 118차에서 미실시였던 `web_upload.py`/`test_web_upload.py` pyflakes를 이번에 실행해 경고 0건을 확인했다(공백 일부 해소).
+
+**사용자 결정**: A → B → C 순서로, 매 배치 사용자 승인 후 진행하기로 확정. 이번 세션에서는 조사만 하고 삭제 스크립트는 작성하지 않았다.
+
+**주의사항**: 이 조사는 이름(심볼명) 기준 참조 카운트라 동적 호출/문자열 참조가 있으면 보수적으로 "참조 있음"으로 잡힌다. 그래서 놓친 죽은 코드는 있을 수 있어도, 잘못 후보에 넣은 것은 크지 않을 것으로 본다(동적 호출·외부 import 케이스는 개별 확인함). 각 배치 삭제 직전에는 11절 원칙대로 codeload tarball 재확인을 다시 거친다(조사 시점과 시차가 있으면 특히).
+
+**다음 세션 최우선**: (1) A그룹(live_runtime + carrot_man/serv + dashcam 헬퍼) 삭제 스크립트 작성 및 반영(사용자 승인 완료). (2) 실차 배포(디바이스 pull) 시점 -- 115~118차 4건 미배포 누적, 이월 중.
+
 ## 118차 (완료) -- web_upload.py/upload.py 구 웹 업로드 경로(3차 배치) 삭제(carrot-ryu `df7da7d5`)
 
 **세션 요약**: Worker: Claude (118차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `e0ba99b1`) 조회, HANDOFF.md(117차) 확인 후 이어받음. 시작 시점 GitHub 상태: carrot-ryu `22b101f6`, carrot-ryu-note `e0ba99b1` (HANDOFF 기록과 일치, 16절).
