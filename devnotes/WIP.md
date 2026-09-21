@@ -1,5 +1,21 @@
 # WIP
 
+## 123차 계속 (C그룹 삭제 반영 확인 · devnotes 정리 · 지침 9절 8·9번 추가 -- 스크립트 준비, 실행/push 대기) -- 119차 A/B/C 4차 배치 종결
+
+**세션 요약**: Worker: Claude (123차, Claude Sonnet 5). 사용자가 v2 스크립트 두 개(코드/devnotes) 실행 후 "완료"를 알려왔고, 로그 없이 GitHub에서 직접 재확인했다(16절). carrot-ryu `a0f4c5a5fb932be1525311d2ed61f5382a4bd6d2`(부모 `2efdd2e2`): 변경 3개 파일 +0/-327(cluster_renderer.py -109/cluster_scene.py -194/main.py -24), 결과 blob 3개(`663ac8b4`/`2ca34549`/`7a8acaa5`)가 스크립트 `Post` 값과 일치, 삭제한 18개 이름을 HEAD 전체에서 `git grep -w`로 다시 찾아 잔여 참조 0건. carrot-ryu-note `24bab81ee4e8c1fa15b1fa90215c19b846ea0d22`(부모 `4853319`): 4개 파일 blob이 v2 스크립트 `Post` 값과 일치, WIP.md +20/CURRENT_STATUS.md +2/DEAD_CODE_REVIEW.md +8은 삽입 전용(삭제 0)이고 HANDOFF.md는 교체(+23/-19). 이로써 119차 A/B/C 4차 배치 전체가 push 완료됐다(120차 A `b98620e8`, 121차 B `2efdd2e2`, 123차 C `a0f4c5a5`).
+
+**시차 정정**: 앞서 push된 123차 devnotes는 C그룹을 "실행/push 대기"로 적고 있어 실제와 어긋났다(같은 시차 패턴 반복). WIP.md는 기존 회차를 수정하지 않으므로 앞 항목 문구는 그대로 두고, 이 항목과 DEAD_CODE_REVIEW.md(상태 칸만 갱신)/CURRENT_STATUS.md/HANDOFF.md 갱신으로 정정한다. 이 스크립트도 push 시점에는 같은 이유로 "실행/push 대기"를 적는다 -- 다음 세션은 `git ls-remote`로 확인한다(16절).
+
+**지침 변경 (19절, 사용자 승인 "진행")**: 9절 "전달 전 필수 자가검증 체크리스트"에 8번·9번을 7번 뒤에 추가했다(번호 재배치 없음, 지침은 v2 유지, 별도 커밋으로 반영). 계기: (a) 123차 devnotes v1이 `$Files` 배열 끝의 후행 쉼표(4057행)로 PowerShell 파싱 오류를 안은 채 전달됐다 -- 체크리스트 1~7이 잡지 못했고 이번 세션에서 pwsh 파서로 발견했다. (b) 121차 코드 v1이 Windows CRLF 체크아웃 때문에 안전 중단됐다(핵심 발견 48). 8번: 전달 전 pwsh `Parser::ParseFile`로 구문 오류 0건 확인 + 후행 쉼표 대조군. 9번: 로컬 bare 저장소를 대상으로 일반 체크아웃/`core.eol=crlf` 두 모드에서 스크립트를 끝까지 실행해 numstat과 blob hash를 확인. 한계: PowerShell 7 파서와 Linux 시뮬레이션 기준이라 Windows PowerShell 5.1 실제 실행을 대신하지 않는다.
+
+**작업**: DEAD_CODE_REVIEW.md 표의 C그룹 행과 123차 항목의 상태 문장을 "제거 완료"로 갱신, CURRENT_STATUS.md 5번 줄의 carrot-ryu HEAD 값을 93차 값(`25f21d4`)에서 `a0f4c5a5`로 갱신(122차가 낡음을 지적만 하고 남겨 둔 항목)하고 123차 계속 항목 추가, HANDOFF.md 교체. 이 스크립트에는 새 8·9번을 자기 자신에게 적용했다: pwsh 파서 통과, 로컬 bare 저장소(carrot-ryu-note `24bab81e` 트리)에 일반/CRLF 두 모드로 끝까지 실행해 커밋 2개와 파일별 blob hash 일치 확인(Linux 시뮬레이션, Windows PowerShell 5.1 실행 아님).
+
+**완료**: C그룹 삭제 반영 확인, 119차 A/B/C 4차 배치 종결, devnotes 정리, 지침 8·9번 추가안 작성.
+
+**미완료(다음 세션 최우선)**: 1. 이 스크립트(`123cha_cleanup_devnotes_instructions_carrot_ryu_note.ps1`) 실행/push 확인 -- carrot-ryu-note에 커밋 2개(devnotes 정리, 지침 9절 8·9번). 2. CURRENT_STATUS.md 97~114차 상세 catch-up(122차부터 이월)과 115~123차 항목 이식. 3. C그룹(123차) 실차 배포/검증 -- 115~121차는 사용자가 실차 확인(122차 기록), 123차 C그룹은 미확인. 4. pytest를 실제 CI 조건(conftest 포함)으로 실행한 적이 없다(120차 `--noconftest`만, 123차는 py_compile/pyflakes/`git grep`만) -- 이월.
+
+**검증**: GitHub SHA 고정 조회 + blob hash 대조 + `git grep -w` + pwsh/로컬 bare 시뮬레이션(9절/16절). 실차 검증: 미실시.
+
 ## 123차 (스크립트 준비 -- 실행/push 대기) -- DEAD_CODE_REVIEW 4차 배치 C그룹 삭제 스크립트 작성/검증
 
 **세션 요약**: Worker: Claude (123차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `4853319`) git ls-remote SHA 고정으로 조회, HANDOFF.md(122차)/CURRENT_STATUS.md 확인 후 이어받았다(4절). 시작 시점 GitHub: carrot-ryu `2efdd2e2`(121차, 변화 없음), carrot-ryu-note `4853319`(122차, HANDOFF 기록과 일치, 16절). 사용자가 122차 devnotes 반영 push 완료를 알려왔고("푸시완료"), `git ls-remote`로 이미 GitHub에 반영돼 있음을 직접 재확인했다.
