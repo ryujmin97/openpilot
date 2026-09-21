@@ -1,5 +1,13 @@
 # WIP
 
+## 124차 (devnotes만 · 코드 변경 없음) -- 115~123차 dead code 4차 배치 A/B/C 전체 실차 검증 완료
+
+**세션 요약**: 사용자가 carrot-ryu `a0f4c5a5f`(123차 C그룹)까지 실제 디바이스에 배포했음을 위젯 실행 로그(`git reset --hard` -> `2efdd2e25`, `git pull` -> `a0f4c5a5f` Fast-forward, 3개 파일 +0/-327)로 확인해 주었고, 재부팅 후 실차 주행으로 검증한 결과 이상 없음을 확인했다(11절/12절: 실제 배포 로그 + 사용자의 실차 판단 근거, 정적 분석이 아니라 실차 확인).
+
+**확인 내용**: 사용자 제공 로그의 커밋(`a0f4c5a5f`, 부모 `2efdd2e25`, 3파일 -327)이 GitHub carrot-ryu HEAD와 정확히 일치함을 재확인(16절). CURRENT_STATUS.md(122차 기록)에 따르면 115~121차는 이미 실차 확인됐고, 이번 확인으로 122차 HANDOFF의 미완료 3번("C그룹 123차는 미확인")이 해소되어 4차 배치(A `b98620e8`/B `2efdd2e2`/C `a0f4c5a5`) 전체가 처음부터 끝까지 실차 검증 완료 상태가 됐다.
+
+**범위**: 확인된 것은 A/B/C 그룹이 삭제한 dead code(전부 참조 0곳이던 함수/파일) 경로에서 눈에 띄는 회귀가 없다는 것이다. 개별 삭제 대상 각각을 직접 트리거해 확인한 것은 아니며(대부분 클러스터 디스플레이/live_runtime 등 부가 기능), 사용자가 실제 주행 중 관찰한 범위 내에서 이상 없음으로 기록한다. 코드 변경 없음.
+
 ## 123차 계속 (C그룹 삭제 반영 확인 · devnotes 정리 · 지침 9절 8·9번 추가 -- 스크립트 준비, 실행/push 대기) -- 119차 A/B/C 4차 배치 종결
 
 **세션 요약**: Worker: Claude (123차, Claude Sonnet 5). 사용자가 v2 스크립트 두 개(코드/devnotes) 실행 후 "완료"를 알려왔고, 로그 없이 GitHub에서 직접 재확인했다(16절). carrot-ryu `a0f4c5a5fb932be1525311d2ed61f5382a4bd6d2`(부모 `2efdd2e2`): 변경 3개 파일 +0/-327(cluster_renderer.py -109/cluster_scene.py -194/main.py -24), 결과 blob 3개(`663ac8b4`/`2ca34549`/`7a8acaa5`)가 스크립트 `Post` 값과 일치, 삭제한 18개 이름을 HEAD 전체에서 `git grep -w`로 다시 찾아 잔여 참조 0건. carrot-ryu-note `24bab81ee4e8c1fa15b1fa90215c19b846ea0d22`(부모 `4853319`): 4개 파일 blob이 v2 스크립트 `Post` 값과 일치, WIP.md +20/CURRENT_STATUS.md +2/DEAD_CODE_REVIEW.md +8은 삽입 전용(삭제 0)이고 HANDOFF.md는 교체(+23/-19). 이로써 119차 A/B/C 4차 배치 전체가 push 완료됐다(120차 A `b98620e8`, 121차 B `2efdd2e2`, 123차 C `a0f4c5a5`).
