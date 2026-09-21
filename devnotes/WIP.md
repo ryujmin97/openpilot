@@ -1,5 +1,19 @@
 # WIP
 
+## 120차 계속 (A그룹 push 확인 완료) -- DEAD_CODE_REVIEW 4차 배치 A그룹 제거 완료 확인 + devnotes 상태 정정
+
+**세션 요약**: 사용자가 코드/노트 스크립트 push 완료를 알려 와서 GitHub에서 직접 재확인했다(16절, 로그 없이 사용자 보고만 받은 상태였음). `git ls-remote`: carrot-ryu `b98620e8e5c02e8985a0a89daab1ef002e8674c3`, carrot-ryu-note `d70389a27ef514466abf85cf838471fd5e3b17a4`.
+
+**확인 1 (코드)**: carrot-ryu `b98620e8`(커밋 메시지 "120cha: dead code batch A - remove 29 orphan defs ..."), 부모 `df7da7d5`(118차 HEAD와 일치), 변경 17개 파일 +1/-302. 부모 blob 17개가 스크립트의 `Pre` 값과, 결과 blob 17개가 `Post` 값과 전부 일치하고 변경 파일 목록이 스크립트 대상 17개와 동일함(blobless fetch + `git ls-tree`). 즉 샌드박스에서 검증한 결과물이 그대로 반영됐다.
+
+**확인 2 (노트)**: carrot-ryu-note `d70389a2`, 부모 `e69b3c56`, WIP.md/DEAD_CODE_REVIEW.md/HANDOFF.md 3개 파일의 SHA-256이 스크립트에 박아 둔 사후 값과 일치. 다만 그 3개 파일은 A그룹을 "스크립트 준비, 실행/push 대기"로 적고 있었으므로(핵심 발견 27/38과 같은 시차 패턴) 이 항목과 함께 정정한다.
+
+**정정 내용**: DEAD_CODE_REVIEW.md 표의 A그룹 행과 120차 섹션 상태 줄을 "제거 완료(120차, carrot-ryu `b98620e8`, 실차 검증 미실시)"로, HANDOFF.md를 A그룹 완료 기준으로 갱신. 위 120차 항목 본문은 당시 상태를 그대로 두고 수정하지 않는다(7절).
+
+**부수 확인**: 사용자 PC(Windows)에서 두 스크립트가 실행되어 push까지 끝났으므로, 120차 항목에서 "미확인"으로 남겼던 Windows PowerShell 실행 자체는 실사용 환경에서 동작한 것으로 확인됨(사용자 보고 + GitHub 대조. 실행 로그 원문은 받지 못함, 5.1/7 중 어느 버전인지도 미확인).
+
+**미배포 누적**: 실차 배포(디바이스 pull) 대기 코드 변경이 115차(`0e1bef52`)/116차(`62ae74dc`)/117차(`22b101f6`)/118차(`df7da7d5`)/120차 A그룹(`b98620e8`) 5건이 됨. 실차 검증: 미실시.
+
 ## 120차 (스크립트 준비 -- 실행/push 대기) -- DEAD_CODE_REVIEW 4차 배치 중 A그룹 삭제 스크립트 작성/검증
 
 **세션 요약**: Worker: Claude (120차, Claude Sonnet 5). 지침 v2(carrot-ryu-note `e69b3c5`) 조회, 세션 시작 시 GitHub 상태 재확인(16절): carrot-ryu `df7da7d5`(118차 HEAD, 변화 없음), carrot-ryu-note `e69b3c56`(119차, 4개 파일 재확인 완료). 119차에서 사용자가 승인한 A → B → C 순차 진행에 따라 A그룹 삭제 스크립트를 작성했다. **코드 스크립트는 아직 실행/push 전이므로 A그룹은 "제거 완료"가 아니다.**
