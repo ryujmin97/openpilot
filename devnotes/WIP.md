@@ -1,5 +1,23 @@
 # WIP
 
+## 131차 (코드 1건 반영 확인 + devnotes 캐치업) -- cluster_ui.py 고아 파일 삭제(미사용 import 24건 해결), 남은 17건은 132차로 확정
+
+**배경**: carrot-ryu에 미사용 import(pyflakes F401) 정리 작업이 진행 중이었으나, 이 작업 자체가 130차까지의 WIP.md/CURRENT_STATUS.md에는 전혀 기록되지 않은 채 carrot-ryu HEAD만 `b3ac7c95`(127차/130차 base) -> `3759a300`으로 먼저 앞서 나가 있었다. 세션 시작 시 `git ls-remote`로 이 괴리를 발견했다(16절). 채팅에 붙여넣어진 "131차 완료" 검증 주장을 그대로 신뢰하지 않고 GitHub에서 직접 독립 재검증했다(3절).
+
+**진행**:
+1. `git ls-remote`로 carrot-ryu HEAD가 `3759a300`(부모 `b3ac7c95`)임을 확인, `git show --numstat`으로 변경이 `openpilot/selfdrive/carrot/cluster/cluster_ui.py` 1개 파일 삭제(0/-57)뿐임을 확인.
+2. 커밋 메시지("131차: 고아 파일 cluster_ui.py 삭제, 24개 미사용 import 해결, 어디서도 import되지 않는 re-export 파사드")와 해당 SHA 시점 raw 조회(404)로 파일이 실제로 삭제됐음을 확인.
+3. 삭제된 파일 원본을 diff에서 재구성해 pyflakes를 단독 실행, "24개"라는 수치를 직접 재현했다: `cluster_config`/`cluster_models`/`cluster_renderer`/`cluster_scene`/`cluster_utils`에서 가져온 이름들을 `__all__`에 나열했지만, `__all__`이 리스트 컴프리헨션과 결합된 동적 표현식이라 pyflakes가 재-export로 인식하지 못해 전부 미사용으로 잡혔던 것 -- 정확히 24건이 삭제로 전부 해소됨을 확인(11절: 추측 아님, 실제 실행 결과).
+4. 다만 devnotes 어디에도 이 정리 작업의 기준선("46개"의 스코프)이 기록돼 있지 않아 이전 "46→22" 표기는 이번 세션 기준으로 재구성할 수 없었다. 대신 이번 세션에서 `openpilot/selfdrive/carrot/` 디렉터리를 스코프로 pyflakes를 독립 재실행해 현재 상태를 새 기준선으로 확정: 남은 미사용 import 17건(`carrot_serv.py` 10건, `carrot_man.py` 4건, `server/features/dashcam/upload.py` 2건, `radar/tools/radar_lead_simulator.py` 1건).
+
+**완료**: 131차(cluster_ui.py 삭제)의 GitHub 반영 상태 독립 재검증 완료. devnotes 캐치업(이 항목) 작성.
+
+**미완료**: 남은 17건(위 4개 파일) 정리 -- 132차로 이월.
+
+**검증**: git ls-remote / git show --numstat / raw 조회(SHA고정) / pyflakes 재실행 전부 직접 실행 결과로 확인(3절, 11절). 실차 검증: 해당 없음(고아 파일 삭제, 런타임 영향 없음, 12절).
+
+**주의사항**: 앞으로 "미사용 import 정리" 회차는 pyflakes 스코프를 `openpilot/selfdrive/carrot/`로 명시해 기록한다(이번 세션의 46/22 스코프 불명 혼선 재발 방지).
+
 ## 130차 (devnotes 정정 + 정기 점검 · 코드 변경 없음) -- carrot-ms 2절 점검(변경 없음) + 97~114차 catch-up 관련 stale HANDOFF 이월 문구 발견/정정
 
 **배경**: 129차 완료 후 사용자가 다음 작업 후보 1번(carrot-ms 2절 정기 점검)을 지시.
