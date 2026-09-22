@@ -1,5 +1,13 @@
 # WIP
 
+## 138차 (devnotes만 · 코드 변경 없음) -- FINDINGS.md 핵심 발견 52 등록 (136차 v1 py_compile 중복 호출 버그)
+
+137차 devnotes push(commit `f476d53d`, `.patch` 조회로 WIP.md/CURRENT_STATUS.md/HANDOFF.md 3개 파일 diff가 정확히 일치함을 사용자가 직접 확인)를 세션 시작 시 보고받았다. HANDOFF.md(137차) 미완료 2번(136차 v1 스크립트의 py_compile 중복 호출 버그를 FINDINGS.md에 핵심 발견으로 정식 등록)에 착수.
+
+FINDINGS.md 최상단(핵심 발견 51 바로 앞)에 핵심 발견 52를 신규 추가했다: `136cha_mojibake_fix_code_carrot_ryu.ps1`(v1)이 7단계(py_compile 검증)에서 `Push-Location $Tmp` 이전에 `$RelPath`(상대경로)로 한 번 더 호출하는 중복 코드를 갖고 있어, 실제 작업 디렉터리가 clone 폴더가 아니라 사용자가 PowerShell을 실행한 `C:\WINDOWS\system32`일 때 `FileNotFoundError`로 예외가 발생했고, `finally`(임시폴더 삭제)가 콘솔 에러 출력보다 먼저 실행돼 로그 순서만 보면 "정리 완료 다음에 에러"로 보였던 것을 원인으로 기록. commit/push는 이 예외 지점 이전이라 한 번도 실행되지 않아 저장소 손상 위험은 없었음, v2(중복 호출 제거+절대경로+`Push-Location` 자체 제거)로 해결된 경위와 최종 push 결과(commit `41e4c056`, `.patch`+blob hash 재확인)까지 기록.
+
+반영 스크립트(`138cha_findings_carrot_ryu_note.ps1`)는 FINDINGS.md 원본이 CRLF이므로 `devnotes/toolkit/replace_block_template.ps1`의 `Invoke-ReplaceBlock-CrlfNative`(63차/85차의 LF 정규화 버전이 아니라, 원본 CRLF를 그대로 유지한 채 바이트 매칭하는 버전)를 그대로 재사용했다. 9절 "전달 전 필수 자가검증 체크리스트" 전항목을 통과했다: `.ps1` 첫 3바이트 BOM 확인, `git clone --config core.autocrlf=false` 포함, `finally`의 임시폴더 삭제 확인, `WriteAllText(UTF8Encoding($false))` 사용 후 대상 파일 BOM 미포함 재확인, anchor 매치 1회+치환 결과 재확인(함수 내장), pwsh 7.4.6 파서 구문 오류 0건, 로컬 bare 저장소에 대해 (a) 일반 체크아웃 (b) `core.eol=crlf` Windows CRLF 재현 두 모드 모두 실행해 push된 커밋의 결과 blob hash가 두 모드 완전히 동일(byte-exact, `b480e0f1c3c256...`)함을 확인, 저장소 상태 조회 git 명령 전부 `-C $Tmp` 사용. 실행/push 대기. 코드 변경 없음, 실차 검증: 해당 없음.
+
 ## 137차 (devnotes만 · 코드 변경 없음) -- 123cha/132cha/135cha/136cha 실기기 배포 확인 + 실주행 이상없음
 
 세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu-note HEAD가 이미 `aff0f0050dc9ec8997cc04775342908598ca9e18`(136차 계속 devnotes push 확인 완료 상태)임을 확인했다. HANDOFF.md(136차 계속)의 미완료 1번("이번 devnotes 반영 스크립트 실행/push 확인")은 이 파일 자체가 이미 그 반영 결과임을 재조회로 확정(16절, 별도 조치 불필요).

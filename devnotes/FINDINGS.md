@@ -1,5 +1,17 @@
 # FINDINGS
 
+## 핵심 발견 52 (136차 계속) -- 136차 v1 코드 반영 스크립트의 py_compile 검증 단계가 `Push-Location $Tmp` 이전에 상대경로로 중복 호출되어, 실행 위치가 clone 폴더 밖일 때 예외로 조용히 죽고 로그 순서만 보면 "정리 완료 후 에러"로 오인됨
+
+**배경**: `136cha_mojibake_fix_code_carrot_ryu.ps1`(v1) 실행 로그 끝에 있어야 할 "완료: carrot-ryu에 136cha 커밋이 push되었습니다" 메시지가 없고, 대신 `py.exe : [Errno 2] No such file or directory: 'openpilot/selfdrive/controls/lib/desire_lib/maneuver_classifier.py'`가 출력됐다. GitHub 재조회로 carrot-ryu 대상 파일의 blob hash가 여전히 pre-image(`0021af97d7`, 수정 전)임을 확인해 push가 실제로 일어나지 않았음을 확정했다(16절, "완료" 메시지 없는 로그를 성공으로 단정하지 않음).
+
+**확인된 원인**: 스크립트 7단계(py_compile 검증)에 `$RelPath`(상대경로)로 py_compile을 한 번 더 호출하는 중복 코드가 `Push-Location $Tmp` **이전**에 있었다. 이 호출 시점의 실제 작업 디렉터리는 clone 임시 폴더가 아니라 사용자가 PowerShell을 실행한 `C:\WINDOWS\system32`였기 때문에 상대경로를 찾지 못해 `FileNotFoundError`가 발생했고, `$ErrorActionPreference="Stop"`에 의해 예외로 전환됐다. 이 예외로 스크립트가 죽으면서 `finally` 블록(임시 폴더 삭제)이 먼저 실행된 뒤 콘솔에 에러 메시지가 출력돼, 로그만 보면 "정리 완료 다음에 에러가 난 것"처럼 순서가 뒤바뀌어 보였다. 이 시점은 8단계(commit/push) 이전이라 git 명령은 한 번도 실행되지 않았다 -- 15절/18절의 강제진행 금지 안전장치가 작동한 것이 아니라 단순히 그 지점에서 예외로 스크립트가 죽은 것이며, 저장소 손상 위험은 없었다.
+
+**수정안**: 중복 호출 제거, 절대경로(`$FilePath`) 사용, `Push-Location`/`Pop-Location` 자체를 제거(작업 디렉터리를 옮기지 않고 항상 절대경로만 사용하는 패턴, 9절 10번 `-C` 원칙과 동일한 취지)한 v2(`136cha_mojibake_fix_code_carrot_ryu_v2.ps1`)를 작성/전달했다. v2 실행으로 commit `41e4c056d8db2ceb38fe93c114ca5a3be3d8de8f` push 완료를 GitHub에서 직접 재확인: `.patch` 조회로 변경 파일 1개(+2/-2), 결과 blob hash가 사전에 계산한 post-image(`b552e1655d`)와 byte-exact 일치, 첫 3바이트 BOM 아님, `py_compile` 통과.
+
+**검증**: v2의 push 결과는 GitHub API/raw 조회로 재확인했다(위 수정안 문단). v1의 정확한 예외 발생 지점(상대경로 py_compile 호출)은 사용자가 전달한 로그와 스크립트 원문 대조로 확인한 것이며, 샌드박스에서 Windows PowerShell 5.1 환경을 직접 재현해 실측하지는 않았다.
+
+**일반화**: 외부 프로세스(py_compile 등)를 호출하는 모든 지점은 상대경로가 아니라 절대경로만 써야 한다는 점이 이번 사고로 재확인됐다. `Push-Location`으로 작업 디렉터리를 바꾸는 방식은 이후 코드에서 상대경로 호출이 섞여 들어갈 여지를 남기므로, 애초에 `Push-Location`/`Set-Location`을 쓰지 않고 모든 파일 접근을 절대경로(`Join-Path $Tmp ...`)로 고정하는 편이 더 안전하다(9절 PowerShell 필수 규칙과 동일 원칙).
+
 ## 핵심 발견 51 (133차) -- `git hash-object <절대경로>`를 `-C` 없이 호출하면 프로세스 CWD 기준으로 리포지토리를 찾아 로컬 core.autocrlf override를 무시하고 전역 설정을 적용, 내용이 같아도 "base drifted"로 오탐
 
 **배경**: 133cha_devnotes_toolkit_instructions.ps1 최초 실행에서 FINDINGS.md pre-image guard가 실제 내용은 GitHub 최신과 동일한데도 "changed since this script was authored"로 안전 중단됐다(사용자 로그, commit/push 없음, 9절/15절/18절 정상 동작).
