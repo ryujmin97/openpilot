@@ -2,6 +2,15 @@
 
 재사용 가능한 분석/검증 스크립트 목록
 
+## replace_block_template.ps1 -- 코드/devnotes 반영 스크립트의 Replace-Block 공통 헬퍼 (133차)
+
+문자열 블록 치환(Replace-Block)을 쓰는 모든 반영 스크립트가 매번 새로 작성하지 않고
+그대로 복사해서 쓰는 `Invoke-ReplaceBlock`/`Invoke-ReplaceBlock-CrlfNative` 함수 모음.
+CRLF->LF 정규화(핵심 발견 44/46/48/50 재발 방지)와 치환 결과 재확인(핵심 발견 42 재발
+방지)을 포함한다. FINDINGS.md처럼 원본이 CRLF인 파일은 `-CrlfNative` 변형을 쓴다(전체를
+LF로 재작성하면 손대지 않은 기존 줄까지 diff에 잡히는 부작용이 있음). 9절 체크리스트
+2번이 이 파일 재사용을 요구한다. 상세 사용법은 파일 상단 주석 참고.
+
 ## lead_decel/ — 선행차 감속에 대한 자차 반응 분석 (97차, 98차 게이팅 평가 추가)
 
 rlog.zst에서 carState/radarState.leadOne/longitudinalPlan을 뽑아 리드 감속 이벤트를 분석하고, MPC 복제본으로 what-if를 돌리는 도구 모음. 결과 해석·수치는 WIP.md 97차.

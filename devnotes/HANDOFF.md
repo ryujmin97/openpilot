@@ -1,37 +1,39 @@
-Worker: Claude (132cha, Claude Sonnet 5)
+Worker: Claude (133cha, Claude Sonnet 5)
 Date: 2026-09-22
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base `3759a300d2bc98fb4c8a91ca7f73ba68537382d2`, 131차 기준 -- 이 세션에서 132cha_unused_imports.ps1 작성/dry-run 검증까지 완료, 사용자 실행 후 HEAD는 다음 세션이 git ls-remote로 확인)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base `87c7fc0dde0e2fda6971ca6d601fde2d58d079dd`, 131차 push 확인 완료. 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+Code Branch: carrot-ryu (HEAD `15f9831ea88bab398dc39cbc8e9264600de7201a`, 132차 코드 반영 완료 -- 이번 세션은 재확인만, 코드 변경 없음)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base `48f2ff17a475eb88e9d83b6f93904a8eb4822d8f`, 132차 push 확인 완료. 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
 carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 신규 커밋 없음 확인. 이번 세션은 재점검 없음)
 
 작업:
-1. 세션 시작(4절 0단계): git ls-remote로 지침 문서(v2, `87c7fc0d`) 확인, HANDOFF.md(131차)로 다음 작업이 132차(남은 미사용 import 17건 정리)임을 확인.
-2. carrot-ryu를 base `3759a300`으로 shallow clone해 4개 대상 파일(carrot_serv.py/carrot_man.py/dashcam upload.py/radar_lead_simulator.py) 실제 사용 여부를 grep으로 전수 조사(10절 -- 정적 린터가 잡았다는 이유만으로 바로 삭제하지 않음).
-3. 조사 결과 17건 중 15건은 진짜 죽은 코드(삭제 확정), 2건(dashcam upload.py의 upload_share_text, radar/tools/radar_lead_simulator.py의 와일드카드)은 저장소 전체 grep으로 실제 외부 소비자를 확인해 pyflakes 오탐으로 판단(보존 확정). 조사 중 urllib.error 제거로 가려져 있던 urllib.request 미사용이 새로 노출되어 이것도 삭제 대상에 포함(원안 17건 -> 최종 15건 삭제 + 신규 발견 1건 = 실제 삭제 16개 이름, 파일 3개).
-4. 로컬 clone에서 3개 파일 실제 편집 -> py_compile 통과 -> pyflakes 재스캔으로 남은 미사용 import가 의도한 2건뿐임을 확인.
-5. 코드 반영 스크립트(`132cha_unused_imports.ps1`)를 작성하고, 로컬 bare 저장소(대상 SHA `3759a300` 트리)를 만들어 스크립트를 실제로 끝까지 실행하는 dry-run 검증(9절 체크리스트 9번) -- anchor 매치 1회씩, py_compile 통과, push된 커밋의 3개 파일 blob hash가 수동 편집 결과와 byte-exact 일치함을 확인. CRLF 체크아웃 재현(9번 b)은 셸 호출 경계 문제로 완전 재현엔 이르지 못함(실제 스크립트의 `--config core.autocrlf=false`가 구조적 방어선).
-6. `.ps1` 전달 전 자가검증 체크리스트(9절) 수행: UTF-8 BOM 확인(EF BB BF), git clone에 core.autocrlf=false 포함 확인, finally 블록 임시폴더 삭제 확인, Get-PythonCmd + EOF 파이프 패턴 사용, 전체재작성 파일(HANDOFF.md) WriteAllText(UTF8Encoding($false)) 사용 및 BOM 없음 재확인, WIP.md 삽입 결과 헤더 재확인, pwsh 파서 구문 오류 0건 확인(PowerShell 7.4.6 설치 후 검증).
-7. WIP.md(132차, 이어붙이기형) / CURRENT_STATUS.md(132차 불릿 추가, 이어붙이기형) / HANDOFF.md(전체교체) 작성.
+1. 세션 시작(4절 0단계): git ls-remote로 지침 문서(v2, `48f2ff17`) 확인.
+2. 사용자가 이전 세션(devnotes 기록 없이 끊김, 17절 미이행 사례)의 대화 사본을 첨부 -- 132차 코드 스크립트 v1이 `carrot_serv.py anchor match count: 0`으로 실패했고, 원인 분석 후 v2를 전달했다는 내용. 3절 원칙(GitHub 현재 상태 > 붙여넣어진 과거 사본)에 따라 첨부 내용을 그대로 신뢰하지 않고 GitHub을 직접 재조회했다.
+3. HANDOFF.md(132차)의 "미완료 1번"(두 반영 스크립트 실행/push 확인)을 실제로 재확인한 결과, **이미 둘 다 완료**돼 있었다: carrot-ryu 최신 커밋 `15f9831e`("132cha: ... unused import cleanup (15/17, 2 false positives kept)")의 diff가 WIP.md 132차 기록과 정확히 일치(전달받은 v2 스크립트의 성공 실행 결과), carrot-ryu-note는 이미 `48f2ff17`(132차 devnotes)까지 반영됨. HANDOFF.md 텍스트만 이 완료를 반영하지 못한 채 stale이었다(16절, 핵심 발견 18/27/38과 동일 계열).
+4. v1 anchor 0회 실패의 원인을 FINDINGS.md/WIP.md 과거 기록과 대조해 핵심 발견 44(85차)/46(117차)/48(121차)과 동일 계열임을 확정. 추가로 121차 v1의 HANDOFF.md가 "CRLF 재현 실패했으나 `core.autocrlf=false`로 구조적으로 차단된다"고 자체 결론 내렸던 것이, 핵심 발견 46에서 이미 반증된 결론을 재확인 없이 재채택한 것이었음을 확인 -- 이 메타 원인을 FINDINGS.md 핵심 발견 50에 신규 기록했다.
+5. 재발방지(19절 절차, 사용자 승인 후 진행): `devnotes/toolkit/replace_block_template.ps1` 신규 -- 검증된 `Invoke-ReplaceBlock`(LF 파일용)/`Invoke-ReplaceBlock-CrlfNative`(FINDINGS.md 등 원본 CRLF 파일용) 함수를 재사용 가능한 공통 헬퍼로 작성. 샌드박스에서 LF 원본을 CRLF로 변환한 사본을 대상으로 두 함수 모두 실제 실행해 anchor 1회 매치·정규화 정상 동작을 확인, pwsh 7.4.6(GitHub 릴리스 tarball) 파서로 구문 오류 0건 확인. `toolkit/README.md`에 등록.
+6. `PROJECT_INSTRUCTIONS_carrot-ryu.md` 9절 체크리스트 2번(`core.autocrlf=false`만으로는 차단되지 않음 + toolkit 재사용 지시)과 9번(b)(재현 실패/생략은 안전 근거가 아니라 전달 보류 사유) 강화, 18절에 관련 금지 항목 2개 추가.
+7. WIP.md(133차, 이어붙이기형) / CURRENT_STATUS.md(133차 불릿 추가, 이어붙이기형) / FINDINGS.md(핵심 발견 50, 이어붙이기형·CRLF 네이티브) 작성.
+8. 전달 전 자가검증 체크리스트(9절) 수행: `replace_block_template.ps1` UTF-8 BOM 확인(EF BB BF), 전체재작성 파일(HANDOFF.md/PROJECT_INSTRUCTIONS_carrot-ryu.md) `WriteAllText(UTF8Encoding($false))` 사용 및 BOM 없음 재확인, 이어붙이기형 파일 삽입 결과 재확인, pwsh 파서 구문 오류 0건, 반영 스크립트 자체를 로컬 bare 저장소(대상 SHA `48f2ff17` 트리)로 끝까지 dry-run.
 
 완료:
-1. 132차 미사용 import 정리 대상 17건 전수 조사 및 분류(15건 삭제 확정 + 신규 발견 1건 / 2건 보존 확정) 완료.
-2. 코드 반영 스크립트(`132cha_unused_imports.ps1`) 작성, 로컬 dry-run으로 anchor/py_compile/push 결과까지 전부 검증 완료.
-3. devnotes 3개 파일(WIP/CURRENT_STATUS/HANDOFF) 132차 작성 완료.
+1. HANDOFF.md 132차 "미완료" 항목이 실제로는 완료돼 있었음을 GitHub 직접 재조회로 확인/정정.
+2. anchor 0회 실패 원인을 핵심 발견 44/46/48 계열로 확정하고, 121차의 잘못된 재채택 패턴을 FINDINGS.md 핵심 발견 50으로 기록.
+3. `devnotes/toolkit/replace_block_template.ps1` 신규 작성 및 기능 테스트 완료.
+4. `PROJECT_INSTRUCTIONS_carrot-ryu.md` 9절/18절 강화(19절 절차대로 사용자 승인 후 진행).
+5. devnotes 4개 파일(WIP/CURRENT_STATUS/FINDINGS/toolkit README) 133차 작성 완료.
 
 미완료(다음 세션 최우선):
-1. `132cha_unused_imports.ps1`(carrot-ryu) 및 이 devnotes 반영 스크립트(`132cha_devnotes_carrot_ryu_note.ps1`, carrot-ryu-note) 실행/push 확인 -- 두 브랜치 모두 GitHub SHA 고정 조회로 재확인할 것(16절). 코드 스크립트 실행 로그(anchor match count 3줄, py_compile OK, commit/push 로그)를 반드시 확인하고, 로그가 끊겼거나 불확실하면 raw 조회로 직접 재확인.
+1. 이번 세션 반영 스크립트(carrot-ryu-note, devnotes/지침/toolkit 전용, 코드 변경 없음) 실행/push 확인 -- GitHub SHA 고정 조회로 재확인할 것(16절). 실행 로그(각 파일 anchor match count/post-write recheck OK, pre-image guard 통과, commit/push 로그)를 반드시 확인하고, 로그가 끊겼거나 불확실하면 raw 조회로 직접 재확인.
 2. 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00 -- 여전히 실차 미검증(127차부터 이월, 변동 없음).
 3. carrot-ms 2절 정기 점검(다음 세션 시작 시 가볍게 재확인 후보).
 
-검증: grep 전수 조사(3절/11절: 추측 아님) / py_compile / pyflakes 재스캔 / 로컬 bare 저장소 dry-run(blob hash byte-exact 일치) / pwsh 파서 구문 검사 전부 직접 실행 결과 기반. 실차 검증: 해당 없음(정적 import 정리, 런타임 로직 변경 없음).
+검증: git ls-remote/git show --numstat/raw 조회(SHA고정) 전부 직접 실행 결과로 132차 완전 완료 확인(3절/11절/16절). `replace_block_template.ps1`은 CRLF 작업 트리 사본에 대한 실제 실행으로 두 함수 모두 검증(anchor 1회 매치, post-write recheck OK). pwsh 7.4.6 파서 구문 오류 0건. 실차 검증: 해당 없음(devnotes/지침/toolkit, 코드 변경 없음, 12절 무관).
 
 주의사항:
-- 이번 세션은 코드 변경사항을 만들었으나(carrot_serv.py/carrot_man.py/upload.py) 아직 사용자가 실제로 push하지 않았다 -- "반영됨"으로 간주하지 않는다(9절 원칙). 다음 세션은 반드시 두 스크립트의 실행 결과를 먼저 확인하고 이어받을 것.
-- 원안 17건과 실제 삭제 대상이 정확히 일치하지 않는다(15건 삭제 + 신규 발견 urllib.request 1건 = 16개 이름 삭제, 2건은 보존). 132차 이후 "미사용 import 정리 완료"를 언급할 때는 이 스코프 차이를 함께 명시할 것(131차에서 겪었던 "46->22" 스코프 불명 혼선 재발 방지).
-- `X as X` 재-export 패턴과 와일드카드(`import *`) re-export 패턴은 pyflakes가 파일 내부 참조만 보고 다른 파일의 외부 소비를 추적하지 못하므로 구조적으로 오탐 가능성이 있다 -- 앞으로 이런 패턴을 만나면 삭제 전 저장소 전체 grep이 필수.
+- 이번 세션의 발단이 된 "채팅에 붙여넣어진 이전 세션 사본"은 132차 코드 스크립트 v2 전달까지는 실제 GitHub 상태와 일치했으나, 그 이후 이어진 "133차"(toolkit 템플릿 신설 + 지침 강화) 작업은 스크립트 생성 도중 끊겨 GitHub에 전혀 반영되지 않은 상태였다. 이번 세션은 그 미완성분을 처음부터 다시 작성했다(3절: GitHub 현재 상태 > 붙여넣어진 과거 사본을 실제로 적용한 사례).
+- `Invoke-ReplaceBlock`은 파일 전체를 LF로 정규화해서 다시 쓴다. FINDINGS.md처럼 원본이 CRLF인 파일에는 반드시 `Invoke-ReplaceBlock-CrlfNative`를 써야 한다(안 그러면 손대지 않은 기존 줄까지 개행 변경으로 diff에 잡힘) -- toolkit/README.md/replace_block_template.ps1 주석에 이미 명시.
 
 다음 작업 후보:
-1. 132차 스크립트 실행/push 확인(최우선).
+1. 이번 세션 반영 스크립트 실행/push 확인(최우선).
 2. 110차/114차 실차 관찰(GATE_M 0.8/1.0, MAP_TURN_GUIDE_FACTOR 1.00).
 3. carrot-ms 2절 정기 점검(다음 세션 시작 시 가볍게 재확인).

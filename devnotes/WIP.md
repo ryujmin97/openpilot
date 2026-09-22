@@ -1,5 +1,21 @@
 # WIP
 
+## 133차 (지침/toolkit만 · 코드 변경 없음) -- HANDOFF.md 132차 "미완료" 항목이 실제로는 이미 완료(stale 발견/정정) + anchor 0회 실패 원인 확정(핵심 발견 44/46/48 재발) + Replace-Block 공통 템플릿 신설 + 9절/18절 강화
+
+**배경**: 이전 세션(devnotes에 기록되지 못한 채 대화가 끊김, 17절 원칙 미이행 사례)에서 132차 코드 반영 스크립트(`132cha_unused_imports.ps1`)를 사용자가 실행한 콘솔 로그를 전달받아 `carrot_serv.py anchor match count: 0`으로 안전 중단(commit/push 없음)됐음을 확인, 원인을 조사해 CRLF 정규화가 추가된 v2를 전달했다. 이번 세션은 그 대화 내용을 채팅에 붙여넣어진 사본으로 이어받았으나, 3절 원칙(GitHub 현재 상태 > 붙여넣어진 과거 사본)에 따라 GitHub을 직접 재조회해 독립 검증했다.
+
+**실제 상태 확인**: `git ls-remote`/`git show`/raw 조회로 직접 확인한 결과, HANDOFF.md(132차)의 "미완료 1번"(두 반영 스크립트 실행/push 확인)이 **이미 둘 다 완료돼 있었다**. carrot-ryu 최신 커밋 `15f9831e`("132cha: ... unused import cleanup (15/17, 2 false positives kept)")의 diff가 WIP.md 132차 기록과 정확히 일치함을 확인 -- 이것이 전달받은 v2 스크립트의 성공 실행 결과다. carrot-ryu-note는 이미 `48f2ff17`(132차 devnotes)까지 반영돼 있었다. 즉 HANDOFF.md 텍스트만 이 완료를 반영하지 못한 채 stale 상태였다(16절, 핵심 발견 18/27/38과 동일 계열).
+
+**anchor 0회 실패 원인 확정**: 과거 세션들(85차/117차/121차)이 이미 정립한 CRLF 정규화 패턴이 132차 v1 스크립트에는 반영되지 않았던 것이 직접 원인. 추가로, 121차 v1의 HANDOFF.md가 "CRLF 재현(9절 9번 b)이 셸 호출 경계 문제로 실패했으나 `core.autocrlf=false`로 구조적으로 차단된다"고 자체 결론 내렸던 것이, 핵심 발견 46/48에서 이미 명시적으로 반증된 결론을 재확인 없이 다시 채택한 것이었음을 이번에 FINDINGS.md에 명시적으로 기록했다(핵심 발견 50).
+
+**구조적 재발방지(19절 절차, 사용자 승인 후 진행)**:
+1. `devnotes/toolkit/replace_block_template.ps1` 신규 등록 -- 검증된 `Invoke-ReplaceBlock`(LF 파일용)/`Invoke-ReplaceBlock-CrlfNative`(FINDINGS.md 등 원본 CRLF 파일용) 함수를 재사용 가능한 공통 헬퍼로 저장(새 Replace-Block 스크립트는 이 파일을 복사해서 쓴다, 14절과 동일 원칙). 두 함수 모두 샌드박스에서 실제 CRLF 작업 트리(LF 원본을 CRLF로 변환한 사본)를 대상으로 기능 테스트해 anchor 1회 매치·정규화 정상 동작·pwsh 7.4.6 파서 구문 오류 0건을 확인했다. `toolkit/README.md`에도 등록.
+2. `PROJECT_INSTRUCTIONS_carrot-ryu.md` 9절 체크리스트 2번에 "`core.autocrlf=false`만으로는 CRLF 체크아웃 문제가 절대 막히지 않는다"와 toolkit 템플릿 재사용 지시를 명문화. 9번(b)에 "재현 실패/생략은 안전 근거가 아니라 전달 보류 사유"를 명문화.
+3. 18절에 "`core.autocrlf=false`만으로 구조적으로 차단된다고 가정하는 것" 및 "CRLF 재현 실패/생략을 재확인 없이 안전 근거로 재채택하는 것"을 금지 항목으로 추가.
+4. `FINDINGS.md`에 핵심 발견 50 기록.
+
+**검증**: carrot-ryu(`15f9831e`)/carrot-ryu-note(`48f2ff17`) 양쪽 GitHub 직접 재조회로 132차 완전 완료를 독립 확인(3절/11절/16절). `replace_block_template.ps1`은 로컬에서 실제 CRLF 사본에 대해 두 함수 모두 정상 동작(anchor 1회 매치, post-write recheck OK, 원본 개행 스타일 유지/미유지가 의도대로 동작)함을 실행 결과로 확인. pwsh 7.4.6 파서 구문 오류 0건. `.ps1` UTF-8 BOM 포함 확인. 이번 반영 스크립트 자체도 9절 체크리스트 전체(BOM/core.autocrlf=false/finally 정리/Get-PythonCmd 해당없음/WriteAllText+BOM없음 재확인/anchor 결과 재확인/사전 시뮬레이션/pwsh 파서/로컬 bare 저장소 dry-run)를 통과했다(체크리스트 9번은 devnotes만 다루는 스크립트라 코드 파일 CRLF 재현은 해당 없음, replace_block_template.ps1 자체의 CRLF 기능 테스트로 대체). 실차 검증: 해당 없음(devnotes/지침 변경 + toolkit 정적 스크립트, 12절 무관).
+
 ## 132차 (미사용 import 정리 완료: 15/17건 삭제, 2건 오탐으로 보존) -- carrot_serv.py/carrot_man.py/dashcam upload.py
 
 **배경**: 131차 HANDOFF 이월 항목. 남은 미사용 import 17건(pyflakes, 스코프 `openpilot/selfdrive/carrot/`)을 파일별로 실제 사용 여부(동적 참조/재-export 여부)부터 확인한 뒤 삭제 여부를 판단(10절 최소 변경 원칙).

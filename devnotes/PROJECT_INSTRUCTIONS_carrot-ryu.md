@@ -261,7 +261,13 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
 충분하지 않고, 검증 명령의 실제 출력을 보여준다. 다른 세션이 만든 반영 스크립트를 이어받아 실행하는
 경우에도 동일하게 적용한다(핵심 발견 26/39차).
 1. 비ASCII 문자가 포함된 `.ps1`이면 첫 3바이트가 `EF BB BF`인지 확인(`od -An -tx1 -N3 <path>` 등).
-2. 스크립트 안의 모든 `git clone`에 `--config core.autocrlf=false`가 포함돼 있는지 확인.
+2. 스크립트 안의 모든 `git clone`에 `--config core.autocrlf=false`가 포함돼 있는지 확인. 단,
+   이 옵션 하나만으로 Windows CRLF 체크아웃 문제가 구조적으로 차단된다고 가정하지 않는다 --
+   `.gitattributes`에 `* text=auto`가 있으면 `core.autocrlf=false`여도 checkout 시 CRLF로
+   변환되며, 이는 별개의 메커니즘이다(핵심 발견 44/46/48/50). 문자열 블록 치환을 쓰는 모든
+   스크립트는 `devnotes/toolkit/replace_block_template.ps1`의 `Invoke-ReplaceBlock`(CRLF->LF
+   정규화 + 치환 결과 재확인 내장)을 기본값으로 재사용하고(14절), 실제 방어 여부는 9번의 CRLF
+   재현 검증으로 확인한다.
 3. `finally` 블록에 임시 폴더 `Remove-Item -Recurse -Force`가 있는지, 사용자에게 수동 삭제를
    요청하는 문구가 없는지 확인.
 4. `py_compile` 등 정적 검증을 포함하는 스크립트는 `python3`/`python` 단순 호출 대신, `py -3` ->
@@ -296,7 +302,11 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
    모드에서 push된 커밋의 `git show --numstat`(변경량이 의도와 같은지), 파일별 blob hash(스크립트의
    `Post` 값과 일치), 이어붙이기형 파일은 기존 줄 삭제 없이 삽입만 있는지를 출력으로 확인한다(CRLF
    체크아웃 때문에 앵커 매치가 실패해 안전 중단된 사례: 121차 v1, 핵심 발견 48). 이 검증도 Windows
-   PowerShell 5.1 실제 실행이 아니라는 한계를 결과 보고에 명시한다.
+   PowerShell 5.1 실제 실행이 아니라는 한계를 결과 보고에 명시한다. (b) 모드의 재현이 셸 호출 경계
+   등의 이유로 실패하거나 생략됐다면, 이를 "구조적으로 안전하다"는 근거로 보고하지 않는다 -- 재현
+   실패/생략은 안전하다는 근거가 아니라 전달을 보류할 사유이며, 원인을 바꿔 재시도하거나 사용자에게
+   이 한계를 명시적으로 알리고 전달 여부를 확인받는다(132차 v1 anchor 0회 실패가 이미 반증한 결론을
+   재확인 없이 재채택해 재발한 사례: 핵심 발견 50).
 
 **공통 원칙**
 - 코드는 carrot-ryu, devnotes는 carrot-ryu-note — 한 스크립트에 두 브랜치를
@@ -440,6 +450,10 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
 - diff/patch가 `git apply`에 실패했는데 강제 적용하거나 무시하고 다음 단계 진행
 - 문자열 블록 치환에서 "변경 전 블록"이 정확히 1회로 매치되지 않았는데 무시하고
   강제 진행
+- `core.autocrlf=false` 설정만으로 Windows CRLF 체크아웃 문제가 구조적으로 차단된다고
+  가정하는 것(`.gitattributes`의 `* text=auto`가 있으면 checkout 시 CRLF로 변환되며, 이는
+  별개의 메커니즘이다 -- 핵심 발견 44/46/48/50). CRLF 재현 검증(9절 9번 b)이 실패하거나
+  생략됐다면 그것을 안전 근거로 재확인 없이 재채택하는 것도 동일하게 금지
 - PowerShell 스크립트에서 파일 쓰기 시 상대경로 사용(항상 `Join-Path $Tmp ...`)
 - 한글 등 비ASCII 포함 `.ps1`을 UTF-8 BOM 없이 전달
 - 세션 시작 시 4절 0단계(SHA고정 조회)를 건너뛰고 시스템 프롬프트의 구버전 지침이나

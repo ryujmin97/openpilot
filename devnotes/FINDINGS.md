@@ -1,5 +1,19 @@
 # FINDINGS
 
+## 핵심 발견 50 (133차) -- 132차 v1 anchor 0회 실패는 핵심 발견 44/46/48과 동일 원인이 재발한 것이며, 121차가 이미 반증된 "core.autocrlf=false로 구조적 차단" 결론을 재확인 없이 재채택한 것이 근본 원인
+
+**배경**: 132차 코드 반영 스크립트(`132cha_unused_imports.ps1`, v1)를 사용자가 실행하자 `carrot_serv.py anchor match count: 0`으로 안전 중단됐다(commit/push 없음, 15절/18절 안전장치 정상 동작). "이전에도 같은 에러가 있지 않았냐"는 질문을 계기로 조사했다.
+
+**확인된 원인**: (1) GitHub SHA 고정 원본(`3759a300`)과 앵커 텍스트를 바이트 단위로 대조 -- 3개 파일 전부 1회 정확히 매치(앵커 텍스트 오류 아님, GitHub blob은 LF·CR 0개). (2) v1 스크립트 코드를 직접 읽어보니 CRLF->LF 정규화 로직이 아예 없이 `$Content.Replace()`를 바로 수행하는 구조였음 -- 63차/85차(핵심 발견 44)/117차(핵심 발견 46)/120차/121차(핵심 발견 48)에서 이미 정립된 방어 패턴이 이번 스크립트에는 반영되지 않았던 것. 원인 자체는 새 메커니즘이 아니라 정확히 44/46/48과 같은 `.gitattributes`의 `* text=auto`다(`core.autocrlf=false`는 checkout 시 이 변환을 막지 못하는 별개 스위치).
+
+**메타 원인(재발 자체의 원인)**: 121차 v1의 HANDOFF.md는 "CRLF 재현(9절 9번 b)이 셸 호출 경계 문제로 완전한 재현엔 이르지 못했으나, 실제 스크립트의 `--config core.autocrlf=false`가 구조적 방어선"이라고 자체 결론 내렸다. 그러나 이 "`core.autocrlf=false`만으로 구조적으로 차단된다"는 결론은 핵심 발견 46(117차)에서 이미 명시적으로 반증된 내용이며, 121차 v1의 실제 실패(같은 문서 항목) 자체가 그 반증의 재현이었다. 즉 재현 실패/생략을 안전 근거로 재확인 없이 재채택하는 패턴이, 9절/18절에 명문 규칙 없이 서술로만 남아있었기 때문에 132차에서 다시 반복됐다.
+
+**재현/수정**: 실제 carrot-ryu(`3759a300`)를 clone해 로컬 bare 저장소를 만들고, pwsh 7.4.6(GitHub 릴리스 tarball, Linux)을 설치해 v1 로직을 일반/CRLF(`GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.eol GIT_CONFIG_VALUE_0=crlf`) 두 모드로 실행 -- CRLF 모드에서 사용자 로그와 동일하게 앵커 0회로 재현됨. CRLF->LF 정규화 + 치환 결과 재확인(핵심 발견 42 패턴)을 추가한 `132cha_unused_imports_v2.ps1`을 작성해 같은 두 모드로 재실행, 앵커 3개 모두 1회 매치·`py_compile` 통과·두 모드 결과 blob hash가 3개 파일 전부 byte-exact 일치함을 확인(9절 체크리스트 9번). 사용자가 v2를 실행해 carrot-ryu commit `15f9831e`로 성공 push했음을 이번(133차) 세션에서 GitHub 직접 재조회로 최종 확인했다.
+
+**재발방지(19절 절차로 반영)**: 9절 체크리스트 2번/9번(b), 18절에 각각 "`core.autocrlf=false`만으로는 CRLF 체크아웃이 차단되지 않는다"와 "재현 실패/생략을 안전 근거로 재채택하지 않는다"를 명문화하고, 문자열 블록 치환 공통 헬퍼(`devnotes/toolkit/replace_block_template.ps1`, `Invoke-ReplaceBlock`/`Invoke-ReplaceBlock-CrlfNative`)를 신설해 새 스크립트가 매번 이 정규화 로직을 새로 작성하지 않고 재사용하도록 했다.
+
+**검증**: 로컬 bare 저장소 일반/CRLF 두 모드 실행(blob hash byte-exact 일치), carrot-ryu `15f9831e` GitHub 직접 재조회로 v2 성공 push 확인, `replace_block_template.ps1` 기능 테스트(CRLF 작업 트리 사본에 대해 anchor 1회 매치 + 정규화 정상 동작). 실차 검증: 해당 없음(devnotes/스크립트 진단, 12절 무관).
+
 ## 핵심 발견 49 (126차) -- test_latcontrol.py 3-인자 생성자 호출 불일치는 carrot-ryu 회귀가 아니라 carrot-wip/carrot-ms 원본부터 존재하는 문제
 
 **배경**: 125차에서 발견한 `test_latcontrol.py::test_saturation`의 `TypeError`(WIP.md 125차 기록, HANDOFF 125차 미완료 3번)의 원인/도입 시점을 조사했다.
