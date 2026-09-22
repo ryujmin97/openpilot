@@ -9,7 +9,6 @@ from openpilot.system.hardware import HARDWARE
 from ...config import DASHCAM_DEFAULT_DISCORD_KEY, DASHCAM_DEFAULT_DISCORD_WEBHOOK
 from ...services.dashcam_upload_report import (
   discord_content,
-  upload_message_lines as upload_message_lines,
   upload_share_text as upload_share_text,
 )
 

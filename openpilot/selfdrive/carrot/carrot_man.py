@@ -23,18 +23,14 @@ from aiohttp import web
 import asyncio
 
 from openpilot.cereal import log
-import urllib.request
-import urllib.error
-import ssl
 import requests
 import psutil
 import ipaddress
 import openpilot.cereal.messaging as messaging
 from openpilot.common.realtime import Ratekeeper, set_core_affinity
 from openpilot.common.params import Params, ParamKeyType
-from openpilot.system.hardware import PC, TICI
+from openpilot.system.hardware import PC
 from openpilot.selfdrive.navd.helpers import Coordinate
-from openpilot.common.constants import CV
 
 from openpilot.selfdrive.carrot.carrot_serv import CarrotServ
 from openpilot.selfdrive.carrot.curve_speed import VisionCurveSpeed, curve_speed
