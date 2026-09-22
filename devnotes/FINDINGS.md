@@ -1,5 +1,17 @@
 # FINDINGS
 
+## 핵심 발견 53 (139차) -- Windows PowerShell 5.1에서 `git <cmd> 2>&1 | Write-Host` 패턴이 git의 정상 진행 메시지(stderr)를 오류로 오인해, 성공한 명령인데도 `$ErrorActionPreference="Stop"`으로 즉시 중단됨
+
+**배경**: 139차 코드 반영 스크립트(`139cha_unused_imports_code_carrot_ryu.ps1`)와 devnotes 반영 스크립트(`139cha_devnotes_carrot_ryu_note.ps1`)를 사용자가 실제 Windows PowerShell(5.1, `powershell -ExecutionPolicy Bypass -File`)에서 처음 실행했을 때, 두 스크립트 모두 `git clone` 단계에서 `git : Cloning into '...'...`가 `NativeCommandError`로 출력되며 즉시 `finally`(임시 폴더 정리)로 넘어가 아무 것도 반영되지 않은 채 종료됐다. 두 스크립트는 리눅스 컨테이너에서 pwsh 7.4.6으로 로컬 bare 저장소 일반/Windows CRLF 재현 두 모드 dry-run까지 통과한 뒤 전달된 것이었는데도 실제 Windows PowerShell 5.1 환경에서 재현됐다.
+
+**확인된 원인**: `git clone`은 진행 상황("Cloning into '...'...", "done." 등)을 정상적으로 stderr에 출력한다(exit code 0, 실패 아님). 그런데 스크립트가 `git clone ... 2>&1 | Write-Host` 형태로 stderr를 stdout에 합쳐 파이프로 넘겼고, Windows PowerShell은 native 명령의 stderr 라인이 이렇게 합쳐질 때 이를 `ErrorRecord`(NativeCommandError)로 감싸 오류 스트림에 실어보낸다. 스크립트 최상단에 `$ErrorActionPreference = "Stop"`이 설정돼 있었기 때문에, 이 `ErrorRecord`가 파이프라인에 나타나는 순간 (명령 자체는 성공했음에도) 터미네이팅 예외로 전환돼 `try` 블록이 그 자리에서 중단됐다. `git -C $Tmp commit`/`git -C $Tmp push`도 동일한 `2>&1 | Write-Host` 패턴을 썼으나 clone 단계에서 이미 죽었으므로 도달하지 못했다. 컨테이너 검증에서 재현되지 않았던 이유는, 그 환경이 pwsh 7.4.6(리눅스)이었고 이번 실패는 Windows PowerShell 5.1(`powershell.exe`)에서만 확인됐기 때문으로 추정된다 -- 두 런타임 사이에 native 명령 stderr 병합을 오류 스트림으로 승격하는 조건에 실질적인 차이가 있는 것으로 보이나, 정확한 버전별 분기 조건까지는 이번 조사에서 확정하지 못했다.
+
+**수정안**: 두 스크립트 모두 `Invoke-Git` 헬퍼 함수를 추가해 `git clone`/`git add`/`git commit`/`git push` 4곳의 호출 방식을 `git ... 2>&1 | Write-Host`에서 `& git @GitArgs`(스트림 병합 없이 콘솔에 그대로 출력) + 직후 `$LASTEXITCODE` 명시적 확인(`0`이 아니면 그 자리에서 throw)으로 교체했다. 수정본을 리눅스 컨테이너에서 로컬 bare 저장소로 재검증(clone → pre/post-image guard → anchor 치환 → py_compile → commit/push)한 결과, git의 정상 진행 메시지가 여전히 stderr로 출력됨(도구 출력의 stderr 필드에 표시)에도 스크립트가 중단되지 않고 끝까지 정상 실행됨을 확인했다. 이후 사용자가 실제 Windows PowerShell 5.1에서 수정본을 실행해, carrot-ryu의 4개 파일 import 삭제와 carrot-ryu-note의 WIP.md/HANDOFF.md 139차 기록이 모두 반영된 것을 GitHub raw 조회로 직접 재확인했다(16절).
+
+**검증**: 리눅스 컨테이너(pwsh 7.4.6, 로컬 bare 저장소) 재검증 + 사용자의 실제 Windows PowerShell 5.1 실행 결과를 raw.githubusercontent.com 직접 재조회로 확인(16절/20절 원칙). Windows PowerShell 5.1과 pwsh 7.4.6 사이의 정확한 동작 차이 자체를 통제된 비교 실험으로 재현하지는 못했다 -- 이번 조사는 실전 실패 로그와 수정 후 실전 성공(raw 재조회) 확인에 근거한다.
+
+**일반화**: 9절의 반영 스크립트가 `git` 등 외부 명령을 호출할 때는 `2>&1`로 stderr를 병합해 `Write-Host`로 넘기는 패턴을 쓰지 않는다. 대신 (1) 네이티브 명령은 스트림을 병합하지 않고 그대로 콘솔에 출력되게 두고, (2) 직후 `$LASTEXITCODE`를 명시적으로 확인해 0이 아니면 그 자리에서 throw하는 방식(`Invoke-Git` 패턴)을 기본으로 쓴다. 리눅스 컨테이너(pwsh 7.4.6)에서의 dry-run 통과만으로 "Windows PowerShell 5.1에서도 동일하게 동작한다"고 단정하지 않는다 -- 두 런타임 간 native 명령 stderr 처리 방식에 차이가 있을 수 있으므로, 가능하면 `devnotes/toolkit/replace_block_template.ps1`류의 재사용 헬퍼에도 이 `Invoke-Git` 패턴을 반영해 다음 회차부터 기본으로 재사용한다.
+
 ## 핵심 발견 52 (136차 계속) -- 136차 v1 코드 반영 스크립트의 py_compile 검증 단계가 `Push-Location $Tmp` 이전에 상대경로로 중복 호출되어, 실행 위치가 clone 폴더 밖일 때 예외로 조용히 죽고 로그 순서만 보면 "정리 완료 후 에러"로 오인됨
 
 **배경**: `136cha_mojibake_fix_code_carrot_ryu.ps1`(v1) 실행 로그 끝에 있어야 할 "완료: carrot-ryu에 136cha 커밋이 push되었습니다" 메시지가 없고, 대신 `py.exe : [Errno 2] No such file or directory: 'openpilot/selfdrive/controls/lib/desire_lib/maneuver_classifier.py'`가 출력됐다. GitHub 재조회로 carrot-ryu 대상 파일의 blob hash가 여전히 pre-image(`0021af97d7`, 수정 전)임을 확인해 push가 실제로 일어나지 않았음을 확정했다(16절, "완료" 메시지 없는 로그를 성공으로 단정하지 않음).

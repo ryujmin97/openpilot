@@ -1,5 +1,13 @@
 # WIP
 
+## 140차 (devnotes만 · 코드 변경 없음) -- 139차 반영 확인 + FINDINGS.md 핵심 발견 53 등록 (git 2>&1 stderr NativeCommandError, Windows PowerShell 5.1)
+
+139차 코드/devnotes 반영 스크립트를 사용자가 처음 실행했을 때 두 스크립트 모두 `git clone` 단계에서 `NativeCommandError`로 즉시 중단됐다(`finally`의 임시 폴더 정리만 실행되고 그 외에는 아무 것도 반영되지 않음). 원인은 `git clone ... 2>&1 | Write-Host` 패턴이 git의 정상 진행 메시지(stderr)를 Windows PowerShell 5.1에서 오류로 승격시키고, 스크립트 최상단의 `$ErrorActionPreference = "Stop"`이 이를 터미네이팅 예외로 전환한 것으로 확인됐다(자세한 원인/수정/일반화는 FINDINGS.md 핵심 발견 53 참고). 두 스크립트의 clone/add/commit/push 4곳을 `Invoke-Git` 헬퍼(스트림 병합 없이 `$LASTEXITCODE`만 확인)로 교체한 수정본을 만들어, 리눅스 컨테이너에서 로컬 bare 저장소로 재검증(clone→pre/post-image guard→anchor 치환→py_compile→commit/push 전 과정 정상 실행 확인) 후 재전달했다.
+
+사용자가 수정본을 실제 Windows PowerShell 5.1에서 실행했다고 알려왔으나 로그를 별도로 붙여넣지 않아, 16절 원칙에 따라 GitHub raw 조회로 직접 재확인했다. carrot-ryu의 `drive_helpers.py`/`lateral_planner.py`/`latcontrol_angle.py`/`desire_lib/maneuver_classifier.py` 4개 파일에서 대상 import 4건이 모두 삭제된 상태임을 확인했고, carrot-ryu-note의 `WIP.md`/`HANDOFF.md`에 139차 기록이 반영되어 있음도 확인했다. 즉 139차(코드+devnotes)는 이번 세션에서 실제로 완료된 것으로 확정한다.
+
+이어서 이번에 겪은 문제를 FINDINGS.md에 핵심 발견 53으로 신규 등록했다(배경/확인된 원인/수정안/검증/일반화 5개 문단, 52번과 동일한 형식). 일반화 문단에는 "리눅스 컨테이너(pwsh 7.4.6)에서의 dry-run 통과만으로 Windows PowerShell 5.1 환경에서도 동일하게 동작한다고 단정하지 않는다"는 원칙과, 이후 반영 스크립트는 `git ... 2>&1 | Write-Host` 대신 `Invoke-Git`(스트림 비병합 + `$LASTEXITCODE` 확인) 패턴을 기본으로 쓴다는 방침을 기록했다. `devnotes/toolkit/replace_block_template.ps1`류 재사용 헬퍼에도 이 패턴을 반영하는 것은 다음 세션 후보 작업으로 남긴다(아직 반영하지 않음). 코드 변경 없음. 실차 검증: 해당 없음(devnotes/스크립트 안정성 문제이며 12절과 무관).
+
 ## 139차 (코드 1건 · 미사용 import 4건 삭제 배치 · 실행/push 대기) -- controls/lib 스코프 신규 데드코드 스캔
 
 138차 devnotes push(commit `66514fa`, GitHub 직접 재조회로 FINDINGS.md 핵심 발견 52/WIP.md/CURRENT_STATUS.md/HANDOFF.md 4개 파일 내용 일치 확인)를 세션 시작 시 확인했다. 이어서 사용자 요청으로 carrot-ms 2절 정기 점검(`git ls-remote`)을 수행 -- happymaj11r/openpilot HEAD가 `3756e6d5`로 WIP_SYNC.md 130차 체크포인트와 동일함을 재확인, 신규 커밋 없음.
