@@ -320,14 +320,6 @@ class Candidate:
   def eligible(self) -> bool:
     return self.score >= self.decision_threshold
 
-  @property
-  def path_in_score(self) -> float:
-    return self.score
-
-  @property
-  def path_out_score(self) -> float:
-    return self.path_exit_score
-
 
 @dataclass(frozen=True)
 class Selection:
@@ -4035,13 +4027,6 @@ class SimulatorUI:
       self.frames,
       "carrot_a_target",
     )
-
-  @staticmethod
-  def _clamp_probability(probability: float) -> float:
-    return round(min(max(
-      float(probability),
-      VALIDATION_PROBABILITY_MIN,
-    ), VALIDATION_PROBABILITY_MAX), 2)
 
   def _activate_sensitivity(
     self,
