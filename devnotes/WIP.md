@@ -1,5 +1,19 @@
 # WIP
 
+## 134차 (devnotes만 · 코드 변경 없음) -- 133cha_devnotes_toolkit_instructions.ps1 자체의 pre-image guard `git hash-object` `-C` 누락 버그 발견/수정, FINDINGS 51, PROJECT_INSTRUCTIONS 9절 체크리스트 10번 신설
+
+**배경**: 133차 스크립트(`133cha_devnotes_toolkit_instructions.ps1`) 최초 실행이 FINDINGS.md pre-image guard에서 "base drifted"로 안전 중단됐다(GitHub 원본은 실제로 드리프트 없었음). 사용자가 실행 로그를 전달했고, 이를 계기로 원인을 조사했다.
+
+**진행**: 샌드박스에서 사용자 PowerShell 시작 위치(`C:\WINDOWS\system32`)를 재현하기 위해 프로세스 CWD를 clone 폴더 밖에 두고, 전역 `core.autocrlf=true`로 설정한 뒤 원본 스크립트를 그대로 재실행 -- 동일하게 FINDINGS.md pre-image guard가 실패함을 재현했다. `git -C $DevPath hash-object FINDINGS.md`(정확)와 `git hash-object $p`(절대경로, `-C` 없음, 오염)를 나란히 실행해 대조함으로써 원인을 `-C` 누락으로 확정(핵심 발견 51 참고). 두 지점(pre-image guard, 최종 해시 출력)을 `-C $Tmp`로 수정한 v2를 작성해 동일 조건(양쪽 autocrlf 모드, CWD 밖 재현 유지)으로 재검증 -- 6개 파일 pre-image guard 통과, anchor 1회 매치, 최종 blob hash 7개 파일 byte-exact 일치. 사용자가 v2를 실행해 성공 push(carrot-ryu-note `49146b3`)했음을 GitHub 직접 재조회로 확인했다.
+
+**결과**: 132차(핵심 발견 50, `.gitattributes`의 `* text=auto`로 인한 체크아웃 시 CRLF 변환)와는 별개의 새 메커니즘임을 확인하고 FINDINGS.md 핵심 발견 51로 기록. PROJECT_INSTRUCTIONS_carrot-ryu.md 9절 체크리스트에 10번 신설(모든 저장소 상태 조회 git 명령은 `-C` 필수).
+
+**검증**: 로컬 bare 저장소(대상 SHA `48f2ff17`, 이후 실제 push된 `49146b3`) 기준 global autocrlf=true/false 두 모드 + CWD를 clone 폴더 밖에 둔 상태로 각각 끝까지 실행, blob hash byte-exact 일치. 사용자 실제 실행 로그와 `git ls-remote`/`git clone` 직접 재조회(API rate limit로 REST API는 실패, clone 프로토콜로 대체)로 최종 push 성공 확인. 실차 검증: 해당 없음(devnotes 스크립트 자체의 버그, 12절 무관).
+
+**미완료**: 없음(134차 스코프 완료).
+
+**주의사항**: `Repair-FromBlob`처럼 파일 내용 자체를 원본으로 복원하는 방어 코드가 있어도, 그 이후에 파일 내용을 "평가"하는 명령(이번 경우 `git hash-object`) 자체가 잘못된 컨텍스트(다른 리포지토리/전역 설정)에서 실행되면 여전히 틀린 결과가 나올 수 있다 -- 방어 코드를 추가할 때는 "무엇을 고쳤는지"뿐 아니라 "그 결과를 어떻게 재확인하는지"까지 같은 기준(여기서는 리포지토리 컨텍스트)으로 맞춰야 한다.
+
 ## 133차 (지침/toolkit만 · 코드 변경 없음) -- HANDOFF.md 132차 "미완료" 항목이 실제로는 이미 완료(stale 발견/정정) + anchor 0회 실패 원인 확정(핵심 발견 44/46/48 재발) + Replace-Block 공통 템플릿 신설 + 9절/18절 강화
 
 **배경**: 이전 세션(devnotes에 기록되지 못한 채 대화가 끊김, 17절 원칙 미이행 사례)에서 132차 코드 반영 스크립트(`132cha_unused_imports.ps1`)를 사용자가 실행한 콘솔 로그를 전달받아 `carrot_serv.py anchor match count: 0`으로 안전 중단(commit/push 없음)됐음을 확인, 원인을 조사해 CRLF 정규화가 추가된 v2를 전달했다. 이번 세션은 그 대화 내용을 채팅에 붙여넣어진 사본으로 이어받았으나, 3절 원칙(GitHub 현재 상태 > 붙여넣어진 과거 사본)에 따라 GitHub을 직접 재조회해 독립 검증했다.

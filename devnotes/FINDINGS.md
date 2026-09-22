@@ -1,5 +1,19 @@
 # FINDINGS
 
+## 핵심 발견 51 (133차) -- `git hash-object <절대경로>`를 `-C` 없이 호출하면 프로세스 CWD 기준으로 리포지토리를 찾아 로컬 core.autocrlf override를 무시하고 전역 설정을 적용, 내용이 같아도 "base drifted"로 오탐
+
+**배경**: 133cha_devnotes_toolkit_instructions.ps1 최초 실행에서 FINDINGS.md pre-image guard가 실제 내용은 GitHub 최신과 동일한데도 "changed since this script was authored"로 안전 중단됐다(사용자 로그, commit/push 없음, 9절/15절/18절 정상 동작).
+
+**확인된 원인**: 스크립트의 pre-image guard와 최종 해시 출력 두 곳이 `$actual = (git hash-object $p).Trim()` 형태로, `-C` 없이 절대경로만 넘겨 git을 호출하고 있었다. Git은 대상 리포지토리를 인자 경로가 아니라 **명령을 실행하는 프로세스의 현재 작업 디렉터리**에서 위로 탐색해 찾는다. 사용자 PowerShell의 시작 위치가 `C:\WINDOWS\system32`(clone 폴더 밖)였으므로, git은 clone 시 지정한 로컬 override(`core.autocrlf=false`, `$Tmp/.git/config`)를 전혀 적용받지 못하고 사용자 PC의 전역/시스템 git 설정(Windows Git 기본값인 `core.autocrlf=true`로 추정)을 그대로 사용해, FINDINGS.md(원본 CRLF)를 LF로 변환한 가상 blob의 해시를 계산했다. 같은 파일에 대해 바로 옆에서 `git -C $DevPath hash-object FINDINGS.md`(상대경로+`-C`)를 호출하면 정확한 해시가 나옴을 직접 대조해 확정했다(샌드박스에서 global core.autocrlf=true로 설정하고 PowerShell 프로세스 CWD를 clone 폴더 밖에 둔 채 재현).
+
+`Repair-FromBlob`(9절 9번 재현 검증 과정에서 이번 세션에 추가한, git object store에서 원본 바이트를 직접 복원하는 방어 코드)로 작업 트리 파일 자체는 이미 정확히 복원돼 있었음에도 이 문제가 발생했다 -- 원인이 파일 내용이 아니라 "해시를 계산하는 그 명령 자체"의 리포지토리 탐색 방식에 있었기 때문이다. 즉 132차(핵심 발견 50, `.gitattributes`의 `* text=auto`로 인한 checkout 시 CRLF 변환)와는 완전히 다른, 별개의 메커니즘이다.
+
+**재현/수정**: 샌드박스에서 동일 커밋(`48f2ff17`) 기준 로컬 bare 저장소를 만들고, 전역 `core.autocrlf=true` + PowerShell 프로세스 CWD를 clone 폴더 밖(리포지토리 밖의 임의 디렉터리)에 둔 상태로 원본 스크립트를 실행해 동일하게 재현했다. `git hash-object $p` 두 곳을 모두 `git -C $Tmp hash-object $p`로 수정한 뒤, 동일 조건(global autocrlf=true/false 양쪽, CWD를 clone 폴더 밖에 둔 상태)으로 각각 끝까지 재실행해 pre-image guard 6개 전부 통과·anchor 1회 매치·최종 blob hash 7개 파일 전부 byte-exact 일치함을 확인했다. 사용자가 이 수정본(v2)을 실제로 실행해 carrot-ryu-note `49146b3`으로 성공 push했음을 GitHub 직접 재조회로 최종 확인했다.
+
+**재발방지(19절 절차로 반영)**: PROJECT_INSTRUCTIONS_carrot-ryu.md 9절 체크리스트에 신규 항목(10번) 추가 -- 스크립트 안에서 저장소 상태를 읽는 모든 git 명령(`git hash-object`/`git status`/`git diff` 등)은 절대경로만 넘기지 말고 항상 `-C <clone 경로>`를 명시할 것.
+
+**검증**: 로컬 bare 저장소 기준 global autocrlf=true/false 두 모드 + PowerShell 프로세스 CWD를 clone 폴더 밖에 둔 상태로 각각 끝까지 실행(blob hash byte-exact 일치), 사용자 실제 실행 로그 및 carrot-ryu-note `49146b3` GitHub 직접 재조회(API rate limit로 REST API는 실패, clone 프로토콜로 대체)로 실제 push 성공 확인. 실차 검증: 해당 없음(devnotes 반영 스크립트 자체의 버그, 12절 무관).
+
 ## 핵심 발견 50 (133차) -- 132차 v1 anchor 0회 실패는 핵심 발견 44/46/48과 동일 원인이 재발한 것이며, 121차가 이미 반증된 "core.autocrlf=false로 구조적 차단" 결론을 재확인 없이 재채택한 것이 근본 원인
 
 **배경**: 132차 코드 반영 스크립트(`132cha_unused_imports.ps1`, v1)를 사용자가 실행하자 `carrot_serv.py anchor match count: 0`으로 안전 중단됐다(commit/push 없음, 15절/18절 안전장치 정상 동작). "이전에도 같은 에러가 있지 않았냐"는 질문을 계기로 조사했다.

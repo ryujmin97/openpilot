@@ -307,6 +307,17 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
    실패/생략은 안전하다는 근거가 아니라 전달을 보류할 사유이며, 원인을 바꿔 재시도하거나 사용자에게
    이 한계를 명시적으로 알리고 전달 여부를 확인받는다(132차 v1 anchor 0회 실패가 이미 반증한 결론을
    재확인 없이 재채택해 재발한 사례: 핵심 발견 50).
+10. 스크립트 안에서 저장소 상태를 읽는 모든 git 명령(`git hash-object`, `git status`, `git diff`,
+    `git show` 등 -- pre-image guard/최종 해시 출력에 국한되지 않는다)은 대상 파일의 절대/상대
+    경로만 넘기지 말고 항상 `-C <clone 경로>`로 대상 리포지토리를 명시한다. Git은 대상 리포지토리를
+    인자로 받은 경로가 아니라 **명령을 실행하는 프로세스의 현재 작업 디렉터리**에서 위로 탐색해
+    찾는다. PowerShell의 시작 위치(Windows 기본값 `C:\WINDOWS\system32` 등)가 clone 폴더 밖이면,
+    `-C` 없는 호출은 clone 시 지정한 로컬 `core.autocrlf` override를 전혀 적용받지 못하고 사용자
+    PC의 전역/시스템 git 설정(Windows Git 기본값인 `core.autocrlf=true` 등)을 그대로 적용해, 파일
+    내용이 GitHub 원본과 완전히 같아도 CRLF/LF 변환을 시뮬레이션한 잘못된 blob hash를 반환할 수
+    있다 -- "base drifted"로 오탐돼 안전 중단된다(133차, 핵심 발견 51). git object store에서 원본
+    바이트를 직접 복원하는 방어 코드(`Repair-FromBlob` 패턴)가 있어도 이 문제는 막지 못한다 --
+    문제가 파일 내용이 아니라 "해시를 계산하는 그 명령 자체"의 리포지토리 탐색 방식에 있기 때문이다.
 
 **공통 원칙**
 - 코드는 carrot-ryu, devnotes는 carrot-ryu-note — 한 스크립트에 두 브랜치를
