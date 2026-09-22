@@ -1,5 +1,15 @@
 # WIP
 
+## 139차 (코드 1건 · 미사용 import 4건 삭제 배치 · 실행/push 대기) -- controls/lib 스코프 신규 데드코드 스캔
+
+138차 devnotes push(commit `66514fa`, GitHub 직접 재조회로 FINDINGS.md 핵심 발견 52/WIP.md/CURRENT_STATUS.md/HANDOFF.md 4개 파일 내용 일치 확인)를 세션 시작 시 확인했다. 이어서 사용자 요청으로 carrot-ms 2절 정기 점검(`git ls-remote`)을 수행 -- happymaj11r/openpilot HEAD가 `3756e6d5`로 WIP_SYNC.md 130차 체크포인트와 동일함을 재확인, 신규 커밋 없음.
+
+이어서 사용자 요청으로 추가 데드코드 스캔을 진행했다. 11절 방법론(first-party 스코프 AST 추출 + 저장소 전체 참조 카운트)을 `selfdrive/carrot`/`controls/lib`/`carrot/model_selector`/`tools/carrot_route_vault` 스코프에 재적용: 함수/메서드 정의 3,289개(테스트/생성번들/vendor 제외) 중 저장소 전체(코드+비-py 텍스트 파일 포함) 참조 0건인 후보는 14개뿐이었고, 전부 119차에 이미 문서화된 제외 패턴과 정확히 일치했다 -- `_ingest_carControl` 등 `replay_events.py`의 `_ingest_*` 동적 디스패치 8개, `do_DELETE`/`handle_startendtag`/`handle_starttag` 프레임워크 오버라이드 3개, `@register_command`로 런타임 등록되는 `run_legacy_on`/`run_legacy_off` 2개(vision_test.py). 함수/메서드 단위 신규 고아는 없음을 확인.
+
+pyflakes로 같은 스코프의 미사용 import를 재스캔한 결과, 131/132차가 다루지 않았던 `controls/lib` 영역에서 신규 4건을 발견했다: `drive_helpers.py`의 `from openpilot.cereal import log`, `lateral_planner.py`의 `from collections import deque`, `latcontrol_angle.py`의 `import numpy as np`, `desire_lib/maneuver_classifier.py`의 `from .constants import BLINKER_LEFT, BLINKER_RIGHT`. 132차와 달리 이번 4건은 전부 표준 라이브러리/cereal 모듈이라 재-export를 통한 외부 소비 가능성이 구조적으로 없어(132차의 `upload_share_text`/`radar_validation_replay` 와일드카드 같은 오탐 패턴과 무관), 각 파일 내 grep 재확인(import 줄 외 다른 사용처 0곳)만으로 삭제를 확정했다(사용자 승인).
+
+코드 반영 스크립트(`139cha_unused_imports_code_carrot_ryu.ps1`)를 devnotes/toolkit/replace_block_template.ps1의 `Invoke-ReplaceBlock` 재사용으로 작성, 9절 자가검증 체크리스트 전항목을 통과했다: `.ps1` 첫 3바이트 BOM 확인(최초 전달본에서 BOM이 누락돼 있던 것을 전달 전 자가검증 단계에서 발견, 즉시 수정 후 재검증), `git clone --config core.autocrlf=false` 포함, `finally`의 임시폴더 삭제 확인, anchor 매치 1회+치환 결과 재확인(4개 파일 모두), pwsh 7.4.6 파서 구문 오류 0건, 저장소 상태 조회 git 명령 전부 `-C $Tmp` 사용, 사전 계산한 pre-image/post-image blob hash로 clone 직후·치환 직후 각각 재확인하는 guard를 신규로 추가했다. 로컬 bare 저장소(대상 4개 파일 + 실제 저장소의 `.gitignore` 최소 시뮬레이션)에 대해 (a) 일반 체크아웃 (b) `core.eol=crlf` Windows CRLF 재현 두 모드 모두 최종 스크립트로 끝까지 실행해, push된 커밋이 두 모드 모두 4개 파일 +0/-4로 동일하고 blob hash가 byte-exact 일치함을 확인했다. 시뮬레이션 과정에서 `.gitignore` 없이 돌렸을 때 py_compile이 생성한 `__pycache__/*.pyc`가 `git add -A`에 함께 잡히는 것을 발견해, 시뮬레이션에 실제 저장소의 `.gitignore`(`*.pyc` 포함)를 반영해 재확인했다 -- 실제 저장소에서는 `.pyc`가 정상적으로 git-ignore되어 커밋에 섞이지 않음을 확정. py_compile 4개 파일 전부 통과, pyflakes 재스캔으로 4건의 미사용 import 경고가 모두 사라졌음도 확인. 실행/push 대기. 실차 검증: 해당 없음(import 정리만, 실행 로직 변경 없음, 12절).
+
 ## 138차 (devnotes만 · 코드 변경 없음) -- FINDINGS.md 핵심 발견 52 등록 (136차 v1 py_compile 중복 호출 버그)
 
 137차 devnotes push(commit `f476d53d`, `.patch` 조회로 WIP.md/CURRENT_STATUS.md/HANDOFF.md 3개 파일 diff가 정확히 일치함을 사용자가 직접 확인)를 세션 시작 시 보고받았다. HANDOFF.md(137차) 미완료 2번(136차 v1 스크립트의 py_compile 중복 호출 버그를 FINDINGS.md에 핵심 발견으로 정식 등록)에 착수.
