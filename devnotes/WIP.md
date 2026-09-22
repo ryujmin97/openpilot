@@ -1,5 +1,15 @@
 # WIP
 
+## 137차 (devnotes만 · 코드 변경 없음) -- 123cha/132cha/135cha/136cha 실기기 배포 확인 + 실주행 이상없음
+
+세션 시작 체크포인트(`git ls-remote`)로 carrot-ryu-note HEAD가 이미 `aff0f0050dc9ec8997cc04775342908598ca9e18`(136차 계속 devnotes push 확인 완료 상태)임을 확인했다. HANDOFF.md(136차 계속)의 미완료 1번("이번 devnotes 반영 스크립트 실행/push 확인")은 이 파일 자체가 이미 그 반영 결과임을 재조회로 확정(16절, 별도 조치 불필요).
+
+사용자가 제공한 실기기 도구 탭 업데이트 로그 스크린샷 1장으로 두 차례의 `git pull`+`reboot` 배포를 확인했다: (1) "123cha: dead code batch C - remove cluster dead cod..."(1개 커밋, 3개 파일 -- 123차 C그룹 dead code, commit `a0f4c5a5`), (2) "136cha: fix CP949 mojibake in Korean comments (de...)" / "135cha: remove unused Candidate.path_in_score/pat..." / "132cha: openpilot/selfdrive/carrot unused import cle..."(5개 커밋, 9개 파일, +9/-142 -- 132/135/136차 체인, `41e4c056`까지)에 이은 `reboot`까지 로그에 명시적으로 표시됨. 두 배포 사이에 "delete all videos"/"delete all logs" 완료 로그도 확인. 사용자가 이어서 "실차검증. 이상없음"을 확인함.
+
+12절 원칙에 따라 이 확인의 성격을 명확히 기록한다: 이번에 배포·주행 확인된 6개 커밋(123/132/135/136차)은 전부 (a) 데드코드 삭제(참조 0건 사전 확인됨, 118~123차), (b) 미사용 import 정리(132차), (c) 한글 주석 mojibake 수정(136차)으로, 실행 로직 자체를 바꾸지 않는 변경들이다. 따라서 이번 실차 확인은 "배포가 정상적으로 이루어졌고 이 변경들로 인한 회귀/크래시가 없었다"는 총괄 수준 확인이며, 종방향 제어 로직(97~114차 GATE_M/MAP_TURN_GUIDE_FACTOR 등)에 대한 개별 기능 검증은 아니다 -- 해당 항목들은 여전히 실차 미검증으로 남아있다(HANDOFF 이월 3번, 변동 없음).
+
+코드 변경 없음. 실차 검증: 위 6개 커밋(123/132/135/136차)에 한해 배포+무회귀 확인(12절, 총괄 수준). 다음 세션 이월 항목은 변동 없음(HANDOFF 참고).
+
 ## 136차 계속 (코드 push 완료 확인 · v1 버그 발견/원인 확정 · v2로 재push)
 
 devnotes 반영 스크립트(`136cha_devnotes_carrot_ryu_note.ps1`) 실행/push를 GitHub에서 직접 재확인했다(16절): commit `d157de10163321fba5208d2289d50e0ef294a937`, `.patch` 조회로 devnotes 3개 파일(+39/-20)이 준비했던 내용과 일치함을 확인.
