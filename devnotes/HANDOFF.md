@@ -1,37 +1,36 @@
-Worker: Claude (126차, Claude Sonnet 5)
+Worker: Claude (127차, Claude Sonnet 5)
 Date: 2026-09-22
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (`a0f4c5a5fb932be1525311d2ed61f5382a4bd6d2`, 123차 C그룹 dead code 삭제. 이번 세션 코드 변경 없음)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base `1412328...`(125차 devnotes push 확인 완료). 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+Code Branch: carrot-ryu (base `a0f4c5a5fb932be1525311d2ed61f5382a4bd6d2`, 123차 C그룹 dead code 삭제. 이 스크립트 반영 전 base. 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base `fe98d2e00c2e76fc59e0d53e1d54a16fdce63bad`, 126차 push 확인 완료. 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
 carrot-ms 마지막 검토/동기화 체크포인트: `e324f67`(93~95차). 이번 세션도 carrot-ms 신규 커밋 확인/동기화 작업 없음 -- 여러 세션째 최우선 이월 중.
 
 작업:
-1. 125차 미완료 3번(`test_latcontrol.py::test_saturation`의 `TypeError` 원인/도입 시점 조사)을 이어받아 완료.
-2. carrot-ryu(`a0f4c5a5f`)를 blobless partial clone해 대상 5개 파일(`controls/tests/test_latcontrol.py`, `controls/lib/latcontrol.py`/`latcontrol_pid.py`/`latcontrol_torque.py`/`latcontrol_angle.py`, `controls/lib/tests/test_latcontrol.py`)의 `git log --oneline` 확인 -- 전부 61차 리셋의 단일 스쿼시 커밋 이후 carrot-ryu 자체 이력에서 수정된 적 없음을 확인.
-3. happymaj11r/openpilot(carrot-ms, `3756e6d`)와 ajouatom/openpilot(carrot-wip, `3d93b7e`)에서 동일 5개 파일을 직접 raw 조회해 carrot-ryu와 byte 단위 대조 -- 전부 동일함을 확인.
-4. 원인 확정: 이 `TypeError`(3-인자 호출 vs 실제 2-인자 생성자)는 carrot-ryu의 61차 리셋이나 그 이후 반영 과정에서 생긴 회귀가 아니라, carrot-wip 원본 자체에 이미 존재하던 깨진 테스트가 carrot-ms를 거쳐 변경 없이 상속된 것.
-5. 부수 발견: `controls/lib/tests/test_latcontrol.py`라는 별도의 중복 테스트 파일이 옛날 opendbc 4-튜플 인터페이스 API를 사용해 그 나름대로 깨져 있음을 확인(이것도 원본에 동일 존재).
+1. 126차 미완료 2번(`test_latcontrol.py` 두 파일 처리 방향 결정)을 사용자에게 두 옵션(A: controls/tests/test_latcontrol.py 최소 수정, B: controls/lib/tests/test_latcontrol.py를 DEAD_CODE_REVIEW 대상으로 편입)으로 제시, 사용자가 "진행"으로 A+B 조합 승인.
+2. 사용자가 이어서 "이 코드는 실차 로직과 관련없으면 삭제해도 되지 않아?"라고 재질문 -- controls/tests/test_latcontrol.py는 실제 조향 제어 프로덕션 코드(LatControlPID/Torque/Angle)를 검증하는 테스트이고 버그는 테스트 호출부에만 있다는 점을 근거로 삭제 대신 수정을 재제안, 승인받음. controls/lib/tests/ 쪽은 grep으로 무참조 orphan임을 재확인해 삭제 방향 유지.
+3. `controls/tests/test_latcontrol.py` 수정: 생성자 `(CP, CI)` 2-인자, `update()` 마지막 두 인자를 실제 시그니처(`CC`, `curvature_limited`)에 맞게 재구성. 원본 인자값이 CC 인자 추가 이전부터 이미 논리적으로 모순(`curvature_limited`가 세 호출 모두 참 값 고정)이었음을 확인, `controlsd.py` 실제 호출부/주석/assert 3개를 근거로 3가지 포화 시나리오를 재구성. `DT_CTRL` 미사용 import 제거.
+4. `controls/lib/tests/test_latcontrol.py` + `__init__.py` 삭제 (디렉터리 통째로 제거).
+5. 별도 clone(`a0f4c5a5f`, GitHub 현재 HEAD와 drift 없음 확인)에서 pre-image blob hash 가드 -> WriteAllText(UTF8, BOM 없음) 전체 재작성 -> post-image blob hash 일치 확인 -> git rm 2개 -> `python3 -m py_compile` 통과 -> git status 최종 diff(3 files changed, 5 insertions(+), 52 deletions(-)) 확인.
+6. 반영 스크립트(`127cha_item_test_latcontrol_carrot_ryu.ps1`)를 pwsh 7.4.6(GitHub 릴리스, Linux)으로 구문 검증(오류 0건) 후, 로컬 bare 저장소(`a0f4c5a5f` 스냅샷)를 대상으로 일반 체크아웃 + Windows CRLF 체크아웃 재현 두 모드 모두 처음부터 끝까지 실행, 두 모드 모두 동일한 결과(post-image blob hash `21b42b0b...` 일치)를 확인(9절 항목 9).
 
 완료:
-1. HANDOFF.md 125차 미완료 3번("`test_latcontrol.py` 시그니처 불일치 원인/도입 시점 확인 필요")을 원인 확정으로 해소 -- carrot-ryu 회귀가 아니라 원본(carrot-wip/carrot-ms)부터 존재하던 문제로 결론.
-2. WIP.md 126차 신규 항목, FINDINGS.md 핵심 발견 49, CURRENT_STATUS.md 126차 항목 추가.
+1. `test_latcontrol.py` 두 파일 처리 방향 결정 및 반영 스크립트 작성/검증 완료.
+2. WIP.md 127차 신규 항목(최상단), CURRENT_STATUS.md 127차 항목 추가.
 
 미완료(다음 세션 최우선):
-1. 이 스크립트(`126cha_test_latcontrol_root_cause_devnotes.ps1`) 실행/push 확인 -- GitHub SHA 고정 조회로 재확인(16절).
-2. carrot-ms 신규 커밋 확인(2절) -- 93~95차 체크포인트(`e324f67`) 이후 여전히 미확인, 여러 세션째 이월 중(최우선).
-3. `test_latcontrol.py` 두 파일(원인이 확정된 상태) 자체를 carrot-ryu 로컬에서 고칠지 여부 -- 이번 세션에서는 원인 확정만 하고 수정은 보류했다. 고치기로 하면: (a) `controls/tests/test_latcontrol.py`는 생성자 호출을 2-인자로 맞추거나 DBC 미생성 차량(HONDA/TOYOTA/NISSAN)까지 함께 걸리는 문제라 opendbc DBC 생성 단계 보강과 같이 볼지 판단 필요, (b) `controls/lib/tests/test_latcontrol.py`는 죽은 중복 파일로 보여 DEAD_CODE_REVIEW 대상으로 편입할지 검토 가능. 실차 로직과 무관해 우선순위 낮음.
-4. 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00 -- 둘 다 실차 미검증.
-5. CURRENT_STATUS.md 97~114차 구간 상세 catch-up -- 여러 세션째 이월 중(122차부터).
-6. (선택, 낮은 우선순위) opendbc 일부 차량 DBC 생성 단계를 `pytest_ci_setup.sh`에 추가하면 `test_latcontrol.py`/`test_longitudinal_gap_recovery.py`의 opendbc 파생 실패를 더 줄일 수 있음.
+1. 이 스크립트(`127cha_item_test_latcontrol_carrot_ryu.ps1`) 실행/push 확인 -- GitHub SHA 고정 조회로 재확인(16절). Windows PowerShell 5.1 실제 실행은 이번 세션에서 검증하지 못했음(Linux 샌드박스 pwsh 7.4.6 재현만 완료).
+2. carrot-ms 신규 커밋 확인(2절) -- 93~95차 체크포인트(`e324f67`) 이후 여전히 미확인, 여러 세션째 이월 중(**최우선**).
+3. 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00 -- 둘 다 실차 미검증.
+4. CURRENT_STATUS.md 97~114차 구간 상세 catch-up -- 여러 세션째 이월 중(122차부터).
 
-검증: carrot-ryu/carrot-ms/carrot-wip 3개 저장소 직접 조회(blobless partial clone + raw 조회) 및 5개 파일 byte 단위 대조로 원인 확정(11절: 추측 아님, 원본 확인). 실차 검증: 해당 없음(코드 변경 없음, 정적 테스트 인프라 원인 조사).
+검증: 별도 clone에서 pre/post-image blob hash 가드 + `python3 -m py_compile` 통과 + git status diff 대조(11절: 추측 아님, 실제 재현). 반영 스크립트 자체도 pwsh 파서 구문 검증 + 로컬 bare 저장소 일반/CRLF 두 모드 실행 재현까지 완료(9절). 실차 검증: 해당 없음(테스트 파일만 변경, latcontrol_pid.py/latcontrol_torque.py/latcontrol_angle.py 등 프로덕션 조향 제어 코드는 무변경).
 
 주의사항:
-- 코드 변경 없음(devnotes만).
-- 이번 조사로 "carrot-ryu 회귀 여부"는 명확히 해소됐지만, 테스트 파일 자체를 고칠지는 아직 미결정 상태 -- 실차와 무관한 낮은 우선순위 항목으로 다음 세션 이월.
-- carrot-ms 동기화(2절) 미확인이 이제 여러 세션째 가장 오래 이월된 항목이므로 다음 세션은 이것부터 착수 권장.
+- 코드 변경은 테스트 파일 2개(1개 수정 + 1개 삭제 대상, 실제로는 삭제 파일 2개 + 수정 파일 1개, 총 3개 파일)에 한정. 프로덕션 latcontrol 코드는 건드리지 않음.
+- Windows PowerShell 5.1 실제 실행 검증은 여전히 없음(Linux 샌드박스 pwsh 7.4.6 재현이 한계). 9절 항목 9의 명시된 한계 그대로.
+- carrot-ms 동기화(2절) 미확인이 여러 세션째 가장 오래 이월된 항목이므로 다음 세션은 이것부터 착수 권장.
 
 다음 작업 후보:
 1. carrot-ms 신규 커밋 확인(2절) 착수 -- 최우선 권장.
-2. `test_latcontrol.py` 두 파일 수정 여부 결정 및 반영(사용자 승인 시).
-3. 110차/114차 실차 관찰 항목.
+2. 110차/114차 실차 관찰 항목.
+3. CURRENT_STATUS.md 97~114차 구간 catch-up.

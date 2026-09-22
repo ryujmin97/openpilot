@@ -1,5 +1,55 @@
 # WIP
 
+## 127차 -- test_latcontrol.py 시그니처 수정 + controls/lib/tests 고아 중복 파일 삭제 (반영 스크립트 실행/push 대기)
+
+126차에서 확정된 원인(`test_latcontrol.py::test_saturation`의 `TypeError`는 carrot-ryu 회귀가
+아니라 carrot-wip 원본부터 존재하던 문제)을 이어받아, 사용자 승인 하에 두 파일을 처리했다.
+
+**`controls/tests/test_latcontrol.py` (수정, 삭제 아님)**: 이 테스트가 검증하는
+`LatControlPID`/`LatControlTorque`/`LatControlAngle`은 실차 조향(steering)을 직접 제어하는
+프로덕션 코드이므로, 테스트 자체를 지우지 말고 고치는 쪽으로 결정했다(사용자에게 "실차 로직과
+무관하니 지워도 되지 않냐"는 질문을 받았으나, 버그는 테스트 호출부에 있는 것이지 조향 제어
+로직에 있는 게 아니라는 점을 근거로 유지/수정을 제안, 승인받음). 실제 생성자 시그니처는
+`(CP, CI)` 2-인자이고, `update()`는 `(active, CS, VM, params, steer_limited_by_controls,
+desired_curvature, CC, curvature_limited, model_data=None)`인데, 원본 테스트는 생성자를
+3-인자(`DT_CTRL` 추가)로, `update()`의 마지막 두 인자를 `(True, 0.2)`/`(False, 0.2)`처럼 타입이
+안 맞는 값으로 호출하고 있었다. 코드로 직접 대조한 결과 이 값들은 CC 인자가 추가되기 이전
+시점에서도 이미 의미가 안 맞았음을 확인했다: `curvature_limited`가 세 호출 모두 `0.2`(참 값)로
+고정되면 `_check_saturation()`의 `saturated or curvature_limited` 조건이 항상 참이 되어, 두
+번째 호출의 `assert not lac_log.saturated`가 애초에 통과할 수 없는 구조였다(단순 리네이밍
+문제가 아니라 처음부터 깨져 있었던 것으로 판단). `controlsd.py`의 실제 호출부(`self.LaC.update(
+CC.latActive, CS, self.VM, lp, self.steer_limited_by_safety, self.desired_curvature, CC,
+curvature_limited, model_data=self.sm['modelV2'])`)를 근거로, 주석(`# Saturate for curvature
+limited and controller limited`)과 세 assert가 의도한 시나리오(1: curvature_limited=True ->
+포화, 2: curvature_limited=False & desired_curvature=0 -> 비포화, 3: curvature_limited=False &
+desired_curvature=1(큰 곡률) -> 컨트롤러 자체 출력 포화)에 맞춰 재구성했다. `CC`는 `car.CarControl.
+new_message()`로 생성(controlsd.py와 동일 타입, `car.capnp`의 `orientationNED`/`angularVelocity`
+필드 확인 완료 -- `LatControlTorque`가 이 필드들에 접근해도 빈 리스트 기본값으로 안전하게
+처리됨을 소스로 확인). 더 이상 쓰이지 않는 `DT_CTRL` import도 함께 제거.
+
+**`controls/lib/tests/test_latcontrol.py` + `__init__.py` (삭제)**: 옛날 opendbc 4-튜플
+인터페이스(`CarInterface, CarController, CarState, RadarInterface = interfaces[car_name]`)와
+이미 없어진 `Pose`/`generate_livePose` API를 쓰는 고아 중복 파일임을 재확인. 저장소 전체
+tarball을 직접 받아 grep한 결과 이 경로를 참조하는 곳이 어디에도 없음(순수 orphan)을 확인했고,
+루트 `pyproject.toml`의 `testpaths = ["openpilot"]` + `python_files = "test_*.py"` 설정 때문에
+pytest가 이 파일을 자동으로 수집해 125차 전체 실행(1928 passed/59 failed/85 errors)의 errors
+일부를 만들어내고 있었을 가능성이 높다는 점도 근거로 삼아 삭제 결정. `__init__.py`(빈 파일,
+이 디렉터리 하나만을 위한 패키지 표시)도 함께 삭제해 디렉터리 자체를 제거.
+
+**검증**: 별도 clone(`a0f4c5a5f` 기준, GitHub HEAD와 drift 없음 확인)에서 pre-image blob hash
+가드(3개 파일 전부 GitHub 현재 상태와 일치 확인) -> `[System.IO.File]::WriteAllText(...,
+UTF8Encoding($false))`로 전체 재작성 -> post-image blob hash 일치 확인 -> `git rm`으로 2개 파일
+삭제 -> `python3 -m py_compile` 통과 -> `git status`로 최종 diff(3 files changed, 5
+insertions(+), 52 deletions(-))가 의도와 정확히 일치함을 확인. 반영 스크립트 자체를 pwsh 7.4.6
+파서로 구문 오류 0건 확인 후, 로컬 bare 저장소(`a0f4c5a5f` 스냅샷)를 대상으로 일반 체크아웃과
+Windows CRLF 체크아웃 재현(`GIT_CONFIG_KEY_0=core.eol`/`VALUE_0=crlf`) 두 모드 모두 끝까지
+실행해 동일한 결과(blob hash `21b42b0b...` 일치, 3 files changed 동일)를 재확인했다(9절 항목 9,
+Linux 샌드박스 재현이며 Windows PowerShell 5.1 실제 실행은 아님). 이 수정은 CI 테스트 인프라
+문제이며 실차 조향 로직 자체는 변경하지 않았다. 실차 검증: 해당 없음(코드 변경이 테스트
+파일에 한정, latcontrol_pid.py/latcontrol_torque.py/latcontrol_angle.py 등 프로덕션 파일은
+무변경).
+
+
 ## 126차 (devnotes만 · 코드 변경 없음) -- test_latcontrol.py 시그니처 불일치는 carrot-ryu 회귀가 아니라 원본(carrot-wip/carrot-ms)부터 존재하는 문제로 확정
 
 **배경**: 125차 미완료 3번(`test_latcontrol.py::test_saturation`의 `TypeError` 원인/도입 시점 조사, `git log -p`로 `latcontrol*.py` 변경 이력 대조)을 이어받았다.

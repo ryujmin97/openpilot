@@ -229,6 +229,8 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 
 - **[126차, devnotes만 · 코드 변경 없음]** 125차 미완료 3번(`test_latcontrol.py` 시그니처 불일치 원인)을 조사 -- carrot-ryu/carrot-ms/carrot-wip 3개 저장소 직접 대조로, 이 `TypeError`가 carrot-ryu 자체 회귀가 아니라 carrot-wip 원본부터 존재하던 문제(carrot-ms를 거쳐 변경 없이 상속)임을 확정. 별도의 중복 테스트 파일(`controls/lib/tests/test_latcontrol.py`, 옛날 opendbc 4-튜플 API 사용)도 발견, 이것도 원본에 동일 존재. 실차 로직과 무관해 이번 세션에서는 수정 없이 기록만 함(FINDINGS.md 핵심 발견 49). 코드 변경 없음.
 
+- **[127차, 반영 스크립트 실행/push 대기]** `test_latcontrol.py` 두 파일 처리 방향을 사용자에게 문의 -- "실차 로직과 무관하니 지워도 되지 않냐"는 질문에, `controls/tests/test_latcontrol.py`가 검증하는 `LatControlPID/Torque/Angle`은 실제 조향 제어 프로덕션 코드이고 버그는 테스트 호출부에만 있다는 점을 근거로 삭제 대신 수정을 제안해 승인받음. 생성자를 `(CP.as_reader(), CI)` 2-인자로, `update()` 마지막 두 인자를 실제 시그니처(`CC`, `curvature_limited`)에 맞게 수정 -- 원본 인자값(`curvature_limited`가 세 호출 모두 `0.2`로 고정)이 CC 인자 추가 이전부터 이미 의미상 모순이었음을 코드로 확인, `controlsd.py` 실제 호출부/주석/assert 3개를 근거로 삼아 3가지 포화 시나리오(curvature_limited로 포화/비포화, desired_curvature로 컨트롤러 자체 포화)에 맞게 재구성, `CC`는 `car.CarControl.new_message()`로 생성. `controls/lib/tests/test_latcontrol.py`+`__init__.py`(옛 opendbc 4-튜플 API, 무참조 orphan, `pyproject.toml`의 `testpaths=["openpilot"]`로 pytest가 자동 수집해 125차 errors 노이즈에 기여했을 가능성)는 삭제. 별도 clone에서 pre/post-image blob hash 가드 + `py_compile` 통과 + 로컬 bare 저장소 일반/CRLF 두 모드 실행 재현(9절 항목 9)까지 확인. 실차 검증: 해당 없음(테스트 파일만 변경, latcontrol_*.py 프로덕션 코드는 무변경). 상세: WIP.md 127차 참고.
+
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.
