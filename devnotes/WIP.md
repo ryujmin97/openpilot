@@ -1,5 +1,24 @@
 # WIP
 
+## 128차 (devnotes만 · 코드 변경 없음) -- carrot-ms 동기화 점검, 신규 10건 중 7건 제외 확정 · 2건 후보 이월
+
+**배경**: HANDOFF.md 127차 미완료 2번("carrot-ms 신규 커밋 확인, 93~95차 체크포인트 e324f67 이후 여러 세션째 최우선 이월")을 이어받았다. 실제로는 116차에서 이미 e324f67보다 훨씬 뒤인 4bb4b510까지 진행돼 있었음을 WIP_SYNC.md 재확인으로 파악했다(HANDOFF.md 127차 표기가 뒤처져 있었을 뿐, 코드/devnotes 실체 자체는 정상).
+
+**rebase 확인**: carrot-ms(happymaj11r/openpilot) 현재 HEAD가 `3756e6d5`로, 116차 체크포인트(`4bb4b510`)와 `git merge-base --is-ancestor`로 조상관계가 아님을 확인 -- 0절에 명시된 "carrot-ms는 매번 재생성(rebase)" 현상이 실제로 발생한 것. 해시 체인 추적이 불가능해져, 2절 원칙대로 커밋 메시지 기준 비교로 전환: 양쪽 HEAD에서 각각 커밋 로그 400개/410개를 얕은 clone(`--depth`/`--deepen`)으로 확보해 제목 문자열 기준 `comm`으로 대조한 결과, OLD 쪽에만 있는 제목은 0건(내용 누락·스쿼시 없이 안전하게 비교 가능함을 뒷받침), NEW 쪽에만 있는 제목 10건을 확인했다. 10건 전부 2026-09-21 ajouatom 저자, 커밋 메시지에 "(cherry picked from commit ...)" 표기가 있어 carrot-wip에서 그대로 넘어온 것으로 확인.
+
+**10건 개별 diff 검토** (11절: 추측 아님, 각 커밋의 실제 diff를 직접 열어 대조):
+
+- CAN FD 전용 4건(`e6baf4f9`/`eebecda0`/`fb808e4e`/`3225e8c6`): 각각 hyundaicanfd.py 전용 함수 또는 `carcontroller.py`의 `if self.CP.flags & HyundaiFlags.CANFD:` 블록 안, 또는 `canfd_wrapped_navi` 조건 안에서만 실행되는 코드임을 diff로 직접 확인했다. 특히 `3225e8c6`(HUD lead 좌우 스무딩)은 `display_lead_lateral` 필드 자체는 `__init__`에서 무조건 생성되지만 실제 사용 지점(`create_ccnc_messages`/`create_acc_control_scc2` 호출)이 전부 CANFD 블록 안이라 DH 2015(89차 확정: `HyundaiFlags.CHECKSUM_6B | HyundaiFlags.LEGACY`, CAN FD 아님)에서는 그 분기 자체가 실행되지 않는다. [제외 확정]
+- `9513408e`(radarcan replay batch + 안전enum 이름 정정): `process_replay/migration.py`의 `KIA_EV6` 안전 플래그 이름을 `HyundaiSafetyFlags.CANFD_LKA_STEER_MSG` -> `CANFD_LKA_STEERING`으로 정정하는 오타 수정과 `process_replay.py`의 replay 트리거를 "can" -> "carState"로 바꾸는 테스트 인프라 변경뿐, 런타임 동작·우리 차량과 무관. [제외 확정]
+- `7ff3a457`(VW MEB lead 거리 보정): `radar_motion/timing.py`에 신설된 `front_radar_distance_delay_s(car_params)`가 `car_params.brand == "volkswagen"`이고 MEB 플래그가 설 때만 0.0을 반환하고, 그 외에는 `max(0.0, float(car_params.radarDelay))`로 기존과 사실상 동일하게 동작함을 확인(음수 radarDelay가 없는 한 무차이). [제외 확정, 우리 차량 영향 없음]
+- `c42437d9`/`e2fe3e72`(Carrot Cluster 관련 2건): 별도 raylib 기반 보조화면 UI(`selfdrive/carrot/cluster/`)의 L1 텍스트 크기 유지 + 스케줄링 우선순위 조정. 사용자에게 이 클러스터 기능 사용 여부를 확인한 결과 "사용안함, 계획없음"으로 확인(2026-09-22). [제외 확정, 사용자 확인]
+- `9f8619b1`("Isolate radar CAN preprocessing from card and reduce fusion cost"): 브랜드 무관 아키텍처 리팩터로, card.py에서 동기 실행되던 `RadarInterface.update_carrot()`을 core4 FIFO51 신규 워커(`carrot/radar/radarcan.py`, `carrot/radar/can_batch.py`)로 완전히 분리한다. `card.py`/`carrot/radar_motion/predictor.py`/`carrot/radar_motion/controller.py`/`carrot/radar/radard_dpath.py`를 함께 건드리는데, 이 파일들 중 상당수는 carrot-ryu가 자체적으로 커스텀해온 영역(93~95차 등에서 다룬 정지-lead 인계 로직 포함)이라, 반영 전 충돌 여부를 별도 세션급으로 상세 대조해야 한다. 사용자와 논의한 결과 이번 세션엔 착수하지 않고 다음 세션 후보로 남기기로 함(2026-09-22 승인).
+- `3756e6d5`(carrot-ms 현재 HEAD, "Trial camera and IRQ placement on core5 with UI on little cores"): camerad와 카메라 IRQ 대상을 core6→core5로, 메인 UI 렌더링을 core5 단일 배치에서 cores0~3으로 옮기는 실험적 스케줄링 변경. 처음엔 우리 차량과 무관하게 독립적으로 검토 가능해 보였으나, 실제로 diff를 끝까지 열어본 결과 이 커밋이 새로 추가한 회귀테스트(`system/tests/test_camera_cpu_placement.py::test_camera_move_keeps_control_and_model_placements`)가 `"openpilot/selfdrive/carrot/radar/radarcan.py": (4, "Priority.CTRL_LOW")`를 이미 존재하는 파일로 전제하고 검증한다는 것을 발견했다. `radarcan.py`는 바로 위 `9f8619b1`이 새로 만드는 파일이고, carrot-ryu 현재 HEAD(`b3ac7c9`)에는 해당 경로가 아예 없음을 raw 조회(404)로 확인했다 -- 즉 `3756e6d5`는 `9f8619b1`이 먼저 반영돼 있어야만 성립하는 종속 관계이며(같은 날 커밋 시각도 09f8619b1 10:41 -> 3756e6d5 22:13 순으로 뒤 커밋이 앞 커밋 위에 쌓인 구조), 독립적으로 판단할 수 없다. 추가로 이 트라이얼은 저자 스스로 문서(`docs/camera_core5_trial.md`)에 "No target build or vehicle result is claimed"라고 명시했고, 대응 대상 증상도 아이오닉5 C4의 와이드카메라 SOF 갭(101ms)이라 DH2015+콤마 C3에는 재현 근거 자체가 없다는 점도 확인했다. 사용자와 논의해 `9f8619b1`과 묶어 다음 세션 후보로 이월하기로 함(2026-09-22).
+
+**검증**: 10건 전부 GitHub에서 직접 diff를 열어 대조(11절: 추측 아님). `git merge-base --is-ancestor`로 rebase 여부 실증, `git hash-object`/raw HTTP 404로 `radarcan.py` 부재 실증. 코드 변경 없음(순수 분석/기록 세션). 실차 검증: 해당 없음(반영된 코드가 없음, 12절 무관).
+
+**상세**: WIP_SYNC.md 128차 체크포인트 참고.
+
 ## 127차 -- test_latcontrol.py 시그니처 수정 + controls/lib/tests 고아 중복 파일 삭제 (반영 스크립트 실행/push 대기)
 
 126차에서 확정된 원인(`test_latcontrol.py::test_saturation`의 `TypeError`는 carrot-ryu 회귀가

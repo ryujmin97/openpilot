@@ -1,5 +1,22 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-22 (128차) -- carrot-ms 4bb4b510→3756e6d5 rebase 확인, 신규 10건 전수 분류(7건 제외 확정 · 2건 후보 이월)
+
+- carrot-ryu HEAD: b3ac7c95fcf9db39800ec8e873e73e7def37a177 (변경 없음, 127차 test_latcontrol.py 수정/삭제 상태)
+- carrot-ryu-note HEAD: ff34025bee37cceabada4af716b4c7e93d8838b1 (변경 없음, 127차 devnotes push 확인 완료 상태. 이 128차 devnotes 스크립트는 실행/push 대기 -- 반영 후 HEAD는 다음 세션이 git ls-remote로 확인)
+- carrot-ms(happymaj11r/openpilot) HEAD: 3756e6d5702ff6ebd2c54d12f2e25e587dca4d99 (이전 체크포인트 4bb4b510, 116차 대비 rebase 발생 -- `git merge-base --is-ancestor`로 4bb4b510이 3756e6d5의 조상이 아님을 확인, 0절에 명시된 "매번 재생성" 현상 실제 발생. 해시 체인 대신 커밋 메시지 기준으로 대조: 4bb4b510 쪽 400개 + 3756e6d5 쪽 410개 로그를 제목 기준 diff한 결과 OLD-only 0건(누락/스쿼시 없음, 비교 신뢰 가능) + NEW-only 10건 확인, 전부 2026-09-21 ajouatom 저자·carrot-wip cherry-pick)
+
+10건 분류 결과(전부 개별 diff를 직접 열어 대조, 11절):
+
+1) [제외, CAN FD 전용] e6baf4f9(CANFD 정지 준비/soft-hold, hyundaicanfd.py+CanfdStopRetry) / eebecda0(PV5 카메라 경고 수정, canfd_wrapped_navi 분기) / fb808e4e(PV5 카메라 상태 유지, 같은 함수 후속) / 3225e8c6(HUD lead 좌우 스무딩) -- 4건 전부 carcontroller.py 소스에서 `if self.CP.flags & HyundaiFlags.CANFD:` 블록 안 또는 canfd_wrapped_navi 전용 코드임을 diff로 직접 확인. DH 2015(HyundaiFlags.CHECKSUM_6B|LEGACY, 89차 확정)는 이 분기 자체가 실행되지 않는다.
+2) [제외, 테스트/무관 브랜드] 9513408e -- process_replay 테스트 인프라(migration.py/process_replay.py) 정리 + KIA_EV6 안전플래그 이름 리네임(오타 수정). 런타임 동작 변화 없음.
+3) [제외, VW 전용/사실상 무영향] 7ff3a457 -- radar_motion/timing.py에 신설된 front_radar_distance_delay_s()가 `car_params.brand == "volkswagen"`일 때만 0.0을 반환하고, 그 외(Hyundai 포함)는 기존 float(CP.radarDelay)에 max(0.0, ...) 클램프만 추가되어 사실상 동일하게 동작함을 diff로 확인.
+4) [제외, 사용자 확인] c42437d9(Carrot Cluster L1 텍스트 크기 유지) / e2fe3e72(Carrot Cluster 스케줄링 우선순위 조정) -- 사용자가 Carrot Cluster(별도 raylib 보조화면) 기능을 사용하지 않고 향후 계획도 없음을 확인(2026-09-22).
+5) [후보, 다음 세션] 9f8619b1 "Isolate radar CAN preprocessing from card and reduce fusion cost" -- RadarInterface/liveTracks를 card.py 동기 처리에서 core4 FIFO51 신규 워커(radar/radarcan.py, radar/can_batch.py)로 분리하는 브랜드 무관 아키텍처 리팩터. card.py/radar_motion/predictor.py/radar_motion/controller.py/radard_dpath.py를 함께 건드림 -- carrot-ryu의 기존 radar_motion 커스텀(93~95차 정지-lead 인계 검토 등)과의 충돌 여부를 상세 대조해야 해서 이번 세션엔 착수하지 않기로 함(사용자 승인, 2026-09-22).
+6) [후보, 다음 세션 · 5)에 구조적으로 종속] 3756e6d5(현재 carrot-ms HEAD) "Trial camera and IRQ placement on core5 with UI on little cores" -- camerad+camera IRQ를 core6→core5로, UI 렌더링을 cores0~3으로 옮기는 실험적 배치. **독립 반영이 불가함을 코드로 확인**: 신규 회귀테스트(system/tests/test_camera_cpu_placement.py::test_camera_move_keeps_control_and_model_placements)가 `"openpilot/selfdrive/carrot/radar/radarcan.py": (4, "Priority.CTRL_LOW")`를 전제로 검증하는데, radarcan.py는 5)가 새로 만드는 파일이라 carrot-ryu 현재 HEAD(b3ac7c9)에는 아예 존재하지 않는다(raw 조회 404로 확인). 같은 날 커밋 순서(9f8619b1 10:41 -> 3756e6d5 22:13)로도 뒤 커밋이 앞 커밋 위에 쌓인 구조임을 확인했다. 또한 커밋 메시지/docs(camera_core5_trial.md) 자체가 "No target build or vehicle result is claimed"라고 명시하고, 대응 대상 증상도 아이오닉5 C4의 와이드카메라 SOF 갭(101ms)이라 DH2015+C3에는 재현 근거가 없다 -- 5) 반영 여부와 함께 다음 세션에서 재논의하기로 함.
+
+- 다음 확인 시점: 5)/6) 두 항목의 반영 여부를 사용자와 논의할 때(5)를 먼저 검토하고, 반영하기로 하면 그 위에서 6)을 재검토, 5)를 반영하지 않으면 6)도 자동 보류). carrot-ms HEAD가 3756e6d5에서 다시 바뀌었는지는 착수 전 `git ls-remote`로 가볍게 재확인.
+
 carrot-ms → carrot-ryu 동기화 이력 (carrot-ms는 매번 rebase되어 commit hash가 바뀌므로,
 hash가 아닌 "커밋 메시지/내용 기준"으로 추적. 2절 참고)
 
