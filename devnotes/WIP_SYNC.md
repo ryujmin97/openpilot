@@ -1,5 +1,12 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-22 (130차) -- carrot-ms 정기 점검, 신규 커밋 없음 확인(변경 없음)
+
+- carrot-ryu HEAD: b3ac7c95fcf9db39800ec8e873e73e7def37a177 (변경 없음)
+- carrot-ryu-note HEAD: 03078ceb65699a9838c16e7df404f52998a203eb (변경 없음, 129차 push 확인 완료 상태. 이 130차 devnotes 스크립트는 실행/push 대기)
+- carrot-ms(happymaj11r/openpilot) HEAD: 3756e6d5702ff6ebd2c54d12f2e25e587dca4d99 (129차 체크포인트와 동일, `git ls-remote`로 재확인 -- 신규 커밋 없음)
+- 다음 확인 시점: 다음 세션 시작 시 `git ls-remote`로 가볍게 재확인.
+
 ## 체크포인트: 2026-09-22 (129차) -- carrot-ms 9f8619b1/3756e6d5 최종 판단: 반영 보류(제외 확정), 128차 이월 2건 종결
 
 - carrot-ryu HEAD: b3ac7c95fcf9db39800ec8e873e73e7def37a177 (변경 없음, 코드 변경 없는 세션)
