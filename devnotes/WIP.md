@@ -1,5 +1,17 @@
 # WIP
 
+## 136차 계속 (코드 push 완료 확인 · v1 버그 발견/원인 확정 · v2로 재push)
+
+devnotes 반영 스크립트(`136cha_devnotes_carrot_ryu_note.ps1`) 실행/push를 GitHub에서 직접 재확인했다(16절): commit `d157de10163321fba5208d2289d50e0ef294a937`, `.patch` 조회로 devnotes 3개 파일(+39/-20)이 준비했던 내용과 일치함을 확인.
+
+이어서 사용자가 `136cha_mojibake_fix_code_carrot_ryu.ps1`(v1) 실행 로그를 전달했으나, 로그 끝에 있어야 할 "완료: carrot-ryu에 136cha 커밋이 push되었습니다" 메시지가 없고 대신 `py.exe : [Errno 2] No such file or directory: 'openpilot/selfdrive/controls/lib/desire_lib/maneuver_classifier.py'`가 출력됨을 확인, GitHub 재조회로 carrot-ryu의 대상 파일 blob hash가 여전히 pre-image(`0021af97d7`, 수정 전)임을 실증해 push가 안 됐음을 확정(16절, "완료" 메시지 없는 로그를 성공으로 단정하지 않음).
+
+원인 확정: 스크립트 7단계(py_compile 검증)가 `Push-Location $Tmp` **이전에** `$RelPath`(상대경로)로 한 번 더 호출하는 중복 코드를 갖고 있었음 -- 이 호출 시점의 실제 작업 디렉터리는 사용자가 PowerShell을 실행한 `C:\WINDOWS\system32`라 상대경로를 찾지 못해 `FileNotFoundError`가 발생, `$ErrorActionPreference="Stop"`으로 예외 전환 -> `finally`(임시폴더 삭제)가 먼저 실행된 뒤 에러가 콘솔에 출력되어 로그 순서만 보면 "정리 완료" 다음에 에러가 난 것처럼 보였음. 이 시점은 8단계(commit/push) 이전이라 git 명령은 한 번도 실행되지 않았음(15절/18절 강제진행 금지 안전장치는 별도로 정상 작동한 것은 아니고, 단순히 그 지점에서 예외로 죽은 것 -- 손상 위험은 없었음).
+
+중복 호출 제거 + 절대경로(`$FilePath`) 사용 + `Push-Location`/`Pop-Location` 자체를 제거(20절 권장 패턴)한 v2(`136cha_mojibake_fix_code_carrot_ryu_v2.ps1`)를 작성/전달. 이번엔 샌드박스에 pwsh가 없어 실제 구문 실행 검증은 생략했고(12절: 검증 안 한 것을 했다고 보고하지 않음), 변경 범위가 v1과 8줄 내외의 삭제/치환뿐이라는 점만 근거로 제공. 사용자가 v2 실행 후 commit `41e4c056d8db2ceb38fe93c114ca5a3be3d8de8f`로 push 완료를 알려와 GitHub에서 직접 재확인: `.patch`로 변경 파일 1개(+2/-2), 결과 blob hash가 세션에서 미리 계산한 post-image(`b552e1655d`)와 byte-exact 일치, 첫 3바이트 BOM 아님, `py_compile` 통과.
+
+**136차 코드 변경(mojibake 수정) 최종 반영 완료.** carrot-ryu HEAD: `41e4c056d8db2ceb38fe93c114ca5a3be3d8de8f`(부모 `4faf9072`, 135차 위). carrot-ryu-note HEAD(이 반영 스크립트 실행 전 기준): `d157de10163321fba5208d2289d50e0ef294a937`. 다음 세션 이월: 이 v1 버그(py_compile 중복 호출 + 상대경로)를 FINDINGS.md에 핵심 발견으로 정식 기록할 것(이번 세션은 WIP.md에만 기록). 실차 검증: 해당 없음(주석 텍스트만 수정).
+
 ## 136차 (코드 스크립트 검증 완료 · 실행/push 대기 · 135차 push 확인) -- desire_lib/maneuver_classifier.py CP949 mojibake 주석 2줄 수정
 
 **세션 시작 체크포인트**: `git ls-remote`로 carrot-ryu HEAD가 `4faf90720f62b77e125b9af246ce12c976cca1be`(135차, "135cha: remove unused Candidate.path_in_score/path_out_score properties + _clamp_probability staticmethod")로 이미 push 완료돼 있음을 확인했다. HANDOFF.md(135차)에는 이 코드 스크립트가 "실행/push 대기"로 남아있었던 괴리(16절/핵심 발견 27·38과 동일 패턴) -- commit patch(`4faf9072.patch`)를 직접 조회해 변경 파일이 `radar/tools/radar_validation_replay.py` 1개(+0/-15)뿐이고 diff 내용이 135차 HANDOFF/CURRENT_STATUS 기록과 정확히 일치함을 재확인했다. carrot-ryu-note는 이 세션 시작 시점 `cc437e1`(135차 devnotes)에 머물러 있어 코드만 앞서있는 상태(devnotes 반영 스크립트는 아직 미실행)였다.
