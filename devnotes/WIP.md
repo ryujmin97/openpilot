@@ -1,5 +1,22 @@
 # WIP
 
+## 132차 (미사용 import 정리 완료: 15/17건 삭제, 2건 오탐으로 보존) -- carrot_serv.py/carrot_man.py/dashcam upload.py
+
+**배경**: 131차 HANDOFF 이월 항목. 남은 미사용 import 17건(pyflakes, 스코프 `openpilot/selfdrive/carrot/`)을 파일별로 실제 사용 여부(동적 참조/재-export 여부)부터 확인한 뒤 삭제 여부를 판단(10절 최소 변경 원칙).
+
+**진행**:
+1. `carrot_serv.py` 10건(fcntl/socket/struct/datetime.datetime/cereal.log/Ratekeeper/MyMovingAverage/TICI/Coordinate/get_gps_location_service) -- 파일 전체(1833줄)에서 각 이름의 다른 참조를 grep으로 전수 확인, 전부 import 줄 외 참조 없음을 확인. 단 `datetime`은 함수 내부(1638행 부근)에 별도 `import datetime`(모듈)이 있어 그걸로 `datetime.datetime.utcfromtimestamp()`/`datetime.timedelta()`를 쓰고 있었고, 상단의 `from datetime import datetime`(클래스)는 그 지역 import에 가려진 진짜 죽은 코드였음을 구분 확인(11절: 추측 아님, grep 직접 실행). 10건 전부 삭제.
+2. `carrot_man.py` 4건(urllib.error/ssl/TICI/CV) 삭제 확인 중, pyflakes 재실행에서 예상 밖의 5번째 항목을 신규 발견: `urllib.request`가 새로 "미사용"으로 잡힘. 원래 `import urllib.request`와 `import urllib.error`가 같은 `urllib` 바인딩을 가리켜 pyflakes가 뒤의(마지막) 재정의만 미사용으로 보고하고 앞의 것은 가려서 원래 17건 집계에서 빠져 있었던 것으로 판단(재현: `urllib.error` 제거 후 재스캔하니 즉시 노출). `urllib.request`도 파일 전체에서 참조가 이 import 줄 하나뿐임을 grep으로 확인, 함께 삭제(총 5건).
+3. `server/features/dashcam/upload.py` 2건(upload_message_lines/upload_share_text) -- 둘 다 `X as X` 명시적 재-export 패턴이라 그 자체로는 삭제 근거가 안 됨. 저장소 전체를 grep해 `upload_share_text`는 `upload_jobs.py`에서 `upload.upload_share_text(...)` 형태로 실제 사용 중임을 확인(pyflakes가 모듈 속성 접근까지는 추적하지 못해 생긴 오탐) -- 보존. `upload_message_lines`는 저장소 어디에서도 `upload.` 네임스페이스로 참조되지 않음을 확인 -- 삭제.
+4. `radar/tools/radar_lead_simulator.py` 1건(radar_validation_replay.* 와일드카드) -- `test_radar_lead_simulator.py`/`radar_lead_video_review.py`가 이 모듈에서 `Candidate`/`RadarFrame`/`RadarMotionShadowSelector` 등 다수 이름을 직접 import하는데, 이 이름들은 `radar_lead_simulator.py` 자체에는 정의돼 있지 않고 전부 와일드카드로 들여온 `radar_validation_replay`의 이름들임을 확인 -- 삭제하면 두 소비 파일의 import가 즉시 깨짐. 오탐으로 판단, 보존(131차 cluster_ui.py와 반대 케이스: 그때는 파일 자체가 고아였지만 이번엔 실제 소비자가 존재).
+
+**결과**: 원안 17건 중 15건 삭제(`carrot_serv.py` 10 + `carrot_man.py` 4+1(신규 발견 `urllib.request`) + `upload.py` 1), 2건(`upload_share_text`, `radar_lead_simulator.py` 와일드카드)은 보존.
+
+**검증**: 로컬 clone(base `3759a300`) 위에서 3개 파일 각각 anchor 매치 정확히 1회 확인 후 치환 -> `python3 -m py_compile` 3개 파일 통과 -> pyflakes 재스캔으로 남은 미사용 import가 의도한 2건(보존 결정한 것과 정확히 일치)뿐임을 확인 -> 반영 스크립트(`132cha_unused_imports.ps1`)를 로컬 bare 저장소(대상 SHA `3759a300` 트리) 대상으로 실제 실행해 push까지 시뮬레이션, 결과 커밋의 3개 파일 blob hash가 수동 검증 결과와 byte-exact 일치함을 확인(9절 체크리스트 9번). CRLF 체크아웃 재현(체크리스트 9번 b)은 별도 checkout 명령에서 env 적용이 셸 호출 경계를 넘지 못해 완전한 재현엔 이르지 못했으나, 실제 스크립트는 매 clone마다 `--config core.autocrlf=false`를 명시하므로 구조적으로 CRLF 유입이 차단됨(6절/9절). 실차 검증: 해당 없음(정적 정리, 런타임 로직 변경 없음, 12절).
+
+**미완료**: 없음(132차 스코프 완료).
+
+**주의사항**: 앞으로 `import a.b` / `import a.c` 형태로 같은 최상위 모듈을 서로 다른 서브모듈로 두 번 이상 import하는 파일에서 미사용 import를 정리할 때는, 한쪽만 제거하고 끝내지 말고 반드시 pyflakes를 재실행해 가려져 있던 나머지가 새로 노출되는지 확인할 것(이번 세션의 `urllib.request` 사례 재발 방지). 또한 `X as X` 명시적 재-export 패턴은 pyflakes가 파일 내부 참조만 보고 다른 파일의 `module.X` 접근은 추적하지 못하므로, 삭제 전 반드시 저장소 전체를 grep해 `모듈명.이름` 형태의 외부 소비자가 있는지 확인할 것.
 ## 131차 (코드 1건 반영 확인 + devnotes 캐치업) -- cluster_ui.py 고아 파일 삭제(미사용 import 24건 해결), 남은 17건은 132차로 확정
 
 **배경**: carrot-ryu에 미사용 import(pyflakes F401) 정리 작업이 진행 중이었으나, 이 작업 자체가 130차까지의 WIP.md/CURRENT_STATUS.md에는 전혀 기록되지 않은 채 carrot-ryu HEAD만 `b3ac7c95`(127차/130차 base) -> `3759a300`으로 먼저 앞서 나가 있었다. 세션 시작 시 `git ls-remote`로 이 괴리를 발견했다(16절). 채팅에 붙여넣어진 "131차 완료" 검증 주장을 그대로 신뢰하지 않고 GitHub에서 직접 독립 재검증했다(3절).
