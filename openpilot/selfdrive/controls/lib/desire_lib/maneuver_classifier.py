@@ -1,6 +1,5 @@
 from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
-from .constants import BLINKER_LEFT, BLINKER_RIGHT
 
 def classify_maneuver_type(blinker_state: int,
                            carstate,

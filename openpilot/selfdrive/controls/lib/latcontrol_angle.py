@@ -1,5 +1,4 @@
 import math
-import numpy as np
 
 from openpilot.cereal import log
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
