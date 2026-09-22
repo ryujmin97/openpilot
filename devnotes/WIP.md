@@ -1,5 +1,23 @@
 # WIP
 
+## 129차 (devnotes만 · 코드 변경 없음) -- carrot-ms 9f8619b1/3756e6d5 최종 판단: 반영 보류(제외 확정)
+
+**배경**: 128차에서 이월된 carrot-ms 신규 후보 2건(9f8619b1 레이더 CAN 전처리 분리, 3756e6d5 core5 배치 트라이얼) 중 9f8619b1부터 상세 대조하기로 사용자와 합의(HANDOFF.md 128차 미완료 2번).
+
+**진행**:
+1. happymaj11r/openpilot에서 9f8619b1 커밋 패치를 `github.com/.../commit/9f8619b1.patch`로 직접 조회(18개 파일 +640/-54). 핵심은 `card.py`(core6)에서 `RadarInterface`/`liveTracks` 발행을 통째로 제거하고, 신규 프로세스 `radarcan.py`(core4 FIFO51)가 CAN+carState를 독립 구독해 정확히 같은 CAN 배치를 재구성(`can_batch.py` 신규)한 뒤 동일한 `RadarInterface.update_carrot()`을 호출하는 아키텍처 리팩터. `carState`에 `radarInput`(firstCanMonoTime/lastCanMonoTime/canPacketCount/receiveMonoTime) 신규 필드 추가. `radar_motion/predictor.py`에 `RadarMotionPredictor(cut_out_only=True)` 모드 추가(controller.py가 쓰는 2차 predictor의 불필요 연산만 생략, 확률/상태값은 동일 유지). `trajectory_cutin.py`는 속성 접근 최적화(값 동일).
+2. carrot-ryu 현재 HEAD(b3ac7c95)를 blobless `git clone`으로 실제 확보, `git apply --check --verbose`로 패치 적용 가능 여부 검증. 결과: 핵심 코드 16개 파일 전부 성공(card.py는 offset -1, predictor.py는 offset -10, 나머지는 offset 0). 실패는 `.github/workflows/tests.yaml`(테스트 목록 컨텍스트 불일치)과 `AGENTS.md`(carrot-ms 내부 메모, 우리는 이 파일 자체 업데이트 이력 관리 안 함) 2개뿐, 둘 다 CI/문서용으로 기능 무관.
+3. 실제로 16개 파일에 패치를 적용(`git apply --exclude` 2개 제외)한 뒤 13개 Python 파일 `python3 -m py_compile` 전부 통과 확인.
+4. 저장소 전체 grep으로 부작용 전수 검사: `self.RI`(card.py 외부) 0건, `RadarInterfaceBase`(opendbc 자체 정의 외) 0건, `Car(CI=, RI=` 생성자 호출부 0건, `state_update()/state_publish()` 외부 호출부 0건, 삭제된 predictor dead-code(`path_exit_probability`/`_radar_path`) 참조 0건. `liveTracks` 구독자(radard/cluster/controls/replay 등)는 발행 프로세스가 무엇이든 메시지 계약이 동일해 영향 없음을 확인. core 배치도 확인: card=core6(CTRL_HIGH, 기존)/radard=core5(CTRL_LOW, 기존)/radarcan=core4(CTRL_LOW, 신규) -- 겹침 없음.
+5. 위 코드 충돌 없음 결과와 함께, 설계 문서(`docs/radar_process_isolation.md`)에 명시된 미검증 사실 및 이 변경의 실질적 동기(우리 차와 무관한 EV9/Ioniq5 core6 경합 증상)를 사용자에게 보고. 사용자에게 반영/중단/보류(제외 기록만) 3가지 선택지를 제시했고, 사용자가 "너의 판단은?"으로 위임.
+6. Claude 판단: **반영 보류(제외 확정)** 권장 -- (a) 우리가 겪은 문제가 아니라 타 차량 문제 대응, (b) 원저자도 실기기 미검증 명시, (c) 종방향 안전 경로(레이더->리드 감지)에 검증 안 된 새 실패 지점(IPC 타임아웃) 추가, (d) DH2015는 RadarInterface 연산 자체가 가벼워 이득도 제한적. 사용자 승인(2026-09-22, "진행").
+
+**완료**: 9f8619b1/3756e6d5 둘 다 제외 확정. 128차 제외 8건 + 129차 제외 2건 = carrot-ms 신규 10건 전부 분류 종결(반영 0건). WIP_SYNC.md 129차 체크포인트/CURRENT_STATUS.md/HANDOFF.md 갱신.
+
+**미완료**: 없음(코드 변경 자체가 없는 세션). 다음 세션 이월 항목은 HANDOFF.md 129차 참고(110차 GATE_M/114차 MAP_TURN_GUIDE_FACTOR 실차 검증, CURRENT_STATUS.md 97~114차 catch-up 등, 128차부터 그대로 이월).
+
+**검증**: 패치 적용/py_compile/grep 전부 실제 실행 결과(11절: 추측 아님). 실차 검증: 해당 없음(코드 변경 없음).
+
 ## 128차 (devnotes만 · 코드 변경 없음) -- carrot-ms 동기화 점검, 신규 10건 중 7건 제외 확정 · 2건 후보 이월
 
 **배경**: HANDOFF.md 127차 미완료 2번("carrot-ms 신규 커밋 확인, 93~95차 체크포인트 e324f67 이후 여러 세션째 최우선 이월")을 이어받았다. 실제로는 116차에서 이미 e324f67보다 훨씬 뒤인 4bb4b510까지 진행돼 있었음을 WIP_SYNC.md 재확인으로 파악했다(HANDOFF.md 127차 표기가 뒤처져 있었을 뿐, 코드/devnotes 실체 자체는 정상).

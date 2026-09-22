@@ -1,5 +1,27 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-22 (129차) -- carrot-ms 9f8619b1/3756e6d5 최종 판단: 반영 보류(제외 확정), 128차 이월 2건 종결
+
+- carrot-ryu HEAD: b3ac7c95fcf9db39800ec8e873e73e7def37a177 (변경 없음, 코드 변경 없는 세션)
+- carrot-ms(happymaj11r/openpilot) HEAD: 3756e6d5702ff6ebd2c54d12f2e25e587dca4d99 (변경 없음, 128차 체크포인트와 동일)
+- 128차에서 이월된 후보 2건(9f8619b1, 3756e6d5)의 최종 처리를 이번 세션에서 확정.
+
+**9f8619b1** "Isolate radar CAN preprocessing from card and reduce fusion cost" -- happymaj11r/openpilot에서 커밋 패치를 직접 조회(github.com/.../commit/9f8619b1.patch, 18개 파일 +640/-54)하고, carrot-ryu 현재 HEAD(b3ac7c95)를 실제 `git clone`(blobless)한 뒤 `git apply --check`로 상세 대조(11절: 추측 아님). 결과: 핵심 코드 16개 파일(card.py/신규 can_batch.py·radarcan.py/radard_dpath.py/radar_motion/controller.py·predictor.py·trajectory_cutin.py/신규 테스트 3개/test_leads.py/process_replay.py/process_config.py/car.capnp) 전부 충돌 없이 적용됨(card.py/predictor.py/process_config.py는 우리 기존 dead-code 삭제분(radar_state 인자 제거, carrot_bluetooth 미등록, predictor 미사용 함수 2개)과 라인 오프셋만 있고 패치가 건드리는 영역과 겹치지 않음을 실제 diff로 확인). 적용 후 13개 Python 파일 `py_compile` 전부 통과, 저장소 전체 grep으로 `self.RI`/`RadarInterfaceBase`/`state_update()` 시그니처 등 외부 참조 0건까지 확인해 dangling reference 없음을 실증. 실패한 2개(`.github/workflows/tests.yaml`, `AGENTS.md`)는 CI 워크플로/carrot-ms 내부 메모 문서로 우리 차량 로직과 무관.
+
+**[제외 확정, 사용자 승인 2026-09-22]** 코드 충돌은 없지만 다음 근거로 반영하지 않음:
+1) 이 리팩터의 동기(EV9/Ioniq5의 card-camerad core6 스케줄링 경합으로 인한 카메라 프레임 드랍/IFE 에러, docs/radar_process_isolation.md)를 DH2015에서 관찰/진단한 적이 없음 -- 우리 실재 문제가 아니라 타 차량 증상 대응.
+2) 원문서 자체가 "C3/C4 device timing/camera improvements are NOT yet validated"라고 명시 -- carrot-ms 쪽도 실기기 미검증 상태.
+3) 새 프로세스(radarcan, core4 FIFO51)의 CAN/carState IPC 배치 결합(`MAX_INPUT_AGE_NS=100ms` 타임아웃 등)이 리드 감지 경로에 새로운 실패 지점을 추가함 -- 97~114차 종방향 게이팅(GATE_M 등)이 아직 실차 미검증 상태로 쌓여있는 시점에 같은 경로에 미검증 아키텍처 변경까지 겹치는 것은 10절 최소변경 원칙에 어긋남.
+4) DH2015는 `EnableRadarTracks=0`/`EnableCornerRadar=0`으로 `RadarInterface.update_carrot()`이 SCC 고정 단일점만 다루는 가벼운 연산(93차 확정)이라, 이 리팩터로 얻는 core6 완화 효과가 우리 차엔 작을 가능성.
+
+재검토 트리거: (a) carrot-ms/carrot-wip에 이 아키텍처의 실제 C3/C4 기기 검증 결과가 후속 커밋으로 올라올 때, (b) 우리 실차 로그에서 card/camerad 경합으로 인한 프레임 드랍 등 실제 증상이 관찰될 때.
+
+**3756e6d5** "Trial camera and IRQ placement on core5 with UI on little cores" -- 128차에서 이미 9f8619b1(radarcan.py)에 구조적으로 종속됨을 확인(회귀테스트가 radarcan.py 존재를 전제). 9f8619b1 제외 확정에 따라 자동 제외(변경 없음).
+
+이로써 128차에서 발견된 신규 10건(97~114차 이후 carrot-ms rebase분)이 전부 분류 종결됨: 128차 제외 8건(CAN FD 전용 4 + 테스트/무관 브랜드 1 + VW 전용 1 + 클러스터 2) + 129차 제외 2건(9f8619b1, 3756e6d5) = 10건 전부 제외, 반영 0건.
+
+- 다음 확인 시점: carrot-ms HEAD가 3756e6d5에서 바뀌었는지 다음 2절 점검(129차 이후 세션)에서 git ls-remote로 확인.
+
 ## 체크포인트: 2026-09-22 (128차) -- carrot-ms 4bb4b510→3756e6d5 rebase 확인, 신규 10건 전수 분류(7건 제외 확정 · 2건 후보 이월)
 
 - carrot-ryu HEAD: b3ac7c95fcf9db39800ec8e873e73e7def37a177 (변경 없음, 127차 test_latcontrol.py 수정/삭제 상태)
