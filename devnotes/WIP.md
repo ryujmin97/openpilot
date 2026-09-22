@@ -1,5 +1,27 @@
 # WIP
 
+## 135차 (코드 스크립트 준비 완료 · 실행/push 대기) -- 5차 데드코드 배치: `radar_validation_replay.py`의 `Candidate.path_in_score`/`path_out_score`(@property) + `_clamp_probability`(@staticmethod) 제거
+
+**배경**: 118차/120차/121차/123차에 이어 다섯 번째 데드코드 배치. 이번 세션은 재스캔부터 코드 스크립트 준비까지 한 세션 안에서 진행했다.
+
+**재스캔(11절)**: carrot-ryu 최신 HEAD(`15f9831e`) tarball을 codeload로 받아, first-party 스코프(`openpilot/selfdrive/carrot`, `carrot/model_selector`, `openpilot/selfdrive/controls/lib`, `tools/carrot_route_vault`, `tools/carrot_navi_lab`, `tools/carrot_upload_server`) 함수/메서드 정의 3,588개(저장소 전체 9,588개 정의 중)를 AST로 추출하고, 저장소 전체(.git 제외 약 322MB)를 대상으로 심볼별 참조를 `rg`로 대조했다.
+
+**확정 후보(3개, 전부 `radar/tools/radar_validation_replay.py` 한 파일)**:
+- `Candidate.path_in_score`(324행, `@property`) -- `self.score`만 반환, 정의 줄 외 참조 0건.
+- `Candidate.path_out_score`(328행, `@property`) -- `self.path_exit_score`만 반환, 참조 0건.
+- `_clamp_probability`(4040행, `@staticmethod`) -- 참조 0건.
+같은 클래스의 `candidate.score`/`candidate.path_exit_score`는 다른 곳(3680행/5287행)에서 필드로 직접 쓰이고 있어, 이 세 개는 나중에 편의용으로 추가됐다가 실제로는 배선되지 않은 것으로 판단했다.
+
+**오탐 배제**: `.vendor/turing-smart-screen-python-main/` 외부 라이브러리(기존 원칙), dashcam `replay_events.py`의 `_ingest_carState` 등 9개(동적 디스패치, 기존 원칙과 동일 패턴), `handle_startendtag`(static.py, `HTMLParser` 오버라이드, 신규 확인), `clean_baseline`/`fake_param_key_type`/`isolated_git`(`@pytest.fixture(autouse=True)`로 자동 적용되는 테스트 픽스처, 신규 확인), `run_legacy_on`/`run_legacy_off`(vision_test.py, `@register_command` 데코레이터로 명령어 레지스트리에 등록되는 핸들러, 신규 확인).
+
+**부수 발견**: `openpilot/selfdrive/controls/lib/desire_lib/maneuver_classifier.py`가 AST 파싱 단계에서 UTF-8 디코딩 실패로 1차 스캔에서 누락됐다. 원인은 죽은 코드가 아니라 파일 안 한글 주석이 CP949로 깨진 mojibake(94차 WIP.md와 같은 종류의 손상)였다. `classify_maneuver_type()` 자체는 `desire_helper.py`에서 정상 호출 중이라 삭제 대상이 아니다(코드 실행에는 영향 없음, 주석만 깨짐). 정리는 사용자 요청 시 별도로 진행하기로 했다.
+
+**승인**: 사용자 승인 완료(3개뿐이라 118차/120차/121차/123차처럼 별도 조사 세션 없이 바로 삭제 스크립트 준비로 진행).
+
+**코드 스크립트 준비/검증**: `devnotes/toolkit/replace_block_template.ps1`의 `Invoke-ReplaceBlock`을 그대로 재사용(14절)해 `135cha_deadcode_batch5_code_carrot_ryu.ps1` 작성. 9절 "전달 전 필수 자가검증 체크리스트" 1~10번 전항목 통과: BOM(`EF BB BF`) 확인, `core.autocrlf=false` 포함, `finally`+`Remove-Item -Recurse -Force` 확인, `Get-PythonCmd`(`py -3`→`python3`→`python`)+EOF 파이핑 확인, 앵커/치환 문자열을 스크립트에서 그대로 추출해 GitHub 최신 원본(pre-image blob hash `2502ad0a11b9c84001e1f2fefd43a41e9e665bbd`, 현재 carrot-ryu HEAD `15f9831e` 실측치와 일치)에 시뮬레이션해 매치 1회 + 결과 blob hash(`6691a2b70f1d36cd53fb16e2108fa0ab149af5f8`) 일치 + `py_compile` 통과 확인, pwsh 7.4.6 파서 구문 오류 0건, 저장소 상태 조회 git 명령 전부 `-C $Tmp` 사용(10번, 133차 핵심 발견 51 재발 방지), 로컬 bare 저장소(대상 SHA `15f9831e` 트리)로 (a) 일반 체크아웃 / (b) Windows CRLF 체크아웃 재현 두 모드 모두 끝까지 dry-run해 commit diff가 1 file +0/-15로 두 모드 byte-exact 일치함을 확인(9절 9번).
+
+**상태**: 코드 스크립트 작성/자가검증 완료, 실행/push 대기. 실차 검증: 해당 없음(반영 전).
+
 ## 134차 (devnotes만 · 코드 변경 없음) -- 133cha_devnotes_toolkit_instructions.ps1 자체의 pre-image guard `git hash-object` `-C` 누락 버그 발견/수정, FINDINGS 51, PROJECT_INSTRUCTIONS 9절 체크리스트 10번 신설
 
 **배경**: 133차 스크립트(`133cha_devnotes_toolkit_instructions.ps1`) 최초 실행이 FINDINGS.md pre-image guard에서 "base drifted"로 안전 중단됐다(GitHub 원본은 실제로 드리프트 없었음). 사용자가 실행 로그를 전달했고, 이를 계기로 원인을 조사했다.
