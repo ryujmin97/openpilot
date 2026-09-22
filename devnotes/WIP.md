@@ -1,5 +1,25 @@
 # WIP
 
+## 136차 (코드 스크립트 검증 완료 · 실행/push 대기 · 135차 push 확인) -- desire_lib/maneuver_classifier.py CP949 mojibake 주석 2줄 수정
+
+**세션 시작 체크포인트**: `git ls-remote`로 carrot-ryu HEAD가 `4faf90720f62b77e125b9af246ce12c976cca1be`(135차, "135cha: remove unused Candidate.path_in_score/path_out_score properties + _clamp_probability staticmethod")로 이미 push 완료돼 있음을 확인했다. HANDOFF.md(135차)에는 이 코드 스크립트가 "실행/push 대기"로 남아있었던 괴리(16절/핵심 발견 27·38과 동일 패턴) -- commit patch(`4faf9072.patch`)를 직접 조회해 변경 파일이 `radar/tools/radar_validation_replay.py` 1개(+0/-15)뿐이고 diff 내용이 135차 HANDOFF/CURRENT_STATUS 기록과 정확히 일치함을 재확인했다. carrot-ryu-note는 이 세션 시작 시점 `cc437e1`(135차 devnotes)에 머물러 있어 코드만 앞서있는 상태(devnotes 반영 스크립트는 아직 미실행)였다.
+
+**135차 미완료 5번 대응**: 사용자가 반영 스크립트(`136cha_mojibake_fix_code_carrot_ryu.ps1`)를 업로드하며 실행을 제안했다. 이 스크립트는 이번 세션에서 처음 작성된 것이 아니라 이미 완성된 채로 전달됐으므로, 핵심 발견 26 원칙("다른 세션이 만든 반영 스크립트도 실행 전 9절·18절 필수 규칙 위반 여부를 재검증해야 한다")에 따라 실행을 권하기 전에 처음부터 독립 재검증했다.
+
+**재검증 절차와 결과**:
+1. 스크립트(`.ps1`) 자체의 첫 3바이트가 `EF BB BF`(UTF-8 BOM)임을 `od`로 확인(9절 필수 규칙 -- 한글 포함 `.ps1`은 BOM 필수).
+2. 스크립트에 하드코딩된 pre-image blob hash(`0021af97d72a8fb85f664e6811a6ea976631f1bd`)를, 현재 carrot-ryu HEAD(`4faf9072`)의 `openpilot/selfdrive/controls/lib/desire_lib/maneuver_classifier.py`를 SHA 고정 raw로 직접 재조회해 `git hash-object`로 재계산한 값과 대조 -- byte-exact 일치(base drift 없음, 16절).
+3. 스크립트의 핵심 로직(CP949로 원본 바이트를 디코딩해 BOM 없는 UTF-8로 재작성)을 Python으로 독립 재현: 디코딩 예외 없이 성공, 결과 blob hash가 스크립트의 기대 post-image(`b552e1655d2d4eb7aa3a50c6e94e007af6000cb0`)와 일치. 원본과 결과를 줄 단위로 대조한 결과 변경된 줄은 정확히 2곳(23번째·27번째 줄)뿐이고, 두 줄 모두 `#`로 시작하는 한글 주석 줄임을 확인 -- 실행 로직/식별자/공백/줄바꿈은 100% 동일, 주석의 "글자"만 복원됨(스크립트 설명과 일치).
+4. 결과 파일을 `python3 -m py_compile`로 검증 -- 통과(exit 0).
+5. 결과 파일 첫 3바이트가 BOM이 아님을 확인.
+6. 샌드박스에 `pwsh`가 없어 GitHub 릴리스(`v7.4.6`, linux-x64 tarball)를 직접 받아 설치, `[System.Management.Automation.Language.Parser]::ParseFile()`로 스크립트 구문을 파싱 -- 오류 0건.
+7. 로컬 bare 저장소로 최소 시뮬레이션(대상 파일 1개만, GitHub SHA 고정 blob과 byte-exact 동일한 내용으로 구성한 origin)을 만들고, 스크립트를 그 origin을 가리키도록 바꿔 (a) 일반 체크아웃, (b) Windows CRLF 체크아웃 재현(`GIT_CONFIG_KEY_0=core.eol`, `GIT_CONFIG_VALUE_0=crlf`) 두 모드로 clone부터 push까지 전체 실행 -- 두 모드 모두 pre/post-image hash 일치, BOM 미포함, `py_compile` 통과, 최종 commit diff가 `1 file changed, 2 insertions(+), 2 deletions(-)`로 예상과 정확히 일치, 임시 폴더 정리(`Remove-Item -Recurse -Force`)까지 정상 동작.
+8. 스크립트 내에서 저장소 상태를 읽는 git 명령(`hash-object`/`add`/`commit`/`push`/`log`)이 전부 `git -C $Tmp ...` 형태로 대상 리포지토리를 명시함을 코드로 직접 확인(10절, 핵심 발견 51 재발 방지).
+
+9절 "전달 전 필수 자가검증 체크리스트" 1~9번(파일 전체 재작성 방식이라 10번은 해당 없음, 문자열 블록 치환을 쓰지 않으므로 6·7번의 anchor 시뮬레이션도 해당 없음)에 대응하는 항목을 전부 독립 재현 기준으로 통과했다. 결론: 이 스크립트는 그대로 실행해도 안전하다(사용자가 이미 보유한 실행 명령 그대로 사용 가능). 다만 실제 사용자 PC(Windows PowerShell 5.1)에서의 실행은 아직 이루어지지 않아 "실행/push 대기" 상태다.
+
+실차 검증: 해당 없음(주석 텍스트만 수정, 실행 로직 무변경이므로 12절 관련 없음).
+
 ## 135차 (코드 스크립트 준비 완료 · 실행/push 대기) -- 5차 데드코드 배치: `radar_validation_replay.py`의 `Candidate.path_in_score`/`path_out_score`(@property) + `_clamp_probability`(@staticmethod) 제거
 
 **배경**: 118차/120차/121차/123차에 이어 다섯 번째 데드코드 배치. 이번 세션은 재스캔부터 코드 스크립트 준비까지 한 세션 안에서 진행했다.
