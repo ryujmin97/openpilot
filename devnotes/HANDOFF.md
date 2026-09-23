@@ -1,37 +1,48 @@
-Worker: Claude (146cha, Claude Sonnet 5)
+Worker: Claude (147cha, Claude Sonnet 5)
 Date: 2026-09-23
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (HEAD: 139차 push 완료 상태 그대로 유지, `8e8b0d1a1569295a69a9817e378eef2ad861d79b` -- 146차도 코드 변경 없음)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 145차 devnotes push 완료 상태, `773355cbec039f2c76c1c056521dfc6a51a01993`)
-carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 세션 재확인 -- 신규 커밋 없음. 140~146차는 재점검 없음)
+Code Branch: carrot-ryu (base: 8e8b0d1a1569295a69a9817e378eef2ad861d79b, 139차 상태 -- 147차 코드 반영 스크립트 실행/push 대기, 아직 미반영)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 146차 devnotes push 완료 상태, `3d5fbebac2a34b146dd4eb1f8c7b7338168e9d2e`)
+carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 세션 재확인 -- 신규 커밋 없음. 140~147차는 재점검 없음)
 
 작업:
-1. 145차가 이월한 두 항목(감속 프리뷰 게이팅 임계값 설계, offline replay 사전검증)을 이어서 착수.
-2. 사용자가 145차와 동일 route 3세그먼트(`00000446--6455a5f5c4--29/30/31`, 총 180s)를 재업로드, `initData.gitCommit`이 현재 HEAD와 일치함을 재확인(3절/16절).
-3. 해당 커밋 기준 cereal/car 스키마를 새로 구성해 carState/radarState.leadOne/longitudinalPlan/selfdriveState를 20Hz 병합하는 세션 로컬 스크립트(`extract.py`/`analyze.py`, toolkit 미등록) 작성/실행.
-4. 로그의 `desiredDistance`/`tFollow`로 기존 GATE_M(`_gate_raw()`) 게이트와 동일한 공식으로 `margin_ratio`를 재구성, 이를 감속 프리뷰 신호(`lead_accel_signal`)에 곱하는 후보를 순수 오프라인으로 시뮬레이션.
-5. 재구성 baseline offset_s vs 로그의 `leadPreviewSeconds` 대조 -- 차이 원인이 버그가 아니라 `rate_limit_preview()` 램프 유무 때문임을 코드 대조로 확인(11절).
-6. GATE_M 동일 임계값(0.8/1.0) 적용 결과 + 완화 밴드 4종(1.0/1.3, 1.2/1.6, 1.3/1.8, 1.4/2.0) 스윕 결과 비교.
-7. 사용자와 설계 방향 논의: "설정 차간거리 유지 + 위험하지 않으면 앞차 반응 무시"라는 목표를 margin_ratio 공식에 대수적으로 대입해, gap=desiredDistance일 때 항상 m=1.25(=1/LEAD_DANGER_FACTOR)가 됨을 도출, 이를 프리뷰 게이트의 설계 기준선으로 확정. 전환 방식(1.25 부근 좁은 fade, TTC 유지)에 합의.
-8. WIP.md 146차 신설(최상단) / CURRENT_STATUS.md 146차 요약 한 줄 삽입(`## 코드 수정 현황` 헤더 직전) / HANDOFF.md(이 파일) 전체 갱신을 반영 스크립트로 작성해 전달.
+1. 사용자가 채팅에 붙여넣은 긴 텍스트(다른/끊긴 세션의 147차 작업 로그로 추정)와 업로드된 코드/테스트 파일 5개(long_mpc.py/longitudinal_preview.py/longitudinal_planner.py/test_lead_gate_margin.py/test_longitudinal_preview.py)를 검토.
+2. 3절/16절 원칙(GitHub 현재 상태 > 기억 > 채팅에 붙여넣어진 과거 사본)에 따라 GitHub를 직접 재조회 -- 147차 관련 커밋이 두 브랜치 어디에도 없음을 확인, 해당 자료가 146차 HANDOFF.md 미완료 ①②(밴드 폭 로그 재검증/위험 시나리오 재생 검증)를 완료하지 않고 코드 값을 확정한 것으로 11절 원칙과 어긋남을 사용자에게 보고.
+3. 사용자가 "이미 검토/승인된 것으로 보고 이어서 진행"을 명시적으로 선택 -- ①②의 재검증 자체는 이번 세션에서 새로 수행하지 않고, 업로드 자료의 코드/테스트 내용과 PREVIEW_GATE_M_LO/HI=1.05/1.25 값을 승인된 것으로 전제하고 진행.
+4. GitHub SHA 고정(`8e8b0d1a`) 원본 5개 파일을 재조회, 업로드 파일(post-image)과 blob hash를 각각 계산해 대조.
+5. `diff -u`로 9개 변경 hunk를 추출, 각각이 SHA 고정 원본에 정확히 1회만 매치함을 프로그램적으로 확인(9절 체크리스트 7번).
+6. 실제 GitHub tarball(SHA `8e8b0d1a`)로 openpilot 트리를 재현해 업로드 파일 5개를 적용, `py_compile`+`pytest`를 독립 재실행해 157건(기존 142+신규 15) 전부 통과 확인.
+7. 코드 반영 스크립트(`147cha_code_carrot_ryu.ps1`) 신규 작성 -- 9절 Replace-Block 패턴(toolkit `Invoke-ReplaceBlock`/`Invoke-Git` 재사용), 9절 체크리스트 1~10번 전항목 수행(아래 "검증" 참고).
+8. carrot-ryu-note devnotes 반영 스크립트(`147cha_devnotes_carrot_ryu_note.ps1`) 작성 -- WIP.md 147차 신설(최상단)/CURRENT_STATUS.md 147차 요약 한 줄 삽입(`## 코드 수정 현황` 헤더 직전)/HANDOFF.md(이 파일) 전체 갱신.
 
 완료:
-1. rlog 3개(`--29/30/31`) `gitCommit`(`8e8b0d1a1...`)이 현재 HEAD와 일치, `dirty=False` 확인(3절/16절, 145차와 동일 route임을 재확인).
-2. GATE_M 하이브리드 게이트(margin_ratio+TTC)와 동일한 공식으로 offline replay 시뮬레이션을 구성, baseline(게이트 없음) offset_s가 로그 `leadPreviewSeconds`와 다른 이유가 `rate_limit_preview()` 램프 유무임을 코드 대조로 확정(사안을 버그로 오판하지 않음, 11절).
-3. GATE_M 임계값(0.8/1.0)을 프리뷰에 그대로 적용 시 이 180초 구간(margin_ratio 전부 1.0 초과) 전체에서 게이트가 항상 닫혀 활성비율 53.6%->0%, RMS 100% 감소함을 확인 -- 단, "이 구간에 위험 상황이 없었다"는 사실의 반영이라는 한계를 함께 기록.
-4. 완화 밴드 4종 스윕 결과 (1.0,1.3)이 활성비율은 거의 유지(53.2%)하면서 RMS를 80.4% 감소시키는 가장 균형 잡힌 후보임을 확인.
-5. margin_ratio 공식에 `gap=desiredDistance`를 대입하면 `SE(vLead)` 항이 상쇄되어 리드속도 무관하게 항상 `m=1/0.8=1.25`가 성립함을 대수적으로 도출 -- "설정 차간거리 유지 시 항상 margin_ratio=1.25"라는 기준선을 확정. (1.0,1.3) 밴드 상한이 이 값과 거의 겹치고, 이번 로그의 margin_ratio 평균(1.258)/중앙값(1.251)도 1.25 부근에 몰려있다는 것으로 상호 교차검증.
-6. 기존 GATE_M(0.8~1.0)이 설정 차간거리(1.25)보다 훨씬 안쪽(약 64~80%)을 보는 MPC danger-zone 전용 게이트로, 프리뷰 목적과 다름을 사용자에게 설명/합의.
-7. 전환 방식을 완전 이진이 아닌 1.25 기준선 주변 좁은 폭 fade로, TTC 성분은 유지하기로 사용자와 합의(코드 미반영).
-8. WIP.md 146차 신설(최상단, LF 유지) / CURRENT_STATUS.md 146차 요약 한 줄 삽입(LF 유지, `## 코드 수정 현황` 헤더 직전) / HANDOFF.md(이 파일) 전체 갱신을 반영 스크립트로 작성.
-9. 9절 체크리스트 중 이번 세션에서 실제로 수행한 항목: (6/7번) WIP.md/CURRENT_STATUS.md 앵커(`"# WIP\n\n## 145차"`, `"상세: WIP.md 145차 참고.\n\n## 코드 수정 현황"`)를 SHA 고정(`773355cbec03...`) 원본에 Python으로 사전 시뮬레이션해 각각 정확히 1회 매치 확인, 그 결과를 스크립트의 치환 문자열로 그대로 사용.
+1. GitHub 재조회로 147차 관련 커밋이 전혀 없음을 확인, 채팅에 붙여넣어진 자료를 미검증 참고자료로 규정하고 사용자에게 명시적으로 확인받음(2가지 진행안 제시 -> 사용자가 "이미 승인된 것으로 보고 진행" 선택).
+2. GitHub SHA 고정 원본 5개 파일의 blob hash(`11907e48`/`64dc764e`/`da6dccb8`/`db50c7d9`/`06f2b2a3`)와 업로드 파일의 blob hash(`446c2edb`/`1c5979dd`/`1eae1720`/`1fe4a8a8`/`9eb27f8f`)를 각각 독립 계산해 기록.
+3. `diff -u` 기반 9개 anchor(long_mpc.py 2개, longitudinal_preview.py 1개, longitudinal_planner.py 1개, test_lead_gate_margin.py 3개, test_longitudinal_preview.py 2개)를 SHA 고정 원본에 시뮬레이션 -- 전부 정확히 1회 매치, 치환 결과가 업로드 파일과 byte-exact 일치함을 확인.
+4. 실제 GitHub tarball로 재현한 openpilot 트리에 업로드 파일을 적용해 `py_compile` 5개 파일 전부 통과, `pytest`(`test_lead_gate_margin.py`+`test_longitudinal_preview.py`) 157건 전부 통과를 직접 재실행으로 확인(업로드 자료의 주장을 그대로 신뢰하지 않음, 11절).
+5. 코드 반영 스크립트(`147cha_code_carrot_ryu.ps1`) 9절 체크리스트 1~10번 전항목 수행:
+   - (1) BOM `EF BB BF` 확인. (2) 모든 `git clone`에 `--config core.autocrlf=false`. (3) `finally`에 `Remove-Item -Recurse -Force $Tmp` 확인. (4) `py`/`python3`/`python` 순 `--version` 확인 + stdin 빈 문자열 파이프. (5) 해당없음. (6~7) 9개 anchor 시뮬레이션 1회 매치+결과 확인. (8) pwsh 7.6.6 파서 구문 오류 0건 -- 최초본에서 `$TargetFiles` 배열의 후행 쉼표로 인한 오류 1건을 발견/수정. (9) 로컬 bare 저장소(SHA `8e8b0d1a` 트리)로 일반/Windows CRLF 재현(`GIT_CONFIG_KEY_0=core.eol`/`VALUE_0=crlf`) 두 모드 모두 clone→치환→commit→push 끝까지 실행, 두 모드 모두 최종 blob hash가 post-image와 byte-exact 일치, `git show --numstat`(5 files changed, 132 insertions(+), 15 deletions(-)) 동일 확인. 이 과정에서 here-string(`@'...'@`) 안에 작은따옴표를 이중화하는 오류로 `sm['carState']` 등 코드 내 작은따옴표가 깨져 anchor 0회 매치로 안전 중단되는 버그를 일반 모드 dry-run에서 발견/수정(here-string은 작은따옴표 이스케이프 불필요/금지).
+   (10) 저장소 상태를 읽는 모든 git 명령 `-C $Tmp` 사용 확인.
+6. carrot-ryu-note devnotes 반영 스크립트(`147cha_devnotes_carrot_ryu_note.ps1`) 작성 -- WIP.md 최상단 삽입 anchor("# WIP\n\n## 146차"), CURRENT_STATUS.md 삽입 anchor("상세: WIP.md 146차 참고.\n\n## 코드 수정 현황") 각각 SHA 고정(`3d5fbeb`) 원본에 정확히 1회 매치 확인, HANDOFF.md는 교체형으로 전체 재작성.
 
 미완료(다음 세션 최우선, 기존 이월 항목 포함):
-1. 이번(146차) devnotes 반영 스크립트 실행/push 확인(16절).
-2. **핵심 미결정 사항** -- 1.25 기준선을 축으로 한 fade 밴드의 정확한 상/하한 폭을 로그 시뮬레이션(`analyze.py` 확장)으로 결정하지 못했다.
-3. 위 게이팅 후보를 실제로 코드에 반영하기 전에, 위험 시나리오(142차 rlog 또는 97~110차 idx5/8/9 급감속 이벤트)로 재생 검증해 margin_ratio가 실제로 낮아지는 구간에서 게이트가 정상적으로 열리는지 확인 필요(11절, 코드 반영 전 증거 기반 원칙) -- 완료 전까지 코드 반영 착수하지 않음.
-4. 이번 세션의 임시 스크립트(`extract.py`/`analyze.py`)를 `devnotes/toolkit/lead_decel/`에 정식 등록할지 결정 필요.
-5. (9절 체크리스트 8/9번 계열) 이번 세션도 코드 변경이 없어 pwsh 파서 검증/로컬 bare 저장소 dry-run 대상 스크립트가 devnotes 반영 스크립트 1개뿐이며, Termux(bash) 환경 특성상 `bash -n` 문법 확인 + 로컬 bare 저장소 실행 검증을 (실행자가) 별도로 수행할 것을 전제로 함.
-6. 114차 계열 이월 항목(변동 없음): xTurn=6(톨게이트) 케이스 로그 미확보, 디바이스 `MapTurnSpeedFactor`(base) 실측값 미확인.
-7. 110차 GATE_M 관련 추가 실차 사례(변동 없음).
-8. devnotes/toolkit/replace_block_template.ps1의 재사용 헬퍼에 Invoke-Git 패턴 반영(140차부터 이월, 아직 미착수, 146차도 코드 반영 스크립트가 아니라 해당 없음).
+1. 이번(147차) 두 반영 스크립트(코드/devnotes) 실행/push 확인(16절) -- 실제 GitHub에는 아직 아무것도 반영되지 않음.
+2. **핵심 미해소** -- 146차부터 이월된 위험 시나리오(142차 rlog 또는 97~110차 idx5/8/9 급감속 이벤트) 재생 검증이 이번 세션에서도 수행되지 않았다. 사용자가 "이미 승인된 것으로 보고 진행"을 명시적으로 선택해 건너뛴 것이며, 11절 원칙(코드 반영 전 증거 기반)이 해소된 것은 아니다. margin_ratio가 실제로 낮아지는 구간에서 이 게이트(PREVIEW_GATE_M_LO/HI=1.05/1.25)가 실제 로그 위에서 정상적으로 열리는지는 다음 세션에서도 여전히 미확인 상태로 최우선 권장.
+3. 146차부터 이월된 fade 밴드 폭(1.05/1.25) 자체도, 이번 세션에서 사용자 승인 전제로 그대로 채택했을 뿐 이 세션이 독자적으로 로그 재검증을 완료한 것은 아니다.
+4. 이번 세션의 검증에 쓰인 diff/블록 추출 스크립트(임시, toolkit 미등록)를 정식 등록할지 결정 필요.
+5. 114차 계열 이월 항목(변동 없음): xTurn=6(톨게이트) 케이스 로그 미확보, 디바이스 `MapTurnSpeedFactor`(base) 실측값 미확인.
+6. 110차 GATE_M 관련 추가 실차 사례(변동 없음).
+7. devnotes/toolkit/replace_block_template.ps1의 재사용 헬퍼에 Invoke-Git 패턴 반영(140차부터 이월, 아직 미착수, 147차도 코드 반영 스크립트가 Invoke-Git을 그대로 재사용했을 뿐 헬퍼 자체 개선은 아님).
+
+검증:
+- 정적: py_compile(5개 파일) 통과, pytest 157건(기존 142+신규 15) 통과 -- GitHub tarball 기반 실제 openpilot 트리에서 독립 재실행으로 확인(업로드 자료 주장의 검증이 아니라 재현).
+- 스크립트: pwsh 7.6.6 파서 구문 오류 0건, 로컬 bare 저장소 일반/Windows CRLF 재현 두 모드 모두 byte-exact 성공(9절 체크리스트 9번).
+- 실차: 미실시(12절). 위험 시나리오 재생 검증(로그 기반)도 미실시 -- 이번 세션에서 사용자 승인으로 건너뜀.
+
+주의사항:
+- 이번 147차 코드 값(PREVIEW_GATE_M_LO/HI=1.05/1.25)은 다른/끊긴 세션의 미검증 산출물을 사용자가 검토·승인한 것으로 간주해 채택한 것으로, 이 세션이 로그 기반으로 새로 도출/검증한 값이 아니다. 다음 세션은 이 사실을 인지하고, 가능하면 위험 시나리오 재생 검증(미완료 2번)을 우선 처리할 것을 권장.
+- 코드/devnotes 두 반영 스크립트 모두 아직 실행되지 않았다 -- carrot-ryu/carrot-ryu-note 모두 이 세션 시작 시점(139차/146차) 그대로다.
+
+다음 작업:
+1. 두 반영 스크립트 실행/push.
+2. push 확인 후, 미완료 2번(위험 시나리오 재생 검증)을 최우선으로 처리.

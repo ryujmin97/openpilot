@@ -1,5 +1,30 @@
 # WIP
 
+## 147차 (코드 1건 · 감속 프리뷰 margin+TTC fade 게이트 1.05/1.25 · 실행/push 대기) -- 146차 미완료 ①②를 사용자 승인 전제로 건너뛰고 반영 스크립트 완성
+
+세션 시작 4절 0단계로 지침 문서(v2, commit `3d5fbeb`) 재조회, HANDOFF.md(146차) 확인 -- carrot-ryu HEAD `8e8b0d1a`(139차 상태 그대로, 146차까지 코드 변경 없음), carrot-ryu-note HEAD `3d5fbeb`(146차까지). 이 시점에 GitHub 어디에도 147차 관련 커밋이 없음을 확인.
+
+사용자가 채팅에 붙여넣은 긴 텍스트(다른/끊긴 세션의 147차 작업 로그로 추정)와 업로드된 코드/테스트 파일 5개를 검토한 결과, 그 자료는 146차 HANDOFF.md 미완료 ①(fade 밴드 상/하한 폭 로그 재검증) ②(위험 시나리오 재생 검증)를 완료하지 않은 채 곧바로 `PREVIEW_GATE_M_LO/HI = 1.05, 1.25`를 코드에 반영한 것으로 판단, 3절/11절 원칙에 따라 미검증 참고자료로만 취급하겠다고 먼저 사용자에게 보고. 사용자가 "이미 검토/승인한 것으로 보고 이어서 진행"을 명시적으로 선택(①②의 재검증 자체는 이번 세션에서 새로 수행하지 않고, 업로드 자료의 최종 코드/테스트 내용과 1.05/1.25 값을 승인된 것으로 전제).
+
+GitHub SHA 고정(`8e8b0d1a`) 원본 5개 파일을 직접 재조회해 pre-image blob hash가 업로드 자료가 전제한 값과 정확히 일치함을 확인, 업로드된 5개 파일(post-image)의 blob hash도 별도 계산. 두 세트를 `diff -u`로 대조해 9개 변경 hunk를 얻고, 각 hunk가 SHA 고정 원본에 정확히 1회만 매치하는지 프로그램적으로 확인(9절 체크리스트 7번 -- anchor를 손으로 옮겨 적지 않고 diff에서 직접 추출).
+
+실제 GitHub 저장소 tarball(SHA `8e8b0d1a`)로 openpilot 트리를 재현해 업로드 파일 5개를 적용한 뒤 `py_compile` + `pytest`(`test_lead_gate_margin.py`/`test_longitudinal_preview.py`)를 독립적으로 재실행 -- 157건(기존 142 + 신규 15) 전부 통과를 직접 확인(업로드 자료의 주장을 그대로 신뢰하지 않고 재실행으로 검증).
+
+코드 반영 스크립트(`147cha_code_carrot_ryu.ps1`)를 9절 Replace-Block 패턴(`devnotes/toolkit/replace_block_template.ps1`의 `Invoke-ReplaceBlock`/`Invoke-Git` 재사용)으로 신규 작성, 9절 체크리스트 1~10번 전항목 수행:
+1) BOM `EF BB BF` 확인. 2) 모든 `git clone`에 `--config core.autocrlf=false` 포함. 3) `finally` 블록에 임시폴더 `Remove-Item -Recurse -Force` 확인, 수동 삭제 요청 문구 없음. 4) `py`/`python3`/`python` 순 `--version` 확인 + stdin 빈 문자열 파이프 패턴으로 정적검증 구성. 5) 해당없음(코드 스크립트는 전체재작성이 아니라 Replace-Block만 사용). 6~7) 9개 anchor 전부를 diff에서 추출해 SHA 고정 원본에 시뮬레이션, 정확히 1회 매치 + 치환 결과 byte-exact 확인. 8) pwsh 7.6.6 파서로 구문 오류 0건 확인 -- 최초 생성본에서 `$TargetFiles` 배열 리터럴의 후행 쉼표로 인한 파서 오류 1건을 발견해 수정, 재검증으로 0건 확정. 9) 로컬 bare 저장소(SHA `8e8b0d1a` 트리 기준)를 대상으로 실제 clone→치환→커밋→push까지 스크립트를 끝까지 실행, 일반/Windows CRLF 체크아웃 재현(`GIT_CONFIG_KEY_0=core.eol`/`VALUE_0=crlf`) 두 모드 모두 성공, 두 모드 모두 최종 blob hash가 업로드 자료의 post-image와 byte-exact 일치, `git show --numstat`(5 files changed, 132 insertions(+), 15 deletions(-))도 두 모드 동일함을 확인. 이 과정에서 PowerShell here-string(`@'...'@`) 안에 작은따옴표 이스케이프(더블링)를 잘못 적용해 `sm['carState']` 등 코드 내 작은따옴표가 깨지는 버그를 일반 모드 dry-run에서 발견/수정(here-string은 작은따옴표를 이스케이프하면 안 됨). 10) 저장소 상태를 읽는 모든 git 명령이 `-C $Tmp` 사용 확인.
+
+코드 반영 스크립트는 "실행/push 대기" 상태이며, 실제 GitHub carrot-ryu에는 아직 아무것도 반영되지 않았다(9절/16절 -- 사용자가 스크립트를 실행해야 "반영됨"으로 간주).
+
+실차 검증: 미실시. 12절 원칙에 따라 명확히 표기 -- 이번 세션이 한 것은 정적 diff 재구성/독립 pytest 재실행/PowerShell 스크립트 dry-run(로컬 bare 저장소, 실제 콤마 디바이스 아님) 뿐이다. 146차 HANDOFF.md 미완료 ②(위험 시나리오 재생 검증)는 사용자가 명시적으로 건너뛰기를 승인했을 뿐 실제로 수행되지 않았다 -- margin_ratio가 실제로 낮아지는 위험 구간에서 이 게이트가 실제 로그 위에서 열리는지는 여전히 미확인 상태다.
+
+미완료(다음 세션 이월):
+1. carrot-ryu-note devnotes 반영 스크립트 실행/push 확인.
+2. carrot-ryu 코드 반영 스크립트 실행/push 확인.
+3. **여전히 미실시** -- 위험 시나리오(142차 rlog 등) 재생 검증으로 실제 위험 구간에서 게이트가 열리는지 확인(146차부터 이월, 이번 세션에서도 사용자 승인으로 건너뜀 -- 다음 세션에서 반드시 해소 권장).
+4. 145~146차 이월 사용자 목표("설정 차간거리 유지 + 위험하지 않으면 앞차 반응 무시")를 실제 실주행에서 체감으로 확인.
+5. 114차 계열(xTurn=6 톨게이트 케이스 로그 미확보, 디바이스 MapTurnSpeedFactor(base) 실측값 미확인)/110차 GATE_M 추가 실차 사례 -- 변동 없음.
+
+
 ## 146차 (devnotes만 · 코드 변경 없음) -- 감속 프리뷰 게이팅 후보 offline replay 검증 + 설계 기준선(margin_ratio=1.25) 확정
 
 145차가 이월한 두 항목(임계값 설계, offline replay 사전검증)을 이어서 진행. 사용자가 145차와 동일한 route 3세그먼트(`00000446--6455a5f5c4--29/30/31`, 180s)를 재업로드. `initData.gitCommit`(`8e8b0d1a1569295a69a9817e378eef2ad861d79b`)이 현재 carrot-ryu HEAD와 일치함을 재확인(3절/16절).
