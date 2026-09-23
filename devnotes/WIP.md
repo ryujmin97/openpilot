@@ -1,5 +1,17 @@
 # WIP
 
+## 142차 (devnotes만 · 코드 변경 없음) -- 110차 GATE_M 0.8/1.0 실차 로그 최초 검증, 114차 MAP_TURN_GUIDE_FACTOR는 이번 로그로 미검증 확정
+
+사용자가 실주행 로그 2세그먼트(00000443--c7549a52f2--5/--6, 2026-09-23, 총 120s)를 제공. rlog 안에서 git commit `8e8b0d1a1569295a69a9817e378eef2ad861d79b`(139차/141차 HEAD와 일치)를 직접 확인해 devnotes 기록과 실제 디바이스 상태가 일치함을 실증(3절/16절). 이 커밋 기준으로 cereal/car.capnp 스키마를 새로 sparse-checkout해 devnotes/toolkit(lead_decel/ego_extract.py+ego_episodes.py, route_decel/route_extract.py)로 분석.
+
+**110차 GATE_M 0.8/1.0**: 이 구간에서 자차 실제 급감속(0.5s 평균 aEgo<-1.0) 에피소드 2건 확인, 둘 다 가/브레이크 페달 미사용(순수 시스템 제어). (1) t=37.9~40.9s, aEgoMin=-3.00 m/s², vEgo 약 51km/h, 선행차 감속 접근(vLead 17.8→10.6, dRel 84.9→26.3) 중 margin_ratio가 정확히 GATE_M_LO(0.8)에 닿아 게이트 완전개방(g≈1). (2) t=54.7~60.1s, aEgoMin=-2.32 m/s², 정지 선행차에 접근·정차(dRel 8.2→5.1, vLead→0) 중 margin은 여유(0.91~1.07, GATE_M_HI 1.0 근처/이상)가 있었으나 TTC항이 게이트를 열어(하이브리드 g=max(margin항,ttc항) 설계 그대로) 정지 직전까지 완전 반응 유지, 이후 정상 감쇠. `long_mpc.py`의 `_gate_raw()`/`process_lead()` 코드를 직접 대조해 두 사례 모두 공식과 부합함을 확인(11절: 추측 아님, 코드+로그 대조 -- 참고로 로그의 `h` 필드는 게이트 내부 ttc 그 자체가 아니라 별도 디버그값 `dRel/max(vEgo,1)`이라 이번 분석에서는 h가 아니라 vEgo-vLead로 ttc를 직접 재계산해 대조함). 이 120초 구간 안에서는 위험하지 않은 상황에 게이트가 과민 개방된 사례 없음. 실차 검증: 있음(단, 표본은 이 2개 이벤트뿐 -- 포괄적 검증 아님).
+
+**114차 MAP_TURN_GUIDE_FACTOR=1.00**: `carrotMan.xTurnInfo`가 전체 2400개 샘플(20Hz) 내내 1(분기/톨게이트 안내 없음)이었음을 확인 -- 이 배율이 적용되는 조건(xTurn=3/4/6) 자체가 이 로그에 없어 검증 불가. 실차 검증: 여전히 미실시(다음에 분기/톨게이트 안내 구간을 지나는 로그가 필요).
+
+toolkit 재사용만 했고 신규 스크립트 등록/수정은 없음(README/CHANGELOG 변경 없음). 실행 환경은 커밋별 sparse-checkout으로 스키마(cereal/*.capnp + car.capnp)만 새로 받아 구성했고, pytest_ci_setup.sh의 params_pyx/msgq_pyx/acados 컴파일은 이번엔 불필요(로그 파싱만 필요). 상세 수치는 위 본문 참고.
+
+**devnotes 반영 스크립트 자가검증(9절) 중 부수 발견(2건)**: (1) 140차 도입 `Invoke-Git` 헬퍼가 파라미터명을 `Args`로 선언한 탓에, PowerShell 이름 접두어 자동매칭으로 `-A`(예: `git add -A`) 호출이 `-Args`로 오인돼 즉시 실패하는 버그를 로컬 bare 저장소 dry-run에서 실증. (2) 이를 고치는 과정에서 `2>&1`을 실수로 재도입해 139/140차 핵심 발견 53(stderr 병합 -> NativeCommandError -> 즉시 중단)이 그대로 재발한 v1이 사용자에게 전달돼 실제 Windows PowerShell 5.1 실행에서 재현됨(컨테이너 dry-run은 핵심 발견 53의 기존 한계 그대로 이를 잡아내지 못함). 두 문제 모두 v2에서 수정(파라미터 미선언 + stderr 비병합 유지) 후 로컬 dry-run 두 모드 재검증 완료, 사용자 재실행 결과 대기. FINDINGS.md 정식 등록은 다음 세션으로 이월(HANDOFF.md 미완료 4번).
+
 ## 141차 (devnotes만 · 코드 변경 없음) -- carrot-ryu Log Uploader Google OAuth 동의 화면 구성/GitHub Pages 호스팅 완료, 실차 로그 전송 정상 확인
 
 **세션 요약**: 최신 커밋 pull 후 실차 주행 시 로그(대시캠 영상·rlog) 전송 에러가 발생한다는 사용자 제보로 시작. 원인은 Google Drive 업로드용 OAuth 동의 화면(consent screen)이 "테스트 중" 상태로 미구성이었던 것(브랜딩 필수 항목 미입력으로 "앱 게시" 버튼 비활성 + 승인된 도메인 미등록)으로 확인.
