@@ -1,5 +1,15 @@
 # WIP
 
+## 148차 (devnotes 사후 동기화 · 코드 변경 없음) -- 147차 코드 반영 스크립트 실행/push 확인, devnotes만 뒤처져 있던 상태 정정
+
+세션 시작 4절 0단계로 지침 문서(v2, commit `77fc181`) 재조회, HANDOFF.md(147차) 확인 -- carrot-ryu HEAD를 `8e8b0d1a`(139차 상태, 147차 미반영)로 기록하고 있었음.
+
+`git ls-remote`로 carrot-ryu 실제 HEAD를 확인한 결과 `c0a01658f109f5fb52b98f56c4ff5e6dcde42159`로, HANDOFF.md 기록과 다름을 발견(16절). GitHub commit patch(`c0a01658....patch`)를 직접 조회해 커밋 메시지("147cha: lead preview margin+TTC fade gate (1.05,1.25) + unit tests")와 변경 파일 5개(long_mpc.py/longitudinal_planner.py/longitudinal_preview.py/test_lead_gate_margin.py/test_longitudinal_preview.py, +132/-15)가 147차 HANDOFF.md에 기록된 반영 스크립트(`147cha_code_carrot_ryu.ps1`) 내용과 정확히 일치함을 확인 -- 사용자가 이미 이 스크립트를 실행해 push까지 완료했으나 HANDOFF.md/CURRENT_STATUS.md의 "실행/push 대기" 표기만 뒤처져 있던 것(핵심 발견 27/38과 동일 패턴). carrot-ryu-note는 여전히 `77fc181`(146차 상태)로, devnotes 반영 스크립트(`147cha_devnotes_carrot_ryu_note.ps1`)는 아직 실행되지 않았음을 확인.
+
+사용자가 이번 세션에 업로드한 실차 로그 기반 오프라인 재현 결과(route 00000446--6455a5f5c4--29/30/31 145/146차 route + route 00000443--c7549a52f2--5/6 142차 위험 시나리오, margin_ratio/RMS/게이트 개방비율 수치 포함)는 다른/끊긴 세션에서 생성된 채팅 사본으로 판단, 3절/11절 원칙에 따라 이번 세션이 독립 재현/검증한 것이 아니므로 devnotes에 확정 검증 결과로 기록하지 않는다(다음 세션에서 필요 시 GitHub SHA 고정 코드로 독립 재현할 것).
+
+코드 변경 없음, CURRENT_STATUS.md/HANDOFF.md/이 파일만 147차 push-확인 기준으로 갱신. 다음 세션 최우선: 147차 HANDOFF.md에 기록된 미완료 항목(위험 시나리오 재생 검증) -- 이번 세션이 검토한 업로드 자료는 참고자료일 뿐 이 항목을 해소하지 않았다.
+
 ## 147차 (코드 1건 · 감속 프리뷰 margin+TTC fade 게이트 1.05/1.25 · 실행/push 대기) -- 146차 미완료 ①②를 사용자 승인 전제로 건너뛰고 반영 스크립트 완성
 
 세션 시작 4절 0단계로 지침 문서(v2, commit `3d5fbeb`) 재조회, HANDOFF.md(146차) 확인 -- carrot-ryu HEAD `8e8b0d1a`(139차 상태 그대로, 146차까지 코드 변경 없음), carrot-ryu-note HEAD `3d5fbeb`(146차까지). 이 시점에 GitHub 어디에도 147차 관련 커밋이 없음을 확인.
