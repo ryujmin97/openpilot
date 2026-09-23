@@ -1,5 +1,9 @@
 # WIP
 
+## 150차 (devnotes만 · 코드 변경 없음) -- fade 밴드 폭(1.05/1.25) 사용자 확정, 146~149차 이월 항목 해소
+
+149차에서 확보한 fade 밴드 스윕 재생 자료(WIP.md 149차 표: m<=1.05 표본 100% 완전개방, TTC<=8s 접근 97.2% 완전개방, 위험 이벤트 2건에서 출력 a_target 제동 약화 최대 0.088 m/s²(0.15s), 446 세그먼트 프리뷰 활성 80.6->15.8%/RMS -91.3%)를 검토한 사용자가 현재 밴드 폭(PREVIEW_GATE_M_LO/HI=1.05/1.25, TTC 6/12s)을 그대로 유지하기로 확정했다. 이 값은 이미 147차(commit `c0a01658`)에 코드로 반영되어 있어 별도 코드 변경 없음(devnotes만 갱신). 146차 이후 이월되던 "fade 밴드 폭 확정" 항목 해소, HANDOFF.md 미완료 2번에서 제거. 실차 검증: 미실시(149차 재생은 로그 기록 시점에 147차 코드가 없었던 시뮬레이션이며, 이 결정도 그 시뮬레이션 결과에 근거한다 -- 12절).
+
 ## 149차 (devnotes + toolkit만 · 코드 변경 없음) -- 147차 감속 프리뷰 게이트(PREVIEW_GATE_M_LO/HI=1.05/1.25) 실로그 재생 검증(open-loop), 146/147/148차 이월 "위험 시나리오 재생 검증" 수행
 
 세션 시작 4절 0단계로 지침 문서(v2, commit `77fc181`) 조회. 148차 devnotes push 확인(carrot-ryu-note `ce81555`, 부모 `77fc181`, 3 files +37/-35, GitHub 직접 재조회). 참고: 148차 v1 반영 스크립트가 `Invoke-Git`을 새로 쓰면서 `2>&1` + `param()`을 재도입해 실제 Windows PowerShell 5.1에서 `git clone` 단계 `NativeCommandError`로 중단(아무것도 push되지 않음, 핵심 발견 53/55와 동일 패턴 3회째 -- toolkit 정식 `Invoke-Git`을 확인하지 않고 재작성한 것이 원인). toolkit 정식판을 그대로 쓴 v2(`148cha_devnotes_carrot_ryu_note-v2.ps1`)로 재실행해 성공. FINDINGS.md 등록은 이월(HANDOFF.md 미완료).
