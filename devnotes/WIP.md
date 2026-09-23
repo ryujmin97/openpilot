@@ -1,5 +1,17 @@
 # WIP
 
+## 145차 (devnotes만 · 코드 변경 없음) -- 고속도로 리드추종 "출렁임" 원인 조사: 감속 프리뷰(get_lead_preview_request) 게이팅 부재 확인
+
+사용자가 "고속도로 앞차 추종 정속주행 시 앞차의 (가)속도 변화에 내차가 출렁인다, 위험하지 않다고 판단되면 반응요소를 무시하게 하는 게 어떤가"라는 문제를 제기. 사용자가 제공한 실주행 rlog 3세그먼트(`00000446--6455a5f5c4--29/30/31`, 각 ~60s 연속구간, 총 180s)로 조사 착수.
+
+**검증**: 3개 세그먼트 모두 `initData.gitCommit`(`8e8b0d1a1569295a69a9817e378eef2ad861d79b`)이 현재 carrot-ryu HEAD와 일치, `dirty=False`(3절/16절). 이 커밋 기준 `openpilot/cereal/*.capnp` + `opendbc_repo/opendbc/car/car.capnp`를 새로 sparse-checkout하고 pycapnp 패키지 내장 `include/c++.capnp`까지 준비해 스키마 디렉터리를 구성(113차 route_extract.py의 README 관례와 동일 조합). 세션 로컬 추출 스크립트(toolkit 미등록, 1회성 분석용)로 `carState`/`carControl`/`longitudinalPlan`(리드 프리뷰 진단 필드: `aTargetBase`/`leadPreviewSeconds`/`leadPreviewAccel`/`aChangeCost`/`tFollow`/`desiredDistance` 포함)/`radarState.leadOne`(`dRel`/`vRel`/`aLeadK`/`vLeadK`/`aLead`/`radar`)을 20Hz로 병합.
+
+**관찰**: 180초 전체 중 `longitudinalPlan.leadPreviewSeconds`(조기감속 프리뷰)가 80.7% 시간 동안 활성. 간격 여유가 충분한 구간(`gapMargin` = `dRel - desiredDistance` > 15m, 2144/17999 표본)만 따로 봐도 활성 비율이 78.9%로 거의 차이 없음 -- 즉 간격 여유와 사실상 무관하게 반응. `leadPreviewAccel`(상대가속도 신호)의 부호가 초당 약 2.9회 뒤집힘. `longitudinalPlan.aChangeCost`는 180초 내내 정확히 200.0으로 고정 -- 즉 반대 방향(리드가 다시 가속할 때 MPC 코스트를 완화해주는 양의 응답, `get_lead_accel_mpc_request()`)은 이 표본에서 한 번도 발동하지 않음.
+
+**코드 확인**(11절, 추측 아님): `openpilot/selfdrive/controls/lib/longitudinal_preview.py`의 `get_lead_preview_request()`(감속 프리뷰 쪽, `longitudinal_planner.py`에서 호출)는 `a_lead - a_ego`에 ±0.10 데드밴드만 적용하고, `lead.status`/`radar`/`radarTrackId` + 운전자 개입(gas/brake) 외에는 게이팅이 전혀 없다 -- 거리(dRel)도 상대속도(vRel)도 보지 않는다. 반면 같은 파일의 `get_lead_accel_mpc_request()`(양의 응답, `long_mpc.py:537`에서 호출, `longitudinal_planner.py`에는 없음 -- grep으로 호출 위치가 다른 파일임을 확인)는 이미 `gap_margin`/`closing_speed_floor`/`prediction_horizon`으로 "안전하게 벌어지는 중"인지 게이팅하고 있다. 즉 양방향 중 감속 프리뷰 쪽만 위험도 게이팅이 빠진 비대칭 구조를 확인했다.
+
+**제안 및 다음 단계**: 사용자 제안(위험하지 않으면 반응요소 무시)은 위 비대칭을 감속 쪽에도 대칭 적용하자는 것으로, 기존 코드 패턴과 일치하는 합리적 방향이라고 판단해 사용자에게 전달함. 다만 종방향 제어 핵심 로직이라 (1) `gap_margin`/`vRel` 임계값 구체 설계, (2) 코드 반영 전 이 3개 로그(180s)로 offline replay 재계산해 출렁임이 실제로 줄어드는지 사전 검증(11절), (3) 사용자의 방향 확정 -- 세 가지가 남아 이번 세션은 코드 변경에 착수하지 않았다. 실차 검증: 해당 없음(분석만).
+
 ## 144차 (devnotes만 · 코드 변경 없음) -- 114차 MAP_TURN_GUIDE_FACTOR=1.00 최초 실차 검증(분기/차로변경 안내 구간)
 
 사용자가 실주행 로그 1세그먼트(`00000446--6455a5f5c4--20`, 2026-09-23, 60.1s)를 제공. rlog 안 `initData.gitCommit`(`8e8b0d1a1569295a69a9817e378eef2ad861d79b`)/`gitBranch`(`carrot-ryu`)를 직접 디코딩해 139/141/143차 HEAD와 일치함을 확인, 로그와 devnotes 기록이 같은 코드 상태를 가리킴을 실증했다(3절/16절). 이 커밋 기준으로 `openpilot/cereal/*.capnp` + `opendbc_repo/opendbc/car/car.capnp`를 GitHub에서 새로 sparse-checkout해 스키마 디렉터리를 구성하고, `devnotes/toolkit/route_decel/route_extract.py`(113차 등록)를 그대로 재사용해 분석했다(신규 toolkit 없음, README/CHANGELOG 변경 없음).
