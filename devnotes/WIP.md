@@ -1,5 +1,19 @@
 # WIP
 
+## 143차 (devnotes만 · 코드 변경 없음) -- FINDINGS.md에 142차 신규 버그 2건을 핵심 발견 54/55로 정식 등록
+
+142차 HANDOFF.md 미완료 4번(Invoke-Git의 `-A` 충돌 버그 + `2>&1` 재발 회귀를 핵심 발견으로 정식 등록)을 처리. 142차에서는 이 스크립트 자체(HANDOFF.md/WIP.md 서술) 안에만 경위를 기록해뒀을 뿐 FINDINGS.md에는 별도 항목으로 등록하지 않은 상태였다.
+
+FINDINGS.md 최상단(제목 줄 바로 아래, 핵심 발견 53 위)에 두 항목을 신규 삽입:
+- 핵심 발견 54 -- `Invoke-Git` 헬퍼가 파라미터명을 `Args`로 선언해 `git add -A`의 `-A`를 `-Args`의 접두어로 오인, `Missing an argument` 오류로 즉시 실패. 수정: `param()` 선언 제거, 자동 변수 `$args`만 참조.
+- 핵심 발견 55 -- 핵심 발견 54를 고치는 v1 수정에서 `$out = & git @args 2>&1`처럼 `2>&1`을 실수로 재도입해, 139/140차 핵심 발견 53(stderr 병합 -> `NativeCommandError` -> `$ErrorActionPreference="Stop"`으로 즉시 중단)이 그대로 재발함. 사용자의 실제 Windows PowerShell 5.1 실행 로그로 확인, v2(`2>&1` 제거, `$LASTEXITCODE`만으로 판단)로 수정 후 사용자 재실행으로 push 성공(carrot-ryu-note `0fd412f`)까지 GitHub compare API로 재확인됨.
+
+두 항목 모두 원인/수정안/검증/일반화를 갖춘 정식 FINDINGS.md 항목 형식(기존 핵심 발견 51~53과 동일 형식)으로 작성했다. FINDINGS.md는 CRLF 개행을 유지하는 파일이라 삽입 텍스트도 CRLF로 정규화해 삽입했고, WIP.md/CURRENT_STATUS.md는 LF 개행을 유지한 채 삽입했다.
+
+같은 반영 스크립트에서 WIP.md(이 항목)/HANDOFF.md(전체 갱신)/CURRENT_STATUS.md(143차 요약 한 줄 삽입)도 함께 갱신한다. carrot-ryu(코드)는 이번 세션 변경 없음.
+
+이번 세션은 GitHub `ryujmin97/openpilot`(carrot-ryu/carrot-ryu-note/carrot-ryu-v1 전 브랜치)을 로컬에 실제로 bare clone해 9절 체크리스트 9번의 dry-run 인프라로 사용했다. 절차: (1) 대상 커밋(`0fd412f`)의 devnotes 4개 파일 pre-image blob hash를 사전 계산 -> (2) Python으로 삽입/치환 로직을 먼저 시뮬레이션해 anchor 매치 횟수(FINDINGS.md/CURRENT_STATUS.md 각 1회, WIP.md `# WIP\n\n` 1회)와 결과 blob hash를 확정 -> (3) 그 결과를 pre/post-image guard 값으로 스크립트에 내장 -> (4) 실제 PowerShell 스크립트를 pwsh 7.4.6으로 로컬 bare 저장소에 대해 두 모드(일반 체크아웃 / `GIT_CONFIG_KEY_0=core.eol=crlf` Windows CRLF 재현)로 각각 clone부터 push까지 전부 실행. 첫 실행에서 WIP.md 삽입 로직이 삽입 텍스트 자체에 이미 포함된 후행 개행에 스크립트가 개행을 한 번 더 붙여 post-image blob hash가 어긋나는 버그를 실제로 발견(9절 6번 -- anchor 매치 횟수만이 아니라 치환 결과 자체를 재확인하는 절차가 실제로 작동한 사례), 중복 개행 제거로 수정 후 두 모드 모두 재실행해 정상 완료 + post-image blob hash가 사전 계산값과 byte 단위로 일치함을 확인했다. `git cat-file`로 carrot-ryu-note 브랜치 자체에는 `.gitattributes`가 없음(코드 브랜치 carrot-ryu에만 `* text=auto` 존재)을 확인해, 63차/85차(핵심 발견 44)에서 코드 브랜치에 재발했던 CRLF 체크아웃 문제가 devnotes 브랜치에는 구조적으로 해당하지 않음도 이번에 실증했다(참고용 확인이며 다음에도 매번 재확인이 필요하다는 원칙은 유지). 이어서 pwsh 7.4.6(GitHub 릴리스, 리눅스)의 `[System.Management.Automation.Language.Parser]::ParseFile()`로 최종 스크립트의 구문 오류 0건도 확인했다(9절 8번). PowerShell 7 파서 기준이며 Windows PowerShell 5.1 실제 실행을 대신하지는 않는다. 실차 검증: 해당 없음(devnotes만).
+
 ## 142차 (devnotes만 · 코드 변경 없음) -- 110차 GATE_M 0.8/1.0 실차 로그 최초 검증, 114차 MAP_TURN_GUIDE_FACTOR는 이번 로그로 미검증 확정
 
 사용자가 실주행 로그 2세그먼트(00000443--c7549a52f2--5/--6, 2026-09-23, 총 120s)를 제공. rlog 안에서 git commit `8e8b0d1a1569295a69a9817e378eef2ad861d79b`(139차/141차 HEAD와 일치)를 직접 확인해 devnotes 기록과 실제 디바이스 상태가 일치함을 실증(3절/16절). 이 커밋 기준으로 cereal/car.capnp 스키마를 새로 sparse-checkout해 devnotes/toolkit(lead_decel/ego_extract.py+ego_episodes.py, route_decel/route_extract.py)로 분석.

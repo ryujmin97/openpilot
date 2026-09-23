@@ -246,6 +246,8 @@ import)까지 먼저 반영된 뒤에 이어서 처리해야 함 -- WIP_SYNC.md�
 
 - **[142차, devnotes만 · 코드 변경 없음]** 사용자가 제공한 실주행 rlog 2세그먼트(00000443--c7549a52f2--5/--6, 2026-09-23)로 110차 GATE_M 0.8/1.0 + 114차 MAP_TURN_GUIDE_FACTOR=1.00 실차 검증 착수. rlog 안 git commit(`8e8b0d1a1569295a69a9817e378eef2ad861d79b`)이 139/141차 HEAD와 일치함을 확인해 로그와 devnotes 상태 일치를 실증(3절/16절). 그 커밋 기준 cereal/car.capnp 스키마를 새로 sparse-checkout해 devnotes/toolkit(ego_extract.py/ego_episodes.py/route_extract.py)로 분석 -- (1) GATE_M: 자차 실제 급감속(가/브레이크 미사용, 순수 시스템 제어) 에피소드 2건을 확인, long_mpc.py의 _gate_raw()/process_lead() 코드와 대조해 margin_ratio 0.8/1.0 + TTC 하이브리드 게이트가 두 사례 모두 설계 의도대로 동작함(과민 개방 없음)을 실증 -- 이 항목의 프로젝트 역사상 첫 실차 검증. (2) MAP_TURN_GUIDE_FACTOR: carrotMan.xTurnInfo가 이 로그 전체(2400 샘플)에서 계속 1(분기/톨게이트 안내 없음)이었음을 확인해, 이번 로그로는 검증 불가임을 확정(다음 세션은 해당 구간 로그 필요). 코드 변경 없음. 상세: WIP.md 142차 참고.
 
+- **[143차, devnotes만 · 코드 변경 없음]** 142차 HANDOFF.md 미완료 4번을 처리 -- FINDINGS.md 최상단에 핵심 발견 54(`Invoke-Git` 파라미터명 `Args`와 `git add -A`의 `-A` 충돌, `param()` 미선언+`$args`로 수정)/핵심 발견 55(핵심 발견 54 수정 중 `2>&1` 재도입으로 핵심 발견 53이 재발, `2>&1` 재제거로 v2 수정)를 정식 등록. 로컬 bare 저장소(GitHub `carrot-ryu-note` 실제 클론, 대상 `0fd412f`)에서 9절 체크리스트 전항목(anchor 사전 시뮬레이션/BOM 없음/pwsh 7.4.6 파서 구문 오류 0건/로컬 bare 저장소 일반+Windows CRLF 재현 두 모드 clone-to-push 실행/post-image blob hash byte-exact 일치) 통과 확인. 이 과정에서 WIP.md 삽입 로직의 개행 중복 버그를 dry-run으로 실제 발견/수정. carrot-ryu-note에는 `.gitattributes`가 없어(코드 브랜치 전용) CRLF 체크아웃 위험이 devnotes에는 구조적으로 해당하지 않음도 확인. 코드 변경 없음. 상세: WIP.md 143차 참고.
+
 ## 코드 수정 현황 (실차 재검증 전부 미실시)
 
 > **[62차, 20절 리셋 이후 상태 안내]** 아래 목록은 61차 리셋 시점 기준 "이식 체크리스트"다.

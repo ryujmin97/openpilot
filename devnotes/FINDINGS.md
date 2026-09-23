@@ -1,5 +1,29 @@
 # FINDINGS
 
+## 핵심 발견 54 (142차) -- `Invoke-Git` 헬퍼가 파라미터명을 `Args`로 선언해 `git add -A`의 `-A`를 `-Args`로 오인, 즉시 실패
+
+**배경**: 140차에서 핵심 발견 53 수정으로 도입된 `Invoke-Git`(`param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Args) { ... }`) 헬퍼가 140~141차 devnotes 반영 스크립트에서는 문제없이 쓰였다. 142차 devnotes 반영 스크립트가 처음으로 `Invoke-Git -C $Tmp add -A`를 호출했는데, 로컬 bare 저장소 dry-run(9절 체크리스트 9번) 도중 `Missing an argument for parameter 'Args'` 오류로 즉시 실패했다.
+
+**확인된 원인**: PowerShell은 명명 파라미터를 호출 시 축약(접두어) 매칭한다. `Invoke-Git`이 `$Args`라는 이름으로 파라미터를 선언해 두면, 뒤이어 넘어오는 토큰이 정확히 `-A`일 때 이를 `-Args`의 유일한 접두어 후보로 해석해 값 하나를 소비하려 하고, `-A` 다음에 값이 없으면(`git add -A`에서 `-A`가 마지막 옵션인 경우) `Missing an argument` 오류로 즉시 죽는다. `git add -A` 조합을 이 헬퍼로 호출한 것은 142차가 처음이라 140/141차에서는 드러나지 않았다.
+
+**수정안**: `Invoke-Git`에서 `param()` 선언 자체를 없애고 함수 본문에서 PowerShell 자동 변수 `$args`(전달된 인자 배열)만 참조하도록 변경했다. 이름을 선언하지 않으면 애초에 접두어 매칭이 일어나지 않아 `-A`뿐 아니라 향후 등장할 수 있는 다른 단일 옵션(`-a`, `-al` 등)과도 충돌하지 않는다.
+
+**검증**: 로컬 bare 저장소(일반 체크아웃 + Windows CRLF 재현 두 모드)에서 `Invoke-Git -C $Tmp add -A`를 포함한 전체 시나리오를 재실행해 두 모드 모두 정상 완료, commit diff가 예상과 byte 단위로 일치함을 확인했다(142차, 리눅스 pwsh 재현 -- Windows PowerShell 5.1 실제 실행은 아님).
+
+**일반화**: 이름 있는 파라미터로 나머지 인자를 받는 wrapper 함수(`ValueFromRemainingArguments`)를 만들 때는, 그 파라미터 이름이 감싸는 대상 명령(`git` 등)이 받을 수 있는 임의의 단일 옵션 이름과 접두어로 겹치지 않는지 확인하거나, 아예 파라미터를 선언하지 않고 자동 변수 `$args`만 쓴다. `Invoke-Git` 계열 헬퍼는 앞으로 항상 `param()` 미선언 + `$args` 참조 형태를 기본값으로 채택한다.
+
+## 핵심 발견 55 (142차) -- 핵심 발견 54를 고치는 과정에서 `2>&1`을 실수로 재도입, 핵심 발견 53(139차)이 그대로 재발
+
+**배경**: 위 핵심 발견 54의 `-A` 충돌을 고치는 v1 수정에서, `Invoke-Git`의 구현을 `$out = & git @args 2>&1`로 다시 작성했다. 이 v1이 사용자에게 전달돼 실제 Windows PowerShell 5.1에서 실행됐다.
+
+**확인된 원인**: `2>&1`로 stderr를 stdout에 병합하는 것은 139/140차 핵심 발견 53이 이미 정확히 지목하고 제거했던 바로 그 패턴이다. `-A` 충돌 수정에만 집중하느라 `Invoke-Git`을 재작성하면서 이미 해결돼 있던 별개의 문제(스트림 비병합)를 함께 건드린다는 것을 인지하지 못했다. 사용자 실행 로그에서 `git clone`의 정상 진행 메시지("Cloning into ...")만으로 `NativeCommandError`가 발생, `$ErrorActionPreference="Stop"`으로 즉시 중단됨을 확인했다. 리눅스 컨테이너(pwsh)의 로컬 bare 저장소 dry-run 두 모드는 이 회귀를 잡아내지 못했는데, 이는 핵심 발견 53 자체가 이미 명시한 한계(컨테이너와 Windows PowerShell 5.1 사이의 native stderr 처리 차이는 컨테이너 dry-run만으로 재현 불가)와 정확히 같은 이유다.
+
+**수정안**: `Invoke-Git`을 `2>&1` 없이 `& git @args`(스트림 비병합, 콘솔에 그대로 출력)로 되돌리고 `$LASTEXITCODE`만으로 성공/실패를 판단하도록 v2로 수정했다. `-A` 충돌 수정(핵심 발견 54, `param()` 미선언)은 그대로 유지했다.
+
+**검증**: v2를 로컬 bare 저장소(일반/Windows CRLF 재현 두 모드) dry-run으로 재검증(정상 완료, diff/blob hash 일치) 후, 사용자가 실제 Windows PowerShell 5.1에서 v2를 실행해 carrot-ryu-note가 `9b1877f`에서 `0fd412f`로 push됨을 확인했고, GitHub compare API(`9b1877f...0fd412f`, ahead_by 1, 파일별 diffstat이 로컬 dry-run 예측치와 일치)로 직접 재확인했다(16절).
+
+**일반화**: 핵심 발견 53(개별 문제 하나)이 한 번 고쳐졌다고 해서 그 수정이 이후 세션에서도 안전하게 유지된다고 가정하지 않는다. `Invoke-Git` 같은 공통 헬퍼를 다른 버그(핵심 발견 54 등) 때문에 다시 손댈 때는, 그 수정이 이미 확정된 다른 핵심 발견의 조건(여기서는 "stderr를 `2>&1`로 병합하지 않기")을 깨뜨리지 않는지 재작성한 코드를 줄 단위로 직접 대조해 재확인한다(핵심 발견 44의 "체크리스트 서술만 대조하지 말고 코드 자체를 읽어 확인하라"는 원칙과 동일 계열). `devnotes/toolkit/replace_block_template.ps1`에 `Invoke-Git`을 정식 등록할 때는 핵심 발견 54+55가 모두 반영된 버전(파라미터 미선언 + stderr 비병합)을 그대로 채택한다.
+
 ## 핵심 발견 53 (139차) -- Windows PowerShell 5.1에서 `git <cmd> 2>&1 | Write-Host` 패턴이 git의 정상 진행 메시지(stderr)를 오류로 오인해, 성공한 명령인데도 `$ErrorActionPreference="Stop"`으로 즉시 중단됨
 
 **배경**: 139차 코드 반영 스크립트(`139cha_unused_imports_code_carrot_ryu.ps1`)와 devnotes 반영 스크립트(`139cha_devnotes_carrot_ryu_note.ps1`)를 사용자가 실제 Windows PowerShell(5.1, `powershell -ExecutionPolicy Bypass -File`)에서 처음 실행했을 때, 두 스크립트 모두 `git clone` 단계에서 `git : Cloning into '...'...`가 `NativeCommandError`로 출력되며 즉시 `finally`(임시 폴더 정리)로 넘어가 아무 것도 반영되지 않은 채 종료됐다. 두 스크립트는 리눅스 컨테이너에서 pwsh 7.4.6으로 로컬 bare 저장소 일반/Windows CRLF 재현 두 모드 dry-run까지 통과한 뒤 전달된 것이었는데도 실제 Windows PowerShell 5.1 환경에서 재현됐다.
