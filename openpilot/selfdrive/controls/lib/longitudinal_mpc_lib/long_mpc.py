@@ -72,6 +72,14 @@ GATE_T_LO, GATE_T_HI = 6.0, 12.0     # TTC 임계값 (s)
 GATE_TAU_G = 1.0                     # 하강 시정수 (s), 상승은 즉시
 GATE_TAU_TARGET = 1.5                # 약화 시 투사 aLeadTau 목표값
 
+# 147차: 감속 프리뷰(longitudinal_preview.get_lead_preview_request) 전용 fade 게이트.
+# gap=desiredDistance(설정 차간거리)를 margin_ratio 공식에 대입하면 vLead와 무관하게
+# 항상 m=1/LEAD_DANGER_FACTOR=1.25가 성립(대수적으로 도출, 145~147차). 이 물리적 경계값을
+# 상한으로 삼고, 폭은 기존 GATE_M(0.8~1.0, 폭 0.20)과 동일하게 유지해 하한을 1.05로 결정
+# (142차 route 위험 이벤트 중 TTC 미개입 사례(m=0.899)가 완전 개방(g=1.0)되는 최소 하한).
+# TTC 임계값은 GATE_T_LO/HI를 그대로 재사용(안전 상한은 항상 TTC가 보장, 147차 스윕 확인).
+PREVIEW_GATE_M_LO, PREVIEW_GATE_M_HI = 1.05, 1.25
+
 def get_a_change_cost(prev_accel_constraint: bool, a_change_cost_starting: float,
                       response_factor: float = 1.0) -> float:
   base_cost = A_CHANGE_COST if prev_accel_constraint else a_change_cost_starting
@@ -361,14 +369,25 @@ class LongitudinalMpc:
     return lead_xv
 
   @staticmethod
-  def _gate_raw(gap, v_ego, v_lead, t_follow, comfort_brake, stop_distance):
+  def _gate_raw(gap, v_ego, v_lead, t_follow, comfort_brake, stop_distance,
+                m_lo=GATE_M_LO, m_hi=GATE_M_HI, t_lo=GATE_T_LO, t_hi=GATE_T_HI):
     d_comf = get_safe_obstacle_distance(v_ego, t_follow, comfort_brake, stop_distance)
     m = (gap + get_stopped_equivalence_factor(max(v_lead, 0.0))) / max(LEAD_DANGER_FACTOR * d_comf, 1e-3)
-    g = np.clip((GATE_M_HI - m) / (GATE_M_HI - GATE_M_LO), 0., 1.)
+    g = np.clip((m_hi - m) / (m_hi - m_lo), 0., 1.)
     if v_ego - v_lead > 0.1:
       ttc = gap / (v_ego - v_lead)
-      g = max(g, np.clip((GATE_T_HI - ttc) / (GATE_T_HI - GATE_T_LO), 0., 1.))
+      g = max(g, np.clip((t_hi - ttc) / (t_hi - t_lo), 0., 1.))
     return float(g), float(m)
+
+  def preview_gate(self, gap, v_ego, v_lead):
+    """147차: 감속 프리뷰(longitudinal_preview.get_lead_preview_request)용 margin+TTC fade 게이트.
+    _gate_raw와 동일한 공식을 PREVIEW_GATE_M_LO/HI(1.05/1.25) 밴드로 재사용하고,
+    TTC 임계값(GATE_T_LO/HI)은 process_lead()의 a_lead_tau 게이트와 공유한다.
+    이번 사이클의 t_follow/comfort_brake/stop_distance(_gate_ctx, update()가 매 주기 갱신)를 사용."""
+    t_follow_g, comfort_brake_g, stop_distance_g = self._gate_ctx
+    g, _ = self._gate_raw(gap, v_ego, v_lead, t_follow_g, comfort_brake_g, stop_distance_g,
+                          m_lo=PREVIEW_GATE_M_LO, m_hi=PREVIEW_GATE_M_HI)
+    return g
 
   def process_lead(self, lead, lead_index):
     v_ego = self.x0[1]

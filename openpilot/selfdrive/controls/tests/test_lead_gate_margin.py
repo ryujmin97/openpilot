@@ -14,7 +14,8 @@ DT = 0.05
 def load():
   path = Path(__file__).resolve().parents[1] / "lib/longitudinal_mpc_lib/long_mpc.py"
   tree = ast.parse(path.read_text(encoding="utf-8"))
-  consts = {"LEAD_DANGER_FACTOR", "GATE_M_LO", "GATE_M_HI", "GATE_T_LO", "GATE_T_HI", "GATE_TAU_G", "GATE_TAU_TARGET"}
+  consts = {"LEAD_DANGER_FACTOR", "GATE_M_LO", "GATE_M_HI", "GATE_T_LO", "GATE_T_HI", "GATE_TAU_G", "GATE_TAU_TARGET",
+            "PREVIEW_GATE_M_LO", "PREVIEW_GATE_M_HI"}
   assigns = [node for node in tree.body if isinstance(node, ast.Assign)
              and any(isinstance(t, ast.Name) and t.id in consts for t in node.targets)]
   # "GATE_M_LO, GATE_M_HI = ..." 처럼 튜플 대입도 포함되도록 Tuple 타깃 처리
@@ -23,7 +24,8 @@ def load():
   helpers = [node for node in tree.body if isinstance(node, ast.FunctionDef)
              and node.name in ("get_stopped_equivalence_factor", "get_safe_obstacle_distance")]
   mpc = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "LongitudinalMpc")
-  methods = [node for node in mpc.body if isinstance(node, ast.FunctionDef) and node.name in ("_gate_raw", "process_lead", "extrapolate_lead")]
+  methods = [node for node in mpc.body if isinstance(node, ast.FunctionDef)
+             and node.name in ("_gate_raw", "process_lead", "extrapolate_lead", "preview_gate")]
   times = np.array([10. * (i / 12) ** 2 for i in range(13)])
   ns = {"np": np, "COMFORT_BRAKE": COMFORT_BRAKE, "STOP_DISTANCE": STOP_DISTANCE, "ACCEL_MIN": -3.5,
         "LEAD_ACCEL_TAU": 1.5, "T_IDXS": times, "T_DIFFS": np.diff(times, prepend=0.),
@@ -136,3 +138,46 @@ def test_process_lead_without_lead_resets_gate():
   self._gate_g[:] = 0.3
   M.process_lead(self, NS(status=False), 0)
   assert self._gate_g[0] == 1.0 and self._gate_g[1] == 0.3
+
+
+# --- 147차: preview_gate() (PREVIEW_GATE_M_LO/HI = 1.05/1.25) ---
+
+def preview(v_ego, v_lead, gap, t_follow=T_FOLLOW):
+  ns, M, self = make(v_ego, t_follow)
+  return M.preview_gate(self, gap, v_ego, v_lead)
+
+
+def test_preview_gate_steady_following_is_fully_relaxed():
+  # 설정 차간거리 유지 중(gap = tFollow*v + stop_distance)에는 항상 m=1.25=PREVIEW_GATE_M_HI -> g=0
+  for v in (5., 15., 25.):
+    assert preview(v, v, steady_gap(v)) == pytest.approx(0., abs=1e-9)
+
+
+def test_preview_gate_engages_at_or_below_lo():
+  # 142차 route의 TTC 미개입 위험 이벤트(m=0.899, <= PREVIEW_GATE_M_LO=1.05) -> 완전 개방(g=1.0)
+  ns = load()[0]
+  lo = ns["PREVIEW_GATE_M_LO"]
+  v_ego, v_lead = 20., 15.
+  d_comf = v_ego ** 2 / (2 * COMFORT_BRAKE) + T_FOLLOW * v_ego + STOP_DISTANCE
+  gap = lo * 0.8 * d_comf - v_lead ** 2 / (2 * COMFORT_BRAKE)
+  assert preview(v_ego, v_lead, gap) == pytest.approx(1.0)
+  # 더 가까우면(m < lo) 여전히 1.0으로 clip
+  assert preview(v_ego, v_lead, gap * 0.8) == 1.0
+
+
+def test_preview_gate_linear_between_bands():
+  v = 20.
+  d_comf = v ** 2 / (2 * COMFORT_BRAKE) + T_FOLLOW * v + STOP_DISTANCE
+  ns = load()[0]
+  mid = (ns["PREVIEW_GATE_M_LO"] + ns["PREVIEW_GATE_M_HI"]) / 2
+  gap = mid * 0.8 * d_comf - v ** 2 / (2 * COMFORT_BRAKE)   # 접근 없음(TTC 성분 0)이라 margin 성분만 테스트
+  assert preview(v, v, gap) == pytest.approx(0.5)
+
+
+def test_preview_gate_ttc_still_engages_even_when_margin_is_relaxed():
+  # margin은 완전 약화 구간(m>=1.25)이어도 빠른 접근(TTC<=6s)이면 완전 개방
+  g = preview(10., 0., 55.)   # 동일 조건: GATE_T_LO/HI를 공유하는 _gate_raw 기존 테스트와 같은 값
+  assert g == 1.0
+  # TTC가 12s를 넘으면 TTC 성분이 열리지 않고, margin도 완전 약화 구간이라 g=0
+  g2 = preview(10., 0., 130.)
+  assert g2 == 0.

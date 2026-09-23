@@ -22,12 +22,13 @@ from openpilot.selfdrive.controls.lib.longitudinal_preview import (
 )
 
 
-def preview_request(mode, a_lead, *, a_ego=0.0, lead_status=True):
+def preview_request(mode, a_lead, *, a_ego=0.0, lead_status=True, gate=1.0):
   return get_lead_preview_request(
     mode,
     lead_status=lead_status,
     a_lead=a_lead,
     a_ego=a_ego,
+    gate=gate,
   )
 
 
@@ -126,6 +127,46 @@ def test_preview_is_disabled_for_invalid_or_missing_lead():
   assert not preview_request(DRIVING_MODE_SAFE, -1.0, lead_status=False).active
   assert not preview_request(DRIVING_MODE_SAFE, float('nan')).active
   assert not preview_request(DRIVING_MODE_SAFE, -1.0, a_ego=float('nan')).active
+
+
+# --- 147차: gate (long_mpc.LongitudinalMpc.preview_gate 결과) ---
+
+def test_gate_default_reproduces_ungated_behavior():
+  # gate 인자를 생략하면(기존 호출부와 동일) 이전과 완전히 같은 offset_s가 나와야 한다.
+  assert preview_request(DRIVING_MODE_NORMAL, -0.5).offset_s == pytest.approx(0.4)
+
+
+def test_gate_scales_lead_accel_signal_and_offset_linearly():
+  full = preview_request(DRIVING_MODE_NORMAL, -0.5, gate=1.0)
+  half = preview_request(DRIVING_MODE_NORMAL, -0.5, gate=0.5)
+  assert half.lead_accel_signal == pytest.approx(full.lead_accel_signal * 0.5)
+  assert half.offset_s == pytest.approx(full.offset_s * 0.5)
+  assert half.active
+
+
+def test_gate_zero_fully_suppresses_preview_but_stays_active():
+  result = preview_request(DRIVING_MODE_NORMAL, -0.5, gate=0.0)
+  assert result.active          # 리드는 여전히 유효 -- 프리뷰 신호만 0
+  assert result.lead_accel_signal == 0.0
+  assert result.offset_s == 0.0
+
+
+def test_gate_is_clamped_to_unit_interval():
+  over = preview_request(DRIVING_MODE_NORMAL, -0.5, gate=2.0)
+  full = preview_request(DRIVING_MODE_NORMAL, -0.5, gate=1.0)
+  assert over.offset_s == pytest.approx(full.offset_s)
+  under = preview_request(DRIVING_MODE_NORMAL, -0.5, gate=-1.0)
+  assert under.offset_s == 0.0
+
+
+def test_gate_does_not_affect_positive_lead_acceleration_case():
+  result = preview_request(DRIVING_MODE_NORMAL, 1.1, gate=0.0)
+  assert result.active
+  assert result.offset_s == 0.0   # 원래도 0.0(가속 리드는 프리뷰 없음)이라 gate와 무관
+
+
+def test_gate_nan_disables_preview_like_other_invalid_inputs():
+  assert not preview_request(DRIVING_MODE_SAFE, -1.0, gate=float('nan')).active
 
 
 def test_response_costs_progress_from_gentle_to_maximum():

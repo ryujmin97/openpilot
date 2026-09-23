@@ -248,13 +248,22 @@ def get_lead_preview_request(
   lead_status: bool,
   a_lead: float,
   a_ego: float = 0.0,
+  gate: float = 1.0,
 ) -> PreviewRequest:
-  """Map negative relative acceleration to an early-deceleration preview."""
+  """Map negative relative acceleration to an early-deceleration preview.
+
+  `gate` (0..1, 147cha) fades the preview toward zero while the current gap
+  stays close to the configured following distance and TTC is not short --
+  see LongitudinalMpc.preview_gate() in long_mpc.py for the margin+TTC gate
+  that produces it. gate=1.0 (default) reproduces the previous, ungated
+  behavior for any other caller.
+  """
   tuning = MODE_TUNING.get(_mode_value(driving_mode))
-  if tuning is None or not lead_status or not all(math.isfinite(value) for value in (a_lead, a_ego)):
+  if tuning is None or not lead_status or not all(math.isfinite(value) for value in (a_lead, a_ego, gate)):
     return PreviewRequest(0.0, 0.0, False)
 
-  lead_accel_signal = _lead_accel_signal(a_lead, a_ego, tuning.ego_accel_factor)
+  gate = max(0.0, min(1.0, float(gate)))
+  lead_accel_signal = gate * _lead_accel_signal(a_lead, a_ego, tuning.ego_accel_factor)
   offset_s = (
     min(-lead_accel_signal * tuning.decel_factor, tuning.decel_preview_max)
     if lead_accel_signal < 0.0 else 0.0

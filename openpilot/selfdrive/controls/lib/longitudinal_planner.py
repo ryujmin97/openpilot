@@ -250,16 +250,19 @@ class LongitudinalPlanner:
       and not sm['carState'].gasPressed
       and not sm['carState'].brakePressed
     )
+    lead_preview_gated = (
+      preview_enabled and lead.status and lead.radar and lead.radarTrackId >= 0
+    )
+    preview_gate = (
+      self.mpc.preview_gate(lead.dRel, sm['carState'].vEgo, lead.vLead)
+      if lead_preview_gated else 1.0
+    )
     preview_request = get_lead_preview_request(
       carrot.myDrivingMode,
-      lead_status=(
-        preview_enabled
-        and lead.status
-        and lead.radar
-        and lead.radarTrackId >= 0
-      ),
+      lead_status=lead_preview_gated,
       a_lead=lead.aLeadK,
       a_ego=sm['carState'].aEgo,
+      gate=preview_gate,
     )
     if preview_enabled:
       # Losing radar support stops requesting preview; it must not erase an
