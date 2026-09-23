@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-24 (149차)
+- lead_decel/ 추가: replay_gate147.py, extract_radar_flag.py (147차 감속 프리뷰 게이트 실로그 재생, README 149차 추가 참고). 실제 `_gate_raw`/`longitudinal_preview.py`를 원문 재사용하는 방식. 기존 스크립트는 변경 없음.
+
 ## 2026-09-23 (144차)
 - replace_block_template.ps1에 `Invoke-Git` 헬퍼 신규 등록(핵심 발견 53+54+55가 모두 반영된 버전): stderr를 stdout과 병합하지 않음(2>&1 금지) + 이름 있는 파라미터 미선언(자동 변수 $args만 참조, `git add -A`의 `-A` 접두어 충돌 차단). 142차 FINDINGS.md 핵심 발견 54/55가 예고한 "toolkit 정식 등록"을 이번에 반영. README.md에 사용법 설명 추가. 기존 Invoke-ReplaceBlock/-CrlfNative는 변경 없음.
 

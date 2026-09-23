@@ -111,3 +111,14 @@ Claude 샌드박스에서 conftest.py를 포함한 실제 pytest CI 조건을 �
 | `pytest_ci_setup.sh` | `bash pytest_ci_setup.sh [branch]`(기본 carrot-ryu): clone -> apt(capnproto/libzmq) -> pip(Cython/pycapnp/comma-deps-json11/comma-deps-acados 등) -> cereal capnp C++ 헤더 생성 -> `openpilot.common.params_pyx`/`msgq.ipc_pyx` Cython 컴파일 -> `long_mpc.py`용 acados OCP 솔버 코드생성(`ACADOS_SOURCE_DIR` 등 3개 환경변수로 acados wheel 경로 지정) + gcc 링크 + Cython 래퍼 컴파일까지 전부 자동화. 끝에 params/msgq/long_mpc import+instantiate 자가검증 포함 |
 
 실행 후: `cd /home/claude/repo && export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo && python3 -m pytest <경로...>`. 알려진 한계: opendbc 일부 차량(Toyota new_mc/Nissan Leaf 등) DBC는 `opendbc_repo/opendbc/dbc/generator/`에서 별도 생성 단계가 더 필요해 이 스크립트만으로는 없음 -- 그 DBC를 쓰는 CarInterface 생성 테스트는 실패한다(125차 발견, 미해결). `pyray`(cluster/UI)와 xiaoge ONNX 모델(이 환경 OpenCV 버전과 포맷 불일치)도 이 스크립트 범위 밖. 125차 실행 결과(23/23 목표 테스트 통과, 전체 확장 시 1928 passed/59 failed/85 errors)와 발견 사항은 WIP.md 125차 참고.
+
+### 149차 추가 (147차 감속 프리뷰 게이트 실로그 재생: replay_gate147.py, extract_radar_flag.py)
+
+실제 코드를 재구현 없이 재사용해 rlog 위에서 감속 프리뷰 게이트를 20Hz 재생한다. 실차 검증 아님(로그 재생, open-loop).
+
+| 파일 | 역할 |
+|---|---|
+| `lead_decel/extract_radar_flag.py` | run/ 폴더에서 실행: `radarState.leadOne/leadTwo.radar` 플래그 추출 -> `out/radarflag.pkl` (`ego_extract2.py`에 없는 필드, 플래너 `lead.radar` 조건 재현용) |
+| `lead_decel/replay_gate147.py` | `[PBAND=lo,hi] [TAG=_x] python3 replay_gate147.py <run_dir> <src_old> <src_new> [cb] [sd]`: `long_mpc.py`에서 상수/`get_safe_obstacle_distance`/`get_stopped_equivalence_factor`/`LongitudinalMpc._gate_raw`를 ast로 원문 추출해 exec, `longitudinal_preview.py`는 import. 20Hz 주기마다 gate -> `get_lead_preview_request` -> `rate_limit_preview` -> `clip_preview_offset` 체인을 재생하고 로그 `accels`로 출력 a_target을 재구성. 출력 `out/replay147<TAG>.pkl`. 기본 cb=2.4/sd=7.0(149차 swaglog 역산값), 기본 밴드 1.05,1.25 |
+
+준비: `<run_dir>/out/ego2.pkl`(ego_extract2.py) + `out/radarflag.pkl`(extract_radar_flag.py), 폴더 배치는 ego_extract2.py와 동일(`../schema`, `../segs`). `src_old`/`src_new`는 각각 로그 기록 커밋과 비교 대상 커밋의 `openpilot/selfdrive/controls/lib/longitudinal_preview.py`와 `openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py`를 같은 폴더에 사본으로 둔 것(`git fetch --depth 1 --filter=blob:none origin <SHA>` 후 `git show <SHA>:<path>`). 실행하면 재생 신뢰도(새 코드 gate=1 == 기록 커밋 코드, 로그 leadPreviewSeconds/aTargetBase 재현 오차)를 먼저 출력하므로 그 값이 작은지 확인한 뒤 결과를 해석한다. 한계: MPC 궤적은 로그값 고정(자차 거동이 바뀐 뒤의 폐루프는 재현 안 됨), `myDrivingMode`/`reset_state`는 미로깅. 결과와 해석은 WIP.md 149차 참고. `comfort_brake/stop_distance`는 swaglog `lead_gate`(m 소수2자리) 역산으로 정한 값이라 다른 설정의 디바이스 로그에는 다시 역산해야 한다.
