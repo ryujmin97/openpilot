@@ -1,5 +1,20 @@
 # WIP
 
+## 141차 (devnotes만 · 코드 변경 없음) -- carrot-ryu Log Uploader Google OAuth 동의 화면 구성/GitHub Pages 호스팅 완료, 실차 로그 전송 정상 확인
+
+**세션 요약**: 최신 커밋 pull 후 실차 주행 시 로그(대시캠 영상·rlog) 전송 에러가 발생한다는 사용자 제보로 시작. 원인은 Google Drive 업로드용 OAuth 동의 화면(consent screen)이 "테스트 중" 상태로 미구성이었던 것(브랜딩 필수 항목 미입력으로 "앱 게시" 버튼 비활성 + 승인된 도메인 미등록)으로 확인.
+
+**진행**:
+1. GitHub Pages 저장소 `ryujmin97/carrot-oauth-pages`를 신규 생성해 `index.html`(홈페이지)/`privacy.html`(개인정보처리방침)/`terms.html`(서비스 약관) 3개 정적 페이지를 호스팅(`https://ryujmin97.github.io/carrot-oauth-pages/`). 사용자 PC에 GitHub CLI(`gh`) 설치(`winget install --id GitHub.cli`)/`gh auth login`(device flow) 후, PowerShell 스크립트(`setup_gh_pages.ps1`)로 저장소 생성 -> clone -> 파일 commit -> push -> GitHub Pages 활성화까지 자동화. 사용자 PC의 PowerShell 실행 정책(`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`) 제약을 먼저 해소.
+2. Google Cloud Console OAuth 동의 화면(외부 사용자 유형)에 앱 이름, 지원 이메일(ryujmin97@gmail.com), 앱 도메인 3종(애플리케이션 홈페이지/개인정보처리방침/서비스약관 링크), 승인된 도메인, 개발자 연락처 이메일을 구성. 승인된 도메인은 최초 `github.io`만 입력해 "최상위 비공개 도메인이어야 합니다" 오류가 발생했고, `github.io`가 Google 공개 접미사 목록(Public Suffix List)에 등록된 도메인이라 그 앞의 서브도메인 전체(`ryujmin97.github.io`)를 통째로 입력해야 등록됨을 확인/정정.
+3. "프로덕션으로 푸시" 확인 -- `drive.file` 스코프는 민감/제한 범위가 아니고 로고 미등록·도메인 1개뿐이라 정식 Google 검증(Verification) 신청 없이 프로덕션 게시가 가능함을 확인, 게시 완료(사용자 유형: 외부, 게시 상태: 프로덕션 단계). 게시 후 "앱을 인증해야 합니다" 안내 문구는 기능을 막지 않는 표준 안내임을 확인.
+4. 게시 후 콤마 기기에서 Google Drive 로그인 재인증 진행("Google에서 확인하지 않은 앱" 경고는 "고급 -> 이동"으로 통과). 사용자가 실차 주행 후 로그 전송이 에러 없이 정상 동작함을 확인(사용자 보고).
+
+**코드 변경**: 없음(carrot-ryu/carrot-ryu-note 소스 무변경). 이번 작업은 별도 GitHub 저장소(`ryujmin97/carrot-oauth-pages`, GitHub Pages 정적 호스팅)와 Google Cloud Console 설정만 다뤘으며, carrot-ryu의 `gdrive_upload.py`(15~22차에서 만든 OAuth device flow 백엔드) 자체는 손대지 않음.
+
+**실차 검증**: 실주행 중 로그(대시캠 영상·rlog) 전송이 에러 없이 정상 동작함을 사용자가 직접 확인(12절).
+
+**미완료**: 없음(이번 세션 스코프 완료). 다음 세션 후보는 기존 HANDOFF.md 이월 목록(110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00 실차 관찰 등) 그대로 유지.
 ## 140차 (devnotes만 · 코드 변경 없음) -- 139차 반영 확인 + FINDINGS.md 핵심 발견 53 등록 (git 2>&1 stderr NativeCommandError, Windows PowerShell 5.1)
 
 139차 코드/devnotes 반영 스크립트를 사용자가 처음 실행했을 때 두 스크립트 모두 `git clone` 단계에서 `NativeCommandError`로 즉시 중단됐다(`finally`의 임시 폴더 정리만 실행되고 그 외에는 아무 것도 반영되지 않음). 원인은 `git clone ... 2>&1 | Write-Host` 패턴이 git의 정상 진행 메시지(stderr)를 Windows PowerShell 5.1에서 오류로 승격시키고, 스크립트 최상단의 `$ErrorActionPreference = "Stop"`이 이를 터미네이팅 예외로 전환한 것으로 확인됐다(자세한 원인/수정/일반화는 FINDINGS.md 핵심 발견 53 참고). 두 스크립트의 clone/add/commit/push 4곳을 `Invoke-Git` 헬퍼(스트림 병합 없이 `$LASTEXITCODE`만 확인)로 교체한 수정본을 만들어, 리눅스 컨테이너에서 로컬 bare 저장소로 재검증(clone→pre/post-image guard→anchor 치환→py_compile→commit/push 전 과정 정상 실행 확인) 후 재전달했다.

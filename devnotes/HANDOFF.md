@@ -1,39 +1,38 @@
-Worker: Claude (140cha, Claude Sonnet 5)
-Date: 2026-09-22
+Worker: Claude (141cha, Claude Sonnet 5)
+Date: 2026-09-23
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (HEAD: 139차 push 완료 확인 -- 4개 파일 import 4건 삭제 반영됨, GitHub raw 조회로 직접 확인. 정확한 커밋 hash는 API rate limit으로 이번 세션에서 조회하지 못함, 다음 세션에서 `git log -1`로 확정 권장)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 139차 devnotes push 완료 상태)
-carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 세션 재확인 -- 신규 커밋 없음. 이번 140차는 재점검 없음)
+Code Branch: carrot-ryu (HEAD: 139차 push 완료 상태 그대로 유지, `8e8b0d1a1569295a69a9817e378eef2ad861d79b` -- 이번 141차는 코드 변경 없음)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 140차 devnotes push 완료 상태, `31d11784c738544ba223681a9f0d2691c9a3992d`)
+carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 세션 재확인 -- 신규 커밋 없음. 141차는 재점검 없음)
 
 작업:
-1. 139차 코드/devnotes 반영 스크립트를 사용자가 실제 Windows PowerShell 5.1에서 처음 실행했으나, `git clone` 단계에서 `NativeCommandError`로 즉시 중단(둘 다 임시 폴더 정리만 실행됨).
-2. 원인 진단 -- `git ... 2>&1 | Write-Host` 패턴이 git의 정상 stderr 진행 메시지를 Windows PowerShell 5.1에서 오류로 승격시켜 `$ErrorActionPreference="Stop"`으로 중단시킴을 확인.
-3. 두 스크립트의 clone/add/commit/push 4곳을 `Invoke-Git` 헬퍼(스트림 비병합 + `$LASTEXITCODE` 확인)로 교체, 리눅스 컨테이너 로컬 bare 저장소로 재검증 후 재전달.
-4. 사용자가 수정본 실행 완료를 알려왔으나 로그 미첨부 -- 16절 원칙에 따라 GitHub raw 조회로 carrot-ryu(코드)/carrot-ryu-note(devnotes) 양쪽 실제 반영 여부 직접 재확인.
-5. FINDINGS.md에 핵심 발견 53 신규 등록.
+1. 사용자가 최신 커밋 pull 후 실차 주행 시 로그(대시캠 영상·rlog) 전송 에러가 발생한다고 제보.
+2. Google Drive 업로드용 OAuth 동의 화면이 "테스트 중" 상태로 미구성된 것이 원인임을 확인(브랜딩 필수 항목 미입력, 승인된 도메인 미등록).
+3. GitHub Pages 저장소(`ryujmin97/carrot-oauth-pages`)를 신규 생성해 홈페이지/개인정보처리방침/서비스약관 3개 정적 페이지 호스팅.
+4. Google Cloud Console OAuth 동의 화면에 앱 이름/지원 이메일/앱 도메인 3종/승인된 도메인(`ryujmin97.github.io`)/개발자 연락처 이메일 구성.
+5. "프로덕션으로 푸시" 확인, 프로덕션 게시 완료(사용자 유형: 외부).
+6. 기존 OAuth 연결 재인증 진행, 실차 주행으로 로그 전송 정상 동작 확인.
 
 완료:
-1. 139차 코드 반영(carrot-ryu, 미사용 import 4건 삭제) -- GitHub raw 조회로 4개 파일 전부 확인 완료.
-2. 139차 devnotes 반영(carrot-ryu-note, WIP.md/CURRENT_STATUS.md/HANDOFF.md) -- GitHub raw 조회로 확인 완료.
-3. 코드/devnotes 반영 스크립트 2개 모두 `Invoke-Git` 패턴으로 수정, 리눅스 컨테이너 dry-run 재검증 완료(수정 전/후 모두 -- 수정 전 로그만으로는 실제 Windows 5.1 실패가 재현되지 않았다는 한계는 FINDINGS.md 핵심 발견 53에 명시).
-4. FINDINGS.md 핵심 발견 53 등록 -- 배경/확인된 원인/수정안/검증/일반화 5개 문단(52번과 동일 형식), 이 스크립트에 함께 포함.
-5. WIP.md 140차 신설(최상단), CURRENT_STATUS.md 140차 불릿 삽입, HANDOFF.md(이 파일) 전체 갱신.
+1. `ryujmin97/carrot-oauth-pages` 저장소 생성 및 GitHub Pages 활성화(`https://ryujmin97.github.io/carrot-oauth-pages/`).
+2. OAuth 동의 화면 브랜딩/도메인/승인된 도메인 구성 및 프로덕션 게시 완료.
+3. 재인증 후 실차 주행에서 로그 전송 에러 없이 정상 동작 확인(사용자 보고).
+4. WIP.md 141차 신설(최상단), HANDOFF.md(이 파일) 전체 갱신.
 
-미완료(다음 세션 최우선):
-1. 이번(140차) devnotes 반영 스크립트(carrot-ryu-note, FINDINGS.md+WIP.md+CURRENT_STATUS.md+HANDOFF.md 4개 파일) 실행/push 확인(16절). 이번 세션은 GitHub API rate limit으로 `git log`류 커밋 hash 확정 조회를 못 했으므로, 다음 세션 시작 시 carrot-ryu/carrot-ryu-note 정확한 HEAD hash를 먼저 확정할 것.
-2. `devnotes/toolkit/replace_block_template.ps1`의 재사용 헬퍼에도 `Invoke-Git` 패턴(2>&1 병합 대신 $LASTEXITCODE 확인) 반영 -- 140차에서는 아직 손대지 않음, 다음 세션 후보.
+미완료(다음 세션 최우선, 기존 이월 항목 그대로):
+1. 이번(141차) devnotes 반영 스크립트(carrot-ryu-note, WIP.md+HANDOFF.md) 실행/push 확인(16절).
+2. `devnotes/toolkit/replace_block_template.ps1`의 재사용 헬퍼에 `Invoke-Git` 패턴 반영 -- 140차부터 이월, 아직 미착수.
 3. 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR 1.00 -- 여전히 실차 미검증(127차부터 이월, 변동 없음).
 4. WIP_SYNC.md에 139차 세션의 carrot-ms 점검 결과(신규 커밋 없음)를 새 체크포인트로 기록하는 것은 여전히 이월 가능(선택 사항, 낮은 우선순위).
 
-검증: 140차는 코드 변경이 없어 py_compile/build 등 정적 검증 대상 없음. 139차 실제 반영 여부는 GitHub raw 직접 재조회로 확인(16절). 이번 devnotes(FINDINGS.md 핵심 발견 53 삽입 포함)는 리눅스 컨테이너 로컬 bare 저장소 시뮬레이션(anchor 매치 1회+재확인, BOM 없음, FINDINGS.md는 CRLF 원본 유지 확인)으로 검증 예정(9절/16절). 실차 검증: 해당 없음.
+검증: 141차는 코드 변경이 없어 py_compile/build 등 정적 검증 대상 없음. Google Cloud Console/GitHub Pages 설정 자체의 정상 동작은 실차 로그 전송 성공(사용자 보고)으로 확인됨. devnotes 반영 스크립트는 WIP.md anchor(`# WIP\n\n`) 매치 확인 + 쓰기 후 BOM 없음/내용 재확인만 수행(코드 파일이 아니므로 py_compile 대상 없음). 실차 검증: 있음(로그 전송 정상 동작, 12절).
 
 주의사항:
-- 이번 세션은 코드 변경 없이 devnotes만 갱신한다. carrot-ryu HEAD는 139차 반영 그대로(추가 코드 변경 없음).
-- 139차 devnotes 항목(WIP.md/CURRENT_STATUS.md)의 텍스트 자체(예: "실행/push 대기")는 7절 원칙(기존 회차 삭제/수정 금지)에 따라 그대로 두었다 -- 실제로는 이번 140차에서 push 완료가 확인됐다는 점을 140차 항목에서 명시했다.
-- FINDINGS.md는 CRLF 원본 파일이므로, 신규 항목 삽입 시 `Invoke-ReplaceBlock-CrlfNative`(개행 정규화 없이 바이트 그대로 매칭/삽입)를 사용해야 한다(devnotes/toolkit/replace_block_template.ps1 설명 참고, WIP.md/CURRENT_STATUS.md/HANDOFF.md는 LF이므로 기존 `Invoke-ReplaceBlock` 그대로 사용).
+- 이번 세션은 carrot-ryu(코드)/carrot-ryu-note(코드 쪽 devnotes 기록 대상) 소스에 변경이 전혀 없다 -- Google Cloud Console 설정과 별도 GitHub Pages 저장소(`ryujmin97/carrot-oauth-pages`, 이 프로젝트 레포와는 다른 저장소) 구성만 다룬 세션이다.
+- `ryujmin97/carrot-oauth-pages` 저장소는 이 프로젝트(carrot-ryu)의 devnotes 관리 대상이 아니므로, 그 저장소 자체의 커밋 이력은 이 devnotes에 개별 기록하지 않는다(URL과 용도만 기록).
 
 다음 작업 후보:
-1. 140차 devnotes 반영 스크립트 실행/push 확인, 정확한 carrot-ryu/carrot-ryu-note HEAD hash 확정.
+1. 141차 devnotes 반영 스크립트 실행/push 확인.
 2. replace_block_template.ps1에 Invoke-Git 패턴 반영.
 3. 110차/114차 실차 관찰(GATE_M 0.8/1.0, MAP_TURN_GUIDE_FACTOR 1.00).
 4. WIP_SYNC.md 139차(carrot-ms 신규 커밋 없음) 체크포인트 기록(선택).
