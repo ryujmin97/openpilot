@@ -1,5 +1,23 @@
 # WIP
 
+## 144차 (devnotes만 · 코드 변경 없음) -- 114차 MAP_TURN_GUIDE_FACTOR=1.00 최초 실차 검증(분기/차로변경 안내 구간)
+
+사용자가 실주행 로그 1세그먼트(`00000446--6455a5f5c4--20`, 2026-09-23, 60.1s)를 제공. rlog 안 `initData.gitCommit`(`8e8b0d1a1569295a69a9817e378eef2ad861d79b`)/`gitBranch`(`carrot-ryu`)를 직접 디코딩해 139/141/143차 HEAD와 일치함을 확인, 로그와 devnotes 기록이 같은 코드 상태를 가리킴을 실증했다(3절/16절). 이 커밋 기준으로 `openpilot/cereal/*.capnp` + `opendbc_repo/opendbc/car/car.capnp`를 GitHub에서 새로 sparse-checkout해 스키마 디렉터리를 구성하고, `devnotes/toolkit/route_decel/route_extract.py`(113차 등록)를 그대로 재사용해 분석했다(신규 toolkit 없음, README/CHANGELOG 변경 없음).
+
+**142차와의 차이**: 142차 로그(00000443--c7549a52f2--5/6)는 전체 2400 샘플 내내 `carrotMan.xTurnInfo`가 1(안내 없음)이라 이 항목을 검증할 수 없었다. 이번 로그는 `xTurnInfo`가 t=0~25.5s(전체 60.1s 중) 동안 4(우 분기/차로변경 안내)로 켜져 있어, 처음으로 배율이 실제 적용되는 조건을 포함한다.
+
+**관찰 내용** (`route_extract.py extract` 후 표로 확인, xDist 486m(진입)부터 -14m(통과)까지):
+- vEgo가 87.0km/h(t=0)에서 약 57.9km/h(t=22.9)까지 연속적으로 완만히 감속한다. `aEgo`는 이 구간 전체에서 대략 -0.15~-1.2 m/s² 범위에만 머물고(순간 최대치도 약 -1.17 m/s² 1회뿐), 112~114차가 문제삼았던 "정체하다 뒤늦게 급감속"(예: 108차 로그의 -4.0 m/s² 급정거) 패턴은 재현되지 않았다.
+- `carrotMan.desiredSpeed`(des)가 `route=` 원시값을 그대로 따라가며 매끄럽게 낮아진다. `route=` 자체가 간간이 100~150대로 튀는 1프레임 노이즈가 있으나(예: t=1.0s에 152.9, t=6.95s에 101.1), `carControl.actuators.accel`/`longitudinalPlan.aTarget`에는 이 스파이크가 반영되지 않고 무시된다 -- MPC 필터링이 노이즈를 정상적으로 흡수하고 있다.
+- `longitudinalPlan.longitudinalPlanSource`(`lpsrc`)가 이 구간 550개 표본 중 529개가 `cruise`(경로/커브 기반)이고 `lead0`은 21개뿐이며, `radarState.leadOne.dRel`도 50~93m로 여유가 있어(110차 GATE_M이 열릴 만한 근접 상황이 아님) 이번 감속이 리드 게이팅이 아니라 순수 route 커브/분기 안내 로직에 의한 것임을 확인했다(11절: 코드(`carrot_serv.map_turn_speed_factor()`)와 로그 대조로 확정, 추측 아님).
+- t≈23.1~25.5s(분기 지점 통과 직전~직후) 구간은 `selfdriveState.state`가 `overriding`, `carState.gasP`=True로 운전자가 직접 가속페달을 밟아 시스템 제어에서 일시 이탈한 것으로 확인된다(113차계속에서 확립된 "체감 급감속이 시스템이 아니라 운전자 개입인 경우가 있다"는 패턴과 같은 종류이나, 이번엔 브레이크가 아니라 가속페달). 이 2.4초를 제외한 나머지는 전부 `enabled`(시스템 제어) 상태다.
+
+**결론**: 이 1건의 표본에서는 114차가 의도한 대로(가이드 지점 근접 시 배율을 1.05->1.00으로 낮춰 목표속도 과도상승 억제) 동작해, 진입부터 지점 통과까지 완만한 연속 감속만 관찰되고 급제동은 없었다. 실차 검증: 있음(단 표본 1건, xTurn=4(분기/차로변경)만 포함되고 xTurn=6(톨게이트)은 이 로그에 없어 그 케이스는 여전히 미검증).
+
+**하지 않은 것(11절, 과대 서술 방지)**: 이전 배율(1.05)과의 직접 counterfactual 비교(`route_extract.py replay`)는 로그 당시 디바이스의 `MapTurnSpeedFactor`(base) 실측값을 몰라 수행하지 않았다 -- `params_keys.h` 기본값은 90(=0.90)이지만 과거 113차 세션은 이 차량 실측값이 135(=1.35)라고 기록했었다(로그 자체에는 이 파라미터 값이 없어 이번 로그만으로는 재확인 불가). 대신 실제 로그에 이미 반영된 결과값(des/route/aEgo)만 직접 관찰했다.
+
+미확인/이월: xTurn=6(톨게이트) 케이스 로그, `MapTurnSpeedFactor` 디바이스 실측값 재확인, 110차 GATE_M 관련 추가 사례(이번 로그는 근접 리드 상황 자체가 없었음).
+
 ## 143차 (devnotes만 · 코드 변경 없음) -- FINDINGS.md에 142차 신규 버그 2건을 핵심 발견 54/55로 정식 등록
 
 142차 HANDOFF.md 미완료 4번(Invoke-Git의 `-A` 충돌 버그 + `2>&1` 재발 회귀를 핵심 발견으로 정식 등록)을 처리. 142차에서는 이 스크립트 자체(HANDOFF.md/WIP.md 서술) 안에만 경위를 기록해뒀을 뿐 FINDINGS.md에는 별도 항목으로 등록하지 않은 상태였다.
