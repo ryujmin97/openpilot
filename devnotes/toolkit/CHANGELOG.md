@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-23 (144차)
+- replace_block_template.ps1에 `Invoke-Git` 헬퍼 신규 등록(핵심 발견 53+54+55가 모두 반영된 버전): stderr를 stdout과 병합하지 않음(2>&1 금지) + 이름 있는 파라미터 미선언(자동 변수 $args만 참조, `git add -A`의 `-A` 접두어 충돌 차단). 142차 FINDINGS.md 핵심 발견 54/55가 예고한 "toolkit 정식 등록"을 이번에 반영. README.md에 사용법 설명 추가. 기존 Invoke-ReplaceBlock/-CrlfNative는 변경 없음.
+
 ## 2026-09-20 (113차 계속)
 - route_decel/ 추가: route_extract.py (route 감속 분석 -- extract/show/replay 3모드, README 참고). 기존 스크립트는 변경 없음.
 

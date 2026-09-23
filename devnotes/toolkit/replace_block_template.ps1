@@ -10,6 +10,7 @@
 
     . "$PSScriptRoot\replace_block_template.ps1"
     Invoke-ReplaceBlock -Path $SomePath -Old $Old -New $New -Label "some_file.py"
+    Invoke-Git -C $Tmp clone --branch $Branch --single-branch --config core.autocrlf=false $RepoUrl $Tmp
 
   왜 필요한가 (핵심 발견 44/46/48/50 재발 방지):
     carrot-ryu의 .gitattributes에는 `* text=auto`가 있다. 이 때문에
@@ -31,6 +32,15 @@
                          파일에 사용한다(Invoke-ReplaceBlock으로 처리하면 파일
                          전체가 LF로 재작성되어, 손대지 않은 기존 줄까지 diff에
                          잡히는 부작용이 생긴다).
+  Invoke-Git           : `git <args...>` 실행 공통 헬퍼(핵심 발견 53/54/55 재발
+                         방지). stderr를 stdout과 병합하지 않고(2>&1 금지),
+                         $LASTEXITCODE로만 성공/실패를 판단한다. 이름 있는
+                         파라미터를 선언하지 않고 자동 변수 $args만 참조한다
+                         (`git add -A`의 `-A`가 파라미터 이름과 접두어 충돌을
+                         일으키는 것을 원천 차단). 사용: `Invoke-Git -C $Tmp
+                         clone --branch $Branch ... `, `Invoke-Git -C $Tmp add
+                         -A`, `Invoke-Git -C $Tmp commit -m $Msg`, `Invoke-Git
+                         -C $Tmp push origin $Branch`.
 
   둘 다 공통으로 지킨다(9절 체크리스트 6/7번):
     - 매치 횟수가 정확히 1이 아니면 아무것도 쓰지 않고 즉시 throw(15절/18절
@@ -104,4 +114,26 @@ function Invoke-ReplaceBlock-CrlfNative {
     }
   }
   Write-Host "$Label post-write recheck OK"
+}
+
+function Invoke-Git {
+  # git 실행 공통 헬퍼 (핵심 발견 53(139차)+54+55(142차) 반영판, 9절 체크리스트 2번과
+  # 마찬가지로 devnotes/코드 반영 스크립트가 매번 새로 작성하지 않고 재사용한다).
+  #
+  # - stderr를 stdout과 병합하지 않는다(2>&1 금지, 핵심 발견 53/55): Windows
+  #   PowerShell 5.1은 병합된 native stderr 라인(예: `git clone`의 정상 진행
+  #   메시지 "Cloning into '...'...")을 NativeCommandError로 감싸고,
+  #   $ErrorActionPreference="Stop" 아래에서는 성공한 명령인데도 즉시 중단시킨다.
+  # - 이름 있는 파라미터를 선언하지 않는다(핵심 발견 54): param()으로 $Args 같은
+  #   이름을 선언하면 PowerShell의 접두어 매칭 때문에 `git add -A`의 `-A`처럼
+  #   뒤에 값이 없는 단일 옵션이 그 파라미터 이름의 유일한 접두어 후보로 오인돼
+  #   "Missing an argument" 오류로 즉시 죽는다. 자동 변수 $args만 참조하면 이런
+  #   접두어 매칭 자체가 일어나지 않는다.
+  #
+  # 성공/실패 판단은 $LASTEXITCODE만 사용한다(native 명령 stderr 출력 자체는
+  # 오류가 아니며, 콘솔에 그대로 흘려보낸다).
+  & git @args
+  if ($LASTEXITCODE -ne 0) {
+    throw "git $($args -join ' ') failed with exit code $LASTEXITCODE"
+  }
 }

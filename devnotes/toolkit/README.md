@@ -2,14 +2,22 @@
 
 재사용 가능한 분석/검증 스크립트 목록
 
-## replace_block_template.ps1 -- 코드/devnotes 반영 스크립트의 Replace-Block 공통 헬퍼 (133차)
+## replace_block_template.ps1 -- 코드/devnotes 반영 스크립트의 Replace-Block + git 실행 공통 헬퍼 (133차, 144차에 Invoke-Git 추가)
 
 문자열 블록 치환(Replace-Block)을 쓰는 모든 반영 스크립트가 매번 새로 작성하지 않고
 그대로 복사해서 쓰는 `Invoke-ReplaceBlock`/`Invoke-ReplaceBlock-CrlfNative` 함수 모음.
 CRLF->LF 정규화(핵심 발견 44/46/48/50 재발 방지)와 치환 결과 재확인(핵심 발견 42 재발
 방지)을 포함한다. FINDINGS.md처럼 원본이 CRLF인 파일은 `-CrlfNative` 변형을 쓴다(전체를
 LF로 재작성하면 손대지 않은 기존 줄까지 diff에 잡히는 부작용이 있음). 9절 체크리스트
-2번이 이 파일 재사용을 요구한다. 상세 사용법은 파일 상단 주석 참고.
+2번이 이 파일 재사용을 요구한다.
+
+`Invoke-Git`(144차 신규): `git <args...>` 실행 공통 헬퍼. stderr를 stdout과 병합하지
+않고(2>&1 금지, 핵심 발견 53/55) `$LASTEXITCODE`만으로 성공/실패를 판단하며, 이름 있는
+파라미터를 선언하지 않고 자동 변수 `$args`만 참조한다(`git add -A`의 `-A`가 파라미터
+이름과 접두어 충돌을 일으키는 문제 차단, 핵심 발견 54). 핵심 발견 53/54/55가 요구하던
+"Invoke-Git 계열 헬퍼를 새로 만들 때는 이 두 조건을 모두 지킨 버전을 채택한다"는 원칙을
+이 파일에 정식 등록해, 앞으로 devnotes/코드 반영 스크립트가 매번 새로 작성하지 않고
+재사용하도록 했다. 상세 사용법은 파일 상단 주석 참고.
 
 ## lead_decel/ — 선행차 감속에 대한 자차 반응 분석 (97차, 98차 게이팅 평가 추가)
 
