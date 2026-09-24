@@ -275,7 +275,40 @@ def prune() -> None:
     _jobs.pop(old["id"], None)
 
 
+def cleanup_stale_upload_tmp_dirs() -> None:
+  """전원 차단 등 비정상 종료로 DASHCAM_UPLOAD_TMP_DIR에 남은 이전 zip
+  스테이징 폴더(carrot_dashcam_*)를 정리한다.
+
+  정상 종료 경로는 이미 run_upload_segments()의 finally에서
+  shutil.rmtree(tmp_dir)로 자기 자신의 스테이징 폴더를 지우므로, 여기서
+  지우는 대상은 그 경로를 타지 못한 잔존물뿐이다(강제 종료/전원 차단,
+  FINDINGS.md 핵심 발견 56 계속). 새 업로드 시작 시점에만(create_job())
+  실행 중인 작업이 없을 때 호출하고, 무활동 만료 시간
+  (UPLOAD_JOB_STALE_SECONDS)보다 오래된 폴더만 지운다 -- 방금 다른
+  프로세스가 만들고 있는 중인 폴더를 실수로 건드리지 않기 위함이다.
+  """
+  try:
+    entries = os.scandir(DASHCAM_UPLOAD_TMP_DIR)
+  except OSError:
+    return
+  now = time.time()  # noqa: TID251
+  with entries:
+    for entry in entries:
+      if not entry.name.startswith("carrot_dashcam_"):
+        continue
+      try:
+        if not entry.is_dir(follow_symlinks=False):
+          continue
+        age = now - entry.stat(follow_symlinks=False).st_mtime
+      except OSError:
+        continue
+      if age >= UPLOAD_JOB_STALE_SECONDS:
+        shutil.rmtree(entry.path, ignore_errors=True)
+
+
 def create_job(segments: list[str]) -> dict[str, Any]:
+  if running_job() is None:
+    cleanup_stale_upload_tmp_dirs()
   job_id = uuid.uuid4().hex[:12]
   now = time.time()  # noqa: TID251
   job = {
