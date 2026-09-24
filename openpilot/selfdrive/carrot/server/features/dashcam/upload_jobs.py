@@ -14,6 +14,7 @@ from typing import Any
 from openpilot.selfdrive.carrot import gdrive_upload
 from openpilot.selfdrive.carrot.web_upload import upload_device_id
 
+from ...config import DASHCAM_UPLOAD_TMP_DIR
 from ...services.params import HAS_PARAMS, Params
 from . import upload
 from .catalog import segment_file_summary
@@ -448,7 +449,12 @@ async def run_upload_segments(segments: list[str], job: dict[str, Any] | None = 
 
   timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
   zip_filename = f"{storage_label}_{timestamp}.zip"
-  tmp_dir = tempfile.mkdtemp(prefix="carrot_dashcam_")
+  # [155차] /tmp(tmpfs, 콤마 기기 150M 고정)가 아니라 /data 하위(여유 수십 GB)에
+  # zip을 스테이징한다 -- 선택 세그먼트 합계가 tmpfs 용량을 넘기면 zip 작성
+  # 도중 OSError(Errno 28, No space left on device)로 실패했었다(FINDINGS.md
+  # 핵심 발견 56, WIP.md 155차 참고).
+  os.makedirs(DASHCAM_UPLOAD_TMP_DIR, exist_ok=True)
+  tmp_dir = tempfile.mkdtemp(prefix="carrot_dashcam_", dir=DASHCAM_UPLOAD_TMP_DIR)
   zip_path = os.path.join(tmp_dir, zip_filename)
 
   def build_zip() -> None:

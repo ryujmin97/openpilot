@@ -46,6 +46,11 @@ CARROT_YOUTUBE_LIVE_SECRET_PATH = os.path.join(CARROT_STATE_DIR, "youtube_live_s
 # Dashcam
 DASHCAM_ROOT = "/data/media/0/realdata"
 DASHCAM_CACHE_DIR = os.path.join(CARROT_DATA_DIR, "cache", "dashcam")
+# [155차] 업로드용 zip 스테이징 디렉터리. /tmp(tmpfs, 콤마 기기에서 150M 고정)에
+# 두면 선택 세그먼트 합계가 tmpfs 여유를 넘기만 해도 zip 작성 도중 OSError(Errno 28,
+# No space left on device)로 실패한다(FINDINGS.md 핵심 발견 56). /data 하위(여유
+# 수십 GB)로 옮겨 구조적으로 없앤다.
+DASHCAM_UPLOAD_TMP_DIR = os.path.join(CARROT_DATA_DIR, "tmp", "dashcam_upload")
 
 # Screen recording
 SCREEN_RECORDING_DIRS = (
