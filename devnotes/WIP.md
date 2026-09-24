@@ -1,5 +1,61 @@
 # WIP
 
+## 156차 (코드 push 대기 · 실차 검증 미실시) -- A안(잔존 zip 청소): 전원 차단 대비 carrot_dashcam_* 정리
+
+HANDOFF.md(155차 계속2) 미완료 2번 -- 강제 종료/전원 차단 시 `/data/carrot/tmp/dashcam_upload/carrot_dashcam_*`
+잔존 zip(수백 MB)이 재부팅으로 안 지워지는 문제 -- 의 추천안 A(작업 시작 시, 실행 중 작업이 없을 때
+무활동 만료 시간보다 오래된 `carrot_dashcam_*` 삭제, 코드 약 10줄)를 9절 절차대로 반영했다.
+
+**대상**: `openpilot/selfdrive/carrot/server/features/dashcam/upload_jobs.py`
+(사전 확인한 GitHub carrot-ryu HEAD `9ff1242e`의 pre-image blob hash `fb534605...`)
+
+**변경 내용** (+33줄, 10절 최소 변경):
+- `cleanup_stale_upload_tmp_dirs()` 신규 함수 -- `DASHCAM_UPLOAD_TMP_DIR`(`config.py`,
+  `/data/carrot/tmp/dashcam_upload`)를 `os.scandir()`로 스캔해, `carrot_dashcam_` 접두사
+  디렉터리 중 mtime 기준 `UPLOAD_JOB_STALE_SECONDS`(기존 상수, 30분)보다 오래된 것만
+  `shutil.rmtree(..., ignore_errors=True)`로 삭제. 접두사가 다른 항목/디렉터리가 아닌
+  항목/디렉터리 자체가 없는 경우(`OSError`)는 조용히 무시.
+- `create_job()` 맨 앞에 `if running_job() is None: cleanup_stale_upload_tmp_dirs()` 한 줄
+  추가. `running_job()`은 기존 함수(내부에서 `expire_stale_jobs()`도 호출)를 그대로 재사용.
+
+**정상 종료 경로와의 관계**: `run_upload_segments()`는 이미 `finally: shutil.rmtree(tmp_dir,
+ignore_errors=True)`로 자기 자신의 스테이징 폴더를 지운다(155차). 이번 추가는 그 경로를
+타지 못한 잔존물(강제 종료/전원 차단으로 `finally`까지 못 간 경우)만 대상으로 하며, 정상
+종료 경로 자체는 손대지 않았다.
+
+**호출 시점 설계 근거**: `routes.py`의 유일한 `create_job()` 호출부(대시캄 "선택 전송" 시작
+지점)가 호출 전에 이미 `upload_jobs.running_job()`으로 실행 중 작업 유무를 확인하고 있어,
+"실행 중 작업이 없을 때"라는 추천안 A의 조건과 정확히 맞아떨어진다(routes.py 자체는 변경
+없음, `create_job()` 내부에서 같은 조건을 한 번 더 자체 확인해 다른 호출 경로가 생기더라도
+안전하도록 방어적으로 작성).
+
+**검증**:
+- 독립 함수 단위 테스트(샌드박스, `upload_jobs.py` 전체 import는 하지 않고 동일 로직을
+  발췌한 스크립트로 검증 -- `gdrive_upload`/`Params` 등 무거운 의존성 체인 회피): 임시
+  디렉터리에 `carrot_dashcam_old`(mtime 31분 전)/`carrot_dashcam_new`(방금)/
+  `unrelated_dir`(접두사 다름) 3개를 만들고 실행 -- old만 삭제, new/unrelated는 보존됨을
+  확인. 디렉터리 자체가 없는 경우 예외 없이 통과하는 것도 확인.
+- `py_compile` 통과.
+- 실제 GitHub `ryujmin97/openpilot` `carrot-ryu` 브랜치(HEAD `9ff1242e`)를 직접
+  `git clone`해 반영 스크립트 로직 전체(`clone -> pre-image blob hash 가드
+  (`fb534605...` 일치 확인) -> Replace-Block(anchor 1회 매치 + 치환 결과 재확인)
+  -> py_compile -> post-image blob hash 가드(`e5914f28...` 일치 확인) -> BOM 없음 확인
+  -> commit -> push`)를 처음부터 끝까지 실행(9절 항목 9, "로컬 bare 저장소" 대신 실제
+  원격 저장소를 읽기 전용으로 사용 -- 이 샌드박스는 GitHub 쓰기 인증정보가 없어 push
+  단계에서 의도대로 거부됨, commit까지는 정상 성공하고 `1 file changed, 33
+  insertions(+)`로 diff 규모가 설계와 정확히 일치함을 확인). 일반 모드와 Windows CRLF
+  체크아웃 재현 모드(`GIT_CONFIG_KEY_0=core.eol GIT_CONFIG_VALUE_0=crlf`) 둘 다 동일한
+  결과(같은 anchor 1회 매치, 같은 post-image blob hash, 같은 `+33/-0` commit)로 확인해
+  CRLF 정규화가 정상 동작함을 실증(핵심 발견 44/46/48/50과 동일한 재발 방지 절차).
+- `pwsh 7.4.6`(GitHub 릴리스, Linux) 파서로 반영 스크립트 자체의 구문 오류 0건 확인.
+- `.ps1` 파일에 UTF-8 BOM 포함(한글 주석 포함, 9절 필수 규칙), 대상 코드 파일에는 BOM
+  없음 확인.
+
+반영 스크립트(`156cha_code_carrot_ryu.ps1`) 실행/push 대기. 실차 검증: 미실시 -- 정상
+종료 경로는 155차에서 이미 확인됐으나, 이번에 추가한 "다음 전송 시작 시 잔존물 정리"
+경로 자체는 강제 종료/전원 차단을 실제로 재현해야 검증 가능하다(다음 세션 이월).
+
+
 ## 155차 계속2 (devnotes만 · 코드 변경 없음 · 155차 실기기 검증 항목 확인 완료) -- 기기 pull SHA / Drive 업로드 완료 / 임시 폴더 정리 확인(사용자 제공 스크린샷 3장)
 
 직전 회차(155차 계속)에서 "미확인"으로 남긴 3건을 사용자가 스크린샷으로 확인해 왔다. 이 세션은 스크린샷을 직접 읽었을 뿐 기기/Drive에 접근한 것은 아니다.
