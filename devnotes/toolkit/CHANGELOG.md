@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-24 (154차)
+- route_decel/ 추가: replay_route_geom.py (153차 get_path_after_distance() 수정 rlog 재생 교차검증, README 154차 추가 참고). 실제 함수 원문(ast 추출)을 재구현 없이 exec하는 방식. 기존 스크립트는 변경 없음.
+
 ## 2026-09-24 (149차)
 - lead_decel/ 추가: replay_gate147.py, extract_radar_flag.py (147차 감속 프리뷰 게이트 실로그 재생, README 149차 추가 참고). 실제 `_gate_raw`/`longitudinal_preview.py`를 원문 재사용하는 방식. 기존 스크립트는 변경 없음.
 

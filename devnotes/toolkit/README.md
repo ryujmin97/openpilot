@@ -122,3 +122,14 @@ Claude 샌드박스에서 conftest.py를 포함한 실제 pytest CI 조건을 �
 | `lead_decel/replay_gate147.py` | `[PBAND=lo,hi] [TAG=_x] python3 replay_gate147.py <run_dir> <src_old> <src_new> [cb] [sd]`: `long_mpc.py`에서 상수/`get_safe_obstacle_distance`/`get_stopped_equivalence_factor`/`LongitudinalMpc._gate_raw`를 ast로 원문 추출해 exec, `longitudinal_preview.py`는 import. 20Hz 주기마다 gate -> `get_lead_preview_request` -> `rate_limit_preview` -> `clip_preview_offset` 체인을 재생하고 로그 `accels`로 출력 a_target을 재구성. 출력 `out/replay147<TAG>.pkl`. 기본 cb=2.4/sd=7.0(149차 swaglog 역산값), 기본 밴드 1.05,1.25 |
 
 준비: `<run_dir>/out/ego2.pkl`(ego_extract2.py) + `out/radarflag.pkl`(extract_radar_flag.py), 폴더 배치는 ego_extract2.py와 동일(`../schema`, `../segs`). `src_old`/`src_new`는 각각 로그 기록 커밋과 비교 대상 커밋의 `openpilot/selfdrive/controls/lib/longitudinal_preview.py`와 `openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py`를 같은 폴더에 사본으로 둔 것(`git fetch --depth 1 --filter=blob:none origin <SHA>` 후 `git show <SHA>:<path>`). 실행하면 재생 신뢰도(새 코드 gate=1 == 기록 커밋 코드, 로그 leadPreviewSeconds/aTargetBase 재현 오차)를 먼저 출력하므로 그 값이 작은지 확인한 뒤 결과를 해석한다. 한계: MPC 궤적은 로그값 고정(자차 거동이 바뀐 뒤의 폐루프는 재현 안 됨), `myDrivingMode`/`reset_state`는 미로깅. 결과와 해석은 WIP.md 149차 참고. `comfort_brake/stop_distance`는 swaglog `lead_gate`(m 소수2자리) 역산으로 정한 값이라 다른 설정의 디바이스 로그에는 다시 역산해야 한다.
+
+
+### 154차 추가 (153차 get_path_after_distance() 수정 rlog 재생 교차검증: route_decel/replay_route_geom.py)
+
+153차가 합성 좌표로만 검증한 `get_path_after_distance()` 수정(첫 세그먼트≥300m 처리)을 seg70/71/92/93 실제 rlog로 교차검증하는 도구. 재구현 없이 실제 소스에서 함수 원문(`haversine`/`closest_point_on_segment`/`get_path_after_distance`/`gps_to_relative_xy`/`calculate_curvature`/`V_CURVE_LOOKUP_BP` 등)을 ast로 추출해 exec하고, 로그의 `carrotMan.xPosLat/xPosLon/xPosAngle`(get_path 입력)·`navRoute`(폴리라인)·`carState.vEgo`로 OLD/NEW 두 버전을 20Hz 재생한다. 실차 검증 아님(로그 재생, open-loop).
+
+| 파일 | 역할 |
+|---|---|
+| `route_decel/replay_route_geom.py` | `extract <schema_dir> <rlog.zst> <out.pkl>`: carrotMan(xPos*/naviPaths/xTurn/xDist/des/src 등)+navRoute+carState.vEgo를 뽑는다(20Hz가 아니라 carrotMan 이벤트 기준, route_extract.py의 extract와 별개). `run <old_carrot_man.py> <new_carrot_man.py> <out_prefix> <seg.pkl> [<seg2.pkl> ...]`: OLD/NEW `get_path_after_distance()`를 재생해 `<out_prefix>_replay.pkl` 생성(연속 세그먼트는 start_index를 이어받음). `report <label>=<prefix>_replay.pkl [...] [--base 1.2] [--guide 1.0]`: 재생 충실도(로그 naviPaths 대비)/트리거 비율/route 급변 건수(로그·OLD·NEW)/비트리거 무회귀/route-source desiredSpeed 급변을 집계 표로 출력 |
+
+가정 파라미터(로그에 없음, `run()` 인자로 덮어쓰기 가능): `AutoNaviSpeedDecelRate=0.8 m/s^2`, `AutoNaviSpeedCtrlEnd=0`. `report`의 `--base`(route/out_speed 계수, MapTurnSpeedFactor/100)는 154차 로그에서 약 1.2로 역산한 값. 폴더 배치는 `route_extract.py`와 동일(`schema_dir`에 log.capnp/custom.capnp/deprecated.capnp/include/+car.capnp를 로그 기록 커밋 기준으로 모음). 한계: 로그 xPos는 Float32(약 0.4~0.8m 양자화)라 트리거 사이클(버그 발현 조건) 개별 값은 재생과 어긋날 수 있어 집계 지표로만 해석한다(154차 실측: 비트리거 재생 충실도 93.3~98.2%(3m 이내) vs 트리거 62.3~73.3%). 154차 결과와 해석은 WIP.md 154차 참고.
