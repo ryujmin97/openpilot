@@ -1445,9 +1445,10 @@ class CarrotServ:
         self.active_carrot = 4
 
     #print(f"sdi_speed: {sdi_speed}, vehicle_speed_camera_active: {vehicle_speed_camera_active}, xSpdType: {self.xSpdType}, xSpdDist: {self.xSpdDist}, active_carrot: {self.active_carrot}, v_ego_kph: {v_ego_kph}, nRoadLimitSpeed: {self.nRoadLimitSpeed}")
-    ### TBT 속도제어
-    atc_desired, self.atcType, self.atcSpeed, self.atcDist = self.update_auto_turn(v_ego*3.6, sm, self.xTurnInfo, self.xDistToTurn, True)
-    atc_desired_next, _, _, _ = self.update_auto_turn(v_ego*3.6, sm, self.xTurnInfoNext, self.xDistToTurnNext, False)
+    ### TBT 상태(전방 조향취소 감지, 좌회전 신호출발 트리거, UI 표시 등에 계속 쓰임).
+    ### 151차: desiredSpeed 결정에는 더 이상 atc_desired를 쓰지 않는다(TBT 접근 구간도
+    ### route/vturn/road가 일반 곡선과 동일하게 경쟁하도록 변경, 아래 route 게이트 참고).
+    _, self.atcType, self.atcSpeed, self.atcDist = self.update_auto_turn(v_ego*3.6, sm, self.xTurnInfo, self.xDistToTurn, True)
 
     if self.nSdiType  >= 0: # or self.active_carrot > 0:
       pass
@@ -1465,9 +1466,6 @@ class CarrotServ:
       #self.debugText = ""
       pass
 
-    if self.autoTurnControl not in [2, 3]:    # auto turn speed control
-      atc_desired = atc_desired_next = 250
-
     if self.autoTurnControl not in [1,2]:    # auto turn control
       self.atcType = "none"
 
@@ -1480,8 +1478,6 @@ class CarrotServ:
                   "police" if self.xSpdType == 100 else
                   "waze" if self.xSpdType == 101 else "cam")
     speed_n_sources = [
-      (atc_desired, "atc"),
-      (atc_desired_next, "atc2"),
       (sdi_speed, sdi_source),
       (vehicle_camera_speed, "hda"),
       (vehicle_bump_speed, "hda_bump"),
@@ -1495,7 +1491,11 @@ class CarrotServ:
     route_factor = map_turn_speed_factor(self.mapTurnSpeedFactor, self.xTurnInfo, self.xDistToTurn)
     route_speed = max(route_speed * route_factor, self.autoCurveSpeedLowerLimit)
     if self.turnSpeedControlMode == 2:
-      if -500 < self.xDistToTurn < 500:
+      # 151차: TBT(안내 지점) 접근 중에도 일반 곡선과 동일하게 route/vturn/road가 경쟁하도록 하되,
+      # route 후보는 carrot_navi_route()가 실제로 내다보는 시야(MAP_TURN_GUIDE_FAR_M=300m)
+      # 안에서만 넣는다. 기존 -500<x<500 게이트는 route가 보지도 못하는 먼 거리(500m 밖)의
+      # 노이즈를 들여보내던 원인이었다(151차 오프라인 분석).
+      if 0 <= self.xDistToTurn <= MAP_TURN_GUIDE_FAR_M:
         speed_n_sources.append((route_speed, "route"))
     elif self.turnSpeedControlMode in [3, 4]:
       speed_n_sources.append((route_speed, "route"))
