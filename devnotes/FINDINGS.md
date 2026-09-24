@@ -1,5 +1,17 @@
 # FINDINGS
 
+## 핵심 발견 56 (155차) -- 업로드용 zip을 `tempfile` 기본 경로에 만들면 콤마 기기에서는 `/tmp`(tmpfs 150M)라, 선택 세그먼트 합계가 150M를 넘는 순간 `[Errno 28] No space left on device`로 실패한다
+
+**배경**: 로그탭 대시캠 세그먼트 전체선택(38개) → "선택 전송"이 `로그 전송 오류: [Errno 28] No space left on device`로 실패했다. `/data`는 71G가 남아 있었다(사용자 `df -h` 보고, 이전 세션 인용).
+
+**확인된 원인**: `upload_jobs.py`의 `build_zip()`이 zip 스테이징 디렉터리를 `tempfile.mkdtemp(prefix="carrot_dashcam_")`(dir 인자 없음)로 만들어 Python 기본 임시 경로를 썼고, 콤마 기기에서 이는 `/tmp`(tmpfs, RAM 기반, 150M)이다. `ZIP_STORED`(무압축)라 zip 크기 = 원본 합계이며 해당 route(38세그먼트)의 qcamera.ts+rlog* 합계가 약 460M라 150M 초과 시점에 `zf.write()`가 `OSError(ENOSPC)`로 실패했다. 디스크 여유(`/data`)와 임시 경로의 여유는 서로 다른 파일시스템이라는 점이 원인 파악의 핵심이었다.
+
+**수정안**: zip 스테이징 경로를 `DASHCAM_UPLOAD_TMP_DIR`(`CARROT_DATA_DIR/tmp/dashcam_upload` = `/data/carrot/tmp/dashcam_upload`)로 옮기고 `mkdtemp(..., dir=...)`로 지정한다(155차, `config.py` +5/`upload_jobs.py` +7/-1). 정리는 기존 `finally: shutil.rmtree`가 그대로 담당한다.
+
+**검증**: 정적 분석 + 로컬 bare 저장소 시뮬레이션(두 체크아웃 모드)뿐이다. 실기기에서 38세그먼트 전송 재현은 미실시.
+
+**일반화**: (1) 용량이 입력에 비례하는 임시 파일(zip/변환 결과 등)은 `tempfile` 기본 경로에 두지 말고 용량이 큰 파티션(`/data` 하위)을 `dir=`로 명시한다 -- 콤마 기기의 `/tmp`는 RAM 기반 150M다. (2) 대신 `/data`에 만든 임시 파일은 재부팅으로 지워지지 않으므로, 강제 종료 시 잔존물을 정리할 방법(시작 시 청소 등)을 함께 고려해야 한다(155차 시점에는 미구현, 이월). (3) "여유 공간 부족" 오류는 어느 마운트가 부족한지 먼저 특정한다(`df -h <경로>`로 그 경로의 파일시스템을 확인).
+
 ## 핵심 발견 54 (142차) -- `Invoke-Git` 헬퍼가 파라미터명을 `Args`로 선언해 `git add -A`의 `-A`를 `-Args`로 오인, 즉시 실패
 
 **배경**: 140차에서 핵심 발견 53 수정으로 도입된 `Invoke-Git`(`param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Args) { ... }`) 헬퍼가 140~141차 devnotes 반영 스크립트에서는 문제없이 쓰였다. 142차 devnotes 반영 스크립트가 처음으로 `Invoke-Git -C $Tmp add -A`를 호출했는데, 로컬 bare 저장소 dry-run(9절 체크리스트 9번) 도중 `Missing an argument for parameter 'Args'` 오류로 즉시 실패했다.

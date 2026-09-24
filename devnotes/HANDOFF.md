@@ -1,46 +1,41 @@
-Worker: Claude (154cha, Claude Sonnet 5)
+Worker: Claude (155cha, Claude Sonnet 5)
 Date: 2026-09-24
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (HEAD: f23d05fef4690a01af27e108f98cc01992f11869, 153차 코드 -- 이번 회차 코드 변경 없음)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 153차 devnotes push 완료 상태, `5c480a1af537bc0be7d799aea8cac45871947250`)
-carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 세션 재확인 -- 신규 커밋 없음. 140~154차는 재점검 없음)
+Code Branch: carrot-ryu (HEAD: f23d05fef4690a01af27e108f98cc01992f11869, 153차 코드 -- 155차 코드 수정은 반영 스크립트 `155cha_code-v2.ps1` 실행/push 대기 중, GitHub 미반영)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 154차 devnotes push 완료 상태, `ffd9922a1426884884b36ea91c8b744a7059013e`)
+carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 세션 재확인 -- 신규 커밋 없음. 140~155차는 재점검 없음)
 
 작업:
-1. 세션 시작 4절 0단계로 지침 문서(v2, commit `5c480a1`) 조회. HANDOFF.md(153차 기록, base code HEAD `44bfd33d`/note base `26fa4b1`)와 실제 GitHub 상태(carrot-ryu `f23d05f`, carrot-ryu-note `5c480a1`)가 다름을 확인(16절).
-2. `f23d05f`의 commit patch/blob hash(`eb8a53c4`)와 `5c480a1`의 commit message를 직접 조회해, 153차 코드+devnotes가 실제로는 이미 push 완료돼 있음을 확정(HANDOFF.md 미완료 1·2번 해소).
-3. 153차 HANDOFF 미완료 3번(seg71/92/93 교차검증)을 사용자 업로드 rlog 4세그먼트(seg70/71/92/93, `8e8b0d1a` 기록)로 수행. 재구현 없이 실제 소스 함수 원문을 ast로 추출해 exec하는 재생 도구(`replay_route_geom.py`) 신규 작성.
-4. OLD(`8e8b0d1a`)/NEW(`f23d05f`) `get_path_after_distance()`를 로그 실제 입력(xPosLat/Lon/Angle, navRoute 폴리라인, carState.vEgo)으로 20Hz 재생, 로그 `naviPaths`와 대조해 재생 충실도 확인 후 집계 지표로 비교.
-5. 결과를 WIP.md 154차/CURRENT_STATUS.md/toolkit README·CHANGELOG에 기록.
+1. 세션 시작 4절 0단계로 지침 문서(v2) 조회 후 HANDOFF.md(154차 기록)와 GitHub 실제 상태(carrot-ryu `f23d05f`, carrot-ryu-note `ffd9922`)가 일치함을 확인. 이 회차는 사용량 한도로 중단된 155차 초안 세션의 이어받기이며, 그 초안은 GitHub에 아무것도 push되지 않았으므로(HEAD 변동 없음) 원본을 SHA 고정으로 다시 받아 처음부터 재수행.
+2. 로그탭 대시캠 "선택 전송" ENOSPC(Errno 28) 원인 분석 결과 반영: zip 스테이징이 `tempfile` 기본 경로(`/tmp` tmpfs 150M)라 선택 세그먼트 합계(38세그먼트 약 460M)가 넘으면 실패 -- 상세 WIP.md 155차/FINDINGS.md 핵심 발견 56.
+3. 코드 수정(carrot-ryu, 최소 변경): `config.py`에 `DASHCAM_UPLOAD_TMP_DIR`(`/data/carrot/tmp/dashcam_upload`) 추가, `upload_jobs.py`의 `mkdtemp`에 `dir=` 지정. 용량 사전체크 방어 코드는 사용자가 선택하지 않아 미포함.
+4. `selfdrive/carrot/**/*.py`의 다른 tmp 사용처 grep -- 대용량 스테이징은 이 한 곳뿐(정적 grep).
 
 완료:
-1. 153차 코드(`f23d05f`)+devnotes(`5c480a1`) push 완료 재확인(16절 괴리 해소, 코드 변경 없음).
-2. seg70/71/92/93 rlog 재생 교차검증 완료(open-loop) -- 4개 세그먼트 전부 153차와 동일 패턴(폴리라인 정점 간격 133~252m 중앙값, 300m 초과 구간 19~46%) 재확인.
-3. route 급변(로그/수정전 재생/수정후 재생, 20km/h 초과 프레임간): seg70 102/105/29, seg71 375/364/10, seg92 131/141/25, seg93 118/117/12 -- 트리거(첫 세그먼트≥300m) 연관 급변이 수정 후 크게 감소.
-4. 무회귀 확인: 비트리거 사이클(3,082개) 전부 수정 전후 출력 0건 차이.
-5. desiredSpeed 영향 확인: route가 실제 source가 된 seg70/92에서, route-source des 급변 39/47건 중 36/40건이 트리거와 겹침 -- 151차 관찰(분기 flicker)의 원인이 153차 수정 대상과 대부분 일치함을 뒷받침.
-6. 신규 발견(이월 등록): 분기/톨게이트 통과 직후(xDist<0) 구간에도 트리거 연관 요동이 나타남 -- 152차 게이트(TurnSpeedControlMode==2 한정) 적용 여부는 로그의 TurnSpeedControlMode 값을 확인 못해 미결.
-7. toolkit 신규 등록: `devnotes/toolkit/route_decel/replay_route_geom.py`(extract/run/report 3모드), README.md/CHANGELOG.md 갱신.
+1. 코드 반영 스크립트 `155cha_code-v2.ps1` 작성 + 9절 체크리스트 검증(BOM/autocrlf 옵션/finally 정리/py_compile/pwsh 파서 0 errors/앵커 1회 매치/로컬 bare 저장소 일반+CRLF 재현 두 모드 blob byte-exact 동일). 사용자 실행/push 전이라 GitHub 반영은 미확인.
+2. devnotes(WIP.md 155차/FINDINGS.md 핵심 발견 56/HANDOFF.md/CURRENT_STATUS.md) 작성.
 
 미완료(다음 세션 최우선 순으로):
-1. **실차 검증 여전히 미실시** -- `f23d05f`(153차) 이후 코드가 탑재된 디바이스의 분기(xTurn=4)/톨게이트(xTurn=6) 실주행 로그 필요(이번 회차는 153차 이전 코드로 기록된 로그의 open-loop 재생일 뿐).
-2. 152차·153차 코드의 디바이스 배포(git pull) 여부 여전히 미확인(151~154차 이월).
-3. **신규**: 분기/톨게이트 통과 직후(xDist<0) 구간 요동에 152차 게이트가 실제로 적용되는지(TurnSpeedControlMode 값) 확인.
-4. **신규**: 잔여 비트리거 급변(세그먼트당 10~25건, 153차 수정과 무관)의 원인 분석 미착수.
-5. 147차 코드가 탑재된 디바이스의 실주행 로그 검증(148~153차 이월, 변동 없음).
-6. "선행차가 설정 차간거리 근처에서 급제동" 시나리오 정량 미검증(148~150차 이월, 변동 없음).
-7. 148차 v1 `2>&1` 재발의 FINDINGS.md 정식 등록 여부 결정(148차 이월, 변동 없음).
-8. 이전 이월: diff/블록 추출 스크립트(147차 코드 반영용, 임시) toolkit 미등록(변동 없음).
+1. **155차 코드 push 확인**: 세션 시작 시 `git ls-remote`로 carrot-ryu HEAD가 `f23d05f`에서 바뀌었는지(=`155cha: dashcam upload zip tmp dir ...` 커밋 존재) 확인하고, 안 바뀌었으면 사용자가 아직 스크립트를 실행하지 않은 것(반영으로 가정 금지).
+2. **실기기 검증 미실시**: 반영·배포(git pull) 후 로그탭 38세그먼트 전체 "선택 전송"이 완주하는지, `/data/carrot/tmp/dashcam_upload`가 생성되고 종료 후 비워지는지 확인.
+3. 강제 종료/전원 차단 시 `/data/carrot/tmp/dashcam_upload/carrot_dashcam_*` 잔존 zip(수백 MB)이 재부팅으로 안 지워지는 문제 -- 시작 시 정리 로직 추가 여부 결정(이월).
+4. (선택) `build_zip()` 직전 `shutil.disk_usage`로 필요 용량 vs 여유를 비교하는 조기 실패 방어 코드(이번에는 미포함).
+5. **실차 검증 여전히 미실시** -- `f23d05f`(153차) 이후 코드가 탑재된 디바이스의 분기(xTurn=4)/톨게이트(xTurn=6) 실주행 로그 필요(154차 이월).
+6. 152차·153차·155차 코드의 디바이스 배포(git pull) 여부 확인(151~155차 이월).
+7. 분기/톨게이트 통과 직후(xDist<0) 구간 요동에 152차 게이트(TurnSpeedControlMode==2)가 적용되는지 확인(154차 이월).
+8. 잔여 비트리거 급변(세그먼트당 10~25건)의 원인 분석 미착수(154차 이월).
+9. 147차 코드 탑재 디바이스 실주행 로그 검증, "선행차가 설정 차간거리 근처에서 급제동" 시나리오 정량 미검증, 148차 v1 `2>&1` 재발의 FINDINGS.md 정식 등록 여부 결정, 147차 임시 diff/블록 추출 스크립트 toolkit 미등록(모두 이전 이월, 변동 없음).
 
 검증:
-- devnotes 재생 도구: 실제 소스 함수 원문(ast 추출) 그대로 exec해 재구현 없이 검증, 로그 `naviPaths`와 대조한 재생 충실도(비트리거 93.3~98.2% 3m 이내 일치) 확보 후 집계 지표로만 결론.
-- 실차: 미실시(업로드 로그 4개 전부 `8e8b0d1a`, 153차 수정 이전 코드 기록 -- open-loop 재생일 뿐 실차 검증 아님).
+- 155차 코드: 정적 분석 + py_compile + 로컬 bare 저장소 시뮬레이션(pwsh 7.5.4, 리눅스)만 수행. Windows PowerShell 5.1 실행, 실기기, 실차 검증은 모두 미실시.
+- 원인 수치(`/tmp` 150M, `/data` 71G, route 합계 약 460M)는 사용자가 전달한 이전 세션 분석 인용이며 이 컨테이너에서 원문 출력을 재확인하지 못함.
 
 주의사항:
-- 이번 회차는 devnotes+toolkit만 변경, carrot-ryu 코드 변경 없음(코드 HEAD는 153차 `f23d05f` 그대로).
-- 153차 수정은 "route 폴리라인 정점 간격이 300m보다 성긴 구간에서 발생하는 진행방향 역행 보간점" 문제만 고친 것이며, 분기 자체의 감속(TBT 등)이나 폴리라인이 애초에 성긴 구간에서의 "감속 정보 부재"까지 해소하지 않는다 -- 154차 seg70 t≈38~39s 상세 대조가 이를 재확인.
-- 트리거 사이클의 재생 충실도(62.3~73.3%)가 비트리거보다 낮은 것은 도구 결함이 아니라 버그 자체의 위치 민감성(153차 합성 좌표 검증과 동일 성질) 때문이며, 집계 지표(급변 건수/경로 길이/무회귀)로만 결론을 냈다.
+- carrot-ryu 코드는 `155cha_code-v2.ps1` 실행 전까지 `f23d05f` 그대로다. 파일명의 `-v2`는 중단된 초안 세션의 로컬 파일과 이름이 겹치지 않게 하려는 것.
+- devnotes 반영 스크립트는 코드와 별도 브랜치(carrot-ryu-note)용이며 서로 독립적으로 실행 가능하다.
+- 잔존 임시 파일 주의: `/data`는 재부팅해도 비워지지 않는다(핵심 발견 56 일반화 2).
 
 다음 작업:
-1. `f23d05f`(153차) 이후 코드 탑재 디바이스의 분기/톨게이트 실주행 로그로 실차 검증.
-2. 분기/톨게이트 통과 직후 구간의 TurnSpeedControlMode 확인 + 152차 게이트 적용 여부 검토.
-3. 152차·153차 디바이스 배포(git pull) 여부 확인.
+1. 155차 코드 push 여부 확인 → 실기기 배포 후 "선택 전송" 재현 테스트.
+2. 잔존 zip 정리 로직 필요 여부 결정.
+3. 153차 이월 항목(분기/톨게이트 실주행 로그 검증)으로 복귀.

@@ -1,5 +1,24 @@
 # WIP
 
+## 155차 (코드 1건 · 실행/push 대기 · 실차 검증 미실시) -- 로그탭 "선택 전송" ENOSPC(Errno 28) 수정: 대시캠 zip 스테이징 경로를 /tmp(tmpfs 150M)에서 /data/carrot/tmp/dashcam_upload로 이동
+
+**증상**(사용자 보고): 로그탭에서 대시캠 세그먼트 전체선택(38개, route `00000449--b34152b780`) → "선택 전송" → `로그 전송 오류: [Errno 28] No space left on device`.
+
+**호출 흐름/원인**(정적 분석, carrot-ryu `f23d05f` 기준): `routes.py:493` → `upload_jobs.run_upload_segments()` → `build_zip()`(선택 세그먼트의 qcamera/rlog를 `ZIP_STORED`로 zip에 씀) → `gdrive_upload.upload_file_resumable()`. zip 위치가 `upload_jobs.py:451`의 `tempfile.mkdtemp(prefix="carrot_dashcam_")`(dir 인자 없음)라 Python 기본 임시 경로 = 콤마 기기의 `/tmp`(tmpfs, RAM 기반)였다. 사용자가 실기기에서 확인해 전달한 수치(이전 세션 분석에서 인용, 이 세션 컨테이너에서는 원문 출력을 재확인하지 못함): `df -h` 기준 `/tmp` tmpfs 150M(여유 150M) vs `/data` 여유 71G, 해당 route의 qcamera.ts+rlog* 합계 약 460M. `ZIP_STORED`(무압축, 의도적: qcamera=h265/rlog=zstd라 추가 압축 이득 없음)라 zip 크기 ≈ 원본 합계 → 150M를 넘는 순간 `zf.write()` 도중 `OSError: [Errno 28]` → `run_job()`이 예외를 잡아 failed로 기록. 즉 `/data` 여유와 무관하게 `/tmp` 150M에 460M짜리 zip을 만들려던 구조적 문제(세그먼트를 대략 150M 이하로 줄이면 우회 가능).
+
+**수정**(최소 변경, 사용자가 "여유공간이 큰 /data 하위 경로로 지정" 선택 -- 용량 사전체크 방어 코드는 이번에 넣지 않음):
+- `server/config.py`: `DASHCAM_UPLOAD_TMP_DIR = os.path.join(CARROT_DATA_DIR, "tmp", "dashcam_upload")` 상수 추가(`CARROT_DATA_DIR` 기본 `/data/carrot`).
+- `server/features/dashcam/upload_jobs.py`: `from ...config import DASHCAM_UPLOAD_TMP_DIR` 추가, `os.makedirs(DASHCAM_UPLOAD_TMP_DIR, exist_ok=True)` 후 `tempfile.mkdtemp(prefix="carrot_dashcam_", dir=DASHCAM_UPLOAD_TMP_DIR)`. 기존 `finally: shutil.rmtree(tmp_dir, ignore_errors=True)`(522행)는 그대로 유지되어 정상/예외 종료 시 정리는 동일하다.
+- 변경량: config.py +5, upload_jobs.py +7/-1. 반영 스크립트 `155cha_code-v2.ps1`(carrot-ryu, 커밋 메시지 `155cha: dashcam upload zip tmp dir -> CARROT_DATA_DIR (ENOSPC/Errno28 fix)`).
+
+**검증**(모두 정적/시뮬레이션, 실차/실기기 아님): (1) `f23d05f` SHA 고정 원본에서 앵커 3곳 각각 정확히 1회 매치 + 치환 후 재확인, (2) `py_compile` 통과, (3) pwsh 7.5.4 파서 오류 0건(후행 쉼표 대조군은 1건 검출), (4) 로컬 bare 저장소 대상 두 모드(일반/Windows CRLF 체크아웃 재현 `core.eol=crlf`, 재현 확인: 체크아웃 CR 624개) 전체 실행 -- 두 모드 모두 push된 blob이 byte 단위로 동일(config.py `b5c9f156`, upload_jobs.py `fb534605`, CR 0개), numstat 5/0 + 7/1, 임시 폴더 잔존 0개. 시뮬레이션 트리는 `.gitattributes`(`* text=auto`)+두 파일만 담은 부분 트리이며 Windows PowerShell 5.1 실제 실행은 아니다.
+
+**같은 계열 점검**: `selfdrive/carrot/**/*.py`(테스트 제외)에서 `mkdtemp/gettempdir/NamedTemporaryFile/TemporaryDirectory/"/tmp"` 사용처를 grep -- 대용량 파일을 스테이징하는 곳은 이 한 군데뿐이었고, 나머지는 소형 상태/로그 파일(`vision_test`/`youtube_test`의 `/tmp/*.json|log`), `carrot_man.py` tmux 임시 디렉터리, `radar/tools`, `cluster_route_replay`(스키마 캐시)였다(정적 grep, 각 사용처의 실제 크기는 미확인).
+
+**경위**: 155차 초안 세션이 사용량 한도로 중단돼(코드 수정 초안 + 시뮬레이션 도중, GitHub에는 아무것도 push되지 않음 -- 시작 시 `git ls-remote`로 carrot-ryu `f23d05f`/carrot-ryu-note `ffd9922` 그대로임을 확인) 컨테이너가 초기화됐다. 이 회차는 지침(4절 0단계) → HANDOFF 재조회 후 원본을 SHA 고정으로 다시 받아 수정/검증을 처음부터 다시 수행했다.
+
+**미확인/주의**: (a) 실기기 재현(38세그먼트 선택 전송) 미실시 -- 반영 후에도 `/data/carrot/tmp` 쓰기 권한/디렉터리 생성, Drive 업로드 완주 여부는 확인 필요. (b) 프로세스가 강제 종료/전원 차단되면 `finally`가 못 돌아 `/data/carrot/tmp/dashcam_upload/carrot_dashcam_*`에 수백 MB zip이 남는다 -- 기존 `/tmp`(tmpfs)는 재부팅 시 자동으로 비워졌지만 `/data`는 남는다(시작 시 정리 로직은 추가하지 않았음, 이월). (c) 152~155차 코드의 디바이스 배포(git pull)는 여전히 미확인.
+
 ## 154차 (devnotes만 · 코드 변경 없음) -- 153차 get_path_after_distance() 수정의 seg70/71/92/93 rlog 재생 교차검증(open-loop) + 16절 HANDOFF 기록/실제 GitHub 상태 불일치 정정 + toolkit 신규 등록(route_decel/replay_route_geom.py)
 
 세션 시작 4절 0단계로 지침 문서(v2, commit `5c480a1`) 조회 → HANDOFF.md는 "153차 코드/devnotes 스크립트 실행/push 확인 미완료"(base 기록 code HEAD `44bfd33d`/note base `26fa4b1`)로 적혀 있었으나, 실제 GitHub는 carrot-ryu HEAD `f23d05f`, carrot-ryu-note HEAD `5c480a1`로 이미 앞서 있었다(16절 괴리). `f23d05f`의 commit patch/blob hash(`eb8a53c4`)가 153차 HANDOFF에 기록된 post-image와 정확히 일치하고, `5c480a1`의 commit message가 "153cha: get_path_after_distance() fix devnotes"임을 직접 확인해, **153차 코드+devnotes 둘 다 push 완료를 재확인·확정**했다(HANDOFF.md 미완료 1·2번 해소, 코드 변경 없음).
