@@ -1,5 +1,35 @@
 # WIP
 
+## 153차 (코드 push 대기) -- get_path_after_distance() 첫 세그먼트 처리 버그 확정/수정 + 합성 좌표·실제 repo 대상 스크립트 dry-run 검증 완료
+
+151차가 seg70(rlog `00000446--6455a5f5c4--70`, xTurn=4 분기 구간)에서 관찰한 desiredSpeed flicker(접근거리 170~50m 구간에서 30km/h대~120km/h대를 매 20Hz 사이클마다 오가는 현상)의 근본 원인을 코드 레벨에서 확정하고 수정했다(11절: 재현->코드 확정->수정->검증 순서).
+
+**원인**: `carrot_man.py`의 `get_path_after_distance(start_index, coordinates, current_position, distance_m)`가 "closest_point에서 그 다음 폴리라인 정점(next_point)까지의 첫 세그먼트 거리가 이미 distance_m(호출부 기준 300m)을 넘는 경우"를 처리하지 못했다. 기존 코드는 무조건 `next_point`를 `path_after_distance`에 append한 뒤 `total_distance`를 첫 세그먼트 거리로 설정하고, 다음 루프에서 `remaining_distance = distance_m - total_distance`로 보간 비율을 계산한다. 첫 세그먼트가 이미 300m보다 길면(route 폴리라인 정점 간격이 300m보다 성긴 구간, 분기/램프에서 흔함) `remaining_distance`가 음수가 되고 `ratio`도 음수가 되어, "300m 지점"이라며 만들어내는 보간점이 진행 방향과 반대(next_point에서 그 이전 세그먼트 쪽)로 튀어나간다. 이 역방향 점이 만드는 인위적인 꺾임은 `closest_point`의 위치(차량이 세그먼트 위 정확히 어디에 있는지, 즉 GPS 샘플 위치)에 매우 민감하기 때문에, 차량이 몇 미터만 이동해도 이 꺾임의 방향/크기가 크게 바뀌고, 그 결과 이 폴리라인으로 계산하는 곡률(및 곡률 기반 `route_speed_raw`)이 20Hz마다 크게 요동친다. 이것이 분기/램프 구간에서만(route 정점 간격이 300m보다 성긴 구간에서만) desiredSpeed flicker가 발현하는 이유다.
+
+**수정**: closest_point -> next_point 첫 세그먼트 거리(`first_segment_distance`)가 이미 distance_m 이상이면, 다음 세그먼트로 진행하는 루프를 타지 않고 그 첫 세그먼트 안에서 바로 distance_m 지점을 보간(ratio = distance_m / first_segment_distance, 항상 0~1 범위)해 반환하도록 분기를 추가했다. 이 분기에서는 음수 ratio가 원천적으로 나올 수 없다. 대상 파일 1개(`openpilot/selfdrive/carrot/carrot_man.py`), `get_path_after_distance()` 함수 안 24줄 블록(+21/-3)만 변경(10절 최소 변경 -- `haversine`/`closest_point_on_segment`/호출부는 무변경).
+
+**검증 1 -- 합성 좌표 재현(rlog 재생 없이 순수 기하 검증)**: p6->p7=400m(>300m 임계)인 인공 폴리라인을 만들고, p7 다음(p8)은 급격히 방향이 꺾이도록 배치(분기/램프 상황 모사). 차량 위치를 p6->p7 세그먼트 위에서 0~80m 구간을 5m 간격으로 스윕하며 매번 `get_path_after_distance(..., 300)`의 반환 경로 마지막 점이 p7 기준 동서 방향으로 얼마나 벗어나는지(도로가 정확히 남북 방향이므로 이론상 0이어야 함) 측정했다.
+- OLD(수정 전) 코드: closest_index가 p5-p6 세그먼트에서 p6-p7 세그먼트로 넘어가는 순간(차량이 단 5m 이동)만으로 반환 마지막 점이 -87.9m 튀는 불연속 발생, 이후 스윕 전 구간(5~80m)에서도 -18.3m~-87.9m 사이로 계속 흔들림.
+- NEW(수정 후) 코드: 스윕 전 구간(0~80m)에서 편차 0.0m로 완전히 안정.
+(1회성 검증 스크립트, `devnotes/toolkit`에는 아직 미등록 -- 필요시 다음 세션에 정식 등록 여부 판단)
+
+**검증 2 -- 전달용 `.ps1` 스크립트 자체를 실제 repo 대상으로 처음부터 끝까지 dry-run(9절 자가검증 체크리스트 9번)**: `git clone --bare`로 carrot-ryu 현재 HEAD(`44bfd33d`, 152차)의 로컬 bare mirror를 만들고, `153cha_code_carrot_ryu.ps1`을 `$RepoUrl`만 이 로컬 mirror로 바꾼 사본으로 pwsh 7.4.6에서 clone -> pre-image blob hash guard -> Replace-Block -> py_compile -> post-image blob hash guard -> commit -> push 전 단계를 실제로 실행했다. 일반 체크아웃 모드와 Windows CRLF 체크아웃 재현 모드(`GIT_CONFIG_KEY_0=core.eol GIT_CONFIG_VALUE_0=crlf`) 둘 다 실행해, 두 모드 모두 커밋 diff가 동일(`1 file changed, 21 insertions(+), 3 deletions(-)`)하고 결과 blob(`eb8a53c4c1e8900cf35ddb06ff41c85b16d606c2`)이 byte-exact 일치함을 확인했다(Linux 샌드박스 재현이며 Windows PowerShell 5.1 실제 실행은 아니라는 한계는 명시).
+
+**dry-run 중 발견/수정한 스크립트 자체의 버그**: 최초 버전은 `py_compile` 검증 단계에서 `& $PyCmd[0] @($PyCmd[1..($PyCmd.Length-1)]) ...` 형태로 `Get-PythonCmd`의 반환값을 바로 슬라이싱했는데, `Get-PythonCmd`가 원소 1개짜리 배열(`@($Cand)`, 예: `@("python3")`)을 반환하면 PowerShell이 함수 출력을 성공 스트림으로 내보내는 과정에서 원소 1개 배열을 스칼라 문자열로 자동 축약해버려, 호출부의 `$PyCmd`가 배열이 아니라 문자열 `"python3"`이 되고 `$PyCmd[1..($PyCmd.Length-1)]`가 배열 슬라이싱이 아니라 **문자 단위 인덱싱**으로 동작(`$PyCmd.Length`가 원소 개수 1이 아니라 문자열 길이 7을 반환하기 때문)해, `python3`이라는 단어가 `y`,`t`,`h`,`o`,`n`,`3` 개별 문자로 쪼개져 `py_compile` 호출이 `"p"is not recognized as a name of a cmdlet...`로 실패했다. `$PyCmd = @(Get-PythonCmd)`로 호출부에서 배열성을 강제 유지하고, 슬라이싱 결과를 `$PyExtraArgs` 변수에 먼저 담아(빈 배열/실제 배열을 명확히 구분) `@PyExtraArgs`로 펼치는 방식으로 수정해 해결했다. 이 스크립트는 `devnotes/toolkit/replace_block_template.ps1`의 `Invoke-ReplaceBlock`/`Invoke-Git`을 그대로 재사용했다(14절).
+
+py_compile 통과, pwsh 7.4.6 파서 구문 오류 0건, `.ps1` 자체 UTF-8 BOM 포함(한글 주석 다수 포함) 확인.
+
+**미완료(다음 세션)**:
+1. `153cha_code_carrot_ryu.ps1` 실행/push 확인.
+2. seg71/92/93에서도 동일 패턴(첫 세그먼트가 300m를 넘는 경우)이 실제로 나타나는지 교차검증(이번 세션은 seg70 기반 원인 분석 + 합성 좌표 검증만 수행, 나머지 3개 세그먼트의 실제 rlog 재생 검증은 아직 하지 않음 -- 151차부터 이어지는 이월).
+3. push 후 분기(xTurn=4)/톨게이트(xTurn=6) 재실차 로그로 desiredSpeed flicker 실제 감소 여부 검증(정적 분석/합성 좌표 검증만 완료, 실차 검증: 미실시).
+4. 152차 코드(TBT desiredSpeed atc 제거 + route 게이트 300m)의 디바이스 배포(git pull) 여부 여전히 미확인(151/152차 이월).
+5. 147차 코드가 탑재된 디바이스의 실주행 로그 검증(148~152차 이월).
+6. "선행차가 설정 차간거리(m~1.25) 근처에서 급제동" 시나리오 정량 미검증(148~150차 이월).
+7. 148차 v1 `2>&1` 재발(핵심 발견 53/55와 동일 패턴 3회째)의 FINDINGS.md 정식 등록 여부 결정(148차 이월).
+8. 이전 이월: diff/블록 추출 스크립트(임시, 147차 코드 반영용) toolkit 미등록.
+
+
 ## 152차 (코드 push 완료 · 실차 검증 미실시) -- 151차 TBT desiredSpeed 수정 스크립트 독립 재검증, 버그 발견/수정, carrot-ryu push 확인
 
 세션 시작 4절 0단계로 지침 문서(v2, commit `c1d3eb8`) 조회, HANDOFF.md/CURRENT_STATUS.md(151차, commit `c1d3eb8` 동일) 확인 후 carrot-ryu HEAD(`c0a01658`, 147차 상태 유지, 151차 이후 코드 변경 없음)와 문서 기록 일치 재확인.
