@@ -1,5 +1,17 @@
 # WIP
 
+## 155차 계속 (devnotes만 · 코드 변경 없음 · 실기기 검증 완료) -- 155차 코드 push 확인 + 로그탭 "선택 전송" 실기기 재현 테스트 결과
+
+**push 확인**(GitHub 직접 조회, SHA 고정): carrot-ryu `9ff1242e`(부모 `f23d05f`, config.py +5 / upload_jobs.py +7/-1, 반영된 blob hash가 시뮬레이션 예측 `b5c9f156`/`fb534605`와 일치, CR 0/BOM 없음), carrot-ryu-note `5c02b081`(부모 `ffd9922`, CURRENT_STATUS +1 / FINDINGS +12 / WIP +19 / HANDOFF 교체). 155차 코드/devnotes 둘 다 반영 확정. 이 시점 HANDOFF.md의 "155차 코드 push 대기" 문구는 실제와 달랐고(반영 스크립트 실행 후 갱신하지 못한 상태), 이번 회차 HANDOFF로 바로잡는다.
+
+**실기기 검증**(사용자 보고): 사용자가 기기에서 `git pull`을 완료한 뒤, 로그탭에서 대시캠 세그먼트를 전체선택하고 "선택 전송"을 실행했고 "정상 진행됨"이라고 알려왔다(155차 원인이던 38세그먼트 전체선택 시나리오와 같은 조작). 즉 `[Errno 28] No space left on device`는 재발하지 않았다.
+
+**확인되지 않은 것**(사용자 보고에 없었고 이 세션에서 조회할 수 없음): (a) 이번 전송이 Google Drive 업로드 완료까지 끝났는지(사용자 표현은 "정상 진행됨"), (b) 전송 후 `/data/carrot/tmp/dashcam_upload`가 실제로 비워졌는지, (c) 기기에 pull된 커밋 SHA가 `9ff1242e`인지(사용자가 "깃풀완료"라고만 알림). 이 중 (b)는 `finally: rmtree`가 정상 종료 시 동작해야 하는 부분이라 기기에서 `ls /data/carrot/tmp/dashcam_upload`로 한 번 확인하면 된다.
+
+**함의**: 사용자가 carrot-ryu를 최신으로 pull했다면 그 안에 든 152차·153차 코드도 함께 기기에 탑재됐을 가능성이 높다(151~155차 이월 "디바이스 배포 여부 미확인" 항목의 근거가 생김 -- 다만 어느 SHA까지 pull됐는지는 미확인이라 추정). 이 경우 다음 실주행 로그는 153차 수정(get_path_after_distance) 실차 검증에 쓸 수 있다.
+
+실차 검증(주행): 미실시 -- 이번 검증은 정차 상태 기능 확인(로그 업로드)이며 주행 코드와 무관하다.
+
 ## 155차 (코드 1건 · 실행/push 대기 · 실차 검증 미실시) -- 로그탭 "선택 전송" ENOSPC(Errno 28) 수정: 대시캠 zip 스테이징 경로를 /tmp(tmpfs 150M)에서 /data/carrot/tmp/dashcam_upload로 이동
 
 **증상**(사용자 보고): 로그탭에서 대시캠 세그먼트 전체선택(38개, route `00000449--b34152b780`) → "선택 전송" → `로그 전송 오류: [Errno 28] No space left on device`.
