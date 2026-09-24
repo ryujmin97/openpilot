@@ -1,5 +1,34 @@
 # WIP
 
+## 152차 (코드 push 완료 · 실차 검증 미실시) -- 151차 TBT desiredSpeed 수정 스크립트 독립 재검증, 버그 발견/수정, carrot-ryu push 확인
+
+세션 시작 4절 0단계로 지침 문서(v2, commit `c1d3eb8`) 조회, HANDOFF.md/CURRENT_STATUS.md(151차, commit `c1d3eb8` 동일) 확인 후 carrot-ryu HEAD(`c0a01658`, 147차 상태 유지, 151차 이후 코드 변경 없음)와 문서 기록 일치 재확인.
+
+**입력**: 사용자가 `152cha_code_carrot_ryu.ps1`을 업로드하며 "TBT에서도 (일반 곡선과 동일 로직 + 300m 시야로 게이트) 이 조건의 라우트 로직을 적용하자"고 지시. 이 스크립트는 151차 분석(분기 desiredSpeed flicker, route 게이트가 route가 보지도 못하는 500m 밖까지 열려있던 문제)을 코드로 반영한 것으로, carrot_serv.py의 TBT 속도제어 경로에서 (1) `update_auto_turn()`이 만드는 `atc_desired`/`atc_desired_next`를 `speed_n_sources`에서 완전히 제거(atcType/atcSpeed/atcDist 등 다른 용도 배선은 보존)하고, (2) `turnSpeedControlMode==2`의 route 게이트를 기존 `-500<xDistToTurn<500`에서 `carrot_navi_route()`가 실제로 계산하는 가시거리(`MAP_TURN_GUIDE_FAR_M=300m`, `0<=xDistToTurn<=300`)로 좁힌다.
+
+**검증 방법(9절/핵심 발견 26 -- 다른/이전 세션이 만든 스크립트도 실행 전 재검증)**: 스크립트의 pre-image blob hash 가드가 지목하는 `c0a01658`(현재 carrot-ryu HEAD와 일치) 기준 `carrot_serv.py`를 SHA 고정 raw로 직접 재조회, 스크립트 안 4개 Replace-Block(`Old1~4`)을 그대로 적용해 앵커 전부 1회 매치 + 결과 blob이 스크립트가 기대하는 post-image(`b501c0918ed2a28d41fa73fd353927be2abaacb5`)와 byte-exact 일치함을 확인. 동일 절차를 Windows CRLF 체크아웃 재현(전체 파일 `\n`→`\r\n` 변환 후 `Invoke-ReplaceBlock`과 동일한 정규화 로직 적용)으로도 재현해 두 모드 모두 동일한 결과 blob이 나옴을 확인(9절 항목 9). `py_compile` 통과, `atc_desired`/`"atc2"` 잔여 참조는 `update_auto_turn()` 내부 지역변수와 주석 처리된 디버그 줄(`# self.debugText = ...`)뿐임을 grep으로 확인(11절, 실행 로직에 영향 없음).
+
+**발견한 버그 2종(업로드된 v1, 실행 전 발견 -- push 사고 없음)**:
+1. `.ps1` 파일 자체가 한글 주석/문구(here-string 안 "TBT 상태...", "151차: ..." 등)를 포함하는데 UTF-8 BOM이 없음(9절/핵심 발견 21·79차·84차와 동일 패턴) -- Windows PowerShell 5.1이 이를 시스템 코드페이지(CP949 등)로 잘못 해석해, 대상 파일에 쓰이기도 전에 스크립트 내부 한글 문자열 자체가 깨질 위험이 있었다.
+2. `[2/6] pre-image blob hash guard` 단계에 `$PreHash = (Invoke-Git -C $Tmp hash-object $TargetFile 2>$null; & git -C $Tmp hash-object $TargetFile).Trim()` 줄이 바로 다음 줄(정상적으로 `.Trim()`을 계산하는 줄)과 중복으로 남아있었다. 이 줄은 세미콜론으로 구분된 두 statement의 출력을 묶어 2-원소 배열을 만든 뒤 그 배열에 `.Trim()`을 호출하는데, 배열에는 `Trim()` 메서드가 없어 PowerShell이 즉시 종료 오류를 던진다 -- `$ErrorActionPreference="Stop"`이라 이 시점에서 스크립트 전체가 무조건 중단되며, 바로 뒤에 있는 올바른 `$PreHash = (& git -C $Tmp hash-object $TargetFile).Trim()` 줄까지도 도달하지 못한다. 즉 이 스크립트는 [2/6] 단계에서 한 번도 넘어갈 수 없는 상태였다.
+3. `[6/6] commit and push` 단계의 `Invoke-Git -C $Tmp -C $Tmp show --stat HEAD`에 `-C $Tmp`가 중복돼 있었다. git은 다중 `-C` 옵션을 이전 `-C` 경로에 대해 상대적으로 해석하므로, 이 호출은 존재하지 않는 `$Tmp/$Tmp` 경로로 이동을 시도해 실패 -- `git add`/`git commit`까지는 성공한 뒤(로컬 커밋 생성) 이 줄에서 크래시해 `git push`(바로 다음 줄)에 도달하지 못했을 것이다.
+
+BOM 추가 + 위 두 코드 버그(2, 3)를 수정한 `152cha_code_carrot_ryu_v2.ps1`을 작성, v2 파일 자체에서 `Old1~4`/`New1~4` here-string을 정규식으로 직접 추출해(9절 항목 7 -- 기억이 아니라 전달할 파일에서 그대로 추출) 위 검증을 처음부터 다시 수행, 동일하게 byte-exact 일치를 재확인했다.
+
+**설계 확인**: `carrot_settings.json`의 `TurnSpeedControlMode` 설명에 모드 2가 정확히 "비전+경로(TBT)"로 라벨돼 있음을 확인 -- 이 차량은 핵심 발견 4에서 이미 TurnSpeedControlMode=2로 확인돼 있으므로, `if self.turnSpeedControlMode == 2:` 분기가 곧 사용자가 말한 "TBT" 게이트다. 모드 3/4("경로(항상)", 무조건 route 추가)는 이 차량에서 비활성 상태라 이번 수정 범위 밖으로 유지(10절 최소 변경 원칙).
+
+**push 결과(GitHub 직접 조회로 확인)**: 사용자가 붙여넣은 push 로그(`c0a01658..44bfd33d  carrot-ryu -> carrot-ryu`, `DONE: carrot-ryu updated and pushed.`)를 근거로 완료로 단정하지 않고 `git ls-remote`와 clone으로 재확인했다(16절). carrot-ryu HEAD는 `44bfd33d6ad3bb4c0470386a6ac6e98bdad37fc2`(부모 `c0a01658`, 커밋 메시지 `152cha: TBT desiredSpeed - drop atc from speed_n_sources, gate route to real 300m view`), 변경은 `openpilot/selfdrive/carrot/carrot_serv.py` 1개 파일 +9/-9이며, 결과 blob(`b501c0918ed2a28d41fa73fd353927be2abaacb5`)이 위 검증의 기대 post-image와 일치한다. diff 내용도 위 (1) atc_desired/atc_desired_next를 speed_n_sources에서 제거(update_auto_turn 호출과 atcType/atcSpeed/atcDist는 유지), (2) route 게이트를 `0 <= xDistToTurn <= MAP_TURN_GUIDE_FAR_M`로 좁힘과 일치한다. 이 push는 이 devnotes 반영 시점 기준 이미 GitHub에 있으며, 디바이스에 배포(git pull)됐는지는 기록이 없어 미확인이다.
+
+**미완료/이월**:
+1. 이 devnotes 반영 스크립트(v2) 실행/push 확인(코드 쪽은 위 push 결과대로 확인 완료). 152차 코드의 디바이스 배포(git pull) 여부는 미확인.
+2. 151차가 범위만 좁히고 확정하지 못한 분기점 desiredSpeed flicker의 근본 원인(`route_speed_raw`/`carrot_navi_route()` 경로 폴리라인·GPS 샘플링 가설, 11절: 확정 아님)은 이번 152차 수정으로 해소된 것이 아니다 -- 152차는 "route 후보가 보이지도 않는 먼 거리(500m 밖) 노이즈를 speed_n_sources에 넣지 않도록" 게이트를 좁힌 것이며, `route_speed_raw` 자체의 계산 로직은 그대로다. 반영 후 재실차로 분기점 flicker가 실제로 줄었는지/여전한지 별도 확인 필요(다음 세션 최우선).
+3. 147차 코드 탑재 디바이스의 실주행 로그 검증(148~151차 이월, 변동 없음).
+4. "선행차가 설정 차간거리 근처에서 급제동" 시나리오 로그 미확보(148~150차 이월, 변동 없음).
+5. 148차 v1 `2>&1` 재발(핵심 발견 53/55와 동일 패턴 3회째)의 FINDINGS.md 정식 등록 여부(148차 이월, 변동 없음).
+6. diff/블록 추출 스크립트(임시, 147차 코드 반영용) toolkit 미등록(147차 이월, 변동 없음).
+
+실차 검증: 미실시(152차 코드는 GitHub에 push됐으나 디바이스 배포/실주행 기록이 없음. 이 세션 자체는 코드 변경 없이 기존 스크립트 검증/수정과 push 결과 확인만 수행).
+
 ## 151차 (devnotes만 · 코드 변경 없음) -- 분기(xTurn=4)/톨게이트(xTurn=6) route 감속 실차 로그 확인, 분기 지점 desiredSpeed flicker 신규 발견
 
 세션 시작 4절 0단계로 지침 문서(v2, commit `2c1d7a7`) 조회, HANDOFF.md/CURRENT_STATUS.md(150차, commit `2c1d7a7` 동일) 확인 후 carrot-ryu HEAD(`c0a01658`, 147차)와 문서 기록 일치 재확인.
