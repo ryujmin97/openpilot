@@ -1,5 +1,10 @@
 # PARAMS REGISTRY
 
+## route 후보 속도 근접-직선 슬루 필터 파라미터 (161차 신규, candidate3)
+- 코드 리터럴(Params 시스템 아님, `openpilot/selfdrive/carrot/carrot_man.py`의 `carrot_navi_route()` 내부 상수): 곡률 게이트 상한 `0.003`(이 값 미만일 때만 슬루 제한 적용, 곡률 리스트가 비어도 0.0으로 간주해 게이트 통과), 사이클당 최대 변화폭 `navi_route_speed_max_delta = 1.0`(km/h, 20Hz 기준 초당 ±20km/h에 해당).
+- 상태 변수: `self.navi_route_speed_filt`(이전 사이클 출력값). `self.navi_points_start_index = 0`으로 리셋되는 9개 지점(`__init__` 포함) 전부에서 함께 `None`으로 리셋됨 -- 경로/목적지 변경 시 옛 속도 대역에 필터가 묶여 수 초간 새 값을 못 따라가는 걸 방지.
+- 근거: WIP.md 161차, FINDINGS.md 핵심 발견 59 참고. 158~160차의 "곡률 잡음"(작은 실측 곡률값이 사이클마다 흔들리는 것) 8건 중 seg8/15/31 C-군집을 대상으로 파라미터 스윕(1.0/2.0/5.0 km/h)해 1.0을 채택.
+
 ## Google Drive 연동 파라미터 (22차 신규 등록)
 - CarrotGDriveClientId (PERSISTENT, STRING) — Google Cloud Console에서 발급받은 OAuth 클라이언트 ID. 로그탭 Drive 연결 설정에서 사용자가 직접 입력, gdrive_upload.py가 저장.
 - CarrotGDriveClientSecret (PERSISTENT, STRING) — 위 클라이언트의 보안 비밀번호. 사용자 직접 입력.
