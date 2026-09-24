@@ -227,9 +227,27 @@ def get_path_after_distance(start_index, coordinates, current_position, distance
     if closest_index != -1:
         path_after_distance.append(closest_point)
 
-        path_after_distance.append(coordinates[closest_index + 1])
-        total_distance = haversine(closest_point[0], closest_point[1], coordinates[closest_index + 1][0],
-                                   coordinates[closest_index + 1][1])
+        next_point = coordinates[closest_index + 1]
+        first_segment_distance = haversine(closest_point[0], closest_point[1], next_point[0], next_point[1])
+
+        # 153차: closest_point -> next_point 구간(첫 세그먼트)이 이미 distance_m을 넘는 경우,
+        # next_point를 그대로 append하면 아래 루프의 remaining_distance(=distance_m-total_distance)가
+        # 음수가 되어 ratio도 음수가 되고, "distance_m 지점"이라며 만들어내는 점이 진행 방향과
+        # 반대(next_point에서 그 전 구간 쪽)로 튀어나간다. 이 역방향 점이 경로 끝에 인위적인 꺾임을
+        # 만들고, 그 꺾임이 closest_point 위치(차량이 세그먼트 위 어디에 있는지)에 매우 민감해
+        # 곡률 계산이 20Hz마다 크게 요동치는 것이 분기/램프 구간 desiredSpeed flicker의 근본 원인이었다
+        # (route 폴리라인 정점 간격이 300m보다 성긴 구간에서만 발현, 153차 seg70 오프라인 재현으로 확정).
+        # first_segment_distance가 이미 distance_m 이상이면 첫 세그먼트 안에서 바로 distance_m
+        # 지점을 보간해 반환하고, 아래의 "다음 세그먼트로 계속 진행" 루프는 타지 않는다.
+        if first_segment_distance >= distance_m and first_segment_distance > 0:
+            ratio = distance_m / first_segment_distance
+            interpolated_lon = closest_point[0] + ratio * (next_point[0] - closest_point[0])
+            interpolated_lat = closest_point[1] + ratio * (next_point[1] - closest_point[1])
+            path_after_distance.append((interpolated_lon, interpolated_lat))
+            return path_after_distance, start_index, closest_point
+
+        path_after_distance.append(next_point)
+        total_distance = first_segment_distance
 
         # Traverse the path forward from the next point
         for i in range(closest_index + 1, len(coordinates) - 1):
