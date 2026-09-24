@@ -133,3 +133,9 @@ Claude 샌드박스에서 conftest.py를 포함한 실제 pytest CI 조건을 �
 | `route_decel/replay_route_geom.py` | `extract <schema_dir> <rlog.zst> <out.pkl>`: carrotMan(xPos*/naviPaths/xTurn/xDist/des/src 등)+navRoute+carState.vEgo를 뽑는다(20Hz가 아니라 carrotMan 이벤트 기준, route_extract.py의 extract와 별개). `run <old_carrot_man.py> <new_carrot_man.py> <out_prefix> <seg.pkl> [<seg2.pkl> ...]`: OLD/NEW `get_path_after_distance()`를 재생해 `<out_prefix>_replay.pkl` 생성(연속 세그먼트는 start_index를 이어받음). `report <label>=<prefix>_replay.pkl [...] [--base 1.2] [--guide 1.0]`: 재생 충실도(로그 naviPaths 대비)/트리거 비율/route 급변 건수(로그·OLD·NEW)/비트리거 무회귀/route-source desiredSpeed 급변을 집계 표로 출력 |
 
 가정 파라미터(로그에 없음, `run()` 인자로 덮어쓰기 가능): `AutoNaviSpeedDecelRate=0.8 m/s^2`, `AutoNaviSpeedCtrlEnd=0`. `report`의 `--base`(route/out_speed 계수, MapTurnSpeedFactor/100)는 154차 로그에서 약 1.2로 역산한 값. 폴더 배치는 `route_extract.py`와 동일(`schema_dir`에 log.capnp/custom.capnp/deprecated.capnp/include/+car.capnp를 로그 기록 커밋 기준으로 모음). 한계: 로그 xPos는 Float32(약 0.4~0.8m 양자화)라 트리거 사이클(버그 발현 조건) 개별 값은 재생과 어긋날 수 있어 집계 지표로만 해석한다(154차 실측: 비트리거 재생 충실도 93.3~98.2%(3m 이내) vs 트리거 62.3~73.3%). 154차 결과와 해석은 WIP.md 154차 참고.
+
+
+### 160차 추가 (route= 필드 1사이클 지연 주의: report()/직접 비교 시)
+
+로그 `carrotMan.szPosRoadName`의 `route=` 값(디버그 표기)을 재생값(`r_o`, `out_o × 배율`)과 같은 사이클끼리 직접 비교하면 실제로는 일치하는 변화도 불일치로 보일 수 있다(160차 발견). seg8/seg15 구간에서 재생 `r_o`와 로그 `route=`의 오르내림 패턴이 정확히 한 사이클(20Hz, 0.03~0.06s) 어긋난 채 동일한 모양으로 나타났고, `run()`의 decel 인자를 0.3~2.0으로 바꿔도 이 타이밍 자체는 변하지 않았다(크기만 스케일) -- 즉 재생 파라미터 오차가 아니라 로그 `route=` 필드 표기 자체의 1사이클 지연으로 추정된다(정적 추적 기반 추정, 확정 아님). 같은 사이클 대조에서 급변이 재현되지 않으면, 재생 r_o를 1사이클(-1) 시프트해 로그와 다시 대조해 볼 것. 상세 근거는 WIP.md 160차 참고.
+
