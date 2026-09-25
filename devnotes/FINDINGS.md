@@ -1,5 +1,19 @@
 # FINDINGS
 
+## 핵심 발견 64 (165차) -- road 후보(`limit_speed`)와 `nRoadLimitSpeed` 로깅 필드의 관계를 코드로 확정(무제한 placeholder는 조건부), MapTurnSpeedFactor 결론이 2번째 로그(다른 도로)로 일반화됨
+
+**배경**: 164차는 "road 후보값이 실제 사용되는 `limit_speed` 변수와 `nRoadLimitSpeed`(carrotMan 로깅 필드) 사이의 정확한 관계... 로그 관찰상 무제한 placeholder로 추정, 확정 아님"과 "MapTurnSpeedFactor 적정성 결론은 다른 도로/조건 로그로 일반화 검증 필요"를 이월했다.
+
+**road/limit_speed 관계 (코드 확정)**: `carrot_serv.py` 1363~1370행을 직접 읽어 확정했다. `limit_speed = 200`으로 시작하고(사실상 무제한), `self.autoRoadSpeedLimitOffset>=0 and self.active_carrot>=2 and road_limit_valid`를 만족하는 경우에 한해 안쪽의 `self.nRoadLimitSpeed>=30`까지 만족할 때만 `self.nRoadLimitSpeed + road_speed_limit_offset`로 대체된다. `nRoadLimitSpeed`는 이 조건과 무관하게 내비게이션 소스(`speed.road_limit_kph`/`CS.speedLimit`/waze json 등, 951·1273·1296·1352행)로부터 항상 갱신되는 원시값이고, carrotMan 메시지에는 이 원시값(`nRoadLimitSpeed`) 그대로 로깅된다(1522행) -- desiredSpeed 결정에 실제 쓰이는 `limit_speed`는 로깅되지 않는다. 즉 164차의 "무제한 placeholder 추정"은 `active_carrot<2`(내비게이션 비활성)이거나 `nRoadLimitSpeed<30`일 때만 맞고, 그 외엔 실제 제한속도+오프셋이 그대로 desiredSpeed 후보가 된다.
+
+**로그로 실증**: 새 실주행 rlog 42세그먼트(`0000044a--692521eced--0~41`, 2026-09-24, 41.35분, 기록 커밋 `f23d05f`=153차)를 `route_decel/route_extract.py`(113차)로 추출·병합(49,657행). `road`(toolkit 컬럼, 즉 raw `nRoadLimitSpeed`)가 desiredSpeed의 binding 소스로 선택된 사이클이 12,747건(25.7%)이며 값 분포가 30/50/60/80/10km/h로 전부 현실적인 도로제한속도였다 -- 코드가 예측한 대로 "조건 충족 시 실제 제한속도가 쓰인다"는 것이 로그 관찰과 일치, placeholder 가설이 전체가 아니라 일부(조건 미충족 구간)에만 해당함을 확정.
+
+**MapTurnSpeedFactor 일반화**: 이 로그는 153차(163차 이전) 코드로 기록돼 route 후보가 여전히 `turnSpeedControlMode==2`의 `0<=xDistToTurn<=300` 게이트로 걸러지던 시점이다. `route=` 디버그값은 게이트 통과 여부와 무관하게 매 사이클 무조건 계산/기록됨(1478행, min() 호출 이전)을 이용해, `des_new = min(des_old, route)`로 163차(게이트 완전 제거) 적용 시의 desiredSpeed를 근사 재구성했다(des_old가 이미 route를 포함했던 사이클은 des_old<=route이므로 이 식은 항상 정확). `longActive==True`(시스템이 실제 종방향 제어 중)인 24,610사이클을 대상으로 "옛 코드는 낮추지 않았는데 새 코드가 현재 속도(vE)보다 낮은 목표를 새로 요구"하는 사례를 찾았으나 0건이었다(버퍼 2km/h 기준; 버퍼 없는 엄격 기준으로도 7건뿐이고 그 7건 전부 des_old==route, 즉 옛 코드도 이미 route와 동일값을 쓰고 있던 경계 사례로 신규 아님). delta(-0.5km/h 미만)만 보면 5,534건(22.49%)로 커 보였으나, 상세 확인 결과 대부분 des_old=200(placeholder, 다수가 longActive=False로 제어 자체와 무관)이 route(예: seg13 t=4s, 69~74km/h)로 대체되는 것이었고 route 자체가 vE(64km/h)보다 높아 실질 제동 요구가 아니었다(예: seg40 t=15~17s는 `state=disabled`로 시스템 비engaged 구간). 이로써 164차(1개 로그, `0000044d`) 결론 -- "MapTurnSpeedFactor(90) 절댓값 조정 근거 없음" -- 이 서로 다른 도로의 2번째 로그(41분, 42세그먼트, `0000044a`)로 일반화됐다.
+
+**수정 여부**: 없음(분석만).
+
+**한계**: 이 로그는 153차 코드 기록이라 156/157/162/163차 자체의 실제 디바이스 실행 결과가 아니라 163차의 "게이트 제거"만 오프라인 근사한 것이다. `autoRoadSpeedLimitOffset` 등 런타임 Params 실제값은 역산하지 않았다. xTurn=6(톨게이트) 로그는 이번에도 미확보(114차 이월 유지). 실차 검증: 미실시.
+
 ## 핵심 발견 63 (164차) -- turnSpeedControlMode==2 게이트가 xDistToTurn<0(안내지점 통과 직후)도 함께 배제하고 있었음을 실증, 163차 수정이 이미 해결(회귀 없음); MapTurnSpeedFactor 절댓값 조정은 이번 로그 기준 불필요
 
 **배경**: 163차(핵심 발견 62)는 `turnSpeedControlMode==2`의 route 게이트(`0<=xDistToTurn<=300`)가 안내 지점이 300m보다 먼 구간에서 route 후보를 배제하는 문제를 실증/수정했으나, (1) route가 이제 desiredSpeed를 실제로 얼마나 자주/크게 낮추는지(일반 곡선 감속으로서 체감), (2) 안내 지점 통과 직후(xDistToTurn<0) 구간의 회귀 여부는 다음 세션으로 이월했다(163차 한계).
