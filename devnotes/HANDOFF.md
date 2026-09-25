@@ -1,40 +1,39 @@
-Worker: Claude (161cha, Claude Sonnet 5)
+Worker: Claude (161cha 계속, Claude Sonnet 5)
 Date: 2026-09-25
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (이 스크립트 반영 전 base: 619998bb144c699f379a5c8f6c9a64843d108f28, 156차 이후 처음 코드 변경 -- 161차 candidate3 구현)
-Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 021d1b8608c1c56cd6716bb06a2fe95a44b586a1, 160차 devnotes push 완료 상태)
+Code Branch: carrot-ryu (base: 619998bb144c699f379a5c8f6c9a64843d108f28, 아직 미변경 -- v1 코드 스크립트가 CRLF 앵커 매칭 실패로 안전 중단, v2로 수정 완료·실행 대기)
+Note Branch: carrot-ryu-note (이 스크립트 반영 전 base: 033c0b4a6c67f4afb6f3e1188c481d1447c6032c, 161차 devnotes push 완료 상태)
 carrot-ms 마지막 검토/동기화 체크포인트: `3756e6d5`(130차, 139차 재확인 -- 신규 커밋 없음. 140~161차는 재점검 없음)
 
 작업:
-1. 세션 시작 4절 0단계로 지침 문서(v2, `021d1b8`) 조회, `git ls-remote`로 carrot-ryu-note HEAD `021d1b8`, carrot-ryu HEAD `619998bb` 확인(괴리 없음).
-2. 160차 미완료 1번(후보 3번 좁은 필터 파라미터 확정, 사용자가 "추천값대로" 위임)을 이어서 진행 -- 파라미터 확정, 실제 코드 구현까지 완료.
+1. 세션 시작 4절 0단계로 지침 문서(v2, `033c0b4`) 조회, `git ls-remote`로 carrot-ryu-note HEAD `033c0b4`, carrot-ryu HEAD `619998bb` 확인.
+2. HANDOFF.md(161차)를 통해 코드 반영 스크립트(v1) 사용자 실행 결과 확인 -- 클론 성공, 첫 Replace-Block 앵커 매칭 0건으로 안전 중단.
+3. 원인 진단(`.gitattributes`의 `* text=auto`로 인한 Windows CRLF 체크아웃) 및 CRLF-무관 패치 로직으로 재작성(v2).
+4. 로컬 bare 저장소 dry-run(정상 LF / 시뮬레이션 CRLF 두 모드)으로 v2 검증 -- 두 모드 모두 10개 앵커 정확히 1회 매치, 동일 diff(19줄 추가) 생성 확인.
 
 완료:
-1. 160차가 제안한 "곡률 값 자체 슬루 제한" 방식이 실측상 잡음을 오히려 늘린다는 걸 확인(seg8: jumps 13→16, seg31: 7→11)하고, "최종 스칼라 출력값(out_speed)에 직접 슬루 제한" 방식으로 재설계.
-2. 재설계안으로 max_delta(1.0/2.0/5.0 km/h) 파라미터 스윕, curv_thresh=0.003 고정 -- seg1/8/11/15/17/23/31 7개 세그먼트에서 jump 감소·트리거 지연 없음 확인, max_delta=1.0 채택(상세는 WIP.md 161차 표 참고).
-3. 신규 발견(FINDINGS.md 핵심 발견 59로 별도 등록): 경로 폴리라인이 300m 룩어헤드 안에서 2~3점으로 줄면 곡률이 사실상 0이 되어 route 후보 속도가 무제한(300×배율)으로 튀는 현상. `report()`의 des_jumps_route로 실차 영향(desiredSpeed에 실제로 반영되는지)을 세그먼트별로 확인 -- seg11/17/23은 영향 없음(route_src_cycles=0), seg8/15/31(160차 C-군집)은 실제 영향 있음(des_jumps_route=5/5/3), candidate3의 진짜 대상이 후자임을 재확인.
-4. `carrot_man.py`에 candidate3 구현: `carrot_navi_route()` return 직전에 근접-직선(최대 곡률<0.003, 곡률 미산출 포함) 게이트 + 사이클당 ±1.0km/h 슬루 제한 삽입, `self.navi_route_speed_filt` 상태 변수를 `self.navi_points_start_index = 0` 리셋 지점 9곳(`__init__` 포함) 전부에서 함께 리셋. `py_compile` 통과, 동일 로직을 재생 데이터에 적용해 jump 감소 재확인.
-5. PARAMS_REGISTRY.md에 candidate3 파라미터(curv_thresh=0.003, navi_route_speed_max_delta=1.0) 신규 등록.
+1. 핵심 발견 60 신규 등록(v1 실패 원인/메타원인/수정/검증).
+2. WIP.md 161차 계속 항목 작성.
+3. 코드 반영 스크립트 v2 작성 및 컨테이너 내 자가검증(BOM 없음/py_compile 통과/pwsh 파서 구문 오류 0건/로컬 bare repo 두 모드 dry-run 성공) 완료.
 
 미완료(다음 세션 우선순):
-1. 최우선: 이번 세션 반영 스크립트(코드 1건 + devnotes) 사용자 실행 -> push 확인.
-2. 경로 소진(폴리라인 부족) 현상(핵심 발견 59)의 수정안은 미착수 -- 이번 로그에서는 실차 영향 없어 우선순위 낮음, 필요시 route가 유일한 낮은 후보가 되는 상황을 더 찾아 재확인.
-3. candidate3 실기기 검증 -- 반영 후 강수/야간 등 트리거 빈도가 다른 로그로 재검증 필요.
-4. 156차 A안 실기기 검증(강제 종료/전원 차단 재현) -- 155~156차부터 이월.
-5. 톨게이트(xTurn=6) 구간 실차 검증(114차부터 이월, 이번 로그도 xTurn=6 전이 0건).
-6. (선택) zip 무결성/용량 확인, `build_zip()` 디스크 여유 확인 코드(155차 이월).
-7. 148차 v1 `2>&1` 재발의 FINDINGS.md 정식 등록 여부, 147차 임시 스크립트 toolkit 미등록(이전 이월, 변동 없음).
+1. 최우선: 사용자가 `161cha_code_carrot_ryu-v2.ps1` 실행 -> push 확인(carrot-ryu HEAD가 GitHub API에서 `619998bb`에서 갱신되는지 재확인).
+2. 이 devnotes 반영 스크립트(v2) 자체도 실행 -> push 확인.
+3. (161차 원안 이월) 경로 소진 현상(핵심 발견 59) 수정안 미착수.
+4. candidate3 실기기 검증 -- 반영 후 강수/야간 등 트리거 빈도가 다른 로그로 재검증 필요.
+5. 156차 A안 실기기 검증(강제 종료/전원 차단 재현) -- 155~156차부터 이월.
+6. 톴게이트(xTurn=6) 구간 실차 검증(114차부터 이월).
+7. (선택) zip 무결성/용량 확인, `build_zip()` 디스크 여유 확인 코드(155차 이월).
+8. 148차 v1 `2>&1` 재발의 FINDINGS.md 정식 등록 여부, 147차 임시 스크립트 toolkit 미등록(이전 이월, 변동 없음).
 
 검증:
-- 161차 분석·구현은 open-loop 로그 재생(재구현 없이 ast 추출/exec 기반) 및 정적 코드 검증(py_compile)이며 실기기 테스트/실주행이 아니다.
-- candidate3 파라미터 결정은 7개 세그먼트(seg1/8/11/15/17/23/31)의 재생 결과에 기반하며, 38세그먼트 전체나 다른 조건(강수/야간 등)에서 재검증되지 않았다.
+- v2 코드 스크립트는 컨테이너 내 로컬 bare 저장소(실제 carrot-ryu HEAD `619998bb` 트리를 그대로 미러링) 대상 clone→patch→commit→push 전 과정을 정상 LF 체크아웃과 Windows CRLF 체크아웃 시뮬레이션(`core.eol=crlf`) 두 모드로 실행해 검증했다. 두 모드 모두 동일한 diff(1 file changed, 19 insertions(+))를 만들었고 BOM 없음, `py_compile` 통과를 확인했다. 다만 이는 리눅스 컨테이너의 시뮬레이션이며 실제 사용자 Windows PowerShell 5.1 실행 자체를 대체하지 않는다(핵심 발견 52/55가 이미 지적한 한계와 동일).
+- 코드 변경 내용(candidate3 설계·파라미터)은 161차와 동일, 이번 계속에서 바뀌 것은 전달 스크립트의 결함 수정뿐이다.
 
 주의사항:
-- 161차는 156차 이후 처음으로 carrot-ryu 코드가 변경된다(candidate3, 1개 파일).
-- 코드/devnotes 반영 스크립트는 각각 별도이며 사용자가 직접 실행해야 GitHub에 반영된다(9절/15절/18절).
-- FINDINGS.md 핵심 발견 59는 정보 기록용이며, 수정안이 아니다 -- 후속 세션에서 필요성이 재확인되기 전까지 코드 변경 대상 아님.
+- carrot-ryu는 여전히 `619998bb`(156차 그대로) -- v2 실행 전까지 candidate3는 GitHub에 반영되지 않은 상태다.
+- 이전에 사용자 Downloads 폴더에 받아둔 `161cha_code_carrot_ryu-v1.ps1`은 실행하지 말 것(CRLF 앵커 매칭 실패로 안전 중단되므로 재실행해도 무해하지만, 혼동 방지를 위해 v2만 사용 권장).
 
 다음 작업:
-1. 사용자가 코드 반영 스크립트(`161cha_code_carrot_ryu-v1.ps1`)와 devnotes 반영 스크립트(`161cha_devnotes_carrot_ryu_note-v1.ps1`) 실행 -> 각각 push 확인.
+1. 사용자가 코드 반영 스크립트(`161cha_code_carrot_ryu-v2.ps1`)와 devnotes 반영 스크립트(`161cha_devnotes_carrot_ryu_note-v2.ps1`) 실행 -> 각각 push 확인.
 2. push 확인 후 다음 세션에서 GitHub raw 조회로 실제 반영 내용 재확인(16절).
-3. 실기기에서 강제 종료/전원 차단 재현(156차 A안) 또는 톨게이트 통과 로그 확보 시 그쪽도 병행 가능.

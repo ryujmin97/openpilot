@@ -1,5 +1,23 @@
 # WIP
 
+## 161차 계속 (코드 v1 실행 실패 → v2로 수정·검증 완료 · 실행/push 대기) — v1 코드 스크립트 CRLF 앵커 매칭 실패(핵심 발견 60) 진단 및 수정
+
+161차 devnotes(v1)는 정상 push됨(`021d1b8..033c0b4`). 이어서 사용자가 코드 반영 스크립트(v1)를 실행 -- 초기엔 git이 자격증명 대기로 무한정 멈추는 별개 증상이 있어 진단 로그(git 버전/credential.helper 출력, TCP 연결 사전확인, `GIT_TERMINAL_PROMPT=0`)를 추가한 버전으로 재전달했고, 이 버전은 클론까지는 정상 진행되었으나 `carrot_man.py` 첫 Replace-Block 앵커가 `found 0 matches`로 안전 중단됨.
+
+원인은 핵심 발견 60에 정식 등록: v1 패치 로직에 CRLF->LF 정규화가 없어 Windows CRLF 체크아웃(`.gitattributes`의 `* text=auto`)에서 앵커가 전혀 매치되지 않음(44/46/48/50과 동일 메카니즘 재재발).
+
+**수정 및 검증**: 패치 스크립트를 CRLF-무관 방식(원본 개행 판별 → LF 정규화 매칭 → 원본 개행 복원 저장)으로 재작성(v2). 이번 세션에서 로컬 bare 저장소로 실제 clone→patch→commit→push 전 과정을 두 모드(정상 LF / `core.eol=crlf`로 Windows CRLF 체크아웃 시뮬레이션)로 시연 -- 두 모드 모두 10개 Replace-Block이 각 1회씩 매치되어 동일한 diff(1 file changed, 19 insertions(+))를 만들었고, BOM 없음·`py_compile` 통과를 확인했다. `.ps1` 자체도 PowerShell 7 파서로 구문 오류 0건을 확인했다.
+
+**변경 내용은 161차 원안(candidate3)과 동일**, 이번 계속은 전달 스크립트의 결함 수정일 뿐 설계/파라미터 변경 없음.
+
+**미완료(다음 세션 우선순)**:
+1. 최우선: v2 코드 반영 스크립트(`161cha_code_carrot_ryu-v2.ps1`) 사용자 실행 -> push 확인(carrot-ryu HEAD가 `619998bb`에서 갱신되는지 GitHub API로 재확인).
+2. (161차 원안 이월) 경로 소진 현상(핵심 발견 59) 수정안 미착수.
+3. (161차 원안 이월) candidate3 실기기 검증.
+4. 156차 A안 실기기 검증, 톴게이트 구간 실차 검증 -- 이월 그대로.
+
+실차 검증: 미실시(로그 재생/정적 검증 + 컨테이너 내 로컬 git dry-run 전용).
+
 ## 161차 (코드 1건 · candidate3 구현 완료 · 실행/push 대기) — route 후보 속도 근접-직선 슬루 필터 구현, 경로 소진(폴리라인 부족) 현상 신규 발견
 
 세션 시작 4절 0단계로 지침 문서(v2, commit `021d1b8`) 조회, HANDOFF.md(160차)도 같은 커밋으로 확인 -- carrot-ryu-note HEAD `021d1b8`, carrot-ryu HEAD `619998bb`(156차 그대로), 괴리 없음. 160차 미완료 1번(후보 3번 좁은 필터 파라미터 확정)을 사용자가 "추천값대로" 위임해 이어서 진행했다.
