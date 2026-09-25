@@ -1,5 +1,29 @@
 # WIP
 
+## 162차 (코드 1건 · 경로 소진(핵심 발견 59) 수정 구현 · 실행/push 대기) — route 후보 속도가 원본 폴리라인 점 부족 시 300으로 튀는 문제를 정보량 기반으로 직접 차단
+
+세션 시작 중 `git ls-remote`로 carrot-ryu HEAD가 `619998bb`(156차)에서 `f4a62db9`로 바뀐 것을 확인 -- 161차 계속의 candidate3 v2 반영 스크립트가 그 사이 사용자에 의해 실행/push 완료된 것(16절, 핵심 발견 27/38과 동일 패턴). GitHub commit patch로 부모가 `619998bb`, 변경 파일 1개(`carrot_man.py`, +19), 사전 계산한 blob hash(`8d150444`)와 일치함을 직접 재확인, candidate3(161차 원안)가 정확히 그대로 반영됐음을 실증.
+
+**설계 논의(사용자 승인)**: 핵심 발견 59(경로 폴리라인이 300m 룩어헤드 안에서 2~3점으로 줄면 곡률이 사실상 0이 되어 route 후보가 무제한(300)으로 튀는 현상)에 대해 A안(직전 유효값 freeze, 없으면 도로제한속도 폴백)과 B안(즉시 도로제한속도로 대체) 두 후보를 제시, A안 + 임계값 4(원본 폴리라인 점 4개 미만이면 정보 부족으로 판정)로 확정. candidate3(사이클간 슬루 제한)와는 별개 로직으로 유지하기로 결정 -- candidate3는 "곡률은 작지만 사이클마다 흔들리는 잡음"(158차 계열)을 겨냥하고, 이번 건은 "곡률 자체가 계산상 신뢰 불가능한 상태"라 원인이 다르기 때문. candidate3가 쓰는 `self.navi_route_speed_filt` 상태 변수는 그대로 재사용.
+
+**근거(왜 candidate3 슬루만으로는 부족한지)**: candidate3의 사이클당 ±1.0km/h 제한은 20Hz 기준 ±20km/h/초에 해당한다. 핵심 발견 59가 관측한 최장 지속시간(seg17, 약 30초)이면 슬루만으로는 이론상 300 근처까지 도달할 여력이 있어 -- "차단"이 아니라 "지연"에 불과함을 수치로 확인.
+
+**구현**: `carrot_man.py`에 `ROUTE_PATH_MIN_POINTS = 4` 상수 추가(V_CURVE_LOOKUP_BP/VALS 옆). `carrot_navi_route()`에서 `get_path_after_distance()` 반환 직후 `route_info_sufficient = len(path) >= ROUTE_PATH_MIN_POINTS`를 계산하고, candidate3 블록을 `if not route_info_sufficient: (freeze/폴백) else: (기존 candidate3 슬루 + 갱신)`으로 분기. `route_info_sufficient`가 거짓인 사이클에는 `self.navi_route_speed_filt`를 갱신하지 않아 "정보가 충분했던 마지막 값"이 오염되지 않는다. `path`가 완전히 비는 기존 else 분기(비활성/도착 등)도 `len([]) < 4`로 자동 포함되어 함께 안전해짐(부수 효과).
+
+**검증**: `carrot_navi_route()`의 꼬리 로직만 분리한 합성 테스트(`test_exhaustion_logic.py`, 5개 케이스)로 확인 -- (1) 소진+이전값 존재 시 300이 아니라 이전값 유지, (2) 소진+이전값 없음 시 도로제한속도로 폴백, (3) 소진이 30초(600사이클) 연속돼도 값이 전혀 드리프트하지 않음(300 방향으로 단 1km/h도 새지 않음 -- candidate3 단독 대비 개선 포인트), (4)/(5) 정보 충분 시 candidate3의 기존 슬루/무슬루 동작이 그대로 유지됨(회귀 없음). `py_compile` 통과, 로컬 bare 저장소(실제 carrot-ryu HEAD `f4a62db9` 트리를 그대로 미러링) 대상 clone→patch(base64 전체교체)→commit→push 전 과정을 두 모드(정상 LF / `core.eol=crlf`로 Windows CRLF 체크아웃 시뮬레이션) 모두에서 실행 -- 두 모드 모두 동일한 diff(1 file changed, 27 insertions(+), 9 deletions(-))와 동일한 post-image blob hash(`2868c646`)를 만들었다(전체교체 방식은 원본 checkout의 CRLF 여부와 무관하게 동일 결과를 낸다는 것도 이번에 확인 -- Replace-Block 계열이 반복적으로 겪은 CRLF 앵커 실패(핵심 발견 44/46/48/50/60) 자체가 구조적으로 발생하지 않음). BOM 없음(`WriteAllText` + `UTF8Encoding($false)`), `pwsh` 7 파서 구문 오류 0건.
+
+**한계/이월**: `ROUTE_PATH_MIN_POINTS=4`는 이번 세션 실제 로그 재검증 없이 정적 코드 검토 + 과거(161차) 관측치("2~3점")만으로 정한 값 -- 실제 로그(seg11/17/23 등)로 exhausted 판정 사이클 수와 des_jumps_route 회귀 여부를 다음 세션에서 재확인 필요. 실차 검증: 미실시.
+
+**핵심 발견 61(신규)**: FINDINGS.md에 이 설계/구현/합성검증 근거를 정식 등록.
+
+**미완료(다음 세션 우선순)**:
+1. 이 코드 반영 스크립트(`162cha_code_carrot_ryu.ps1`) 실행 -> push 확인.
+2. `toolkit/replay_route_geom.py`로 seg11/17/23 재생 -- exhausted 판정 사이클 수, out_speed가 300으로 튀지 않는지, des_jumps_route 회귀 여부(이번 수정 전후 0건이어야 함) 확인.
+3. (161차 원안 이월) candidate3 실기기 검증.
+4. 156차 A안 실기기 검증, 톨게이트 구간 실차 검증 -- 이월 그대로.
+
+실차 검증: 미실시(합성 로직 테스트 + 컨테이너 내 로컬 git dry-run 전용).
+
 ## 161차 계속 (코드 v1 실행 실패 → v2로 수정·검증 완료 · 실행/push 대기) — v1 코드 스크립트 CRLF 앵커 매칭 실패(핵심 발견 60) 진단 및 수정
 
 161차 devnotes(v1)는 정상 push됨(`021d1b8..033c0b4`). 이어서 사용자가 코드 반영 스크립트(v1)를 실행 -- 초기엔 git이 자격증명 대기로 무한정 멈추는 별개 증상이 있어 진단 로그(git 버전/credential.helper 출력, TCP 연결 사전확인, `GIT_TERMINAL_PROMPT=0`)를 추가한 버전으로 재전달했고, 이 버전은 클론까지는 정상 진행되었으나 `carrot_man.py` 첫 Replace-Block 앵커가 `found 0 matches`로 안전 중단됨.
