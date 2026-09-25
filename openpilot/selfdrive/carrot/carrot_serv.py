@@ -75,26 +75,13 @@ SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S = 3.0
 
 # route(내비 경로 곡률) 목표속도에 곱하는 MapTurnSpeedFactor를, 분기·톨게이트 안내 지점에
 # 다가갈 때만 낮춘다(113차). 일반 굽이는 기존 배율을 그대로 쓴다.
-MAP_TURN_GUIDE_TURN_INFOS = (3, 4, 6)  # xTurnInfo: 3 좌 분기/차로변경, 4 우 분기/차로변경, 6 톨게이트
-MAP_TURN_GUIDE_FACTOR = 1.00           # 안내 지점 NEAR_M 이내에서 쓰는 반영비율(배율 1.00 = 100%)
-MAP_TURN_GUIDE_NEAR_M = 200.0          # 이 거리 이내: MAP_TURN_GUIDE_FACTOR 고정
-MAP_TURN_GUIDE_FAR_M = 300.0           # 이 거리 이상: 기존 MapTurnSpeedFactor(route 지평선 300 m와 같음)
-
-
-def map_turn_speed_factor(base, turn_info, dist_to_turn):
-  """route 반영비율. 분기·톨게이트 안내 지점 FAR_M~NEAR_M 구간에서 base -> GUIDE_FACTOR로 선형 전환.
-
-  base(MapTurnSpeedFactor)보다 커지지는 않는다(base가 더 작으면 base 유지).
-  """
-  if turn_info not in MAP_TURN_GUIDE_TURN_INFOS:
-    return base
-  guide = min(base, MAP_TURN_GUIDE_FACTOR)
-  if dist_to_turn <= MAP_TURN_GUIDE_NEAR_M:
-    return guide
-  if dist_to_turn >= MAP_TURN_GUIDE_FAR_M:
-    return base
-  ratio = (dist_to_turn - MAP_TURN_GUIDE_NEAR_M) / (MAP_TURN_GUIDE_FAR_M - MAP_TURN_GUIDE_NEAR_M)
-  return guide + (base - guide) * ratio
+# 163차: route(내비 경로 곡률) 목표속도는 carrot_navi_route()가 GPS 폴리라인만으로 계산한
+# 일반 도로 곡선 경로 정보를 그대로 쓴다. 과거(113~114차, 151차)에는 분기·톨게이트 안내
+# 지점(xTurnInfo/xDistToTurn, TBT에서 별도로 받아오는 정보)에 다가갈 때만 배율을 낮추거나
+# (map_turn_speed_factor) route 후보 자체를 안내 지점 근접 여부로 게이팅했으나, 실차로그
+# 검증 결과 안내 지점이 300m보다 멀면(내비 목적지 주행 중 다음 안내까지 먼 구간) route
+# 후보가 아예 배제되어 실제 도로 곡선 감속이 통째로 빠지는 문제가 확인되어(핵심 발견 62)
+# 안내 지점 정보에 대한 의존을 전부 제거했다.
 
 
 class CarrotServ:
@@ -1488,18 +1475,14 @@ class CarrotServ:
     if self.turnSpeedControlMode in [1,2]:
       speed_n_sources.append((max(abs(vturn_speed), self.autoCurveSpeedLowerLimit), "vturn"))
 
-    route_factor = map_turn_speed_factor(self.mapTurnSpeedFactor, self.xTurnInfo, self.xDistToTurn)
-    route_speed = max(route_speed * route_factor, self.autoCurveSpeedLowerLimit)
-    if self.turnSpeedControlMode == 2:
-      # 151차: TBT(안내 지점) 접근 중에도 일반 곡선과 동일하게 route/vturn/road가 경쟁하도록 하되,
-      # route 후보는 carrot_navi_route()가 실제로 내다보는 시야(MAP_TURN_GUIDE_FAR_M=300m)
-      # 안에서만 넣는다. 기존 -500<x<500 게이트는 route가 보지도 못하는 먼 거리(500m 밖)의
-      # 노이즈를 들여보내던 원인이었다(151차 오프라인 분석).
-      if 0 <= self.xDistToTurn <= MAP_TURN_GUIDE_FAR_M:
-        speed_n_sources.append((route_speed, "route"))
-    elif self.turnSpeedControlMode in [3, 4]:
+    route_speed = max(route_speed * self.mapTurnSpeedFactor, self.autoCurveSpeedLowerLimit)
+    if self.turnSpeedControlMode in [2, 3, 4]:
+      # 163차: route 후보는 안내 지점(xTurnInfo/xDistToTurn) 근접 여부와 무관하게 일반 곡선과
+      # 동일하게 항상 경쟁시킨다(핵심 발견 62). 과거 모드 2 전용 게이트(0<=xDistToTurn<=300m)를
+      # 제거 -- 그 게이트는 route가 실제로 못 보는 거리를 걸러내려는 의도였으나, 대신 안내
+      # 지점이 300m보다 먼 구간(내비 목적지 주행 중 다음 안내까지 먼 구간 전체)에서 route
+      # 후보 자체가 통째로 빠지는 부작용이 더 컸다(163차 실차로그 분석).
       speed_n_sources.append((route_speed, "route"))
-      #speed_n_sources.append((self.calculate_current_speed(dist, speed * self.mapTurnSpeedFactor, 0, 1.2), "route"))
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
 
