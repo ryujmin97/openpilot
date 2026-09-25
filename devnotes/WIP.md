@@ -1,5 +1,15 @@
 # WIP
 
+## 164차 (분석만 · 코드 변경 없음) — 163차 한계 이월 2건(route 감속 체감/통과직후 회귀) 실주행 로그로 해소 (핵심 발견 63)
+
+163차가 이월한 두 항목 -- (1) route 게이트 해제로 desiredSpeed가 낮아지는 빈도/크기가 "일반 곡선 감속"으로서 체감상 적절한지, (2) 안내 지점(xTurnInfo/xDistToTurn) 통과 직후(xDist<0) 구간의 회귀 여부 -- 를 163차와 동일한 실주행 rlog 10세그먼트(`0000044d--e8bd778f2d--16~25`, 로그 기록 커밋 `1e3bbb5e`)로 분석했다. `route_decel/route_extract.py`(113차, 재사용) + `MapTurnSpeedFactor=90`일 때 동적 배율이 no-op임을 이용해 로그의 `route=` 값을 그대로 새 로직의 route 후보값으로 재사용, 12,000표본(20Hz) 전체를 게이트 기준(근접/원거리/통과직후/기타)으로 재분류했다.
+
+**결과**: xTurnInfo==-1(안내지점 없음) 표본의 xDistToTurn이 전부 음수(직전 지점 통과 후 경과거리)임을 확인 -- 기존 게이트(0<=xDistToTurn<=300)는 xTurnInfo 값과 무관하게 이 통과직후 구간(2,898건, 24.2%)도 163차가 고친 원거리 구간과 동일하게 배제하고 있었다. 게이트로 배제됐던 전체 6,376건(53.1%) 중 5,092건(79.9%)에서 route가 새로 binding되며(감소폭 중앙값 51.0km/h, 최대 140km/h), 통과직후 단독으로는 2,457/2,898건(84.8%, 중앙값 54.0km/h). seg23 예시 구간을 직접 확인한 결과 route 값 자체는 완전히 안정적(120.0 고정)이었고, 튀는 쪽은 vturn/road였다 -- 163차 수정이 xDistToTurn 부호와 무관하게 이 문제도 이미 해결하므로 회귀 아님. 근접구간(기존에도 route 포함) 기준 route binding 비율 58.2%를 기준선으로 볼 때, 새로 낮아지는 표본 대부분이 route의 과도한 개입이 아니라 다른 소스(vturn 스파이크/road=200 placeholder)의 오작동을 route가 정상화하는 방향이라, 이번 로그 범위에서는 MapTurnSpeedFactor(90) 절댓값 조정 근거가 보이지 않는다.
+
+**수정 여부**: 없음(분석만, 163차 수정 범위 안에서 이미 커버됨을 확인). 핵심 발견 63 신규 등록(FINDINGS.md).
+
+**한계**: 이번 10세그먼트(1개 로그) 관찰이며, MapTurnSpeedFactor 적정성 결론은 다른 도로/조건 로그로 일반화 검증이 필요하다. "road" 후보값이 실제 사용되는 `limit_speed` 변수(코드 내부)와 `nRoadLimitSpeed`(carrotMan 로깅 필드) 사이의 정확한 관계는 이번 세션에서 코드로 직접 확인하지 않았다(로그 관찰상 무제한 placeholder로 추정, 확정 아님). 실차 검증: 미실시.
+
 ## 163차 (코드 1건 · 실행/push 대기) — route 목표속도의 안내 지점(xTurnInfo/xDistToTurn) 의존 완전 제거 (핵심 발견 62)
 
 사용자가 제공한 실주행 rlog 10세그먼트(`0000044d--e8bd778f2d--16~25`, 2026-09-25)로 "안내지점 라우트 아직도 이상함 -- 안내지점 정보를 별도로 가져오지 말고 일반도로 곡선의 경로정보만 가져와서 일반곡선과 동일하게 적용" 요청을 조사/구현. rlog 안 `initData.gitCommit`(`1e3bbb5ed019731865dc1ffea35ac13569065625`)이 162차 최종 HEAD와 정확히 일치함을 확인해 로그와 현재 코드 상태 일치를 실증(3절/16절). 그 커밋 기준 cereal/car.capnp 스키마를 sparse-checkout해 carrotMan(desiredSpeed/desiredSource/xTurnInfo/xDistToTurn/szPosRoadName의 `route=` 디버그값)을 12,000표본(20Hz) 추출·분석.
