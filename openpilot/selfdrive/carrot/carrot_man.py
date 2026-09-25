@@ -343,6 +343,7 @@ class CarrotMan:
     self.is_running = True
     self.navi_points = []
     self.navi_points_start_index = 0
+    self.navi_route_speed_filt = None
     self.navi_points_active = False
     self.navd_active = False
     self.carrot_navi_route_session_id = ""
@@ -537,6 +538,7 @@ class CarrotMan:
     ]
     self.navi_points = [(point["longitude"], point["latitude"]) for point in coords]
     self.navi_points_start_index = 0
+    self.navi_route_speed_filt = None
     self.navi_points_active = bool(self.navi_points)
     self.carrot_navi_route_owned = self.navi_points_active
     # Keep the existing route consumer alive without asking navd to calculate a
@@ -647,6 +649,16 @@ class CarrotMan:
         speeds = []
         distances = []
         #self.params.remove("NavDestination")
+
+    # candidate3(161차): route 후보 속도 근접-직선 구간(최대 곡률<0.003, 곡률 미산출 포함) 한정
+    # 사이클간(20Hz) 슬루 제한. 실제 커브 감속(곡률>=0.003)에는 관여하지 않는다. 상태는
+    # navi_points_start_index가 0으로 리셋되는 모든 지점에서 함께 리셋된다.
+    max_curvature = max([abs(c) for c in curvatures], default=0.0)
+    if self.navi_route_speed_filt is not None and max_curvature < 0.003:
+      navi_route_speed_max_delta = 1.0  # km/h per cycle
+      out_speed = min(max(out_speed, self.navi_route_speed_filt - navi_route_speed_max_delta),
+                       self.navi_route_speed_filt + navi_route_speed_max_delta)
+    self.navi_route_speed_filt = out_speed
 
     return resampled_points, resampled_distances, out_speed #speeds, distances
 
@@ -1361,6 +1373,7 @@ class CarrotMan:
       if len(coords) > 0:
         self.navi_points = [(c.longitude, c.latitude) for c in coords]
         self.navi_points_start_index = 0
+        self.navi_route_speed_filt = None
         self.navi_points_active = True
         print("Received points from navd:", len(self.navi_points))
         self.navd_active = True
@@ -1377,6 +1390,7 @@ class CarrotMan:
         print("Received points from navd: 0")
         self.navi_points = []
         self.navi_points_start_index = 0
+        self.navi_route_speed_filt = None
         self.navi_points_active = False
         self.navd_active = False
 
@@ -1422,6 +1436,7 @@ class CarrotMan:
                 points.append(coord)
               coords = [c.as_dict() for c in points]
               self.navi_points_start_index = 0
+              self.navi_route_speed_filt = None
               self.navi_points_active = len(coords) > 0
               print("Received points:", len(self.navi_points))
               #print("Received points:", self.navi_points)
@@ -1451,6 +1466,7 @@ class CarrotMan:
               else:
                 self.navi_points = []
                 self.navi_points_start_index = 0
+                self.navi_route_speed_filt = None
                 self.navd_active = False
                 self.params.remove("NavDestination")
 
@@ -1606,6 +1622,7 @@ class CarrotMan:
       # navd route가 비어오면 비활성 처리
       self.navi_points = []
       self.navi_points_start_index = 0
+      self.navi_route_speed_filt = None
       self.navi_points_active = False
       self.navd_active = False
       return
@@ -1616,6 +1633,7 @@ class CarrotMan:
       print("Received route: 0 valid")
       self.navi_points = []
       self.navi_points_start_index = 0
+      self.navi_route_speed_filt = None
       self.navi_points_active = False
       self.navd_active = False
       return
@@ -1636,6 +1654,7 @@ class CarrotMan:
 
     self.navi_points = navi_points
     self.navi_points_start_index = 0
+    self.navi_route_speed_filt = None
     self.navi_points_active = True
     self.navd_active = True
 
