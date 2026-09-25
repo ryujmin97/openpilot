@@ -158,6 +158,11 @@ def carrot_can_error(car_name: str | bytes | None, car_state_current: bool, car_
 V_CURVE_LOOKUP_BP = [0., 1./800., 1./670., 1./560., 1./440., 1./360., 1./265., 1./190., 1./135., 1./85., 1./55., 1./30., 1./25.]
 V_CRUVE_LOOKUP_VALS = [300, 150, 120, 110, 100, 90, 80, 70, 60, 50, 40, 15, 5]
 
+# 핵심 발견 59(161차): get_path_after_distance()가 반환하는 원본 폴리라인 점이 이 값보다 적으면
+# resample()이 만드는 조밀한 점들이 사실상 직선(곡률≈0)이 되어 route 후보 속도가 무제한(300)으로
+# 오판된다. 이 개수 미만이면 곡률 계산 결과를 신뢰하지 않는다(carrot_navi_route() 참고).
+ROUTE_PATH_MIN_POINTS = 4
+
 # Haversine formula to calculate distance between two GPS coordinates
 #haversine_cache = {}
 def haversine(lon1, lat1, lon2, lat2):
@@ -573,6 +578,9 @@ class CarrotMan:
     distance_interval = 10.0
     out_speed = 300
     path, self.navi_points_start_index, start_point = get_path_after_distance(self.navi_points_start_index, self.navi_points, current_position, 300)
+    # 핵심 발견 59(161차): 원본 폴리라인 점이 ROUTE_PATH_MIN_POINTS개 미만이면(경로 소진) 아래에서
+    # 계산되는 곡률을 신뢰하지 않는다.
+    route_info_sufficient = len(path) >= ROUTE_PATH_MIN_POINTS
     relative_coords = []
     if path:
         #relative_coords = gps_to_relative_xy(path, current_position, heading_deg)
@@ -650,15 +658,25 @@ class CarrotMan:
         distances = []
         #self.params.remove("NavDestination")
 
-    # candidate3(161차): route 후보 속도 근접-직선 구간(최대 곡률<0.003, 곡률 미산출 포함) 한정
-    # 사이클간(20Hz) 슬루 제한. 실제 커브 감속(곡률>=0.003)에는 관여하지 않는다. 상태는
-    # navi_points_start_index가 0으로 리셋되는 모든 지점에서 함께 리셋된다.
-    max_curvature = max([abs(c) for c in curvatures], default=0.0)
-    if self.navi_route_speed_filt is not None and max_curvature < 0.003:
-      navi_route_speed_max_delta = 1.0  # km/h per cycle
-      out_speed = min(max(out_speed, self.navi_route_speed_filt - navi_route_speed_max_delta),
-                       self.navi_route_speed_filt + navi_route_speed_max_delta)
-    self.navi_route_speed_filt = out_speed
+    if not route_info_sufficient:
+      # 핵심 발견 59(161차) 수정: 원본 점 부족(경로 소진)으로 곡률을 신뢰할 수 없는 사이클.
+      # 이번 사이클에서 계산된 out_speed(직선 오판으로 300까지 튈 수 있음)를 버리고, 직전에
+      # 정보가 충분했던 값(navi_route_speed_filt)을 그대로 유지(freeze)한다. 그런 값이 아직
+      # 없으면(주행 초반 등) 도로제한속도로 대체한다. 두 경우 모두 navi_route_speed_filt는
+      # 이번 사이클에서 갱신하지 않아, "정보가 충분했던 마지막 값"이 오염되지 않는다.
+      out_speed = (self.navi_route_speed_filt
+                   if self.navi_route_speed_filt is not None
+                   else self.carrot_serv.nRoadLimitSpeed)
+    else:
+      # candidate3(161차): route 후보 속도 근접-직선 구간(최대 곡률<0.003) 한정 사이클간(20Hz)
+      # 슬루 제한. 실제 커브 감속(곡률>=0.003)에는 관여하지 않는다. 상태는
+      # navi_points_start_index가 0으로 리셋되는 모든 지점에서 함께 리셋된다.
+      max_curvature = max([abs(c) for c in curvatures], default=0.0)
+      if self.navi_route_speed_filt is not None and max_curvature < 0.003:
+        navi_route_speed_max_delta = 1.0  # km/h per cycle
+        out_speed = min(max(out_speed, self.navi_route_speed_filt - navi_route_speed_max_delta),
+                         self.navi_route_speed_filt + navi_route_speed_max_delta)
+      self.navi_route_speed_filt = out_speed
 
     return resampled_points, resampled_distances, out_speed #speeds, distances
 
