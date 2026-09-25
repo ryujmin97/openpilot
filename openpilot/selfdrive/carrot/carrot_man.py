@@ -543,8 +543,14 @@ class CarrotMan:
     ]
     self.navi_points = [(point["longitude"], point["latitude"]) for point in coords]
     self.navi_points_start_index = 0
-    self.navi_route_speed_filt = None
     self.navi_points_active = bool(self.navi_points)
+    # 핵심 발견 65(166차): 경로가 여전히 활성으로 갱신되는 경우(navi_points_active=True)에는
+    # navi_route_speed_filt를 리셋하지 않는다. 매 갱신마다 filt를 None으로 되돌리면, 그 직후
+    # 사이클에서 route_info_sufficient가 False일 때(수신 직후 원본 점이 아직 부족한 경우)
+    # 159/161차 freeze 로직이 얼릴 대상을 잃어 nRoadLimitSpeed로 무보정 폴백한다(핵심 발견 65).
+    # 경로가 완전히 끊기는 경우에만 필터도 함께 초기화한다.
+    if not self.navi_points_active:
+      self.navi_route_speed_filt = None
     self.carrot_navi_route_owned = self.navi_points_active
     # Keep the existing route consumer alive without asking navd to calculate a
     # different route from the app's destination.
@@ -1391,7 +1397,8 @@ class CarrotMan:
       if len(coords) > 0:
         self.navi_points = [(c.longitude, c.latitude) for c in coords]
         self.navi_points_start_index = 0
-        self.navi_route_speed_filt = None
+        # 핵심 발견 65(166차): 경로가 여전히 활성(len>0)으로 갱신되는 경우 navi_route_speed_filt를
+        # 유지한다(_update_carrot_navi_route와 동일 원칙, 위 주석 참고).
         self.navi_points_active = True
         print("Received points from navd:", len(self.navi_points))
         self.navd_active = True
@@ -1454,8 +1461,11 @@ class CarrotMan:
                 points.append(coord)
               coords = [c.as_dict() for c in points]
               self.navi_points_start_index = 0
-              self.navi_route_speed_filt = None
               self.navi_points_active = len(coords) > 0
+              # 핵심 발견 65(166차): 경로가 여전히 존재하는 경우(len(coords) > 0)에는
+              # navi_route_speed_filt를 리셋하지 않는다(_update_carrot_navi_route와 동일 원칙).
+              if not self.navi_points_active:
+                self.navi_route_speed_filt = None
               print("Received points:", len(self.navi_points))
               #print("Received points:", self.navi_points)
 
@@ -1672,7 +1682,8 @@ class CarrotMan:
 
     self.navi_points = navi_points
     self.navi_points_start_index = 0
-    self.navi_route_speed_filt = None
+    # 핵심 발견 65(166차): 경로가 여전히 활성으로 갱신되는 경우 navi_route_speed_filt를 유지한다
+    # (_update_carrot_navi_route와 동일 원칙).
     self.navi_points_active = True
     self.navd_active = True
 
