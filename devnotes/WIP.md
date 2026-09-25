@@ -1,5 +1,17 @@
 # WIP
 
+## 163차 (코드 1건 · 실행/push 대기) — route 목표속도의 안내 지점(xTurnInfo/xDistToTurn) 의존 완전 제거 (핵심 발견 62)
+
+사용자가 제공한 실주행 rlog 10세그먼트(`0000044d--e8bd778f2d--16~25`, 2026-09-25)로 "안내지점 라우트 아직도 이상함 -- 안내지점 정보를 별도로 가져오지 말고 일반도로 곡선의 경로정보만 가져와서 일반곡선과 동일하게 적용" 요청을 조사/구현. rlog 안 `initData.gitCommit`(`1e3bbb5ed019731865dc1ffea35ac13569065625`)이 162차 최종 HEAD와 정확히 일치함을 확인해 로그와 현재 코드 상태 일치를 실증(3절/16절). 그 커밋 기준 cereal/car.capnp 스키마를 sparse-checkout해 carrotMan(desiredSpeed/desiredSource/xTurnInfo/xDistToTurn/szPosRoadName의 `route=` 디버그값)을 12,000표본(20Hz) 추출·분석.
+
+**근본 원인 확정**: `carrot_serv.py`의 `turnSpeedControlMode==2`(이 차량이 실제 쓰는 모드) 분기가 route 후보를 `0 <= xDistToTurn <= MAP_TURN_GUIDE_FAR_M(300m)`일 때만 speed_n_sources에 넣도록 게이팅하고 있었다(151차에서 "route가 실제로 못 보는 먼 거리의 노이즈를 걸러내려는 의도"로 도입). 실제 로그에서는 안내 지점(분기/톨게이트)이 300m보다 먼 상태가 전체 표본의 28.1%(3,373건)를 차지했고, 그중 76.0%(2,563건)는 이 게이트 때문에 route 후보 자체가 통째로 빠져 desiredSpeed가 road/vturn 등 다른(더 높은) 소스로 결정됨을 확인했다 -- 최대 격차 140km/h(route=60.0인데 실제 desiredSpeed=200(road)로 무제한 취급된 구간). 즉 151차가 막으려던 "route의 먼 거리 노이즈"보다, "안내 지점에서 멀 때 route 후보가 아예 사라지는" 부작용이 실측상 훨씬 컸다. 113~114차에 도입된 `map_turn_speed_factor()`(안내 지점 NEAR_M~FAR_M 구간에서 route 배율을 base->GUIDE_FACTOR로 선형 전환)도 같은 "안내 지점 의존" 계열로, 사용자 요청("안내지점 정보를 별도로 가져오지 말고 일반곡선과 동일하게")에 따라 함께 제거 대상으로 확정.
+
+**수정**(`carrot_serv.py`, 최소 변경): (1) `MAP_TURN_GUIDE_TURN_INFOS`/`MAP_TURN_GUIDE_FACTOR`/`MAP_TURN_GUIDE_NEAR_M`/`MAP_TURN_GUIDE_FAR_M` 4개 상수와 `map_turn_speed_factor()` 함수 삭제, (2) `route_speed = max(route_speed * route_factor, ...)` -> `route_speed = max(route_speed * self.mapTurnSpeedFactor, ...)`(배율은 항상 `MapTurnSpeedFactor` Params 값 그대로, 안내 지점에 따라 달라지지 않음), (3) `turnSpeedControlMode == 2`의 `0<=xDistToTurn<=300` 게이트 삭제, 모드 2/3/4를 전부 "항상 route 후보를 경쟁시킨다"로 통합(일반 곡선 감속과 완전히 동일한 취급). `map_turn_speed_factor()`만을 단위 테스트하던 `test_map_turn_guide_factor.py`는 대상 함수가 사라져 삭제.
+
+**검증**: `py_compile` 통과, 삭제된 이름(`MAP_TURN_GUIDE_*`, `map_turn_speed_factor`) 잔여 참조 0건(주석 1곳만 서술적으로 언급, 코드 아님). 로그 재생으로 수정 효과 정량화: 전체 12,000표본 중 46.4%(5,565건)에서 desiredSpeed가 낮아짐(=수정 전에는 route가 배제돼 과속 방치되던 구간, 최대 감소폭 140km/h). 기존에도 route가 포함되던 근접 구간(0~300m) 5,624표본 중 결과가 바뀐 478건은 전부 `desiredSource`가 `gas`(운전자 가속페달 개입으로 게이팅 로직과 무관하게 desiredSpeed 자체가 달라지는 경로) 등 이 수정과 무관한 원인임을 확인해 회귀가 아님을 확인. 반영 스크립트(`163cha_code_carrot_ryu.ps1`)를 9절 체크리스트 전항목(BOM 없음/`core.autocrlf=false`/임시폴더 자동삭제/`Get-PythonCmd`+EOF공급 -- 이 과정에서 `Get-PythonCmd` 반환값이 단일원소 배열에서 스칼라로 자동 축약되어 `$PyExe`가 문자 'p' 하나로 잘리는 신규 버그를 발견/수정, `@(Get-PythonCmd)`로 래핑, 153차 핵심 발견과 동일 계열/pwsh 7.4.6 파서 구문 오류 0건/로컬 bare 저장소(carrot-ryu 실제 HEAD `1e3bbb5e` 미러링) 대상 일반·Windows CRLF 재현 두 모드 clone->pre-hash guard->전체교체(base64)->py_compile->post-hash guard->commit->push 전 과정 dry-run, 두 모드 모두 동일한 diff(2 files changed, +14/-105, `test_map_turn_guide_factor.py` 삭제 포함)와 동일한 post-image blob hash(`641afb20e4`) 확인 -- 전체교체 방식이라 CRLF 앵커 문제(핵심 발견 44/46/48/50) 자체가 구조적으로 발생하지 않음) 통과 후 작성.
+
+**한계**: `MapTurnSpeedFactor`(현재 90, params_keys.h 기본값) 자체의 절댓값 튜닝은 이번 범위 밖(사용자 요청은 "안내 지점 정보 의존 제거"였지 배율 값 조정이 아님). 이번 로그는 route 후보가 이제 얼마나 자주/크게 desiredSpeed를 실제로 낮추는지(일반 곡선 감속으로서의 체감)까지는 확인하지 않았다(다음 세션 이월). 실차 검증: 미실시(반영 스크립트 실행/push 대기).
+
 ## 162차 (코드 1건 · 경로 소진(핵심 발견 59) 수정 구현 · 실행/push 대기) — route 후보 속도가 원본 폴리라인 점 부족 시 300으로 튀는 문제를 정보량 기반으로 직접 차단
 
 세션 시작 중 `git ls-remote`로 carrot-ryu HEAD가 `619998bb`(156차)에서 `f4a62db9`로 바뀐 것을 확인 -- 161차 계속의 candidate3 v2 반영 스크립트가 그 사이 사용자에 의해 실행/push 완료된 것(16절, 핵심 발견 27/38과 동일 패턴). GitHub commit patch로 부모가 `619998bb`, 변경 파일 1개(`carrot_man.py`, +19), 사전 계산한 blob hash(`8d150444`)와 일치함을 직접 재확인, candidate3(161차 원안)가 정확히 그대로 반영됐음을 실증.

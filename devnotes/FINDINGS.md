@@ -1,5 +1,21 @@
 # FINDINGS
 
+## 핵심 발견 62 (163차) -- turnSpeedControlMode==2의 route 게이트(0<=xDistToTurn<=300m)가 "먼 거리 노이즈 차단"보다 "안내 지점에서 멀 때 route 후보 자체 배제"라는 더 큰 부작용을 냈음을 실차 로그로 실증, 안내 지점 의존 전면 제거
+
+**배경**: 151차가 도입한 게이트(`0<=self.xDistToTurn<=MAP_TURN_GUIDE_FAR_M`)는 "route가 실제로 내다보는 시야(300m) 밖의 노이즈를 걸러낸다"는 의도였다. 113~114차의 `map_turn_speed_factor()`(안내 지점 NEAR_M~FAR_M 구간 배율 선형 전환)도 같은 "안내 지점 근접도에 따라 route를 다르게 취급"하는 계열이다.
+
+**실증**: 사용자 제공 실주행 rlog 10세그먼트(2026-09-25, 로그 기록 커밋 `1e3bbb5e`=162차 최종 HEAD와 일치)를 20Hz 12,000표본 분석한 결과, 안내 지점이 300m보다 먼 상태(`xTurnInfo>=0 & xDistToTurn>300`)가 전체의 28.1%(3,373건)였고, 그중 76.0%(2,563건)는 이 게이트 때문에 route 후보가 아예 빠져 desiredSpeed가 다른(더 높은) 소스로 결정됨을 확인했다 -- 최대 격차 140km/h(route=60.0인데 desiredSpeed=200(road)로 사실상 무제한 취급). 즉 이 차량의 실제 주행 패턴(내비 목적지까지 주행하며 다음 안내 지점까지 먼 구간이 잦음)에서는, 게이트가 막으려던 "route의 먼 거리 노이즈"보다 "route 후보 자체가 사라지는" 쪽의 실질적 피해가 훨씬 컸다.
+
+**수정**: `map_turn_speed_factor()`/관련 상수 4개/`turnSpeedControlMode==2`의 `xDistToTurn` 게이트를 전부 삭제. route 목표속도는 이제 `carrot_navi_route()`가 GPS 폴리라인만으로 계산한 값에 `self.mapTurnSpeedFactor`(안내 지점과 무관한 고정 배율)만 곱해, 안내 지점 근접도와 무관하게 항상 speed_n_sources 후보로 들어간다(일반 도로 곡선 감속과 완전히 동일한 취급). `turnSpeedControlMode in [2,3,4]` 전부 이 방식으로 통합(기존에는 모드 2만 게이트가 있었고 3/4는 이미 무조건 포함이었음 -- 이제 세 모드가 동일하게 동작).
+
+**검증**: 로그 재생으로 수정 효과 정량화(전체 12,000표본 중 46.4%(5,565건)에서 desiredSpeed가 낮아짐 -- 수정 전 과속 방치 구간, 최대 감소폭 140km/h). 기존에도 route가 포함되던 근접 구간(0~300m)에서의 변화(478/5,624건)는 전부 `desiredSource=gas`(운전자 가속페달 개입) 등 이 수정과 무관한 원인으로 확인해 회귀 없음을 확인. `py_compile` 통과, 삭제 대상 이름 잔여 참조 0건. 로컬 bare 저장소(carrot-ryu HEAD `1e3bbb5e` 미러링) 대상 clone->hash guard->전체교체(base64)->py_compile->hash guard->commit->push를 일반/Windows CRLF 재현 두 모드로 dry-run, 두 모드 모두 동일 diff(+14/-105, 파일 2개, 테스트 파일 삭제 포함)와 동일 post-image blob hash(`641afb20e4`) 확인(전체교체 방식이라 CRLF 앵커 문제 자체가 구조적으로 없음).
+
+**부수 발견(신규 버그, 이 세션 자체 스크립트)**: 반영 스크립트 작성 중 `Get-PythonCmd`가 반환하는 단일원소 배열(`@("python3")`)이 `$PyCmd = Get-PythonCmd` 대입 시 PowerShell에 의해 스칼라 문자열로 자동 축약되어, `$PyCmd[0]`이 문자열의 첫 글자('p')만 가리키는 문제를 dry-run 중 발견(153차 핵심 발견과 동일 계열의 재발). `$PyCmd = @(Get-PythonCmd)`로 명시적 배열 래핑해 수정, 9절 체크리스트의 `Get-PythonCmd` 재사용 시 이 래핑을 항상 함께 적용할 것.
+
+**수정 여부**: 있음(코드 변경, `carrot_serv.py` + `test_map_turn_guide_factor.py` 삭제). 반영 스크립트(`163cha_code_carrot_ryu.ps1`) 실행/push 대기.
+
+**실차 검증**: 미실시(실주행 로그 재생 분석 + 로컬 git dry-run 전용).
+
 ## 핵심 발견 61 (162차) -- 경로 소진(핵심 발견 59)을 candidate3(슬루 필터)와 분리해 정보량(len(path)) 기준으로 직접 차단: freeze-or-fallback 설계
 
 **배경**: 핵심 발견 59가 발견한 "원본 폴리라인 점이 2~3개뿐이면 곡률이 사실상 0이 되어 route 후보가 300(무제한)으로 튀는 현상"은 161차에서 candidate3(사이클간 ±1.0km/h 슬루)의 게이트(최대 곡률<0.003)에 걸리긴 하지만, 161차 자체가 "슬루는 이 현상의 근본 원인(정보 부족)을 고치지 못한다"고 명시적으로 이월했다. 162차에서 이 수정안을 설계/구현했다.
