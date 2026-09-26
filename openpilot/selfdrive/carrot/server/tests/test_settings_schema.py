@@ -533,3 +533,23 @@ def test_declared_numeric_bounds_stay_intact(params):
   assert (by_name["ApplyModelSpeed"]["min"], by_name["ApplyModelSpeed"]["max"]) == (-120, 120)
   assert by_name["ApplyModelSpeed"]["default"] == 0
   assert by_name["TFollowDecelBoost"]["unit"] == 10
+
+
+def test_cruise_coasting_percent_is_exposed_in_carrot_cruise_group(settings, params):
+  by_name = {p["name"]: p for p in params}
+  coasting = by_name["CruiseCoastingPercent"]
+  assert (coasting["min"], coasting["max"], coasting["default"]) == (0, 10, 0)
+  assert coasting["display_unit"] == "percent"
+
+  driving = next(category for category in settings["menu"] if category["id"] == "DRIVING")
+  cruise = next(group for group in driving["groups"] if group["id"] == "CRUISE")
+  carrot_cruise = next(group for group in cruise["groups"] if group["id"] == "CRUISE_CARROT")
+  assert carrot_cruise["params"] == [
+    "CruiseEcoControl",
+    "CruiseCoastingPercent",
+    "CarrotCruiseDecel",
+    "CarrotCruiseAtcDecel",
+  ]
+
+  params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  assert '{"CruiseCoastingPercent", {PERSISTENT, INT, "0"}}' in params_keys
