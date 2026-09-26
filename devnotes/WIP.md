@@ -1,5 +1,26 @@
 # WIP
 
+## 177차 (완료) — 0006296(크루즈 코스팅 마진) carrot-ryu 반영 및 GitHub 직접 재확인
+
+176차 HANDOFF 다음 작업 1번(반영 스크립트 작성)을 이어받음. 대상 5개 파일: `cruise_coasting.py`(신규), `longcontrol.py`(전체 교체), `longitudinal_planner.py`(앵커 치환 6곳), `cereal/log.capnp`, `common/params_keys.h`(필수 동반 갱신).
+
+**176차 devnotes 서술과 실제 코드 상태 사이 괴리 확인 (16절 해당):** 176차 WIP_SYNC.md는 `cereal/log.capnp`/`common/params_keys.h`를 "git apply --check 클린 통과"로 기록했으나, 이는 원본 0006296 patch를 carrot-ryu 현재 HEAD(d751e15)에 시험 적용(dry-run)해본 결과였을 뿐 실제 반영은 아니었음. 이번 세션에서 실제 코드를 확인한 결과 `cruiseCoastingTarget`/`cruiseCoastingPercent` 필드와 `CruiseCoastingPercent` 파라미터 키가 실제로는 존재하지 않았음.
+
+**반영 방식 결정:** 원본 0006296 patch의 log.capnp/params_keys.h diff 원문을 이번 세션에서 확보하지 못해, 이미 검증된 longcontrol.py/longitudinal_planner.py 병합본의 실제 사용처(`getattr(long_plan, 'cruiseCoastingTarget', ...)`, `self.params.get_int('CruiseCoastingPercent')`)를 근거로 최소 필요한 필드/키만 새로 구성해 추가함: log.capnp LongitudinalPlan 구조체 끝(`trafficStopModelLeadOffset @61` 다음)에 `cruiseCoastingTarget @62 :Float32`, `cruiseCoastingPercent @63 :Int32` 추가, params_keys.h에 `{"CruiseCoastingPercent", {PERSISTENT, INT, "0"}}` 추가(기본값 0 = 기능 비활성, 안전). 필드 번호(@62/@63)가 원본 patch와 일치하는지는 확인되지 않음 — carrot-ryu 자체 스키마 내에서는 문제없이 동작하나, 향후 원본 patch의 나머지 부분(test_cruise_coasting.py, carrot_settings.json UI, test_settings_schema.py)을 반영할 때 이 필드명/번호 기준으로 정합성을 다시 맞춰야 함.
+
+**검증:** 반영 스크립트를 로컬 bare 저장소로 실제 끝까지 실행(clone→base drift guard→파일작성→py_compile→commit→push) 후 push된 커밋을 다시 clone해 5개 파일 diff/내용 직접 대조. base drift guard를 재실행해 이미 반영된 상태에서는 정상적으로 중단됨도 확인.
+
+**사용자 실행 및 재확인:** 사용자가 Termux에서 스크립트를 실행("완료" 보고)했으나, 그 보고만으로 반영 완료로 간주하지 않고 `git ls-remote` + SHA 고정 raw 조회로 직접 재확인(16절). carrot-ryu HEAD `5161837`, parent `d751e15`(175차)로 정상 연결됨과, 5개 파일 실제 내용이 raw 조회로 의도한 그대로임을 확인.
+
+**완료:** 0006296 상세 병합 코드 5개 파일 carrot-ryu 반영 및 push 완료, GitHub 직접 재확인 완료.
+
+**미완료(이월):**
+1. test_cruise_coasting.py 복원 반영, carrot_settings.json UI 노출, test_settings_schema.py(설정 개수 183→184 불일치 재확인 포함).
+2. 위 log.capnp @62/@63 필드가 원본 0006296 patch 번호와 일치하는지 검증 — 남은 patch 조각 반영 시 확인.
+3. c84b175(CPU 스케줄링), dcffb7f(카메라 SOF) 상세 대조 — 미착수, 계속 이월.
+4. 저위험 소규모 9건, 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보 — 계속 이월.
+5. pytest CI 환경(conftest.py 포함 실제 cereal 실행) — 여전히 미실행(환경 제약 지속).
+
 ## 176차 (진행 중 — 0006296 크루즈 코스팅 마진 longitudinal_planner.py/longcontrol.py 수동 병합) — carrot-ryu 코드 검증 완료, push 대기
 
 175차 HANDOFF 다음 작업 1번(0006296 수동 병합)을 이어받음. 업로드된 longitudinal_planner.py/longcontrol.py/cruise_coasting.py 수동 병합본을 원본 0006296 패치(happymaj11r/openpilot, "Add opt-in cruise coasting margin with protected braking", ajouatom 4320337 cherry-pick)와 라인 단위로 대조·검증함.

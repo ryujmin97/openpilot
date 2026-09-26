@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (177차) -- 0006296(크루즈 코스팅 마진) carrot-ryu 반영 완료, push 및 재확인 완료
+
+- carrot-ryu HEAD: 5161837541d07ece15707a2ae6e3458d02befed3 (parent d751e15, 175차)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음)
+
+0006296 병합의 핵심 코드 5개 파일(cruise_coasting.py 신규 / longcontrol.py / longitudinal_planner.py / cereal/log.capnp / common/params_keys.h) push 완료. log.capnp(@62 cruiseCoastingTarget, @63 cruiseCoastingPercent) / params_keys.h(CruiseCoastingPercent, 기본값 0)는 원본 patch diff를 그대로 적용한 게 아니라 코드 사용처 기준으로 최소 재구성해 추가한 것임 -- 원본 patch의 나머지 부분(test_cruise_coasting.py / carrot_settings.json / test_settings_schema.py) 반영 시 이 필드/키와의 정합성을 다시 확인해야 함(WIP.md 177차 참고).
+
+남은 이월 항목(test_cruise_coasting.py, carrot_settings.json UI, test_settings_schema.py, c84b175, dcffb7f)은 변동 없음.
+
 ## 체크포인트: 2026-09-27 (176차) -- 0006296(크루즈 코스팅 마진) 상세 병합·검증 완료, push 대기
 
 - carrot-ryu HEAD: d751e15ec0d5ab28022d28d7de4a6be9022b125d (175차 이후 변경 없음, 이번 세션 코드는 아직 push 전)
