@@ -1,5 +1,23 @@
 # WIP
 
+## 175차 (완료) — 1ae25ef(radar path normals 안정화) carrot-ryu 반영, 0006296/c84b175/dcffb7f 1차 triage
+
+174차 HANDOFF 다음 작업 1번(중간 우선순위 4건: 1ae25ef/0006296/c84b175/dcffb7f)을 이어받아 1ae25ef부터 착수.
+
+carrot-ms 원본 커밋은 5개 파일(+502/-2)이지만 `docs/carnival_stopping_path_endpoint_*` 2개는 Kia Carnival 전용 조사 문서라 제외, 실제 반영 대상은 3개 파일(+125)로 확정. `git apply --check` 재현 결과 `cutin_validation_cases.json`/`test_radar_motion_predictor.py`는 그대로 통과, `predictor.py`만 실패. WIP_SYNC.md 기존 메모는 원인을 "161~162차(곡률슬루/경로소진) 영역"으로 추정했으나 재분석 결과 부정확했음을 확인 — 실제 원인은 121차 dead-code batch B가 `_radar_path` 함수를 이미 제거해 원본 patch의 컨텍스트 앵커가 사라진 것(WIP_SYNC.md 갱신은 다음 세션 이월).
+
+`_terminal_path_tangent` 신규 함수 + `_project_to_model_path_cached` 말미 보정 로직을 `_radar_path` 의존 없이 블록치환으로 수동 이식(anchor 1회 매치 확인). `py_compile` 통과, 신규 pytest 5개(순수 기하 로직) 컨테이너 직접 실행 전부 통과, 기존 회귀 테스트 무변화 확인. 컨트롤러 레벨 테스트 1개는 cereal Cython 빌드 환경 부재로 미실행(6번 이월과 동일 제약).
+
+로컬 bare 저장소로 스크립트 전체(clone→apply→블록치환→py_compile/json 검증→commit→push)를 실제 실행해 검증 — 1차 실행에서 `git add -A`가 `py_compile`이 만든 `__pycache__/*.pyc`까지 커밋에 끼워 넣는 버그를 발견해 대상 3개 파일 명시적 add로 수정 후 재실행, `3 files changed, 125 insertions(+)`로 의도한 결과만 커밋됨을 확인.
+
+사용자가 Termux에서 스크립트(`175cha_code_carrot_ryu.sh`)를 실행한 뒤 이를 그대로 신뢰하지 않고 `git ls-remote` + 로컬 shallow clone으로 carrot-ryu를 직접 재조회 — HEAD `d751e15`, parent `dcf43ea`, stat `3 files changed, 125 insertions(+)`로 시뮬레이션/원본과 정확히 일치함을 확인(16절).
+
+이어서 남은 중간 우선순위 3건의 patch를 happymaj11r/openpilot에서 확보하고 1차 관련성 triage 수행: `0006296`(크루즈 코스팅 마진, opt-in) — 종방향 제어 직접 관련, 관련성 높음. `c84b175`(온로드 디스플레이/클러스터를 코어 6·7 저우선순위로) — 차량 무관이나 콤마 C3 디바이스 성능 이슈로 관련 있음. `dcffb7f`(카메라 SOF 페이즈를 Panda 펌웨어에 맞춤) — C3+Panda 조합 하드웨어 타이밍 이슈로 관련 있음.
+
+`0006296`을 carrot-ryu 현재 HEAD(`d751e15`)에 `git apply --check`한 결과 16개 파일 중 13개는 통과, `openpilot/selfdrive/controls/lib/longitudinal_planner.py`는 carrot-ryu가 이미 `cutin_predecel_limit`/`force_slow_decel`/`accel_limits_turns` 등으로 `update()` 함수를 크게 확장해 놓아 원본 patch의 컨텍스트 앵커가 맞지 않음을 확인(수동 병합 필요, 175차 predictor.py보다 작업량이 클 것으로 예상). `test_ci_check.py`/`test_generate.py`도 carrot-ryu 자체 확장 목록 때문에 컨텍스트 불일치.
+
+사용자 판단에 따라 이번 세션은 devnotes(175차) 정리로 마무리, 나머지 3건 상세 병합은 다음 세션(176차)으로 이월.
+
 ## 174차 (786c597 반영 완료) — 172차 미완료 2번(ca60022/786c597 수동 병합) 완결
 
 세션 시작 시 채팅에 있던 "173차 devnotes push도 실제 반영 확인됨" 보고를 그대로 신뢰하지 않고 3절/16절 원칙에 따라 `git ls-remote`+`git show --stat`으로 carrot-ryu(`cd7eb12`, parent `f06adef`, 4 files/223+/3-)와 carrot-ryu-note(`2b26622`, parent `5a1b6c7`, 2 files/43+/27-)를 독립적으로 재확인 -- 보고 내용과 실제 GitHub 상태 일치 확인.
