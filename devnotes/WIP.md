@@ -1,5 +1,30 @@
 # WIP
 
+## 178cha (완료) — cruise_coasting.py update() 0006296 원본 정합 수정 + test_cruise_coasting.py 복원 반영
+
+177차 HANDOFF 미완료 1번(test_cruise_coasting.py 복원 반영)을 이어받아, 176차에서 이미 검증된 update() 로직을 0006296 원본 패치와 다시 대조해 로직 정합성을 수정하고 복원 테스트를 실제 반영함.
+
+**수정 내용:**
+1. `cruise_coasting.py` `update()`: 기존 병합본은 "외부 상한이 조건 완화 밴드 안이면 즉시 reset" + "percent/set_speed/target 변화가 있으면 무조건 새 target으로 갱신" 구조였으나, 0006296 원본은 "현재 인터벌 동안은 물리 속도 환산 기준(freeze된 reference)을 유지하고, set_speed/percent 변화가 있을 때만 안정 타이머를 리셋하는" 구조임. 이번 수정으로 `changed` 플래그(= percent 또는 set_speed 변화)를 별도로 판정하고, `reference = target if changed else self.target`로 동결 여부를 결정한 뒤 external_limit 체크를 `max(target, reference)` 기준으로 수행하도록 정합 수정(라이브 speed-ratio 변화가 안정 타이머를 리셋하지 않도록 하는 게 핵심 — target 자체는 여전히 절대 인상되지 않음).
+2. `test_longcontrol_hyundai_tuning.py`의 공용 픽스처 `make_cp()`에 `openpilotLongitudinalControl=True` 추가(176차에서 발견한 "실제 CP 객체엔 항상 존재하는 필드" 보정, 이번에 실제 반영).
+3. `test_cruise_coasting.py`(402줄) 복원 반영.
+
+**검증:**
+- py_compile 정적 검증 3개 파일(`cruise_coasting.py`, `test_cruise_coasting.py`, `test_longcontrol_hyundai_tuning.py`) 통과.
+- pytest 실행 시도: `conftest.py` → `openpilot.common.params` → `params_pyx` 모듈 부재로 실행 불가 — 176차/177차부터 이월된 것과 동일한 환경 제약(신규 버그 아님).
+- 실차 검증: 미실시(12절).
+- GitHub 직접 재확인: `git ls-remote` + SHA 고정 `git show --stat`로 carrot-ryu HEAD가 `1072795`(parent `5161837` = 176/177차)임을 확인.
+
+**완료:** cruise_coasting.py update() 로직 0006296 원본 정합 수정, make_cp() 보정, test_cruise_coasting.py 복원 — 3개 파일 carrot-ryu 반영 및 push 완료(코드 반영 자체는 이번 세션 이전에 이미 수행되고 push됨 — 이번 세션에서는 GitHub 상태 직접 재확인 후 devnotes만 반영).
+
+**미완료(이월, 177차와 동일):**
+1. carrot_settings.json UI 노출, test_settings_schema.py(설정 개수 183→184 불일치 재확인 포함).
+2. log.capnp @62/@63 필드가 원본 0006296 patch 번호와 실제 일치하는지 — 남은 patch 조각 반영 시 확인 필요.
+3. c84b175(CPU 스케줄링), dcffb7f(카메라 SOF) 상세 대조 — 미착수, 계속 이월.
+4. 저위험 소규모 9건, 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보 — 계속 이월.
+5. pytest CI 환경(conftest.py 포함 실제 cereal 실행) — 여전히 미실행(환경 제약 지속).
+
+
 ## 177차 (완료) — 0006296(크루즈 코스팅 마진) carrot-ryu 반영 및 GitHub 직접 재확인
 
 176차 HANDOFF 다음 작업 1번(반영 스크립트 작성)을 이어받음. 대상 5개 파일: `cruise_coasting.py`(신규), `longcontrol.py`(전체 교체), `longitudinal_planner.py`(앵커 치환 6곳), `cereal/log.capnp`, `common/params_keys.h`(필수 동반 갱신).
