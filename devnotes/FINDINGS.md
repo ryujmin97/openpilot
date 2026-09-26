@@ -1,5 +1,21 @@
 # FINDINGS
 
+## 핵심 발견 67 (169차) -- route freeze(핵심 발견 59/166)에 만료 시간이 없어 navRoute 폴리라인 끝을 지난 뒤에도 직전 유효값에 영구 고정될 수 있었음 + 일반 소스 가속페달 하한(gas_override_speed)도 동일한 무기한 지속 위험
+
+**배경**: 161차(핵심 발견 59)가 도입한 route freeze(원본 폴리라인 점 부족으로 곡률을 신뢰할 수 없는 사이클에 직전 유효값(navi_route_speed_filt)을 그대로 유지)에는 애초에 만료 시간이 없었다. 168차(핵심 발견 66)가 navRoute 재발행 시 start_index가 매 사이클 리셋되던 결함을 고쳐 "잘못된 소진 판정" 빈도는 줄었지만, 정말로 route 정보가 오래 끊기는 경우(navRoute 폴리라인 끝을 지나간 뒤 새 navRoute 수신 등 벗어날 계기가 없는 구간) 자체는 여전히 존재했고, 이 경우 freeze가 그대로 마지막 값(예: 27.4km/h)에 영구 고정될 수 있는 구조였다.
+
+**수정(169차)**: `ROUTE_FREEZE_MAX_CYCLES = 15 * 20`(15초, 20Hz 호출 기준) 도입, `route_insufficient_cycles` 카운터가 연속으로 이 값을 넘기면 freeze를 풀고 도로제한속도(nRoadLimitSpeed)로 폴백. 카운터는 route 비활성/신규 route 수신 시 0으로 리셋된다.
+
+**부가 수정(같은 커밋, 관련 2차 원인)**: `_apply_speed_source_gas_floor()`의 일반 소스(road/curve/route 등) 가속페달 속도 하한(`gas_override_speed`)도 동일하게 `reset_floor` 조건(정지/과속/특정 source/브레이크/제한속도 변경)에 걸리지 않는 한 gasPressed가 False로 돌아간 뒤에도 무기한 유지될 수 있었던 것을, route freeze와 마찬가지로 "오래된 하한값에 계속 눌려있는 상태를 감추는" 2차 원인으로 보고 `GAS_OVERRIDE_TIMEOUT_S=15.0` 방어적 만료를 추가했다(school zone 전용이었던 기존 3초 타임아웃과 별개의 일반 소스용 타임아웃).
+
+**후속**: 170차(핵심 발견 68)가 이 freeze 폴백값 자체(nRoadLimitSpeed)의 오탐 소스(카메라 표지판 인식 디바운스 없음)를 발견해 vCruise로 재전환했다.
+
+**수정 여부**: 있음(carrot_man.py +14/-1, carrot_serv.py +21/-0, commit `7cd03aeb`).
+
+**검증**: 이 devnotes 항목은 170차 세션이 기록을 남기지 못하고 지나간 것을 다음 세션이 GitHub 커밋 diff로 사후 재구성한 것(16절) -- 원 세션의 개별 검증 절차(py_compile/blob hash/dry-run 등) 기록은 확보되지 않음, 커밋이 실제 push되어 있다는 사실만 확인됨.
+
+**실차 검증**: 미실시.
+
 ## 핵심 발견 68 (170차) -- route freeze 폴백(핵심 발견 59/67)이 참조하던 nRoadLimitSpeed가 카메라 표지판 오독에 디바운스 없이 노출되어 있어 폴백값 자체가 오탐 소스가 될 수 있었음
 
 carrot_serv.py의 update_navi()는 `if not self.external_navigation_active and CS is not None and CS.speedLimit > 0: self.nRoadLimitSpeed = CS.speedLimit`로, 카메라 표지판 인식 결과를 디바운스/신뢰도 검증 없이 매 사이클 그대로 nRoadLimitSpeed에 덮어쓴다. carrot_man.py의 route freeze 로직(핵심 발견 59(161차)/67(169차))은 navi_route_speed_filt가 없거나 freeze가 만료된 사이클에 이 nRoadLimitSpeed를 폴백값으로 사용했으므로, 표지판을 한 프레임만 잘못 읽어도 그 순간 freeze 폴백값이 튈 수 있는 구조였다.

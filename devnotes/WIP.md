@@ -1,5 +1,20 @@
 # WIP
 
+## 169차 (코드 1건 · push 완료, devnotes 캐치업) — route freeze 만료(핵심 발견 67) + 일반 소스 가속페달 오버라이드 시간 만료
+
+170차 세션이 자체적으로 기록하지 못하고 넘어간 169차 devnotes를, 다음 세션(devnotes 캐치업 전담)이 실제 커밋(`7cd03aeb`, 부모 `3a17435d`)의 diff를 GitHub에서 직접 조회해 사후 작성했다(16절 -- 원 세션의 실행 로그/검증 기록은 확보되지 않아, 코드 변경 사실 자체만 diff 근거로 기술한다).
+
+**변경 내용 (carrot_man.py, +14/-1)**: 핵심 발견 59(161차)/166차(168차, handle_route 리셋 결함 수정) 이후에도 남아있던 route freeze의 구조적 결함을 수정. 기존 freeze(navi_route_speed_filt를 직전 유효값으로 고정)에는 만료 시간이 없어, navRoute 폴리라인 "끝"을 지나간 뒤(예: 안내 지점에서 xDist가 매우 멀어짐) 새 navRoute 수신 등 벗어날 계기가 없으면 마지막 값에 영구 고정될 수 있었다(핵심 발견 67). `ROUTE_FREEZE_MAX_CYCLES = 15 * 20`(15초, carrot_navi_route()가 Ratekeeper(20Hz)로 호출됨) 상수 추가, `self.route_insufficient_cycles` 카운터를 route 비활성 시점(__init__ 포함) 및 신규 route 수신(handle_route, route_unchanged가 아닌 경우) 시점에 0으로 리셋하도록 배선. route_info_sufficient=False가 연속으로 ROUTE_FREEZE_MAX_CYCLES를 넘기면(`route_freeze_expired`) freeze를 풀고 도로제한속도(`self.carrot_serv.nRoadLimitSpeed`)로 폴백하도록 `out_speed` 계산 조건을 수정했다.
+
+**변경 내용 (carrot_serv.py, +21/-0)**: school zone 가속페달 오버라이드(`SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S=3.0`)와 동일한 만료 원칙을, road/curve/route 등 일반 소스의 가속페달 속도 하한(`gas_override_speed`)에도 적용. 기존에는 `reset_floor` 조건(정지/과속/특정 source/브레이크/제한속도 변경)에 걸리지 않는 한 gasPressed가 False로 돌아간 뒤에도 하한값이 무기한 유지될 수 있었음 -- route freeze(핵심 발견 66/67)처럼 "오래된 값에 계속 눌려있는 상태"를 감추며 함께 지속시키는 2차 원인으로 보고 방어적 시간 만료를 추가했다. `GAS_OVERRIDE_TIMEOUT_S = 15.0`, `self.gas_override_started_at`(None 또는 monotonic 타임스탬프) 신규 상태를 추가, `_apply_speed_source_gas_floor()`에서 하한이 새로 걸리는 시점에 타임스탬프를 기록하고 15초 경과 시 강제 해제하는 로직을 추가, `reset_floor`/`_update_navigation_source()`의 기존 리셋 지점에도 `gas_override_started_at` 동반 리셋을 배선했다.
+
+**수정 여부**: 있음(carrot_man.py +14/-1, carrot_serv.py +21/-0, commit `7cd03aeb`). HANDOFF.md(170차)가 기록한 "169차, 핵심 발견 67 route freeze 만료 로직" 코드 base와 일치.
+
+**검증**: 이 캐치업 세션은 원본 세션의 py_compile/blob hash/dry-run 등 개별 검증 기록을 확보하지 못해 재기술하지 않는다(11절, 추측 금지) -- 커밋이 실제 GitHub에 push되어 있고, 그 위에 170차(`c6d8a206`) 코드가 정상적으로 이어붙는다는 사실로 반영 자체만 확인된다.
+
+**실차 검증**: 미실시(핵심 발견 68과 함께 다음 세션 이월).
+
+
 ## 170차 (코드 1건 · 실행/push 대기) — route freeze 폴백값 nRoadLimitSpeed → vCruise 전환(핵심 발견 68)
 
 세션 시작 시 git ls-remote로 carrot-ryu HEAD가 이미 `7cd03aeb`(169차, 핵심 발견 67 route freeze 만료 로직)까지 push 완료돼 있음을 확인. 다만 carrot-ryu-note(HANDOFF.md/WIP.md/FINDINGS.md)는 여전히 168차("실행/push 대기") 상태로 남아있어, 168차뿐 아니라 169차 devnotes 자체도 이 세션 기준으로는 아직 기록되지 않은 상태임(16절 해당 -- 169차 devnotes 정식 캐치업은 이번 세션 범위 밖으로 남겨두고, 코드 상태만 GitHub 직접 조회(raw SHA고정 + git hash-object)로 확인).
