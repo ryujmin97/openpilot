@@ -677,18 +677,23 @@ class CarrotMan:
       # 핵심 발견 59(161차) 수정: 원본 점 부족(경로 소진)으로 곡률을 신뢰할 수 없는 사이클.
       # 이번 사이클에서 계산된 out_speed(직선 오판으로 300까지 튈 수 있음)를 버리고, 직전에
       # 정보가 충분했던 값(navi_route_speed_filt)을 그대로 유지(freeze)한다. 그런 값이 아직
-      # 없으면(주행 초반 등) 도로제한속도로 대체한다. 두 경우 모두 navi_route_speed_filt는
+      # 없으면(주행 초반 등) 설정속도(vCruise)로 대체한다. 두 경우 모두 navi_route_speed_filt는
       # 이번 사이클에서 갱신하지 않아, "정보가 충분했던 마지막 값"이 오염되지 않는다.
       # 핵심 발견 67(169차): 위 freeze에는 원래 만료 시간이 없어, navRoute 폴리라인 끝을 지나간
       # 뒤 벗어날 계기(새 navRoute 수신 등)가 없으면 마지막 값에 영구 고정될 수 있었다.
       # route_info_sufficient=False가 ROUTE_FREEZE_MAX_CYCLES(15초)를 연속으로 넘기면 freeze를
-      # 풀고 도로제한속도로 폴백한다 -- "정보 없음" 상태가 그만큼 오래가면 더 이상 유효값으로
-      # 보지 않는다는 판단.
+      # 풀고 폴백한다 -- "정보 없음" 상태가 그만큼 오래가면 더 이상 유효값으로 보지 않는다는 판단.
+      # 핵심 발견 68(170차): 두 폴백 지점(값 없음 / freeze 만료) 모두 대체값을 도로제한속도
+      # (nRoadLimitSpeed)에서 운전자 설정속도(vCruise)로 변경. nRoadLimitSpeed는 carrot_serv.py
+      # update_navi()에서 카메라 표지판 인식(CS.speedLimit)이 디바운스 없이 바로 덮어쓰므로,
+      # 표지판 오독 한 프레임만으로도 이 폴백값이 튈 수 있었다(오탐 원인, 사용자 판단으로
+      # ②만 변경 -- carrot_serv.py의 ③ AutoRoadSpeedLimitOffset 후보 로직은 그대로 유지).
+      # vCruise는 운전자가 직접 설정하는 값이라 이런 인식 노이즈 경로가 없다.
       self.route_insufficient_cycles += 1
       route_freeze_expired = self.route_insufficient_cycles > ROUTE_FREEZE_MAX_CYCLES
       out_speed = (self.navi_route_speed_filt
                    if self.navi_route_speed_filt is not None and not route_freeze_expired
-                   else self.carrot_serv.nRoadLimitSpeed)
+                   else self.sm['carState'].vCruise)
     else:
       self.route_insufficient_cycles = 0
       # candidate3(161차): route 후보 속도 근접-직선 구간(최대 곡률<0.003) 한정 사이클간(20Hz)
