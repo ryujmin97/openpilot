@@ -163,6 +163,13 @@ V_CRUVE_LOOKUP_VALS = [300, 150, 120, 110, 100, 90, 80, 70, 60, 50, 40, 15, 5]
 # 오판된다. 이 개수 미만이면 곡률 계산 결과를 신뢰하지 않는다(carrot_navi_route() 참고).
 ROUTE_PATH_MIN_POINTS = 4
 
+# 핵심 발견 67(169차): route_info_sufficient=False가 연속으로 이 사이클 수를 넘기면(15초 *
+# 20Hz = 300 사이클, carrot_navi_route()가 Ratekeeper(20)로 호출됨), 직전 유효값(navi_route_
+# speed_filt) freeze를 만료시키고 도로제한속도로 폴백한다. 기존에는 만료 시간이 없어, navRoute
+# 폴리라인 "끝"을 지나간 뒤(예: 안내 지점에서 xDist가 매우 멀어짐) 새 navRoute 수신 등으로 벗어날
+# 계기가 없으면 마지막 값(예: 27.4km/h)에 영구 고정될 수 있었다.
+ROUTE_FREEZE_MAX_CYCLES = 15 * 20
+
 # Haversine formula to calculate distance between two GPS coordinates
 #haversine_cache = {}
 def haversine(lon1, lat1, lon2, lat2):
@@ -349,6 +356,7 @@ class CarrotMan:
     self.navi_points = []
     self.navi_points_start_index = 0
     self.navi_route_speed_filt = None
+    self.route_insufficient_cycles = 0
     self.navi_points_active = False
     self.navd_active = False
     self.carrot_navi_route_session_id = ""
@@ -572,6 +580,7 @@ class CarrotMan:
         #curvature_cache.clear()
         self.navi_points = []
         self.navi_points_active = False
+        self.route_insufficient_cycles = 0
         if self.active_carrot_last > 1:
           #self.params.remove("NavDestination")
           pass
@@ -670,10 +679,18 @@ class CarrotMan:
       # 정보가 충분했던 값(navi_route_speed_filt)을 그대로 유지(freeze)한다. 그런 값이 아직
       # 없으면(주행 초반 등) 도로제한속도로 대체한다. 두 경우 모두 navi_route_speed_filt는
       # 이번 사이클에서 갱신하지 않아, "정보가 충분했던 마지막 값"이 오염되지 않는다.
+      # 핵심 발견 67(169차): 위 freeze에는 원래 만료 시간이 없어, navRoute 폴리라인 끝을 지나간
+      # 뒤 벗어날 계기(새 navRoute 수신 등)가 없으면 마지막 값에 영구 고정될 수 있었다.
+      # route_info_sufficient=False가 ROUTE_FREEZE_MAX_CYCLES(15초)를 연속으로 넘기면 freeze를
+      # 풀고 도로제한속도로 폴백한다 -- "정보 없음" 상태가 그만큼 오래가면 더 이상 유효값으로
+      # 보지 않는다는 판단.
+      self.route_insufficient_cycles += 1
+      route_freeze_expired = self.route_insufficient_cycles > ROUTE_FREEZE_MAX_CYCLES
       out_speed = (self.navi_route_speed_filt
-                   if self.navi_route_speed_filt is not None
+                   if self.navi_route_speed_filt is not None and not route_freeze_expired
                    else self.carrot_serv.nRoadLimitSpeed)
     else:
+      self.route_insufficient_cycles = 0
       # candidate3(161차): route 후보 속도 근접-직선 구간(최대 곡률<0.003) 한정 사이클간(20Hz)
       # 슬루 제한. 실제 커브 감속(곡률>=0.003)에는 관여하지 않는다. 상태는
       # navi_points_start_index가 0으로 리셋되는 모든 지점에서 함께 리셋된다.
@@ -1689,6 +1706,7 @@ class CarrotMan:
     self.navi_points = navi_points
     if not route_unchanged:
       self.navi_points_start_index = 0
+      self.route_insufficient_cycles = 0
     # 핵심 발견 65(166차): 경로가 여전히 활성으로 갱신되는 경우 navi_route_speed_filt를 유지한다
     # (_update_carrot_navi_route와 동일 원칙).
     self.navi_points_active = True

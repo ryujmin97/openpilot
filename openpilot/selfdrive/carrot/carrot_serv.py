@@ -72,6 +72,12 @@ import collections
 
 COUNTDOWN_NEW_TARGET_MIN_JUMP_M = 20.0
 SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S = 3.0
+# 핵심 발견 67(169차): school zone과 동일한 만료 원칙을 road/curve/route 등 일반 소스의
+# 가속페달 속도 하한(gas_override_speed)에도 적용한다. reset_floor 조건(정지/과속/특정
+# source/브레이크/제한속도 변경)에 걸리지 않는 한 gasPressed가 False로 돌아간 뒤에도 무기한
+# 유지될 수 있었던 것을, route freeze(핵심 발견 66/67)처럼 오래된 하한값에 계속 눌려있는
+# 상태를 감추며 함께 지속시키는 2차 원인으로 보고 방어적으로 시간 만료를 추가한다.
+GAS_OVERRIDE_TIMEOUT_S = 15.0
 
 # route(내비 경로 곡률) 목표속도에 곱하는 MapTurnSpeedFactor를, 분기·톨게이트 안내 지점에
 # 다가갈 때만 낮춘다(113차). 일반 굽이는 기존 배율을 그대로 쓴다.
@@ -196,6 +202,7 @@ class CarrotServ:
     self.atc_paused = False
     self.atc_activate_count = 0
     self.gas_override_speed = 0
+    self.gas_override_started_at = None
     self.gas_pressed_state = False
     self.speed_event_gas_pressed = False
     self.source_last = "none"
@@ -378,6 +385,7 @@ class CarrotServ:
       self.speed_countdown_distance_last = self.turn_countdown_distance_last = 0.0
       self.left_spd_sec = self.left_tbt_sec = 100
       self.gas_override_speed = 0
+      self.gas_override_started_at = None
       self.school_zone_gas_override_started_at = None
       self.school_zone_suppressed = False
     return changed
@@ -558,6 +566,7 @@ class CarrotServ:
 
     reset_floor = (CS.vEgo < 0.1 or desired_speed > 150 or source in ["cam", "section", "police"] or
                    CS.brakePressed or road_speed_limit_changed)
+    gas_override_speed_before = self.gas_override_speed
     if reset_floor:
       self.gas_override_speed = 0
     elif source == "bump":
@@ -570,6 +579,19 @@ class CarrotServ:
       self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
     else:
       self.gas_pressed_state = False
+
+    # 핵심 발견 67(169차): GAS_OVERRIDE_TIMEOUT_S를 넘겨 유지된 하한은 reset_floor 조건이
+    # 트리거되지 않는 한 gasPressed가 False로 돌아간 뒤에도 무기한 지속될 수 있었다 -- 만료
+    # 시간을 둬서 강제로 풀어준다.
+    now = time.monotonic()
+    if self.gas_override_speed <= 0:
+      self.gas_override_started_at = None
+    elif gas_override_speed_before <= 0:
+      self.gas_override_started_at = now
+    elif (self.gas_override_started_at is not None and
+          now - self.gas_override_started_at >= GAS_OVERRIDE_TIMEOUT_S):
+      self.gas_override_speed = 0
+      self.gas_override_started_at = None
 
     self.source_last = source
     if desired_speed < self.gas_override_speed:
