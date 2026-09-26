@@ -139,3 +139,19 @@ Claude 샌드박스에서 conftest.py를 포함한 실제 pytest CI 조건을 �
 
 로그 `carrotMan.szPosRoadName`의 `route=` 값(디버그 표기)을 재생값(`r_o`, `out_o × 배율`)과 같은 사이클끼리 직접 비교하면 실제로는 일치하는 변화도 불일치로 보일 수 있다(160차 발견). seg8/seg15 구간에서 재생 `r_o`와 로그 `route=`의 오르내림 패턴이 정확히 한 사이클(20Hz, 0.03~0.06s) 어긋난 채 동일한 모양으로 나타났고, `run()`의 decel 인자를 0.3~2.0으로 바꿔도 이 타이밍 자체는 변하지 않았다(크기만 스케일) -- 즉 재생 파라미터 오차가 아니라 로그 `route=` 필드 표기 자체의 1사이클 지연으로 추정된다(정적 추적 기반 추정, 확정 아님). 같은 사이클 대조에서 급변이 재현되지 않으면, 재생 r_o를 1사이클(-1) 시프트해 로그와 다시 대조해 볼 것. 상세 근거는 WIP.md 160차 참고.
 
+### 170차 추가 (dead code 판별 방법론: DEAD_CODE_REVIEW.md 원본 폐지, 방법론만 이관)
+
+carrot-ryu의 dead code(호출/참조되지 않는 코드) 판별에 115~135차에 걸쳐 쓰인 방법론. 원본 `devnotes/DEAD_CODE_REVIEW.md`(완료된 배치별 이력 문서)는 170차에 삭제됐고, 재사용 가치가 있는 방법론만 이 절로 옮겼다. 배치별 상세 이력(어떤 커밋에서 무엇을 지웠는지, 실차 검증 여부)은 WIP.md 115/117/118/120/121/123/135차 및 FINDINGS.md를 참고. 원본 문서 전체는 이 삭제 커밋 이전 carrot-ryu-note 히스토리에서 조회 가능.
+
+**원칙**: (1) 후보는 저장소 전체를 codeload tarball로 받아 심볼 단위 grep으로 참조 0건을 확정한 뒤에만 삭제한다(추측 금지, 11절). (2) 삭제 diff를 `py_compile`과 기존 테스트(pyflakes 경고 비교 포함)로 확인한다. (3) 사용자가 스크립트를 실행해 push하기 전에는 "제거 완료"로 쓰지 않는다. (4) 지침 10절 "최소 변경 원칙"과 방향이 반대(코드를 줄이는 이니셔티브)이므로 배치마다 사용자 승인을 받는다. (5) carrot-ms와의 차이가 늘어나는 점을 감안한다(20절 리셋 시 재이식 대상이 됨).
+
+**탐색 방법**: first-party 스코프(selfdrive/carrot, controls/lib, carrot/model_selector, tools/carrot_* 등, opendbc_repo/tinygrad_repo/.vendor 제외) 함수·메서드 정의를 AST(`ast.parse`)로 추출 → 코드/문자열/비-py 파일/테스트로 구분해 참조를 토큰 단위로 카운트 → 죽은 함수에서만 호출되는 함수까지 연쇄로 추적 → 최종 후보는 저장소 전체 `grep -w`(rg 가능)로 재확인(11절). 삭제 전/후 py_compile + pyflakes 경고 비교, pytest 실패 목록 동일 여부, 로컬 bare 저장소에서 반영 스크립트 로직 전체(clone → pre-image blob hash 가드 → 치환 → post-image 확인 → py_compile → commit/push)를 재현해 diff가 예상과 일치하는지까지 확인한다(9절 9번과 동일한 사고방식).
+
+**오탐(false positive) 배제 패턴 누적 목록** — 새 배치에서 "참조 0건"으로 보여도 아래 패턴이면 실제로는 살아있는 코드일 수 있으니 먼저 제외하고 검토한다:
+- opendbc_repo 등 외부/vendor 라이브러리가 쓰는 심볼(예: `apply_deadzone`은 opendbc `gm/carcontroller.py`가 사용 — 1차 스캔이 opendbc 제외 범위였던 탓에 생긴 오탐)
+- `.vendor/` 외부 라이브러리 코드
+- 프레임워크 콜백/오버라이드(예: `do_POST`/`do_DELETE`/`handle_starttag`/`handle_startendtag`)
+- 동적 디스패치로 호출되는 함수(예: `_ingest_*`)
+- `@pytest.fixture(autouse=True)` 픽스처(예: `clean_baseline`/`fake_param_key_type`/`isolated_git`)
+- 커스텀 데코레이터로 등록되는 함수(예: `@register_command`)
+- 테스트에서만 참조되는 이름 — 곧바로 삭제 대상에 넣지 말고 "보류"로 분류해 별도 검토(회귀 가드일 수 있음, 예: `_draw_navi_traffic_light_panel`)

@@ -55,7 +55,7 @@
   미러링하는 것은 여전히 금지(carrot-ryu-vN은 미러링이 아니라 우리 자신의 과거
   스냅샷이므로 별개).
 - carrot-ryu-note에 두는 파일: `PROJECT_INSTRUCTIONS_carrot-ryu.md`(이 문서),
-  `devnotes/WIP.md`, `HANDOFF.md`, `CURRENT_STATUS.md`, `FINDINGS.md`,
+  `devnotes/WIP.md`, `HANDOFF.md`, `FINDINGS.md`,
   `LAST_ANALYZED.md`, `PARAMS_REGISTRY.md`, `WIP_SYNC.md`, `toolkit/`.
 
 ────────────────────────────────
@@ -116,15 +116,14 @@ raw.githubusercontent.com의 브랜치명 URL은 CDN 캐시로 인해 최근 pus
 
 **이후 필요한 것만 조회**
 1. `devnotes/HANDOFF.md` — 직전 세션 인수인계 (거의 항상 필요)
-2. `devnotes/CURRENT_STATUS.md` — 현재 상태 요약
-3. carrot-ryu 최신 commit (GitHub API)
-4. `devnotes/WIP.md` — 이전 작업 이어갈 때만 (최상단 회차 위주)
-5. `devnotes/LAST_ANALYZED.md` — 분석 범위 정할 때만
-6. `devnotes/FINDINGS.md` — 원인 분석/이슈 기록할 때만
-7. `devnotes/PARAMS_REGISTRY.md` — 튜닝 파라미터 다룰 때만
-8. `devnotes/WIP_SYNC.md` — carrot-ms 동기화 이력 확인할 때만
-9. `devnotes/toolkit/README.md` — 로그 분석 스크립트 작업할 때만
-10. happymaj11r(carrot-ms)/ajouatom(carrot-wip) — 비교·동기화 필요할 때만
+2. carrot-ryu 최신 commit (GitHub API)
+3. `devnotes/WIP.md` — 이전 작업 이어갈 때만 (최상단 회차 위주, 현재 상태 요약도 여기서 확인)
+4. `devnotes/LAST_ANALYZED.md` — 분석 범위 정할 때만
+5. `devnotes/FINDINGS.md` — 원인 분석/이슈 기록할 때만
+6. `devnotes/PARAMS_REGISTRY.md` — 튜닝 파라미터 다룰 때만
+7. `devnotes/WIP_SYNC.md` — carrot-ms 동기화 이력 확인할 때만
+8. `devnotes/toolkit/README.md` — 로그 분석 스크립트 작업할 때만
+9. happymaj11r(carrot-ms)/ajouatom(carrot-wip) — 비교·동기화 필요할 때만
 
 이 조회들은 Claude가 읽기 전용으로 직접 수행하며 사용자 스크립트 실행이 필요 없다
 (9절 스크립트는 "쓰기/반영" 전용).
@@ -197,7 +196,7 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
    - 이어붙이기형(누적 파일): `WIP.md`, `WIP_SYNC.md`, `FINDINGS.md`,
      `PARAMS_REGISTRY.md` 등은 새로 추가할 내용만 담아 기존 파일 최상단(제목 줄
      바로 아래)에 삽입. 파일 전체를 옮기지 않는다.
-   - 교체형(요약 파일): `CURRENT_STATUS.md`, `HANDOFF.md`,
+   - 교체형(요약 파일): `HANDOFF.md`,
      `PROJECT_INSTRUCTIONS_carrot-ryu.md`(19절 승인 시) 등은 전체 내용을 담아
      통째로 덮어쓴다.
    - 코드 파일 — 소규모 변경: 문자열 찾아바꾸기(`-replace`, 라인 치환).
@@ -510,7 +509,7 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
    히스토리를 통째로 교체하는 작업(강제 push와 동등한 효과)이므로, 15절의 "삭제 후
    재생성" 예외 사례로 취급한다 — 매번 실행 직전에 사용자에게 명확히 알리고 명시적
    승인을 받은 뒤에만 진행하며, 임의로 선행하지 않는다.
-5. carrot-ryu-vN의 "코드 수정 현황"(CURRENT_STATUS.md의 번호 리스트)을 이식 체크리스트로
+5. carrot-ryu-vN의 "코드 수정 현황"(WIP.md 회차별 기록 및 FINDINGS.md 색인)을 이식 체크리스트로
    삼아, 항목별로 새 베이스 위에 하나씩 재적용한다. 이식은 git cherry-pick을 기본
    수단으로 삼지 않는다(베이스 구조 자체가 크게 바뀐 영역은 conflict 위험이 크므로).
    9절의 기존 워크플로(Replace-Block/전체교체 + py_compile·테스트 검증)를 그대로
@@ -534,12 +533,12 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
   세션을 마치면 다른 AI가 이어받거나, 다시 원래 AI가 이어받을 수 있다.
 - 이 문서(0~20절 및 이 21절)는 Claude 전용이 아니라, 이 프로젝트에 참여하는 모든 AI가
   공통으로 따르는 기준 문서다. 어떤 AI든 새 세션을 시작할 때는 4절의 확인 절차(이
-  문서 → HANDOFF.md → CURRENT_STATUS.md → 필요시 나머지)를 그대로 따른다. 3절의
+  문서 → HANDOFF.md → 필요시 나머지)를 그대로 따른다. 3절의
   원칙(GitHub의 현재 상태 > AI의 기억 > 채팅에 붙여넣어진 과거 사본)도 AI 종류와
   무관하게 동일하게 적용된다.
 - HANDOFF.md의 `Worker` 항목에는 이번 세션을 수행한 AI 이름(Claude 또는 ChatGPT,
   필요하면 모델명까지)을 명시한다. 다음 세션을 시작하는 AI는 직전 Worker가 자신과
-  다른 AI였더라도 HANDOFF.md/CURRENT_STATUS.md/WIP.md의 최신 내용을 기준으로 동일하게
+  다른 AI였더라도 HANDOFF.md/WIP.md의 최신 내용을 기준으로 동일하게
   이어받는다 — AI가 바뀌었다는 이유로 별도 취급하거나 처음부터 다시 분석하지 않는다.
 - WIP.md의 회차 번호(N차)는 AI 종류와 무관하게 하나의 연속된 시퀀스로 유지한다.
   Claude가 진행한 회차와 ChatGPT가 진행한 회차를 구분해 별도로 번호 매기지 않는다.
