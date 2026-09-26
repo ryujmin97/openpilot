@@ -1,5 +1,13 @@
 # WIP
 
+## 168차 (코드 1건 · 실행/push 대기) — seg21/seg22 곡률 경계 흔들림 원인 확정(핵심 발견 66): navRoute 재발행이 매 사이클 start_index를 리셋하던 결함, handle_route() 최소 수정
+
+167차 미완료 1번(seg21 3건/seg22 1건 desiredSpeed 급변, "곡률 경계 흔들림")을 carrot_man.py(로그 gitCommit `1e3bbb5e`, 162차 최종본)의 haversine/get_path_after_distance/gps_to_relative_xy/calculate_curvature/carrot_navi_route()를 그대로 포팅해 20Hz 사이클 단위로 재생·재현했다. 재생 과정에서 carrot_man.py 메인루프가 carrot_navi_route()를 먼저 호출한 뒤 carrot_serv.update_navi() 안에서 위치/헤딩을 갱신하므로, route 계산에 쓰이는 위치가 "이번 사이클"이 아니라 "직전 사이클에 기록된 xPosLat/Lon/Angle"이라는 1사이클 지연을 확정(160차가 미확정으로 남겼던 현상의 근본 원인, 실제 로그 route= 디버그값과 이 보정을 적용한 재생값이 거의 완전히 일치).
+
+4건 전부를 path_len/navi_points_start_index/navi_route_speed_filt 내부 상태와 함께 대조한 결과, 동일한 하나의 메커니즘으로 확정: navRoute 메시지가 내용 변경과 무관하게 약 1Hz 주기로 동일 좌표(252개) 그대로 재발행되는데, handle_route()가 이 재발행마다 무조건 navi_points_start_index=0으로 리셋한다. 리셋 직후 get_path_after_distance()가 인덱스 0부터 다시 최근접점을 탐색하다, 하필 그 순간 차량이 분기/커브 부근(폴리라인 점 간격이 촘촘한 구간)에 있으면 엉뚱한 점을 잡아 잔여 경로가 인위적으로 ROUTE_PATH_MIN_POINTS(4) 미만이 되어 "경로 소진"으로 오판, route 후보가 도로제한속도 폴백(50km/h) 등으로 순간 튀는 것이 원인이었다(158차 곡률 룩업 테이블 잡음이나 실제 도로 형상 문제가 아님). 4건 전부 desiredSpeed 급변 시각 ±0.05초 안에 좌표 개수 불변(252개)인 navRoute 재발행 이벤트가 정확히 존재함을 확인.
+
+수정: handle_route()에서 새로 수신한 navi_points가 기존 self.navi_points와 내용상 동일하면 navi_points_start_index 리셋을 건너뛰도록 최소 변경(carrot_man.py, +8/-1, 10절 최소 변경 원칙). 사용자가 Termux 사용을 명시해 51차/55차와 동일하게 bash 스크립트로 전달(9절) -- `168cha_code_carrot_ryu.sh`. base64로 인코딩한 old/new 블록을 스크립트에 내장해 수기 유니코드 이스케이프로 인한 오타 위험을 원천 차단(작성 중 실제로 수기 이스케이프 버전에서 "동일 원칙"->"동일한 원칙" 등 3곳 오타가 발생해 anchor 불일치/내용 손상을 자체 dry-run으로 발견한 뒤 base64 방식으로 교체). pre-image blob hash 가드(266f845d95a8...)/anchor 1회 매치/치환 결과 post-image blob hash 가드(63a30a41ae...)/py_compile 전부 로컬 bare 저장소 dry-run으로 end-to-end 통과 확인(9절 항목 9, Linux 환경 -- Termux 실제 실행은 아님). 실행/push 대기. 실차 검증: 미실시.
+
 ## 167차 (devnotes 정정 1건 + 코드 1건 · push 완료) — 166차 devnotes mojibake 정정 + 핵심 발견 65(navRoute 리셋 시 freeze 무력화) 코드 수정 반영
 
 세션 시작 시 4절 0단계로 이 지침 문서(v2, 커밋 `02a12ac`)를 조회하던 중, 같은 SHA로 HANDOFF.md/WIP.md/FINDINGS.md의 166차 최상단 항목이 실제로 깨진 한글(mojibake)로 push되어 있음을 발견(16절 보고 대상). 원인은 166차 devnotes 반영 스크립트가 한글 포함 .ps1을 UTF-8 BOM 없이 전달한 것(9절 필수 규칙 위반, 핵심 발견 21과 동일 패턴) -- 역디코딩을 시도했으나 문자열 일부가 이미 리터럴 `?`로 유실되어(완전 복구 불가) 166차 3개 파일의 해당 구간을 이번 세션에서 내용 그대로(이 세션 자신이 남긴 이전 기록/채팅 맥락을 근거로) 재작성해 정정했다. WIP.md/FINDINGS.md는 165차 이전 구간은 오염되지 않았음을 먼저 확인한 뒤 166차 최상단 블록만 정확히 경계 지정해 교체(전체 재작성 아님). HANDOFF.md는 8절 규칙대로 전체 교체.

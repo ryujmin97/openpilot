@@ -1,5 +1,13 @@
 # FINDINGS
 
+## 핵심 발견 66 (168차) -- navRoute 동일 내용 재발행(약 1Hz)이 handle_route()의 navi_points_start_index를 매번 0으로 리셋해, 분기/커브 부근에서 최근접점 재탐색 오류로 route가 인위적으로 "소진"된 것처럼 오판되는 결함
+
+seg21(3건)/seg22(1건)의 desiredSpeed 급변("곡률 경계 흔들림"으로 보였던 현상)을 carrot_man.py의 haversine/get_path_after_distance/gps_to_relative_xy/calculate_curvature/carrot_navi_route()를 그대로 포팅해 로그의 navRoute+carrotMan.xPosLat/Lon/Angle+carState.vEgo로 20Hz 재생한 결과, 4건 전부가 158차 곡률 룩업 테이블 잡음이 아니라 다음 단일 메커니즘으로 확정됨: (1) navRoute 메시지가 내용 변경 여부와 무관하게 약 1Hz 주기로 동일 좌표(252개) 그대로 재발행됨. (2) handle_route()가 이 재발행이 올 때마다 무조건 navi_points_start_index=0으로 리셋함(내용 동일 여부 확인 없음). (3) 리셋 직후 get_path_after_distance()가 인덱스 0부터 최근접점을 재탐색하는데, 그 순간 차량이 분기/커브 부근(폴리라인 점 간격이 촘촘한 구간)이면 엉뚱한 점을 잡아 잔여 경로가 인위적으로 ROUTE_PATH_MIN_POINTS(4) 미만이 되어 "경로 소진"으로 오판됨. (4) route 후보가 실제 계산값(급커브 저속) 대신 도로제한속도 폴백(50km/h)으로 순간 튀거나 원래 값으로 복귀. 4건 모두 desiredSpeed 급변 시각 ±0.05초 안에 좌표 개수 불변(252개)인 navRoute 재발행 이벤트가 정확히 존재함을 확인(11절, 추측 아님).
+
+부가 발견(160차 미확정 사항 해소): carrot_man.py 메인루프가 carrot_navi_route()를 먼저 호출한 뒤 carrot_serv.update_navi() 안에서 위치/헤딩을 갱신하므로, route 계산에 실제 쓰이는 위치는 "이번 사이클"이 아니라 "직전 사이클에 기록된 xPosLat/Lon/Angle"이다(1사이클 지연). 재생값에 이 보정을 적용하자 로그의 route= 디버그값과 거의 완전히 일치함을 확인.
+
+수정(168차): handle_route()에서 새로 수신한 좌표가 self.navi_points와 내용상 동일하면 navi_points_start_index 리셋을 건너뛴다(리스트 전체 비교, 10절 최소 변경). navi_route_speed_filt 처리(핵심 발견 65, 166차)는 그대로 둠 -- 이번 결함과는 독립적인 메커니즘. 실행/push 대기, 실차 검증: 미실시. 상세: WIP.md 168차 참고.
+
 ## 핵심 발견 65 (166차) -- navRoute 갱신 시 navi_route_speed_filt가 매번 None으로 리셋되어, 경로 수신 직후 route_info_sufficient가 False인 사이클과 겹치면 159/161차 freeze 로직이 무력화되고 nRoadLimitSpeed로 무보정 폴백함
 
 **배경**: 161차 candidate3(곡률<0.003 구간 사이클간 슬루 제한)와 162차 경로 소진 방지(원본 점 ROUTE_PATH_MIN_POINTS=4 미만이면 직전 유효값 freeze 또는 도로제한속도 대체)가 실제로 반영된 상태에서 기록된 최초 실주행 로그(1e3bbb5e, 10세그먼트)로 165차 이월 항목(candidate3+162차 실전 검증)을 처리하는 과정에서 발견됨.
