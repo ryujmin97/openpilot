@@ -55,6 +55,7 @@ def make_cp(brand="hyundai"):
     vEgoStarting=0.5,
     stopAccel=0.0,
     stoppingDecelRate=0.8,
+    openpilotLongitudinalControl=True,
   )
 
 
