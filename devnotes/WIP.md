@@ -1,5 +1,20 @@
 # WIP
 
+## 171차 (검증만 · devnotes 1건: HANDOFF.md 갱신) — 170차 코드 push + 169차 devnotes 캐치업 완료 확인
+
+세션 시작 시 4절 0단계(git ls-remote)로 carrot-ryu HEAD가 `c6d8a206`(170차, "route freeze fallback nRoadLimitSpeed -> vCruise (핵심 발견 68)")까지, carrot-ryu-note HEAD가 `de5b1ac`(170차: CURRENT_STATUS.md/DEAD_CODE_REVIEW.md 정리)까지 이미 push되어 있음을 확인. HANDOFF.md(170차 최초 기록분)가 "170차 코드 실행/push 대기", "169차 devnotes 캐치업 미완료"로 남아 있던 것과 실제 GitHub 상태가 다름을 발견(16절 해당) — 두 항목 모두 이미 완료돼 있었다.
+
+**확인 1 (170차 코드 push)**: `c6d8a206`의 diff를 조회해 carrot_man.py 변경(+9/-4)과 pre/post-image blob hash(`52510d16...`→`455b6a55...`)가 HANDOFF.md 기록과 정확히 일치함을 재확인. 현재 파일의 `git hash-object` 결과가 `455b6a55...`임을, `py_compile`로 구문 정상임을 재확인.
+
+**확인 2 (169차 devnotes 캐치업)**: git log를 조회해 `3b9e01b`("169cha: devnotes catchup...")가 이미 `79a7be3`(170차 devnotes 최초 기록) 이후 커밋되어 있음을 확인. WIP.md/FINDINGS.md에 169차(핵심 발견 67) 항목이 이미 정식 기록돼 있어(원본 커밋 `7cd03aeb` diff 기준, carrot_man.py +14/-1 · carrot_serv.py +21/-0 내용 일치) 신규 작성이 필요 없음을 확인.
+
+**남은 실제 갭**: HANDOFF.md만 이 두 완료 사실을 반영하지 못한 채 구버전으로 남아 있었음(169차 devnotes catchup 커밋과 170차 정리 커밋 모두 HANDOFF.md를 갱신하지 않음). 이번 세션에서 HANDOFF.md만 최신 상태로 전체 교체.
+
+**코드 변경**: 없음. **devnotes 변경**: HANDOFF.md 전체 교체(8절 규칙).
+
+**실차 검증**: 해당 없음(검증 세션).
+
+
 ## 169차 (코드 1건 · push 완료, devnotes 캐치업) — route freeze 만료(핵심 발견 67) + 일반 소스 가속페달 오버라이드 시간 만료
 
 170차 세션이 자체적으로 기록하지 못하고 넘어간 169차 devnotes를, 다음 세션(devnotes 캐치업 전담)이 실제 커밋(`7cd03aeb`, 부모 `3a17435d`)의 diff를 GitHub에서 직접 조회해 사후 작성했다(16절 -- 원 세션의 실행 로그/검증 기록은 확보되지 않아, 코드 변경 사실 자체만 diff 근거로 기술한다).
