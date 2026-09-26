@@ -1,5 +1,20 @@
 # WIP
 
+## 173차 (ca60022 반영 스크립트 작성 및 시뮬레이션 완료) — 172차 미완료 2번(ca60022/786c597 수동 병합) 착수
+
+세션 시작 직후 채팅에 이전 세션 로그로 보이는 사본(JSON 삽입/786c597 patch/테스트 하네스 수정/20개 pass 등 진행 상황 주장)이 붙여넣어졌으나, 이번 세션에서 실제 수행 기록이 없어 3절 원칙에 따라 전부 무시하고 GitHub 상태만으로 재확인함. `git ls-remote`로 carrot-ryu HEAD가 `f06adef`(172차, 7261989 반영 완료)임을, 지침 문서 HEAD가 `5a1b6c7`임을 확인.
+
+`ca60022`/`786c597`를 happymaj11r/openpilot(carrot-ms)에서 patch화해 carrot-ryu 현재 HEAD(`f06adef`)에 파일 단위로 `git apply --check` 재검증(11절). `ca60022`는 `cutin_validation_cases.json`만 컨텍스트 불일치로 충돌(원본이 삽입하려던 위치 근처 케이스가 172차 이후 계속 추가됨), 나머지 3개 파일(primary.py/test_radar_motion_predictor.py/신규 docs)은 통과. `786c597`은 `.github/workflows/carrot-route-vault-publish.yaml`만 충돌(carrot-ryu가 독자적으로 확장해 온 pytest 대상 목록과 컨텍스트가 어긋남), 나머지 8개 파일(신규 lead_dynamics.py 포함)은 통과.
+
+`ca60022`는 JSON 삽입 앵커를 근처 케이스 대신 `"cases": [` 배열 시작으로 좁혀 수동 삽입 처리 후, 반영 스크립트(`173cha_code_carrot_ryu.sh`, Termux 기준)를 작성. 로컬 bare 저장소 시뮬레이션(9절 9번)으로 clone→apply→JSON 유효성→py_compile→commit→push 전 과정을 실행해 numstat이 원본 커밋(4 files changed, 223 insertions(+), 3 deletions(-))과 정확히 일치함을 확인.
+
+pytest 실제 실행은 이 세션 환경에 완전한 openpilot 빌드(Cython 확장 params_pyx 등)가 없어 conftest.py import 단계에서 실패, 실행 불가(기존 미완료 9번과 동일 제약).
+
+`786c597`은 이번 세션에는 충돌 지점 특정까지만 진행(CI yaml 2줄 수동 병합 필요, 나머지 8개 파일은 이미 적용 가능 확인됨) — 반영 스크립트 작성은 다음 세션(174차 후보)으로 이월.
+
+실차 검증: 미실시(12절). 코드 변경: carrot-ryu 반영은 스크립트 작성 완료, 사용자 실행/push는 다음 세션에서 확인 필요.
+
+
 ## 172차 (carrot-ms 재점검 재개 + 1건 반영) -- 53건 1차 분류, 726198908c27a58a220f0bb581af137a492c6a63 반영 확정
 
 171차 HANDOFF의 다음 작업 2번(carrot-ms 신규 커밋 재점검, 130/139차 이후 140~171차 구간 장기 미점검)을 재개. `git ls-remote`로 happymaj11r/openpilot 재확인 결과 HEAD가 `3756e6d5` -> `087fdca7`로 이동, 그 사이 53건 신규 확인(2026-09-22~09-26).
