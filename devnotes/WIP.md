@@ -1,5 +1,11 @@
 # WIP
 
+## 172차 (carrot-ms 재점검 재개 + 1건 반영) -- 53건 1차 분류, 726198908c27a58a220f0bb581af137a492c6a63 반영 확정
+
+171차 HANDOFF의 다음 작업 2번(carrot-ms 신규 커밋 재점검, 130/139차 이후 140~171차 구간 장기 미점검)을 재개. `git ls-remote`로 happymaj11r/openpilot 재확인 결과 HEAD가 `3756e6d5` -> `087fdca7`로 이동, 그 사이 53건 신규 확인(2026-09-22~09-26).
+
+53건을 2절 원칙대로(carrot-wip 존재 여부/모델셀렉터 관련성으로 사전 필터링 없이) 개별 분류: CANFD/EV5/타차종/VW/OS04C10/eGPU/문서·CI 전용 26건 제외 확정, 코드 조회 후 죽은 분기 판정 2건 추가 제외(`e32d389`, `dbe279b`), CameraSCC hint(`feb1ce7`)는 이 차량 설정(`HyundaiCameraSCC=1`)에서 항상 비활성이라 제외. 종방향 커스텀 영역과 맞닿은 3건(`ca60022`/`786c597`/`7261989`)을 carrot-ryu 현재 HEAD(`c6d8a206`)에 `git apply --check`로 실제 재검증한 결과, `7261989`(corner cut-in 오검출 배제)만 충돌 없이 통과(py_compile/JSON 검증 포함) -- 이 세션의 코드 스크립트로 반영. 나머지 두 건은 실제로는 컨텍스트 충돌이 있어(테스트 데이터 삽입 위치, CI yaml) 반영 보류하고 다음 세션 수동 병합으로 이월. 중간 우선순위 4건, 저위험 소규모 9건은 상세 대조 전 상태 그대로 이월. 상세 분류 근거와 각 커밋 사유는 WIP_SYNC.md 172차 항목 참고.
+
 ## 171차 (검증만 · devnotes 1건: HANDOFF.md 갱신) — 170차 코드 push + 169차 devnotes 캐치업 완료 확인
 
 세션 시작 시 4절 0단계(git ls-remote)로 carrot-ryu HEAD가 `c6d8a206`(170차, "route freeze fallback nRoadLimitSpeed -> vCruise (핵심 발견 68)")까지, carrot-ryu-note HEAD가 `de5b1ac`(170차: CURRENT_STATUS.md/DEAD_CODE_REVIEW.md 정리)까지 이미 push되어 있음을 확인. HANDOFF.md(170차 최초 기록분)가 "170차 코드 실행/push 대기", "169차 devnotes 캐치업 미완료"로 남아 있던 것과 실제 GitHub 상태가 다름을 발견(16절 해당) — 두 항목 모두 이미 완료돼 있었다.

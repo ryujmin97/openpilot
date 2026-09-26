@@ -1,5 +1,49 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (172차) -- carrot-ms 재점검 재개(130/139차 이후 장기 이월분), 53건 1차 분류 + 1건 반영
+
+- carrot-ryu HEAD: c6d8a2066c0839cf24509c375ef646022dd42119 -> 172cha 스크립트 실행 후 726198908c27a58a220f0bb581af137a492c6a63(carrot-ms) 반영분 push 대기(실행 확인은 다음 세션에서 hash 재조회로)
+- carrot-ryu-note HEAD: bdd07e6323d0207a1425e50a0ad06d8fffabb4b2 (이 스크립트 반영 전)
+- carrot-ms(happymaj11r/openpilot) 이전 체크포인트: 3756e6d5702ff6ebd2c54d12f2e25e587dca4d99 (130/139차, 신규 커밋 없음으로 종료)
+- carrot-ms 신규 HEAD: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (`git ls-remote`로 재확인, 2026-09-27) -- 3756e6d5는 rebase 없이 신규 로그에 원본 해시 그대로 존재(순수 추가), 그 사이 신규 53건(2026-09-22~09-26)
+
+**분류 원칙**: 2절대로 carrot-wip 존재 여부/모델셀렉터 관련 여부로 사전 필터링하지 않고 53건 전부 개별 판단.
+
+**제외 확정 (브랜드/하드웨어 무관, 근거 명확) -- 26건**
+- CANFD 전용 7건: `e7356cd` `e6c79a2` `ea4869c` `3597fb6` `d352449` `e3ea61a` `07b3504` -- hyundaicanfd.py/safety_hyundai_canfd* 전용, DH2015는 CHECKSUM_6B|LEGACY
+- EV5 전용 4건: `06a184c` `557b8f1` `c6af9f0` `c775009`
+- 기타 차종 전용 3건: `2b13ef8`(Ioniq5) `087fdca`(Ioniq9) `4443bd7`(Staria EV 신규등록)
+- VW 전용 2건: `3056687` `a47b838`
+- OS04C10(C4 카메라 센서) 전용 3건: `b580146` `698bb09` `738a0f1` -- C3 무관
+- eGPU 전용 1건: `1131286`
+- 문서/CI만 변경(런타임 무영향) 7건: `93cf545` `be27dd6` `53c2ef5` `4d76b53` `b18e0db` `ad76558` `2083c3b`
+
+**추가 제외 확정 (코드 조회 후 죽은 분기/의존성 부재로 판정) -- 2건**
+- `e32d389`(정지 시 CANFD 준비/재시도 기본화, carcontroller.py) -- `CP.flags & HyundaiFlags.CANFD` 게이팅 확인, DH2015는 비CANFD라 항상 거짓인 죽은 분기
+- `dbe279b`(레이더 좌우반전 옵션) -- `radarcan.py` 의존, 그 파일이 carrot-ryu에 없음(9f8619b1, 129차 제외 결정에 자동 종속, 404 확인)
+
+**검증 후 제외 (코드는 살아있으나 이 차량에서 항상 비활성) -- 1건**
+- `feb1ce7`(CameraSCC hint, carstate.py) -- `camera_scc_hint_enabled = (HyundaiCameraSCC == 0) and not CAMERA_SCC_flag`로 게이팅. PARAMS_REGISTRY.md 기준 이 차량은 `HyundaiCameraSCC=1`이라 조건이 항상 거짓 -- 반영해도 효과 없는 죽은 분기.
+
+**반영 완료 (git apply --check 실통과 + py_compile/JSON 검증, 172cha 스크립트로 push) -- 1건**
+- `726198908c27a58a220f0bb581af137a492c6a63`(happymaj11r, 단축 `7261989`) "Reject stationary roadside pairs as corner cut-in motion evidence" -- radar_motion/controller.py, trajectory_cutin.py, cutin_validation_cases.json, 테스트 2개. carrot-ryu 현재 HEAD(`c6d8a206`)에 `git apply --check` 단독 통과 확인(로컬 bare 저장소 시뮬레이션까지 실행, numstat/커밋 결과 확인). py_compile 4개 파일 통과, JSON 유효성 통과. corner cut-in 오검출(정지 노변 물체를 컷인으로 오판)을 배제하는 방향이라 93~117차 종방향 커스텀 영역과 맞닿아 있음 -- 실차 검증은 미실시.
+
+**반영 후보이나 실제 재검증 결과 충돌 발생 (다음 세션 수동 병합 필요, 보류) -- 2건**
+- `ca60022`(정지 선행차, 연속 시각/전방 위치 증거로 L1 승격, radar_motion/primary.py + cutin_validation_cases.json) -- `git apply --check` 단독 실패. 원인: `cutin_validation_cases.json`의 `"cases": [` 직후 삽입을 시도하는데, carrot-ryu에는 이미 그 위치에 별도로 반영된 케이스(`k8-306-4-slow-left-suv-5227` 등)가 먼저 들어가 있어 컨텍스트가 어긋남(의미적 충돌 아님, 삽입 위치만 문제). primary.py 쪽은 아직 상세 대조 전.
+  - 부수 발견: `ca60022`(primary.py) 검토 중, carrot-ryu의 primary.py에 이번 53건과 무관한 별도 미검토 항목(`STATIONARY_DISTINCT_HANDOFF` -- 정지 물체 근접 재식별 로직)이 있음을 발견. carrot-ryu에는 있지만 WIP_SYNC.md/FINDINGS.md 어디에도 검토 기록 없음 -- 별개 이월 항목으로 등록.
+- `786c597`(lead braking 지속성, radar_motion/controller.py + 신규 lead_dynamics.py) -- `git apply --check` 단독 실패. 원인: `.github/workflows/carrot-route-vault-publish.yaml`의 46번째 줄 근방이 carrot-ryu에서 이미 달라져 있어 컨텍스트 불일치(CI 구성 차이로 추정, 상세 확인 전). controller.py 쪽은 `7261989`와 같은 파일을 건드리므로 `7261989` 반영 이후 base로 재확인 필요.
+
+**중간 우선순위, 상세 대조 미실시 (다음 세션 이월) -- 4건**
+- `1ae25ef`(radar path normals 안정화, predictor.py) -- 문서는 Carnival 사례지만 코드는 공용 파일. carrot-ryu 161~162차 자체 커스텀(곡률 슬루 제한/경로 소진 방지)과 같은 영역이라 수동 병합 필요.
+- `0006296`(opt-in coasting margin, cereal/log.capnp) -- 스키마 변경 동반, longitudinal_planner.py(카롯 종방향 커스텀 최다 밀집 파일)와 겹쳐 신중한 수동 대조 필요.
+- `c84b175`(cores 6/7 저우선순위 배치) -- 9f8619b1/3756e6d5 camera core5 트라이얼(`d384a57`/`c6cc00e` 시도 -> `9e1a5bf`로 업스트림 스스로 롤백)의 후속 정리. 26개 파일 대규모 변경이라 이번엔 상세 분석 미실시.
+- `dcffb7f`(카메라 startup phase / Panda 펌웨어 매칭) -- C3 하드웨어 공통일 가능성 있으나 C++ 드라이버 레벨이라 별도 검토 필요.
+
+**저위험 소규모 후보, 아직 미착수 -- 9건**
+`cfe9251` `cf288c1` `828fc8c`(Carrot Web UI 안정화) / `9800be9` `288e212`(로그 표기·리부트 안내) / `b84621a` `cee4054`(AGNOS 자동 업데이트 설치/재시도) / `84aa7f0` `f0ee8f2`(navi 7713/7714 감속 관련, carstate.py -- 카롯 내비 감속 기능 영역이라 저위험으로 분류했지만 실제 검토는 필요)
+
+- 다음 확인 시점: 다음 세션에서 위 "반영 후보이나 충돌" 2건부터 파일 단위 수동 병합, 이후 중간 우선순위 4건 순서로 진행.
+
 ## 체크포인트: 2026-09-22 (130차) -- carrot-ms 정기 점검, 신규 커밋 없음 확인(변경 없음)
 
 - carrot-ryu HEAD: b3ac7c95fcf9db39800ec8e873e73e7def37a177 (변경 없음)
