@@ -1,22 +1,34 @@
 # WIP
 
-## 166李?(devnotes留?쨌 肄붾뱶 蹂寃??놁쓬) ???좉퇋 濡쒓렇(1e3bbb5e = 162李?"fix route path exhaustion" 諛섏쁺 ??理쒖큹 濡쒓렇)濡?candidate3(161李?+162李??ㅼ감 泥?寃利?+ navRoute 由ъ뀑??freeze 濡쒖쭅??臾대젰?뷀븯???좉퇋 ?ㅽ뙣紐⑤뱶 諛쒓껄(?듭떖 諛쒓껄 65)
+## 167차 (devnotes 정정 1건 + 코드 1건 · push 완료) — 166차 devnotes mojibake 정정 + 핵심 발견 65(navRoute 리셋 시 freeze 무력화) 코드 수정 반영
 
-**?몄뀡 ?쒖옉**: `git ls-remote`濡?carrot-ryu HEAD媛 `8775ea0d`(163李?濡? carrot-ryu-note HEAD媛 `2362793`(165李?濡?吏곸쟾 ?몄뀡怨??꾩쟾???숈씪?⑥쓣 ?뺤씤. 165李??몄뀡? ????꾩쨷 臾대즺 ?ъ슜???뚯쭊?쇰줈 梨꾪똿留??댁뼱議뚯쓣 肉?GitHub?먮뒗 ?꾨Т寃껊룄 諛섏쁺?섏? ?딆? 梨??앸굹 ?덉뿀??-- 165李④? ?쒖븞?덈뜕 遺꾩꽍/諛⑺뼢 ?쇱쓽???대쾲 ?몄뀡?먯꽌 泥섏쓬?쇰줈 devnotes???ㅼ젣 ?깅줉?쒕떎(16?? 梨꾪똿 ?щ낯??洹몃?濡??좊ː?섏? ?딄퀬, ?꾨옒 ?섏튂???대쾲 ?몄뀡?먯꽌 ?낅줈?쒕맂 濡쒓렇濡?泥섏쓬遺???낅┰ ?ы쁽?덈떎).
+세션 시작 시 4절 0단계로 이 지침 문서(v2, 커밋 `02a12ac`)를 조회하던 중, 같은 SHA로 HANDOFF.md/WIP.md/FINDINGS.md의 166차 최상단 항목이 실제로 깨진 한글(mojibake)로 push되어 있음을 발견(16절 보고 대상). 원인은 166차 devnotes 반영 스크립트가 한글 포함 .ps1을 UTF-8 BOM 없이 전달한 것(9절 필수 규칙 위반, 핵심 발견 21과 동일 패턴) -- 역디코딩을 시도했으나 문자열 일부가 이미 리터럴 `?`로 유실되어(완전 복구 불가) 166차 3개 파일의 해당 구간을 이번 세션에서 내용 그대로(이 세션 자신이 남긴 이전 기록/채팅 맥락을 근거로) 재작성해 정정했다. WIP.md/FINDINGS.md는 165차 이전 구간은 오염되지 않았음을 먼저 확인한 뒤 166차 최상단 블록만 정확히 경계 지정해 교체(전체 재작성 아님). HANDOFF.md는 8절 규칙대로 전체 교체.
 
-**濡쒓렇**: ?ъ슜???낅줈??zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20260925_113932`, 10?멸렇癒쇳듃 `0000044d--e8bd778f2d--16~25`)??`initData.gitCommit`??capnp濡?吏곸젒 ?붿퐫?⑺빐 `1e3bbb5e`(162李?理쒖쥌 HEAD, "fix route path exhaustion")?꾩쓣 ???몄뀡?먯꽌 ?ы솗??-- 吏湲덇퉴吏 ?섏삩 ?대뼡 濡쒓렇蹂대떎 理쒖떊?대ŉ, 161李?candidate3)+162李?寃쎈줈 ?뚯쭊 諛⑹?)媛 ?ㅼ젣濡??묒옱???곹깭?먯꽌 湲곕줉??泥??ㅼ＜??濡쒓렇(163李?寃뚯씠???쒓굅???꾩쭅 誘명룷??.
+이어서 166차가 이월한 결정("핵심 발견 65 수정 방향")을 사용자 승인 하에 진행: carrot-ryu HEAD(`8775ea0d`)에서 navi_route_speed_filt/navi_points_start_index 리셋 지점 9곳을 전수 조사해, 진짜 원인이 "경로가 여전히 활성으로 남는 갱신"에서까지 매번 무조건 filt=None으로 리셋하는 4개 지점(_update_carrot_navi_route/send_routes의 navd 분기/carrot_route TCP 핸들러/handle_route 정상 경로)에 있음을 확정. navi_points_start_index=0 리셋은 유지하고 navi_route_speed_filt 리셋은 "결과적으로 navi_points_active=False가 되는 경우"에만 실행되도록 조건화(10절 최소 변경). __init__ 및 이미 비활성으로 끝나는 나머지 5개 리셋 지점은 손대지 않음.
 
-**諛⑸쾿**: `carrot_man.py`(1e3bbb5e)??`haversine`/`get_path_after_distance`/`gps_to_relative_xy`/`calculate_curvature`+`V_CURVE_LOOKUP_BP`+`ROUTE_PATH_MIN_POINTS`瑜?ast濡??먮Ц 異붿텧???ш뎄???놁씠 ?ㅽ뻾, 濡쒓렇??navRoute/carrotMan(xPos*/xTurn/xDist)/carState.vEgo濡?`carrot_navi_route()` ?꾩껜(candidate3 ?щ（+162李?freeze ?ы븿)瑜?20Hz ?ъ깮. 10?멸렇癒쇳듃 ?꾩껜瑜????몄뀡?먯꽌 泥섏쓬遺???ㅼ떆 異붿텧(schema/geom pkl ?ъ깮?????ы쁽?덈떎.
+**검증**: 4개 anchor 모두 원본(`8775ea0d`) 대상 1회 매치, py_compile 통과, pwsh 7.4.6 파서 구문 오류 0건(후행 쉼표 대조군으로 파서 자체의 오류 검출 능력 확인), 로컬 bare 저장소 대상 일반/Windows-CRLF 두 모드 dry-run 모두 동일 diff(+15/-4, 파일 1개)와 동일 post-image blob hash(`266f845d`) 확인. 사용자가 스크립트 실행 -> `8775ea0d..3a17435d` push 완료를 GitHub raw 조회로 재확인(blob hash `266f845d` 일치, 4개 지점 주석 마커 확인).
 
-**寃곌낵 1 (candidate3 ?泥대줈 ?뺤긽)**: `src=route` 3,094?ъ씠??以?15km/h 珥덇낵 湲됰?(route?뭨oute ?곗냽 援ш컙 湲곗?)? 8嫄대퓧 -- 158李??댁쟾 ?鍮????媛먯냼.
+**수정 여부**: 있음(carrot_man.py, +15/-4, commit `3a17435d`).
 
-**寃곌낵 2 (?좉퇋 諛쒓껄, ?듭떖 諛쒓껄 65)**: ?붿뿬 湲됰? 8嫄?以?seg17??4嫄댁쓣 肄붾뱶濡?異붿쟻???덈줈???ㅽ뙣紐⑤뱶瑜??뺤젙: navRoute ?대━?쇱씤??媛깆떊???뚮쭏????援ш컙 ??珥덈떦 1?? 161李?肄붾뱶媛 `navi_route_speed_filt=None`?쇰줈 由ъ뀑?섎뒗?? ?섑븘 媛숈? ?ъ씠?댁뿉 `route_info_sufficient`(寃쎈줈??4媛?誘몃쭔)媛 False?대㈃ 159/161李⑥쓽 "吏곸쟾 ?좏슚媛?freeze" 濡쒖쭅??`filt is None`?대씪 ?묐룞?섏? 紐삵븯怨?怨㏓컮濡?`nRoadLimitSpeed`(?꾨줈?쒗븳?띾룄)濡?臾대낫???먰봽?쒕떎. ???몄뀡?먯꽌 吏곸젒 ?ы솗?명븳 seg17 t=1134.31~1134.48 援ш컙 ?ㅼ륫: `des` 81(route=82.0) -> 60(route=60.0, ?꾨줈?쒗븳?띾룄) -> 83(route=83.9), xTurn=4/xDist??75~176m -- ?쒕??덉씠???ъ깮媛믪씠 濡쒓렇 `route=`/`desiredSpeed`? ?쇱튂?⑥쓣 ?뺤씤. ?꾩껜 10?멸렇癒쇳듃?먯꽌 "由ъ뀑 吏곹썑 10km/h 珥덇낵 湲됰?"? 30嫄?寃異쒕릺???遺遺?洹??쒓컙 route媛 desiredSpeed ?뚯뒪濡??좏깮?섏? ?딆븘 臾댄빐, ?ㅼ젣 泥닿컧?섎뒗 嫄??대쾲 濡쒓렇?먯꽌 seg17?????⑦꽩 4嫄? ?섎㉧吏 seg21(3嫄?/seg22(1嫄???怨〓쪧??0.035 ?덊뙉(candidate3 寃뚯씠??臾명꽦 0.003???ш쾶 珥덇낵?섎뒗 ?ㅼ젣 而ㅻ툕/?⑦봽)?대씪 candidate3媛 ?섎룄?곸쑝濡?誘멸??ы븳 寃껋쑝濡? 吏꾩쭨 而ㅻ툕 諛섏쓳?몄? 158李④? 吏紐⑺븳 "?怨〓쪧 援ш컙 猷⑹뾽 湲됯꼍?? 怨꾩뿴 寃쎄퀎 ?붾뱾由쇱씤吏???대쾲 ?몄뀡?먯꽌??寃곕줎吏볦? 紐삵븿(?댁썡).
+**한계/이월**: seg21(3건)/seg22(1건) 곡률 0.035 경계 흔들림(진짜 커브 반응 vs 158차 계열 노이즈)은 이번 세션에서 다루지 않음 -- 다음 세션 이월. 실차 검증: 미실시(정적분석+dry-run만, 디바이스 실주행 대기).
 
-**?쒖븞?덈뜕 ?섏젙 諛⑺뼢(肄붾뱶 誘몃컲?? ?ъ슜??寃곗젙 ?湲?**: (a) navRoute 由ъ뀑 ??`navi_points_start_index`??0?쇰줈 ?섎룎由щ릺 `navi_route_speed_filt`???좎?(?먮뒗 ?좊ː??寃利??꾩뿉留?由ъ뀑). (b) "?移??щ（(怨〓쪧 臾명꽦 ?놁씠 ?곸떆 `autoNaviSpeedDecelRate` 湲곕컲 ?대옩??" ?덉? ??由ъ뀑-諛붿씠?⑥뒪 臾몄젣???닿껐?섏? 紐삵븿???뺤씤(filt媛 None???쒓컙???좎큹???대옩?꾪븷 ??곸씠 ?놁쓬) -- ?ㅼ젣 而ㅻ툕 援ш컙(seg21瑜? 諛섏쓳??吏湲덈낫???먮젮吏???몃젅?대뱶?ㅽ봽???덉뼱 蹂꾧컻 寃???ъ븞?쇰줈 ?좎?.
+## 166차 (devnotes만 · 코드 변경 없음) — 신규 로그(1e3bbb5e = 162차 "fix route path exhaustion" 반영 후 최초 로그)로 candidate3(161차+162차) 실전 재검증 + navRoute 리셋 시 freeze 로직이 무력화되는 신규 실패모드 발견(핵심 발견 65)
 
-**?섏젙 ?щ?**: ?놁쓬(遺꾩꽍/?ы쁽/?깅줉留?.
+**세션 시작**: git ls-remote로 carrot-ryu HEAD가 `8775ea0d`(163차)로, carrot-ryu-note HEAD가 `2362793`(165차)로 직전 세션과 완전히 동일함을 확인. 165차 세션은 사용자 무료 사용량 소진으로 채팅만 이어졌을 뿐 GitHub에는 아무것도 반영되지 않은 채 끝나 있었다 -- 165차가 제안했던 분석/방향을 이번 세션에서 처음으로 devnotes에 실제 기록한다(16절. 채팅 사본을 그대로 신뢰하지 않고, 아래 수치는 이번 세션에서 업로드된 로그로 처음부터 다시 검증했다).
 
-**?ㅼ감 寃利?*: candidate3(161李?/寃쎈줈?뚯쭊 ?섏젙(162李?? ??濡쒓렇濡?理쒖큹 ?ㅼ감 寃利?遺遺? 寃곌낵 1/2 李멸퀬). 163李?寃뚯씠???꾩쟾 ?쒓굅) ?먯껜????濡쒓렇??誘명깙?щ씪 ?ъ쟾??誘멸?利?
+**로그**: 사용자가 업로드한 rlog 10세그먼트 zip(`0000044d--e8bd778f2d--16~25`)의 initData.gitCommit을 capnp로 직접 디코딩해 `1e3bbb5e`(162차 최종 HEAD, "fix route path exhaustion")임을 이 세션에서 확인 -- 지금까지 받은 어떤 로그보다 최신이며, candidate3(161차)+162차(경로 소진 방지)가 실제로 반영된 상태에서 기록된 첫 실주행 로그(163차 게이트 제거는 아직 미포함).
+
+**방법**: carrot_man.py(1e3bbb5e)의 haversine/get_path_after_distance/gps_to_relative_xy/calculate_curvature+V_CURVE_LOOKUP_BP+ROUTE_PATH_MIN_POINTS를 ast로 원문 추출해 의존성 없이 실행, 로그의 navRoute/carrotMan(xPos*/xTurn/xDist)/carState.vEgo로 carrot_navi_route() 전체(candidate3 슬루+162차 freeze 포함)를 20Hz 재생.
+
+**결과 1 (candidate3 정상 동작 확인)**: src=route 3,094사이클 중 15km/h 초과 급변(route-route 연속 구간 기준)은 8건뿐 -- 158차 이전 대비 대폭 감소.
+
+**결과 2 (신규 발견, 핵심 발견 65)**: 남은 급변 8건 중 seg17의 4건을 코드로 추적해 새로운 실패모드를 확정: navRoute 폴리라인이 갱신될 때마다(수신 1건 당) 161차 코드가 navi_route_speed_filt=None으로 리셋하는데, 하필 같은 사이클에 route_info_sufficient(경로점 4개 미만)가 False이면 159/161차의 "직전 유효값 freeze" 로직이 filt is None이라 작동하지 못하고 곧바로 nRoadLimitSpeed(무제한 placeholder 포함)로 무보정 폴백된다. 이 세션에서 직접 확인한 seg17 t=1134.31~1134.48 구간 실측: des 81(route=82.0) -> 60(route=60.0, 도로제한속도) -> 83(route=83.9), xTurn=4/xDist는 75~176m -- 타임라인과 재생값이 로그 route=/desiredSpeed와 일치함을 확인. 전체 10세그먼트에서 "리셋 직후 10km/h 초과 급변"은 30건 검출되나 대부분 그 시각 route가 desiredSpeed 소스로 선택되지 않아 무해, 실제 체감되는 건 이번 로그에서 seg17의 이 패턴 4건, 나머지 seg21(3건)/seg22(1건)은 곡률이 0.035 부근(candidate3 게이팅 문턱 0.003보다 크게 초과하는 실제 커브/노이즈)이라 candidate3가 의도적으로 미개입한 것으로, 진짜 커브 반응인지 158차가 지목한 "고곡률 구간 룩업 근경" 계열 경계 흔들림인지는 이번 세션에서는 결론짓지 못함(이월).
+
+**제안했던 수정 방향(코드 미반영, 사용자 결정 대기였음)**: (a) navRoute 리셋 시 navi_points_start_index만 0으로 되돌리되 navi_route_speed_filt는 유지(또는 신뢰도 확인 이후에만 리셋). (b) "곡률 미확보 시 즉시 autoNaviSpeedDecelRate 기반 완만한 감속" 대안 -- 리셋-바이패스 문제 자체를 해결하지 못함을 확인(filt가 None인 시점의 대안일 뿐), 실제 커브 구간(seg21류) 반응이 지금보다 지연되는 트레이드오프가 있어 별건 검토안으로 유지.
+
+**수정 여부**: 없음(분석/재현/등록만, 코드 수정은 167차에서 (a) 채택해 반영).
+
+**실차 검증**: candidate3(161차)/경로소진 수정(162차)는 이 로그로 최초 실주행 검증 완료(결과 1/2 참고). 163차(게이트 전체 제거) 자체는 이 로그에 미포함, 실차 검증 여전히 미실시.
 
 ## 165차 (분석만 · 코드 변경 없음) — MapTurnSpeedFactor 결론 2번째 로그(다른 도로)로 일반화 검증 + road/limit_speed-nRoadLimitSpeed 관계 코드로 확정 (핵심 발견 64)
 

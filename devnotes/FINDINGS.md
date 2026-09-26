@@ -1,14 +1,18 @@
 # FINDINGS
 
-## ?듭떖 諛쒓껄 65 (166李? -- navRoute 由ъ뀑 ??navi_route_speed_filt媛 None???섍퀬, 媛숈? ?ъ씠?댁뿉 route_info_sufficient媛 False?대㈃ "吏곸쟾 ?좏슚媛?freeze"(159/161李? 濡쒖쭅??臾대젰?붾릺??nRoadLimitSpeed濡?臾대낫???먰봽
+## 핵심 발견 65 (166차) -- navRoute 갱신 시 navi_route_speed_filt가 매번 None으로 리셋되어, 경로 수신 직후 route_info_sufficient가 False인 사이클과 겹치면 159/161차 freeze 로직이 무력화되고 nRoadLimitSpeed로 무보정 폴백함
 
-**諛곌꼍**: 161李?candidate3(怨〓쪧<0.003 援ш컙 ?쒖젙 ?ъ씠?닿컙 ?щ（)? 162李?寃쎈줈 ?뚯쭊 諛⑹?, ROUTE_PATH_MIN_POINTS=4 誘몃쭔?대㈃ 吏곸쟾 ?좏슚媛?freeze ?먮뒗 ?꾨줈?쒗븳?띾룄 ?대갚)媛 ?ㅼ젣 ?묒옱??泥??ㅼ＜??濡쒓렇(湲곕줉 而ㅻ컠 1e3bbb5e, 10?멸렇癒쇳듃)濡?165李?誘몄셿猷???ぉ(candidate3+162李??ㅼ감 寃利???泥섎━?섎뒗 怨쇱젙?먯꽌 諛쒓껄??
+**배경**: 161차 candidate3(곡률<0.003 구간 사이클간 슬루 제한)와 162차 경로 소진 방지(원본 점 ROUTE_PATH_MIN_POINTS=4 미만이면 직전 유효값 freeze 또는 도로제한속도 대체)가 실제로 반영된 상태에서 기록된 최초 실주행 로그(1e3bbb5e, 10세그먼트)로 165차 이월 항목(candidate3+162차 실전 검증)을 처리하는 과정에서 발견됨.
 
-**?ㅼ쬆**: carrot_man.py(1e3bbb5e) ?⑥닔 ?먮Ц??ast濡?異붿텧???ш뎄???놁쓬) 濡쒓렇??navRoute/carrotMan/carState.vEgo濡?20Hz ?ъ깮. src=route 3,094?ъ씠??以?15km/h 珥덇낵 湲됰?? 8嫄?seg17x4/seg21x3/seg22x1)?쇰줈 158李??댁쟾 ?鍮??ш쾶 以꾩뿀?쇰굹, seg17??4嫄댁? ?덈줈???먯씤?댁뿀?? navRoute ?대━?쇱씤??媛깆떊???뚮쭏????援ш컙 ??珥덈떦 1?? navi_points_start_index=0 + navi_route_speed_filt=None?쇰줈 由ъ뀑?섎뒗?? 洹??쒓컙 route_info_sufficient(寃쎈줈??ROUTE_PATH_MIN_POINTS=4 誘몃쭔)媛 False?대㈃ freeze 濡쒖쭅??李몄“???댁쟾 媛??먯껜媛 ?놁뼱(filt is None) 怨㏓컮濡?road_limit(nRoadLimitSpeed)濡??泥대맂?? seg17 t=1134.31~1134.48 ?ㅼ륫: des 81(route=82.0) -> 60(route=60.0, road limit) -> 83(route=83.9), xTurn=4/xDist~175m -- ?ъ깮媛믪씠 濡쒓렇 desiredSpeed/route= ?쒓린? ?쇱튂?⑥쓣 ?뺤씤. ?꾩껜 10?멸렇癒쇳듃?먯꽌 "由ъ뀑 吏곹썑 10km/h 珥덇낵 湲됰?"? 30嫄?寃異쒕릺?? ?遺遺?洹??쒓컙 route媛 desiredSpeed??binding ?뚯뒪媛 ?꾨땲?댁꽌(vturn/road媛 ????쓬) ?ㅼ쭏?곸쑝濡?臾댄빐?섍퀬, ?ㅼ젣 route媛 臾쇰젮 泥닿컧?섎뒗 寃껋? ?대쾲 濡쒓렇?먯꽌 seg17????4嫄대퓧?대떎. seg21(3嫄?/seg22(1嫄???怨〓쪧??0.035 ?덊뙉(candidate3 寃뚯씠??臾명꽦 0.003???ш쾶 珥덇낵)?대씪 candidate3媛 ?좎큹??愿?ы븯吏 ?딅뒗 ?ㅼ젣 而ㅻ툕/?⑦봽 援ш컙?쇰줈, ??諛쒓껄怨쇰뒗 臾닿??섎떎(吏꾩쭨 而ㅻ툕 諛섏쓳?몄? 158李?怨꾩뿴 ?怨〓쪧 猷⑹뾽 湲됯꼍???≪쓬?몄???誘멸껐, ?댁썡).
+**로그로 확정**: carrot_man.py(1e3bbb5e) 함수 원문을 ast로 추출해 의존성 없이 재생, navRoute/carrotMan/carState.vEgo로 20Hz 재생. src=route 3,094사이클 중 15km/h 초과 급변은 8건(158차 이전 대비 대폭 감소)이었고, 그중 seg17의 4건을 코드로 추적해 원인을 확정: navRoute 폴리라인이 갱신될 때마다(수신 1건 당) navi_points_start_index=0 + navi_route_speed_filt=None으로 리셋되는데, 하필 같은 사이클에 route_info_sufficient(경로점 ROUTE_PATH_MIN_POINTS=4 미만)가 False이면 freeze 로직이 얼릴 대상(filt is None)이 없어 곧바로 road_limit(nRoadLimitSpeed)로 무보정 폴백한다. seg17 t=1134.31~1134.48 구간 실측: des 81(route=82.0) -> 60(route=60.0, road limit) -> 83(route=83.9), xTurn=4/xDist는 75~176m -- 타임라인과 재생값이 desiredSpeed/route= 로그값과 일치함을 확인. 전체 10세그먼트에서 "리셋 직후 10km/h 초과 급변"은 30건 검출되나 대부분 그 시각 route가 desiredSpeed 소스로 선택되지 않아 무해, 실제 체감되는 건 seg17의 이 패턴 4건. 나머지 seg21(3건)/seg22(1건)은 곡률이 0.035 부근(candidate3 게이팅 문턱 0.003보다 크게 초과하는 실제 커브/노이즈)이라 candidate3가 의도적으로 미개입한 것으로, 진짜 커브 반응인지 158차 계열 노이즈 경계 흔들림인지는 미결(이월).
 
-**?섏젙 ?щ?**: ?놁쓬(遺꾩꽍留? 肄붾뱶 誘몃컲??. ?쒖븞??諛⑺뼢: (a) navRoute 由ъ뀑 ??navi_points_start_index??0?쇰줈 珥덇린?뷀븯??navi_route_speed_filt???좎?(?먮뒗 ??寃쎈줈???좊ː?꾧? ?뺤씤???ㅼ뿉留?由ъ뀑). (b) "怨〓쪧 臾명꽦 ?녿뒗 ?곸떆 ?щ（(autoNaviSpeedDecelRate 湲곕컲 ?移??대옩??" ?덉? filt媛 None???쒓컙???대옩?꾪븷 ????먯껜媛 ?놁뼱 ??臾몄젣瑜??닿껐?섏? 紐삵븿???뺤씤?덈떎 -- ???덉씠 媛吏?"?ㅼ젣 而ㅻ툕 諛섏쓳???먮젮吏?? ?몃젅?대뱶?ㅽ봽? ?④퍡 蹂꾧컻 ?ъ븞?쇰줈 ?⑥븘?덈떎.
+**제안됐던 수정 방향**: (a) navRoute 리셋 시 navi_points_start_index만 0으로 되돌리고 navi_route_speed_filt는 유지(또는 새 경로 신뢰도 확인 후에만 리셋). (b) "곡률 미확보 시 즉시 autoNaviSpeedDecelRate 기반 완만한 감속" 대안 -- 리셋-바이패스 문제 자체를 해결하지 못함을 확인(filt가 None인 시간대의 대안일 뿐), 실제 커브 구간(seg21류) 반응이 지금보다 지연되는 트레이드오프가 있어 별건 검토안으로 유지.
 
-**?ㅼ감 寃利?*: candidate3(161李?/寃쎈줈?뚯쭊 ?섏젙(162李?? ??濡쒓렇濡?遺遺??ㅼ감 寃利앸맖(?泥대줈 ?뺤긽, ??8嫄댁씠 ?덉쇅). ??由ъ뀑-諛붿씠?⑥뒪 ?먯껜???섏젙? ?꾩쭅 肄붾뱶?붾릺吏 ?딆븘 ?ㅼ감 寃利?????놁쓬.
+**수정(167차)**: carrot_man.py의 navi_route_speed_filt/navi_points_start_index 리셋 지점 9곳 중, "경로가 여전히 활성으로 남는 갱신"에서까지 무조건 filt=None으로 리셋하던 4곳(_update_carrot_navi_route/send_routes의 navd 분기/carrot_route TCP 핸들러/handle_route 정상 경로)만 골라, navi_points_start_index=0 리셋은 유지하되 filt 리셋은 "결과적으로 navi_points_active=False가 되는 경우"에만 실행하도록 조건화(방향 (a) 채택, 10절 최소 변경). __init__과 이미 비활성으로 끝나는 나머지 5곳은 그대로 둠.
+
+**검증**: 4개 anchor 모두 원본(8775ea0d) 대상 1회 매치, py_compile 통과, pwsh 7.4.6 파서 0 errors, 로컬 bare 저장소 일반/Windows CRLF 두 모드 dry-run 동일 diff(+15/-4)·동일 post-image blob hash(266f845d) 확인. 실제 반영: commit 3a17435d, GitHub raw 조회로 blob hash 일치 재확인(16절).
+
+**한계**: seg21/seg22 곡률 0.035 경계 흔들림 원인(진짜 커브 vs 노이즈)은 미해결, 별도 조사로 이월. 실차 검증: 미실시.
 
 ## 핵심 발견 64 (165차) -- road 후보(`limit_speed`)와 `nRoadLimitSpeed` 로깅 필드의 관계를 코드로 확정(무제한 placeholder는 조건부), MapTurnSpeedFactor 결론이 2번째 로그(다른 도로)로 일반화됨
 
