@@ -1,5 +1,13 @@
 # WIP
 
+## 170차 (코드 1건 · 실행/push 대기) — route freeze 폴백값 nRoadLimitSpeed → vCruise 전환(핵심 발견 68)
+
+세션 시작 시 git ls-remote로 carrot-ryu HEAD가 이미 `7cd03aeb`(169차, 핵심 발견 67 route freeze 만료 로직)까지 push 완료돼 있음을 확인. 다만 carrot-ryu-note(HANDOFF.md/WIP.md/FINDINGS.md)는 여전히 168차("실행/push 대기") 상태로 남아있어, 168차뿐 아니라 169차 devnotes 자체도 이 세션 기준으로는 아직 기록되지 않은 상태임(16절 해당 -- 169차 devnotes 정식 캐치업은 이번 세션 범위 밖으로 남겨두고, 코드 상태만 GitHub 직접 조회(raw SHA고정 + git hash-object)로 확인).
+
+이번 세션은 사용자와 진행한 별도 논의(route 목표속도 오탐 원인 -- carrot_serv.py의 update_navi()가 카메라 표지판 인식(CS.speedLimit)을 디바운스 없이 nRoadLimitSpeed에 바로 덮어써, 표지판 오독 한 프레임만으로도 route freeze 폴백값이 튈 수 있음)를 바탕으로, carrot_man.py의 route freeze 폴백(핵심 발견 59(161차)/67(169차), 689~691행 부근) 두 지점(navi_route_speed_filt 없음 / freeze 만료) 모두 대체값을 nRoadLimitSpeed에서 self.sm['carState'].vCruise(운전자 설정속도)로 변경. 사용자가 범위를 명시적으로 ②(route fallback, carrot_man.py)로 한정 -- carrot_serv.py의 ③ AutoRoadSpeedLimitOffset 후보 로직(1385~1392행, 표지판/내비 제한속도 자동 준수 기능)은 그대로 유지하기로 결정.
+
+검증: pre/post-image blob hash 가드(`52510d16...` → `455b6a55...`), Replace-Block anchor 1회 매치, py_compile 통과, 로컬 bare 저장소(Linux) dry-run end-to-end(clone→pre-hash guard→치환→post-hash guard→py_compile→commit→push) 성공, push된 커밋 numstat(+9/-4)·blob hash 재확인까지 완료. Termux(사용자 실제 환경) 실행은 아직 없음. 실차 검증: 미실시. 상세: FINDINGS.md 핵심 발견 68 참고.
+
 ## 168차 (코드 1건 · 실행/push 대기) — seg21/seg22 곡률 경계 흔들림 원인 확정(핵심 발견 66): navRoute 재발행이 매 사이클 start_index를 리셋하던 결함, handle_route() 최소 수정
 
 167차 미완료 1번(seg21 3건/seg22 1건 desiredSpeed 급변, "곡률 경계 흔들림")을 carrot_man.py(로그 gitCommit `1e3bbb5e`, 162차 최종본)의 haversine/get_path_after_distance/gps_to_relative_xy/calculate_curvature/carrot_navi_route()를 그대로 포팅해 20Hz 사이클 단위로 재생·재현했다. 재생 과정에서 carrot_man.py 메인루프가 carrot_navi_route()를 먼저 호출한 뒤 carrot_serv.update_navi() 안에서 위치/헤딩을 갱신하므로, route 계산에 쓰이는 위치가 "이번 사이클"이 아니라 "직전 사이클에 기록된 xPosLat/Lon/Angle"이라는 1사이클 지연을 확정(160차가 미확정으로 남겼던 현상의 근본 원인, 실제 로그 route= 디버그값과 이 보정을 적용한 재생값이 거의 완전히 일치).

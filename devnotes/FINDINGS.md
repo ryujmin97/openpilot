@@ -1,5 +1,17 @@
 # FINDINGS
 
+## 핵심 발견 68 (170차) -- route freeze 폴백(핵심 발견 59/67)이 참조하던 nRoadLimitSpeed가 카메라 표지판 오독에 디바운스 없이 노출되어 있어 폴백값 자체가 오탐 소스가 될 수 있었음
+
+carrot_serv.py의 update_navi()는 `if not self.external_navigation_active and CS is not None and CS.speedLimit > 0: self.nRoadLimitSpeed = CS.speedLimit`로, 카메라 표지판 인식 결과를 디바운스/신뢰도 검증 없이 매 사이클 그대로 nRoadLimitSpeed에 덮어쓴다. carrot_man.py의 route freeze 로직(핵심 발견 59(161차)/67(169차))은 navi_route_speed_filt가 없거나 freeze가 만료된 사이클에 이 nRoadLimitSpeed를 폴백값으로 사용했으므로, 표지판을 한 프레임만 잘못 읽어도 그 순간 freeze 폴백값이 튈 수 있는 구조였다.
+
+수정(170차): carrot_man.py의 두 폴백 지점(navi_route_speed_filt 없음 / freeze 만료) 모두 nRoadLimitSpeed 대신 self.sm['carState'].vCruise(운전자가 직접 설정하는 크루즈 속도)를 사용하도록 변경. vCruise는 카메라 인식 경로를 거치지 않아 이 오탐 메커니즘 자체가 구조적으로 발생할 수 없다.
+
+트레이드오프(사용자 확인 완료): 크루즈를 높게 설정한 상태에서 route 정보가 실제로 끊기는 구간(분기 직후, GPS 튐 등)이 발생하면, 예전처럼 "법정속도까지는 낮춰놓자"는 보수적 상한이 사라진다. 다만 실제 커브 감속은 vturn(비전 기반, 별도 경로)이 여전히 담당하므로 "커브를 놓친다"는 뜻은 아니다.
+
+범위 한정(사용자 결정): carrot_serv.py의 ③ AutoRoadSpeedLimitOffset 후보 로직(표지판/내비 제한속도를 그대로 따라가는 별개 기능, 1385~1392행)은 이번 수정 대상에서 제외 -- 같은 nRoadLimitSpeed를 참조하지만 별개 메커니즘이며, 사용자가 "직선 도로 표지판 속도 자동 준수" 기능 자체는 유지하기로 결정.
+
+실차 검증: 미실시.
+
 ## 핵심 발견 66 (168차) -- navRoute 동일 내용 재발행(약 1Hz)이 handle_route()의 navi_points_start_index를 매번 0으로 리셋해, 분기/커브 부근에서 최근접점 재탐색 오류로 route가 인위적으로 "소진"된 것처럼 오판되는 결함
 
 seg21(3건)/seg22(1건)의 desiredSpeed 급변("곡률 경계 흔들림"으로 보였던 현상)을 carrot_man.py의 haversine/get_path_after_distance/gps_to_relative_xy/calculate_curvature/carrot_navi_route()를 그대로 포팅해 로그의 navRoute+carrotMan.xPosLat/Lon/Angle+carState.vEgo로 20Hz 재생한 결과, 4건 전부가 158차 곡률 룩업 테이블 잡음이 아니라 다음 단일 메커니즘으로 확정됨: (1) navRoute 메시지가 내용 변경 여부와 무관하게 약 1Hz 주기로 동일 좌표(252개) 그대로 재발행됨. (2) handle_route()가 이 재발행이 올 때마다 무조건 navi_points_start_index=0으로 리셋함(내용 동일 여부 확인 없음). (3) 리셋 직후 get_path_after_distance()가 인덱스 0부터 최근접점을 재탐색하는데, 그 순간 차량이 분기/커브 부근(폴리라인 점 간격이 촘촘한 구간)이면 엉뚱한 점을 잡아 잔여 경로가 인위적으로 ROUTE_PATH_MIN_POINTS(4) 미만이 되어 "경로 소진"으로 오판됨. (4) route 후보가 실제 계산값(급커브 저속) 대신 도로제한속도 폴백(50km/h)으로 순간 튀거나 원래 값으로 복귀. 4건 모두 desiredSpeed 급변 시각 ±0.05초 안에 좌표 개수 불변(252개)인 navRoute 재발행 이벤트가 정확히 존재함을 확인(11절, 추측 아님).
