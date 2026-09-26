@@ -1,5 +1,17 @@
 # Repository memory
 
+- On 2026-09-23, Ioniq 5 C4 `00000594--abf5912e57--7` on 1fbfe331 reproduced
+  a 102.044 ms wide-camera BOOT_TS gap with consecutive raw-derived frame and
+  request IDs, one skipped model input and about 304 ms invalid pose inputs.
+  BOOT_TS is sampled in kernel SOF handling, not an independent sensor clock;
+  do not claim a physical sensor or UI cause from this log. Separately, startup
+  expected a 25 ms driver offset although bundled Panda still drives all FSIN
+  channels in phase from TIM1. Driver staggered_sof is now false, retaining
+  the strict startup tolerance and all runtime validity/scheduling policies.
+  Passive SOF/receive timing logs are bounded to one per second per camera.
+  The startup fix is not a demonstrated fix for the later driving gap; C3/C4
+  target validation remains required. See docs/camera_sof_gap_20260923.md.
+
 - Whenever radar detection or lead-selection code changes, update the NAS Carrot Routes
   radar replay service in the same task. The `Carrot Routes image` GitHub workflow builds
   committed shared code using `tools/carrot_route_vault/build_bundle.py`; the NAS scheduled
