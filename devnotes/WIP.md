@@ -1,5 +1,17 @@
 # WIP
 
+## 176차 (진행 중 — 0006296 크루즈 코스팅 마진 longitudinal_planner.py/longcontrol.py 수동 병합) — carrot-ryu 코드 검증 완료, push 대기
+
+175차 HANDOFF 다음 작업 1번(0006296 수동 병합)을 이어받음. 업로드된 longitudinal_planner.py/longcontrol.py/cruise_coasting.py 수동 병합본을 원본 0006296 패치(happymaj11r/openpilot, "Add opt-in cruise coasting margin with protected braking", ajouatom 4320337 cherry-pick)와 라인 단위로 대조·검증함.
+
+**버그 발견 1 (upstream 자체 결함, merge 과정에서 생긴 게 아님):** longcontrol.py의 coasting relief 조건에서 `math.isfinite()`를 세 번 호출하는데, 원본 0006296 패치 자체에 `import math`가 없음. 실행 시 NameError로 종방향 제어 루프가 죽는 치명적 결함이라 병합본에 `import math` 한 줄을 추가해 수정.
+
+**버그 발견 2 (carrot-ryu 기존 테스트 픽스처 문제):** 신규 test_cruise_coasting.py가 공용 헬퍼 make_cp()(test_longcontrol_hyundai_tuning.py)의 반환값에 openpilotLongitudinalControl 속성이 있다고 가정하는데, carrot-ryu의 기존 make_cp()에는 없어 신규 테스트 57개가 AttributeError로 실패. 실제 CP 객체엔 항상 존재하는 필드이므로 make_cp()에 openpilotLongitudinalControl=True를 추가(기존 5개 테스트는 이 필드를 쓰지 않아 영향 없음).
+
+**검증 완료:** test_cruise_coasting.py(328줄)를 0006296 패치에서 정확히 복원해 py_compile 통과. carrot_settings.json/params_keys.h 패치 조각 git apply --check 통과 및 실제 적용 확인. 위 두 수정 반영 후 pytest 실제 실행 137/138 통과 — 나머지 1개(test_wire_metadata_defaults_and_roundtrip)는 실제 cereal.log(capnp 컴파일 바인딩) 부재로 인한 환경 제약이며, 175차부터 이월된 동일 제약(신규 버그 아님).
+
+**미완료:** 코드 반영 스크립트(9절 방식) 작성 및 사용자 실행 → push, c84b175/dcffb7f 상세 대조는 계속 이월.
+
 ## 175차 (완료) — 1ae25ef(radar path normals 안정화) carrot-ryu 반영, 0006296/c84b175/dcffb7f 1차 triage
 
 174차 HANDOFF 다음 작업 1번(중간 우선순위 4건: 1ae25ef/0006296/c84b175/dcffb7f)을 이어받아 1ae25ef부터 착수.

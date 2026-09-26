@@ -1,5 +1,18 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (176차) -- 0006296(크루즈 코스팅 마진) 상세 병합·검증 완료, push 대기
+
+- carrot-ryu HEAD: d751e15ec0d5ab28022d28d7de4a6be9022b125d (175차 이후 변경 없음, 이번 세션 코드는 아직 push 전)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음 -- 이번 세션은 개별 커밋 병합 작업, 2절 정기 점검이 아님)
+
+**0006296 "Add opt-in cruise coasting margin with protected braking" (happymaj11r/openpilot, cherry-picked from ajouatom 4320337) -- 상세 병합 완료**
+- 16개 파일 중 13개(docs 2건, cereal/log.capnp, params_keys.h, test_settings_schema.py, carrot_settings.json, cruise_coasting.py 신규, test_cruise_coasting.py 신규 등)는 git apply --check 클린 통과 확인(단, test_ci_check.py/test_generate.py는 carrot-ryu 자체 설정 개수(184)가 이미 패치 기준(183->184)과 어긋나 있어 최소 변경 원칙에 따라 이번 반영 범위에서 제외 -- 별도 이월 항목).
+- 핵심 종방향 파일 2개(longitudinal_planner.py, longcontrol.py)는 carrot-ryu 자체 커스텀(cutin_predecel_limit/force_slow_decel/accel_limits_turns 등)과 컨텍스트가 겹쳐 블록치환 방식으로 수동 병합(원본 diff와 라인 단위 대조 완료, 로직 누락 없음 확인).
+- 원본 패치 자체의 결함 발견: longcontrol.py coasting relief 조건의 math.isfinite() 3회 호출에 import math가 없음(happymaj11r 원본에도 없음, carrot-ryu 병합 중 새로 만든 게 아니라 upstream 결함을 그대로 들여올 뻔한 것). carrot-ryu 병합본에는 import math 추가로 수정.
+- 병행 발견: 신규 테스트가 기존 공용 픽스처 make_cp()(test_longcontrol_hyundai_tuning.py)에 openpilotLongitudinalControl 필드를 요구하는데 carrot-ryu 기존 버전엔 없어 테스트 57개 실패 -> make_cp()에 필드 추가로 해결(carrot-ryu 자체 테스트 인프라 보정, 0006296 패치 범위 밖의 부수 수정).
+- 검증: py_compile 전체 통과, pytest 137/138 통과(1건은 cereal 빌드 환경 부재, 신규 버그 아님).
+- 다음 확인 시점: 반영 스크립트 실행 후 GitHub 직접 재조회로 실제 push 확인(16절).
+
 ## 체크포인트: 2026-09-27 (172차) -- carrot-ms 재점검 재개(130/139차 이후 장기 이월분), 53건 1차 분류 + 1건 반영
 
 - carrot-ryu HEAD: c6d8a2066c0839cf24509c375ef646022dd42119 -> 172cha 스크립트 실행 후 726198908c27a58a220f0bb581af137a492c6a63(carrot-ms) 반영분 push 대기(실행 확인은 다음 세션에서 hash 재조회로)
