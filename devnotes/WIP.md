@@ -1,5 +1,20 @@
 # WIP
 
+## 174차 (786c597 반영 완료) — 172차 미완료 2번(ca60022/786c597 수동 병합) 완결
+
+세션 시작 시 채팅에 있던 "173차 devnotes push도 실제 반영 확인됨" 보고를 그대로 신뢰하지 않고 3절/16절 원칙에 따라 `git ls-remote`+`git show --stat`으로 carrot-ryu(`cd7eb12`, parent `f06adef`, 4 files/223+/3-)와 carrot-ryu-note(`2b26622`, parent `5a1b6c7`, 2 files/43+/27-)를 독립적으로 재확인 -- 보고 내용과 실제 GitHub 상태 일치 확인.
+
+172차 HANDOFF 미완료 2번 중 남은 `786c597`(lead braking 지속성, radar_motion/controller.py + 신규 lead_dynamics.py 등)을 happymaj11r/openpilot에서 다시 patch화해 carrot-ryu 현재 HEAD(`cd7eb12`)에 재검증(11절). `.github/workflows/carrot-route-vault-publish.yaml`만 컨텍스트 불일치 재확인(carrot-ryu가 독자적으로 확장해 온 pytest 목록 -- `test_radar_lead_simulator.py`, `test_radard_dpath.py` -- 때문에 원본 patch 앵커가 더 이상 유일 매치되지 않음), 나머지 8개 파일(신규 lead_dynamics.py 포함)은 `git apply --check` 통과 재확인.
+
+CI yaml은 carrot-ryu 기존 pytest 목록을 보존한 채, 786c597분(`openpilot/selfdrive/controls/tests` 신규 pytest 블록 1개 + `test_lead_accel_tau.py` 1줄)만 추가하는 형태로 수동 병합 내용을 확정. 반영 스크립트(`174cha_code_carrot_ryu.sh`, Termux 기준)를 작성해, 8개 파일은 `git apply`로, yaml은 문자열 블록 치환(anchor 매치 정확히 1회 강제 + post-write recheck, 14절 `Invoke-ReplaceBlock` 원칙을 Termux bash+Python으로 이식)으로 처리하도록 구성. 변경/신규 python 7개 파일 `py_compile` 검증 포함.
+
+전달 전 로컬 bare 저장소(carrot-ryu HEAD `cd7eb12` 스냅샷)에서 clone→apply→yaml병합→py_compile→commit→push 전 과정을 실제 실행(9절 9번)해, 결과 numstat이 원본 786c597(`9 files changed, 418 insertions(+), 51 deletions(-)`)과 정확히 일치함을 확인한 뒤 사용자에게 전달.
+
+사용자가 스크립트를 실행("완료" 보고) -- 이 보고 역시 그대로 신뢰하지 않고 `git ls-remote`+`git show --stat`으로 carrot-ryu를 직접 재조회, HEAD가 `dcf43ea`로 이동했고 parent `cd7eb12`, stat `9 files changed, 418 insertions(+), 51 deletions(-)`로 시뮬레이션/원본과 정확히 일치함을 확인(16절).
+
+이로써 172차 HANDOFF 미완료 2번(`ca60022`/`786c597` 수동 병합)이 173차(ca60022)+174차(786c597)로 완전히 종료됨. 실차 검증: 미실시(12절). pytest 실제 실행: 미실시(환경 제약 지속).
+
+
 ## 173차 (ca60022 반영 스크립트 작성 및 시뮬레이션 완료) — 172차 미완료 2번(ca60022/786c597 수동 병합) 착수
 
 세션 시작 직후 채팅에 이전 세션 로그로 보이는 사본(JSON 삽입/786c597 patch/테스트 하네스 수정/20개 pass 등 진행 상황 주장)이 붙여넣어졌으나, 이번 세션에서 실제 수행 기록이 없어 3절 원칙에 따라 전부 무시하고 GitHub 상태만으로 재확인함. `git ls-remote`로 carrot-ryu HEAD가 `f06adef`(172차, 7261989 반영 완료)임을, 지침 문서 HEAD가 `5a1b6c7`임을 확인.
