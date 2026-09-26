@@ -1680,8 +1680,15 @@ class CarrotMan:
       navi_points.append((lon, lat))
       coords.append({"latitude": lat, "longitude": lon})
 
+    # 핵심 발견 66(167차): navRoute가 내용 변경 없이 약 1Hz로 재발행될 때마다
+    # start_index를 0으로 리셋하면, 하필 분기/커브 부근(폴리라인 점 간격이
+    # 촘촘한 구간)에서 get_path_after_distance()가 엉뚱한 최근접점을 다시
+    # 잡아 경로가 인위적으로 소진된 것처럼 오판되는 문제가 있었다(seg21 3건/
+    # seg22 1건 desiredSpeed 급변의 근본 원인). 내용이 동일하면 리셋을 건너뛴다.
+    route_unchanged = (navi_points == self.navi_points)
     self.navi_points = navi_points
-    self.navi_points_start_index = 0
+    if not route_unchanged:
+      self.navi_points_start_index = 0
     # 핵심 발견 65(166차): 경로가 여전히 활성으로 갱신되는 경우 navi_route_speed_filt를 유지한다
     # (_update_carrot_navi_route와 동일 원칙).
     self.navi_points_active = True
