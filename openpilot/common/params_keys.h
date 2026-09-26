@@ -293,6 +293,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CruiseMaxVals6", {PERSISTENT, INT, "80"}},
 
     {"LongTuningKpV", {PERSISTENT, INT, "100"}},
+    {"CruiseCoastingPercent", {PERSISTENT, INT, "0"}},
     {"LongTuningKiV", {PERSISTENT, INT, "0"}},
     {"LongTuningKf", {PERSISTENT, INT, "100"}},
     {"LongActuatorDelay", {PERSISTENT, INT, "20"}},
