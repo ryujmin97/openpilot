@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (179차) -- 0006296 잔여 항목(carrot_settings.json/test_settings_schema.py) 반영 완료
+
+- carrot-ryu HEAD: 005f1202b3bd1139ca97195e7cda716e70f35588 (parent 107279570bc9110fc58b9937707f9ae448343c51, 178차)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음)
+
+carrot_settings.json UI 노출(CruiseCoastingPercent, CRUISE_CARROT 그룹)과 test_settings_schema.py 가드 테스트 반영 완료. 177차에서 이월되어오던 "설정 개수 183→184 불일치" 항목은, 0006296 원문 직접 조회 결과 CruiseCoastingPercent와 무관한 RadarTrackFlip(carrot-ryu에 존재하지 않는 별개 설정) 번들로 인한 것으로 확인되어 해결(RadarTrackFlip은 반영 범위에서 제외). carrot-ryu 자체 test 파일에는 하드코딩된 개수 assert가 없어 이 불일치가 실제 반영을 막는 요인은 아니었음.
+
+**신규 발견:** 0006296 원문 diff를 이번에 처음 직접 확보해보니, log.capnp의 cruiseCoastingPercent 필드를 원본은 UInt8로 선언했으나 carrot-ryu는 176차에 코드 사용처 기준으로 Int32로 재구성했음(타입 불일치). carrot-ryu 자체 스키마 내에서는 문제없이 동작하나, 원본 patch 기준 정합성은 미확인 상태로 남아있음(다음 이월 항목).
+
+남은 이월 항목(0006296 자체): log.capnp @62/@63 필드 타입/번호가 원본과 일치하는지 확인만 남음(나머지 파일은 모두 반영 완료). 별개 이월 항목(c84b175, dcffb7f)은 변동 없음.
+
 ## 체크포인트: 2026-09-27 (177차) -- 0006296(크루즈 코스팅 마진) carrot-ryu 반영 완료, push 및 재확인 완료
 
 - carrot-ryu HEAD: 5161837541d07ece15707a2ae6e3458d02befed3 (parent d751e15, 175차)

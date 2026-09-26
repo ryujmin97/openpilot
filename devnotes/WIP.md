@@ -1,5 +1,30 @@
 # WIP
 
+## 179cha (완료) — carrot_settings.json UI 노출 + test_settings_schema.py 가드 테스트 (0006296 잔여 항목)
+
+178차 HANDOFF 다음 작업 1번(carrot_settings.json UI 노출, test_settings_schema.py 183→184 불일치 재확인)을 이어받음.
+
+**183→184 불일치 원인 규명:** happymaj11r/openpilot 0006296 커밋 원문을 직접 조회한 결과, test_settings_schema.py 쪽 diff는 CruiseCoastingPercent와 무관하게 같은 커밋에 번들된 RadarTrackFlip(레이더 좌우반전) 설정의 radar 그룹 리스트 변경이었음. RadarTrackFlip은 carrot_settings.json/params_keys.h 어디에도 존재하지 않는 파라미터로 확인되어(전수 grep), 10절 최소 변경 원칙에 따라 이번 반영 범위에서 제외함. carrot-ryu 자체 test_settings_schema.py에는 설정 총개수를 하드코딩한 assert가 없어(len(params) > 100만 확인), 이 불일치 자체가 실제로 반영을 막는 요인은 아니었음(업스트림 자체 테스트 파일 기준 문제였을 뿐).
+
+**반영 내용:**
+1. carrot_settings.json: CRUISE_CARROT 그룹 멤버 목록에 CruiseCoastingPercent 추가, 파라미터 정의 블록 삽입(min 0/max 10/default 0/percent 단위, 원본 0006296 patch의 한/영/중 설명 그대로 사용, CRUISE 그룹/CruiseEcoControl 바로 다음 위치도 원본과 동일하게 맞춤).
+2. test_settings_schema.py: test_cruise_coasting_percent_is_exposed_in_carrot_cruise_group 가드 테스트 추가(그룹 위치, min/max/default, params_keys.h 정합 확인).
+
+**검증:**
+- 스크립트 실행 전 실제 carrot-ryu 최신 HEAD(1072795)로 새로 clone해 편집 로직을 dry-run으로 먼저 검증(anchor 단일매치, JSON 유효성, 파라미터명 중복 없음, py_compile 통과) 후 스크립트 전달.
+- 사용자 Termux 실행 로그(1072795..005f1202 push) 확인 후, git ls-remote + SHA 고정(005f1202) raw 조회로 두 파일 실제 반영 재확인 — carrot_settings.json 총 185개 파라미터/CruiseCoastingPercent 포함, test_settings_schema.py에 신규 가드 테스트 존재 확인.
+- pytest 실제 실행: 환경 제약(cereal/params_pyx 부재)으로 미실행, 신규 테스트 assertion들은 수동으로 값 재현해 통과 확인(신규 버그 아님, 기존과 동일한 제약).
+- 실차 검증: 미실시(12절).
+
+**완료:** carrot_settings.json UI 노출, test_settings_schema.py 가드 테스트 — carrot-ryu 반영 및 push 완료, GitHub 직접 재확인 완료.
+
+**미완료(이월):**
+1. log.capnp @62/@63 필드가 원본 0006296 patch 번호와 실제 일치하는지 — 원본은 cruiseCoastingPercent를 UInt8로 선언했으나 carrot-ryu는 176차에 Int32로 재구성함(이번 세션에서 원본 diff 직접 조회로 타입 불일치 신규 확인, carrot-ryu 자체 스키마 내에서는 문제없이 동작하나 원본 patch 기준 정합성은 미확인 상태로 남음).
+2. c84b175(CPU 스케쥴링), dcffb7f(카메라 SOF) 상세 대조 — 미착수, 계속 이월.
+3. 저위험 소규모 9건, 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보 — 계속 이월.
+4. pytest CI 환경(conftest.py 포함 실제 cereal 실행) — 여전히 미실행(환경 제약 지속).
+
+
 ## 178cha (완료) — cruise_coasting.py update() 0006296 원본 정합 수정 + test_cruise_coasting.py 복원 반영
 
 177차 HANDOFF 미완료 1번(test_cruise_coasting.py 복원 반영)을 이어받아, 176차에서 이미 검증된 update() 로직을 0006296 원본 패치와 다시 대조해 로직 정합성을 수정하고 복원 테스트를 실제 반영함.
