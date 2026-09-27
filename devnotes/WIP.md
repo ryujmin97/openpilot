@@ -1,5 +1,70 @@
 # WIP
 
+## 188cha (스크립트 작성/검증 완료, push 대기) - carrot-ms 3441183(Safe 모드 해제 조건 완화) carrot-ryu 반영
+
+무료 사용량 소진으로 중단됐던 이전 세션(187차 이후, WIP.md/HANDOFF.md에 미기록)을
+사용자가 대화 로그로 제시. 187차 HANDOFF.md의 "다음 작업" 3번(carrot-ms 정기 동기화
+점검 필요 여부 논의)과 연결되는 세션이었음을 확인 -- 그 세션에서 2절 정기 점검을
+수행해 체크포인트 087fdca 이후 신규 커밋 2건(happymaj11r/carrot-ms)을 검토:
+
+- 1f56076("Fix camera MDPS and TCS transmit counter continuity"): CAN-FD
+  카메라-SCC 차량 전용 로직. Genesis DH 2015는 values.py상 HYUNDAI_GENESIS(일반
+  CAN, HyundaiPlatformConfig)로 분류되어 HyundaiCanFDPlatformConfig 대상이 아님
+  -> 무관, 제외.
+- 3441183("Release automatic Safe mode sooner on sustained lead
+  acceleration"): 사용자 승인(b: 문서/carrot_settings.json 포함 전부 상세 대조
+  후 반영)에 따라 반영 작업 진행.
+
+**188차에서 이어받아 완료한 것:**
+1. carrot-ms 원본 커밋 3441183을 GitHub에서 직접 재조회(patch)해 이전 세션이
+   구성한 diff 내용과 동일함을 재확인(3절: GitHub 현재 상태가 채팅 사본보다
+   우선).
+2. carrot-ryu 현재 HEAD(5d2c9b0, 187차 828fc8c 반영 이후 변동 없음)를 shallow
+   clone으로 직접 가져와 8개 대상 파일 전부 대조:
+   - openpilot/selfdrive/carrot/driving_mode.py,
+     openpilot/selfdrive/carrot/tests/test_driving_mode.py: 3441183 patch의
+     pre-image blob hash와 carrot-ryu 현재 파일이 byte 단위로 완전히 일치
+     (git apply로도 적용 가능하나, 9절 기본 방식에 맞춰 Replace-Block으로
+     재구성). 적용 후 결과 blob hash(3f402655a0, b3f033a3cc)가 원본
+     post-image와 완전히 일치함을 확인.
+   - openpilot/selfdrive/carrot_settings.json,
+     docs/user/{en,ko}/{cruise-gap,settings}.md(4개): carrot-ryu 쪽이 이미
+     달라져 있어(전체 파일 hash 불일치) Replace-Block 앵커 단위(각 1회 매치)로
+     적용, 치환 결과 diff가 원본 3441183과 동일한 라인 증감(+9/-9 등)으로
+     정확히 일치함을 확인.
+   - docs/driving_mode_recovery.md(신규): 원본과 byte 단위로 완전히 동일한
+     내용으로 작성, hash(bbcd9153bd) 일치 확인.
+3. Windows CRLF 체크아웃 재현(.gitattributes의 `* text=auto` 감안,
+   GIT_CONFIG_KEY_0=core.eol=crlf)을 8개 파일 전부에 대해 시뮬레이션 --
+   Invoke-ReplaceBlock의 CRLF/LF 정규화 로직으로 앵커 1회 매치 및 결과 hash
+   일치를 확인(9절 체크리스트 9번 b).
+4. 로컬 bare 저장소로 clone -> 적용 -> commit -> push 전체 파이프라인을 실행해,
+   push된 커밋의 git show --numstat이 원본 3441183과 파일별 증감 라인 수까지
+   동일함을 확인(9절 체크리스트 9번).
+5. 적용된 driving_mode.py/test_driving_mode.py의 py_compile 통과,
+   carrot_settings.json의 JSON 파싱 통과, pytest 58개 전부 통과(원본
+   docs/driving_mode_recovery.md가 서술하는 "58 detector tests"와 일치)를
+   Linux 샌드박스에서 확인. openpilot.system.hardware는 원본 문서가 밝힌
+   대로 PC = True로 스텁(실제 cereal 빌드/디바이스 없이 driving_mode.py
+   유닛만 격리 실행) -- 12절 실차 검증이 아님을 명시.
+6. 188cha_carrot_ryu_sync_3441183.ps1(carrot-ryu용, Replace-Block 10곳 +
+   신규 파일 1개 + py_compile/JSON 자가검증 내장)과 이 devnotes 스크립트를
+   작성해 사용자에게 전달.
+
+**한계/미완료:**
+- 9절 체크리스트 8번(pwsh 파서로 .ps1 자체 구문 오류 0건 확인)은 이번 세션에서
+  GitHub API rate limit로 pwsh 설치가 막혀 수행하지 못함. 후행 쉼표 등 알려진
+  함정 패턴 없이 최대한 단순하게 작성했으나, 생략 사실 자체를 "안전하다"는
+  근거로 재확인 없이 재채택하지 않음 -- 다음 세션에서 가능하면 보완.
+- carrot-ryu 반영 스크립트 자체의 실제 실행(push)은 사용자 미실행 -- push 완료
+  후 GitHub 직접 재확인 필요(16절).
+- 실차 검증: 미실시(12절). 콤마 디바이스 + 제네시스 DH 2015 실주행 검증은
+  이월.
+- 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보,
+  pytest CI 환경(conftest.py 포함 실제 cereal 실행),
+  docs/camera_sof_gap_20260923.md의 102ms wide-camera BOOT_TS gap -- 계속
+  이월.
+
 ## 187차 (완료) — 186차 devnotes push 확인 + 828fc8c(고위험 웹 리팩터) carrot-ryu 반영 결과 GitHub 재확인
 
 세션 시작 시 4절 절차대로 지침 문서(0단계, 커밋 c55c2ec) 확인. 사용자가 "carrot-ryu에

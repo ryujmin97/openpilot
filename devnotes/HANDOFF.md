@@ -1,42 +1,89 @@
-Worker: Claude (187차, Claude Sonnet 5)
+Worker: Claude (188cha, Claude Sonnet 5)
 Date: 2026-09-27
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (세션 시작 시 HEAD: f56cae36ee2554087a6db82d4cd13e1a7ed693e3, 186차 반영분 push 완료 상태 -- 세션 중 사용자가 828fc8c 반영·push 완료를 알려와 GitHub 직접 재확인, HEAD: 5d2c9b07230c332142a69a271ee584899983bc86로 이동 확인. 이번 세션 자체의 코드 반영/push는 없음.)
-Note Branch: carrot-ryu-note (세션 시작 시 HEAD: 77d42a8c9ade7e86aed2cbbc9b43764be0306714(186차 devnotes 반영 스크립트 실행 전 상태) -- 186차 devnotes push 완료를 GitHub 직접 재확인, HEAD: c55c2ecee0fe9aa68d31da0353215bbf7222b432. 이번 세션 devnotes(187차) 반영은 push 대기.)
-carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음)
+Code Branch: carrot-ryu (base commit 5d2c9b07230c332142a69a271ee584899983bc86, 187차 828fc8c 반영 이후 변동 없음. 이번 세션 자체의 push 없음 -- 3441183 반영 스크립트만 작성/검증.)
+Note Branch: carrot-ryu-note (base commit d83554d68faebb6e66f83f22b7904dd8b5d6eb01, 세션 시작 시 0단계 확인 커밋. 이번 세션 devnotes(188차) 반영은 이 커밋으로 push.)
+carrot-ms 마지막 검토 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 -> 3441183(신규 커밋 2건 1f56076/3441183 전부 검토 완료)
 
 작업:
-1. 세션 시작 시 4절 절차대로 지침 문서(0단계, 커밋 c55c2ec) 확인.
-2. 사용자가 "carrot-ryu에 828fc8c 반영 및 push 성공"을 알려와, HANDOFF.md 기록(828fc8c을 "고위험 재분류, 별도 세션 필요" 이월 상태)과 다른 것을 확인하고, 16절에 따라 GitHub 직접 재확인 진행.
-3. carrot-ryu HEAD f56cae3 -> 5d2c9b0 확인, 커밋 patch로 변경 파일 43개 전부가 원본 828fc8c(happymaj11r/carrot-ms)의 43개 파일과 정확히 일치함을 확인. 신규 Params 키 없음 확인.
-4. carrot-ryu-note HEAD 77d42a8 -> c55c2ec 확인, 186차 devnotes(HANDOFF.md 교체 + WIP.md/WIP_SYNC.md 이어붙이기)가 정상 push됐음을 확인.
-5. 187차 devnotes(WIP.md 이어붙이기 + WIP_SYNC.md 이어붙이기 + HANDOFF.md 교체) 작성, PowerShell 반영 스크립트 준비.
+1. 세션 시작 시 4절 절차대로 지침 문서(0단계, 커밋 d83554d) 확인.
+2. 사용자가 제시한 이전 세션(무료 사용량 소진으로 중단, devnotes 미기록) 대화
+   로그를 검토 -- carrot-ms 정기 동기화 점검(2절)에서 3441183 반영을 진행하다
+   pytest 환경(cereal import 체인) 구성 중 끊긴 상태였음을 확인. 187차
+   HANDOFF.md에는 이 작업이 기록되어 있지 않아, 16절에 따라 사용자에게
+   확인(이 세션이 187차 이후 진행이 맞는지) 후 "진행" 승인받아 이어받음.
+3. carrot-ms 커밋 3441183을 GitHub에서 직접 재조회(patch)해 이전 세션이
+   구성한 diff와 동일함을 재확인.
+4. carrot-ryu 현재 HEAD(5d2c9b0)를 shallow clone으로 직접 가져와 8개 대상
+   파일 전부의 pre-image 상태를 재확인(driving_mode.py/test_driving_mode.py는
+   patch pre-image와 byte 단위 일치, carrot_settings.json/docs 4종은 이미
+   divergent -- 이전 세션의 발견과 일치).
+5. driving_mode.py(Replace-Block 2곳), test_driving_mode.py(Replace-Block
+   7곳, 함수 단위 앵커로 재구성), carrot_settings.json(Replace-Block 1곳),
+   docs/user/{en,ko}/{cruise-gap,settings}.md(Replace-Block 4곳),
+   docs/driving_mode_recovery.md(신규 파일)의 변경 내용을 Linux 샌드박스에서
+   전부 적용/검증(pre-image/post-image blob hash 대조, CRLF 체크아웃 재현,
+   로컬 bare 저장소 clone->적용->commit->push 파이프라인 실행, numstat 대조,
+   py_compile/JSON 파싱/pytest 58개 통과).
+6. 188cha_carrot_ryu_sync_3441183.ps1(carrot-ryu용)과 188cha_devnotes.ps1
+   (carrot-ryu-note용, 이 파일 자체)을 작성해 사용자에게 전달.
 
 완료:
-1. 186차 devnotes push 완료 확인(carrot-ryu-note HEAD c55c2ec).
-2. 828fc8c(고위험 웹 리팩터) carrot-ryu 반영·push 완료를 GitHub 직접 재확인(HEAD 5d2c9b0, 파일 목록 43개 일치, 신규 Params 키 없음).
-3. 187차 devnotes 3종 작성 및 PowerShell 반영 스크립트 작성.
+1. carrot-ms 3441183 반영 내용을 8개 파일 전부에 대해 Linux 샌드박스에서 구성
+   및 검증 완료(위 5번 상세).
+2. 1f56076은 Genesis DH 2015와 무관함을 재확인(HYUNDAI_GENESIS 분류, CAN-FD
+   전용 로직 아님) -- 제외 확정.
+3. carrot-ryu 반영 스크립트(188cha_carrot_ryu_sync_3441183.ps1) 및 devnotes
+   반영 스크립트(188cha_devnotes.ps1) 작성 완료, 사용자에게 전달.
 
 미완료:
-1. 187차 devnotes 반영 스크립트 자체의 실제 실행(push) -- 아직 사용자 미실행. push 완료 후 GitHub 직접 재확인 필요(16절).
-2. 828fc8c 반영 커밋의 py_compile/node build 재실행, setting.js 등 라인 단위 로직 대조 -- 이번 세션은 사후 파일목록/커밋메시지 수준 재확인만 수행, 상세 검증 미실시.
-3. 828fc8c(웹 UI) 실제 온보드/디바이스 동작 확인 -- 미실시(12절).
-4. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보 -- 계속 이월.
-5. pytest CI 환경(conftest.py 포함 실제 cereal 실행) -- 여전히 미실행.
-6. docs/camera_sof_gap_20260923.md의 102ms wide-camera BOOT_TS gap 자체 -- 계속 이월.
+1. carrot-ryu 반영 스크립트의 실제 실행(push) -- 사용자 미실행. push 완료 후
+   GitHub 직접 재확인 필요(16절, carrot-ryu HEAD가 5d2c9b0 -> 새 커밋으로
+   이동했는지, 8개 파일 blob hash가 이번 세션 검증값과 일치하는지).
+2. 이 devnotes 스크립트(188cha_devnotes.ps1) 자체의 실제 실행(push) -- 사용자
+   미실행. push 완료 후 carrot-ryu-note HEAD 이동 확인 필요.
+3. 9절 체크리스트 8번(pwsh 파서 구문 검증) -- GitHub API rate limit로 pwsh
+   설치가 막혀 이번 세션에서 수행하지 못함. 다음 세션에서 가능하면 보완.
+4. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보,
+   pytest CI 환경(conftest.py 포함 실제 cereal 실행), 102ms wide-camera
+   BOOT_TS gap -- 계속 이월.
 
 검증:
-- GitHub API/raw + github.com 커밋 patch(rate limit 우회)로 carrot-ryu HEAD 이동(f56cae3->5d2c9b0)과 carrot-ryu-note HEAD 이동(77d42a8->c55c2ec) 둘 다 직접 확인.
-- 828fc8c: 원본(43 files, 1982(+)/767(-))과 반영 커밋(43 files, 2039(+)/824(-))의 변경 파일 목록 43개 전부 일치 확인. diff 내 grep으로 신규 Params.get()/.put() 키 없음 확인.
-- 실차 검증: 미실시(12절). 828fc8c 웹 UI 변경은 콤마 디바이스 실사용에서 아직 검증 안 됨.
+- carrot-ms 3441183 patch를 GitHub API에서 직접 재조회해 diff 내용 확인(3절).
+- carrot-ryu 현재 HEAD를 shallow clone으로 직접 가져와 8개 파일의
+  pre-image/post-image blob hash를 git hash-object로 전부 대조.
+- Windows CRLF 체크아웃 재현(.gitattributes의 `* text=auto` 감안) 하에서도
+  8개 파일 앵커 전부 1회 매치 및 결과 동일 확인(9절 체크리스트 9번 b).
+- 로컬 bare 저장소로 clone -> 적용 -> commit -> push 전체 파이프라인 실행,
+  push된 커밋의 git show --numstat이 원본 3441183과 파일별 증감 라인 수까지
+  동일함을 확인(9절 체크리스트 9번).
+- driving_mode.py/test_driving_mode.py py_compile 통과, carrot_settings.json
+  JSON 파싱 통과, pytest 58개 전부 통과 확인(Linux 샌드박스,
+  openpilot.system.hardware를 PC = True로 스텁).
+- 실차 검증: 미실시(12절).
 
 주의사항:
-- 828fc8c 반영은 이번 세션이 아니라 이전 시점(다른 세션 또는 사용자 직접 작업)에 이미 push까지 완료된 것을 이번 세션이 사후 재확인만 한 것 -- py_compile/node build.mjs 재생성 재검증, setting.js 390줄 재작성 등 로직 상세 대조는 하지 않았으므로 다음 세션에서 필요시 추가 검증 권장.
-- 828fc8c 반영 커밋(5d2c9b0)의 author 이메일 필드가 여기에_깃허브_가입이메일@example.com(치환 안 된 placeholder)로 남아 있음 -- 기능 영향 없음, 참고만.
-- 이번 세션은 코드(carrot-ryu) 직접 반영 없음 -- devnotes(carrot-ryu-note)만 반영.
+- 이번 세션은 이전(미기록) 세션의 작업을 이어받아 완성한 것 -- 그 이전 세션
+  자체가 187차 이후 언제 진행됐는지는 사용자 대화 로그로만 확인했고 GitHub에는
+  흔적이 없었음(devnotes 미기록 상태로 중단됐기 때문). 다음 세션은 이 HANDOFF.md
+  (188차)를 기준으로 이어가면 되고, 그 사이의 미기록 세션 자체를 추가로 찾을
+  필요는 없음.
+- carrot-ryu 반영 스크립트(188cha_carrot_ryu_sync_3441183.ps1)는 9절 체크리스트
+  1~7/9번은 이번 세션에서 통과 확인했으나 8번(pwsh 파서)은 생략됨 -- 사용자
+  실행 전 참고.
+- 3441183 반영은 로직/문서/설정 전부(사용자 승인 "b")를 포함하며, 코드
+  로직상 나머지 진입/유지 조건(정지 접근, 지속 서행, clear-road 등)은 전혀
+  손대지 않음 -- RECOVERY_TIME과 ACCEL_EXIT_THRESHOLD 두 상수, 그리고 이에
+  연동된 문서 문구만 변경.
 
 다음 작업:
-1. 사용자 187차 devnotes 스크립트 실행 확인 후 GitHub 직접 재확인(carrot-ryu-note HEAD 이동, WIP.md/WIP_SYNC.md/HANDOFF.md 반영 확인).
-2. 828fc8c 반영분의 상세 로직 대조/실차 확인 필요 여부 사용자 판단.
-3. carrot-ms 정기 동기화 점검(2절) 필요 여부 논의.
-4. 핵심 발견 68/163차 게이트/xTurn=6/102ms gap 등 기존 이월 항목 계속 관리.
+1. 사용자가 두 스크립트(188cha_carrot_ryu_sync_3441183.ps1,
+   188cha_devnotes.ps1)를 각각 실행 -> push 완료 확인 후 GitHub 직접
+   재확인(carrot-ryu HEAD 이동, carrot-ryu-note HEAD 이동, 8개 파일 blob hash
+   일치).
+2. carrot-ms 정기 동기화 점검(2절) 후속 -- 3441183/1f56076 검토가 이것으로
+   종료되므로, 다음 신규 커밋 발생 시 087fdca가 아닌 3441183을 기준
+   체크포인트로 사용.
+3. 9절 체크리스트 8번(pwsh 파서 검증) 다음 세션에서 가능하면 보완.
+4. 핵심 발견 68/163차 게이트/xTurn=6/pytest CI 환경/102ms gap 등 기존 이월
+   항목 계속 관리.

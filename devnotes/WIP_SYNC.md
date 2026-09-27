@@ -1,5 +1,33 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (188차) -- 3441183(happymaj11r/carrot-ms 통해 노출, 원커밋 ajouatom/carrot-wip) 반영 확정, 스크립트 작성/검증 완료 push 대기; 1f56076은 제외
+
+- carrot-ms 마지막 검토 대상 체크포인트: 087fdca(172차) -> 3441183(신규 커밋 2건
+  1f56076/3441183 전부 검토 완료, 이 커밋까지 검토 확정)
+- carrot-ryu HEAD: 5d2c9b0(187차 종료 시점, 변동 없음 -- 이번 세션은 반영
+  스크립트만 작성/검증, 실제 push는 아직 없음)
+- carrot-ryu-note HEAD: 188차 devnotes 반영으로 이동 예정(이 커밋)
+
+**검토 결과:**
+- 1f56076("Fix camera MDPS and TCS transmit counter continuity"):
+  opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py 수정, CAN-FD 카메라-SCC
+  차량 전용 로직. carrot-ryu의 values.py 확인 결과 Genesis DH 2015는
+  HYUNDAI_GENESIS(HyundaiPlatformConfig, 일반 CAN)로 분류되어
+  HyundaiCanFDPlatformConfig(GV60/G70/G80 신형 등) 대상이 아님 -> 무관, 제외.
+- 3441183("Release automatic Safe mode sooner on sustained lead
+  acceleration"): carrot 코어 주행모드 기능(차종 무관). RECOVERY_TIME
+  6.0->3.0초, ACCEL_EXIT_THRESHOLD 1.5->1.0 m/s². 사용자 승인(b: 로직+문서+
+  carrot_settings.json 전부 상세 대조 후 반영)에 따라 8개 파일 변경사항을
+  구성/검증(WIP.md 188차 항목에 상세 기록) -> 188cha_carrot_ryu_sync_3441183.ps1
+  작성, 사용자 실행 대기.
+
+**한계:** 실차 검증 미실시(12절). carrot-ryu 반영 스크립트의 실제 push는 아직
+없음 -- push 완료 후 이 문서의 carrot-ryu HEAD를 GitHub 직접 재확인해 갱신
+필요(16절).
+
+남은 이월 항목: 핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경/102ms
+wide-camera BOOT_TS gap -- 변동 없음.
+
 ## 체크포인트: 2026-09-27 (187차) -- 828fc8c(고위험 웹 리팩터) carrot-ryu 반영 결과 GitHub 직접 재확인, 이월 목록에서 제외
 
 - carrot-ryu HEAD: f56cae36ee2554087a6db82d4cd13e1a7ed693e3(186차 종료 시점) ->
