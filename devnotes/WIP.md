@@ -1,5 +1,34 @@
 # WIP
 
+## 183차 (완료) — carrot-ms 저위험 후보 9건 상세 대조, 2건 반영 + 7건 재분류
+
+172차에서 "저위험 소규모, 아직 미착수"로만 분류돼 있던 9건(`cfe9251`/`cf288c1`/`828fc8c`/`9800be9`/`288e212`/`b84621a`/`cee4054`/`84aa7f0`/`f0ee8f2`)을 carrot-ryu 현재 HEAD(`dd357a10`, 182차 log.capnp 수정 반영 후)에 `git apply --check`로 개별 재검증함(2절/11절).
+
+**충돌 없이 통과, 이번 세션 반영 -- 2건:**
+- `9800be9`(Carrot 시작 로그에 owner 표시): `car_helpers.py`에 `format_git_source()` 추가, `Params().get("GitRemote")` 사용 -- 해당 키가 carrot-ryu `params_keys.h`에 이미 등록돼 있음을 확인(10절, 신규 등록 불필요).
+- `cee4054`(AGNOS 업데이트 재시도): 다운로드 재시도 대기 5s->10s, 실패 후에도 Retry/Wi-Fi 버튼 계속 노출. `mici_updater.py`가 참조하는 `GreyBigButton`/`BigConfirmationCircleButton`/`NavScroller`, `tici_updater.py`가 참조하는 `_wifi_button`/`_retry_button`/`_reboot_button`이 실제 carrot-ryu 코드에 이미 존재/호환됨을 개별 확인(단순 apply 성공을 넘어 심볼 존재까지 점검).
+
+**충돌 있음, 재분류 -- 7건 (사유는 WIP_SYNC.md 183차 항목 참고):**
+- `cfe9251`/`cf288c1`(Carrot Web 키보드 안정화/설정 헤더 네비게이션): `.github/workflows/tests.yaml`만 컨텍스트 충돌(두 커밋이 원본에서 같은 파일을 연속 수정하는 순서 의존 관계). 중간 우선순위로 재이월, 처리 순서 cfe9251 -> cf288c1.
+- `828fc8c`("web work", 3796줄): web_settings.py/생성된 css·js 번들/setting.js(390줄 재작성) 다중 충돌. 172차의 "저위험 소규모" 분류가 실제 규모와 맞지 않았던 사례 -- 고위험/상세 대조 항목으로 재분류.
+- `288e212`(재부팅 필요 알림): log.capnp에 `updateRebootRequired @125` 추가(182차 수정 영역 @62/@63과 충돌 없음 확인), 문서/번역 파일만 컨텍스트 충돌. 중간 우선순위로 재이월.
+- `b84621a`(AGNOS 자동 설치, 사용자 확인 없이): AGENTS.md/agnos.py/updater UI 다중 충돌. 사용자 확인 없는 자동 설치+재부팅 동작이라 반영 여부 자체를 사용자가 먼저 판단해야 하는 항목으로 재분류.
+- `84aa7f0`/`f0ee8f2`(PV5 내비 감속 카메라 로직, carstate.py): carrot-ryu 자체 커스텀과 얽혀 다중 충돌. 중간 우선순위로 재이월(172차에도 "실제 검토는 필요"로 이미 명시돼 있었음).
+
+**검증:**
+- git apply --check 9건 전체 개별 재검증(carrot-ryu HEAD dd357a10 기준).
+- 반영 2건은 로컬 bare 저장소 dry-run으로 clone->apply->py_compile->commit->push 전 과정 실행, numstat(6 files changed, 201 insertions(+), 13 deletions(-))이 원본 두 커밋의 변경량 합과 정확히 일치함을 확인.
+- 실차 검증: 미실시(12절) -- 진단 로그 표시/업데이터 UI 변경으로 주행 로직 무영향.
+
+**완료:** 저위험 9건 개별 재검증 및 2건 반영 스크립트 작성 -- push는 사용자 실행 대기(16절).
+
+**미완료(이월):**
+1. 사용자의 실제 스크립트 실행(push) -- 아직 미확인.
+2. cfe9251/cf288c1(CI yaml 순서 의존 수동 병합), 288e212(문서/번역 충돌), 84aa7f0/f0ee8f2(carstate.py 커스텀 대조) -- 중간 우선순위로 이월.
+3. 828fc8c(3796줄 웹 리팩터) -- 고위험 재분류, 별도 세션 상세 대조 필요.
+4. b84621a(AGNOS 자동 설치) -- 반영 여부 자체 사용자 판단 필요.
+5. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보, pytest CI 환경, 카메라 SOF gap 관측 -- 계속 이월.
+
 ## 182차 (완료) — log.capnp @62/@63 cruiseCoastingPercent 타입 정합성 확인 및 수정
 
 181차 HANDOFF 미완료 1순위였던 log.capnp @62/@63 필드 타입(UInt8 vs Int32) 정합성 재확인을 진행함.

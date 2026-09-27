@@ -1,5 +1,27 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (183차) -- 저위험 소규모 9건 상세 대조, 2건 반영 + 7건 재분류
+
+- carrot-ryu HEAD: dd357a10fe1c57712bc390dc47dcb310271b1189 (183차 스크립트 실행 후 6개 파일 반영분 push 대기, 사용자 실행 확인은 다음 세션에서 hash 재조회로)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음 -- 이번 세션은 기존 이월 항목(저위험 9건) 상세 대조, 2절 정기 점검 아님)
+
+172차에서 "저위험 소규모, 아직 미착수"로만 분류돼 있던 9건을 carrot-ryu 현재 HEAD(dd357a10)에 `git apply --check`로 개별 재검증.
+
+**반영 완료 -- 2건**
+- `9800be9`(Include repository owner in Carrot startup branch log) -- 충돌 없음, `GitRemote` 파라미터 키가 carrot-ryu params_keys.h에 이미 등록돼 있음을 확인.
+- `cee4054`(Allow AGNOS update retry after late Wi-Fi connection) -- 충돌 없음, 참조 심볼(GreyBigButton/BigConfirmationCircleButton/NavScroller/_wifi_button 등) 실존 확인.
+
+**재분류 -- 7건**
+- `cfe9251`/`cf288c1`(Carrot Web 키보드 안정화 / 설정 헤더 네비게이션) -- `.github/workflows/tests.yaml`만 컨텍스트 충돌(두 커밋이 원본에서 같은 파일을 연속 수정하는 순서 의존 관계). index.html/JS 쪽은 충돌 없음. 중간 우선순위로 재이월, 처리 순서는 cfe9251 -> cf288c1.
+- `828fc8c`("web work", 3796줄) -- web_settings.py/생성된 css·js 번들/setting.js(390줄 재작성) 다중 충돌. 172차의 "저위험 소규모" 분류가 실제 규모와 맞지 않음 -- 고위험/상세 대조 항목으로 재분류.
+- `288e212`(재부팅 필요 알림) -- log.capnp에 `updateRebootRequired @125` 추가(182차 수정 영역 @62/@63과 충돌 없음 확인), 문서/번역 파일(app_ko.po/app_zh-CHS.po 등)만 컨텍스트 충돌. 중간 우선순위로 재이월.
+- `b84621a`(AGNOS 자동 설치, 사용자 확인 없이) -- AGENTS.md/agnos.py/updater UI 다중 충돌. 사용자 확인 없는 자동 설치+재부팅 동작이라 반영 여부 자체를 사용자가 먼저 판단해야 하는 항목으로 재분류.
+- `84aa7f0`/`f0ee8f2`(PV5 내비 감속 카메라 로직, carstate.py) -- carrot-ryu 자체 carstate.py 커스텀과 얽혀 다중 충돌. 중간 우선순위로 재이월(172차에도 "실제 검토는 필요"로 이미 명시돼 있었음).
+
+남은 이월 항목: log.capnp @62/@63 필드 타입 정합성(182차로 종결), 핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경 -- 변동 없음. 저위험 9건은 위와 같이 2건 반영 + 7건 재분류로 갱신됨.
+
+- 다음 확인 시점: cfe9251/cf288c1 CI yaml 수동 병합, b84621a 반영 여부 사용자 확인, 828fc8c/288e212/84aa7f0/f0ee8f2 순차 상세 대조.
+
 ## 체크포인트: 2026-09-27 (181차) -- c84b175(CPU 스케쥴링) 상세 대조 완료, 제외 확정
 
 - carrot-ryu HEAD: 67f41f87fec16ca5626f550c213b4b03eba53c0e (180차 이후 변동 없음, 이번 세션은 분석/devnotes만)
