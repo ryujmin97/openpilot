@@ -159,6 +159,7 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     audio0 @114;
 
     torqueNNLoad @118;
+    updateRebootRequired @125;
 
     soundsUnavailableDEPRECATED @47;
   }
@@ -2449,6 +2450,7 @@ struct UIDebug {
 
 struct ManagerState {
   processes @0 :List(ProcessState);
+  rebootRequired @1 :Bool; # checkout changed since manager startup
 
   struct ProcessState {
     name @0 :Text;

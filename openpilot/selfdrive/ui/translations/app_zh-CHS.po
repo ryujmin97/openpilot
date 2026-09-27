@@ -1499,3 +1499,11 @@ msgstr "检测到"
 #: openpilot/selfdrive/ui/mici/onroad/vision_renderer.py
 msgid "NO DETECTION"
 msgstr "未检测到"
+
+#: openpilot/selfdrive/selfdrived/events.py
+msgid "Reboot to Apply Update"
+msgstr "请重启设备以应用更新"
+
+#: openpilot/selfdrive/selfdrived/events.py
+msgid "Park safely before rebooting your device"
+msgstr "请安全停车后再重启设备"
