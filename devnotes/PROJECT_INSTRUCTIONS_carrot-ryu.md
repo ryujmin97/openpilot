@@ -291,9 +291,14 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
    `$errs.Count`와 오류 메시지(줄/열)를 출력한다. PowerShell은 파일 전체를 실행 전에 파싱하므로 배열
    리터럴의 후행 쉼표(`@(..., )`)처럼 한 곳만 틀려도 스크립트가 시작 즉시 죽는다(123차 devnotes v1
    4057행). 같은 파서가 후행 쉼표 합성 파일을 오류로 잡는지 대조군도 한 번 확인한다. 샌드박스에 pwsh가
-   없으면 GitHub 릴리스 tarball(`https://github.com/PowerShell/PowerShell/releases/download/vX.Y.Z/powershell-X.Y.Z-linux-x64.tar.gz`)을
-   직접 받아 설치한다(`api.github.com`은 rate limit으로 실패할 수 있음). PowerShell 7 파서 기준이며
-   Windows PowerShell 5.1 실행을 대신하지 않는다.
+   없으면 설치한다. 버전 확인에 `api.github.com/repos/PowerShell/PowerShell/releases/latest`를 쓰면
+   rate limit으로 실패하는 경우가 잦았다(189차까지 이 이유로 반복 생략됨). 대신
+   `curl -sIL https://github.com/PowerShell/PowerShell/releases/latest`의 302 redirect
+   `Location` 헤더에서 최신 버전 태그(예: `v7.6.6`)를 얻고, 그 버전으로
+   `https://github.com/PowerShell/PowerShell/releases/download/vX.Y.Z/powershell-X.Y.Z-linux-x64.tar.gz`를
+   직접 받아 설치한다(190차에서 rate limit 없이 성공 확인). `api.github.com` 방식은 rate limit이
+   풀렸을 때만 대체 수단으로 쓴다. PowerShell 7 파서 기준이며 Windows PowerShell 5.1 실행을 대신하지
+   않는다.
 9. 반영 스크립트(코드/devnotes)는 전달 전에 로컬 bare 저장소를 대상으로 끝까지 실행해 본다. 대상
    브랜치의 SHA 고정 트리로 만든 bare 저장소를 `$RepoUrl`로 쓰고(시뮬레이션용 사본은 저장소 URL과
    Linux용 경로 구분자만 바꾸고 로직은 그대로 둔다), 두 모드로 실행한다: (a) 일반 체크아웃, (b) Windows

@@ -1,5 +1,32 @@
 # WIP
 
+## 190cha (완료) - 9절 체크리스트 8번(pwsh 파서 검증) rate limit 문제 해결 + 189cha 소급 검증
+
+189차까지 `api.github.com/repos/PowerShell/PowerShell/releases/latest`가 rate limit에
+자주 걸려 pwsh 설치 자체가 반복 실패, 9절 체크리스트 8번(pwsh 파서 구문 검증)이 여러
+세션째 생략되어 왔음.
+
+**해결:** `api.github.com` 없이 `curl -sIL https://github.com/PowerShell/PowerShell/releases/latest`의
+302 redirect `Location` 헤더에서 최신 버전 태그(`v7.6.6`)를 얻고, 그 버전으로
+`https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/powershell-7.6.6-linux-x64.tar.gz`를
+직접 받아 설치 성공 — rate limit 없이 pwsh 7.6.6 확보.
+
+**검증(positive/negative control):**
+- 배열 리터럴 후행 쉼표(`@("a","b",)`) 포함 스크립트: `[Parser]::ParseFile` → 1 error
+  (`Line 3 Col 7: Missing expression after ','.`), 지침 문서에 언급된 123차 사례와
+  동일 유형의 오류를 정확히 잡아냄.
+- 동일 구조의 정상 스크립트(후행 쉼표 제거): 0 error.
+
+**189cha_fix_trailing_newline.ps1 소급 검증:** 사용자가 로컬 Downloads 폴더의 파일을
+다시 업로드 → BOM `EF BB BF` 정상 확인, pwsh 파서 오류 0건 확인. 이미 실행·push되어
+정상 동작했던 결과와 일치.
+
+**반영:** PROJECT_INSTRUCTIONS_carrot-ryu.md 9절 체크리스트 8번을 이 방식으로 갱신
+(19절 절차, 사용자 승인 완료) — `api.github.com`은 rate limit이 풀렸을 때만 대체
+수단으로 격하.
+
+이번 회차는 코드 변경 없음, devnotes/지침 문서만 갱신.
+
 ## 189cha (완료) - 188cha push GitHub 직접 재확인, docs/driving_mode_recovery.md 개행 버그 발견/수정
 
 사용자가 188차 스크립트 2개(carrot-ryu용, carrot-ryu-note용) 실행 후 "완료"라고
