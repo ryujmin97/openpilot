@@ -1243,7 +1243,7 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   aChangeCost @60 :Float32;
   trafficStopModelLeadOffset @61 :Float32;  # 0 normally, +2 m for a confirmed model-vehicle stop
   cruiseCoastingTarget @62 :Float32;  # nonzero physical speed target while overspeed brake relief is active
-  cruiseCoastingPercent @63 :Int32;  # 0 disables; mirrors CruiseCoastingPercent param, refreshed in longitudinal_planner
+  cruiseCoastingPercent @63 :UInt8;  # 0 disables; mirrors CruiseCoastingPercent param, refreshed in longitudinal_planner
 
   solverExecutionTime @35 :Float32;
 
