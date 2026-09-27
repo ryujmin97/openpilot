@@ -175,5 +175,8 @@ test("landscape settings keep the shared submenu back control", () => {
   const navigation = read("js/shared/ui/navigation.js");
 
   assert.doesNotMatch(chrome, /setting-layout-split[^{}]*\.setting-title-backIcon\s*\{[^}]*display:\s*none/s);
-  assert.match(navigation, /itemsTitle\.onclick\s*=\s*\(\)\s*=>\s*history\.back\(\)/);
+  // itemsTitle no longer falls back to browser history (183차 cf288c1): it always
+  // returns to the settings hierarchy via goToSettingParent, which is covered in
+  // detail by settings_parent_navigation.test.mjs (including the split-layout case).
+  assert.match(navigation, /itemsTitle\.onclick\s*=\s*goToSettingParent/);
 });
