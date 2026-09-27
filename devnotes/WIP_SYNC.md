@@ -1,5 +1,34 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (184차) -- cfe9251→cf288c1 실제 반영 완료, 183차 tests.yaml 분류 정정
+
+- carrot-ryu HEAD: 세션 시작 시 480b7f7 (183차 스크립트 push 완료 확인됨), 이번 세션
+  반영분은 push 대기(스크립트 작성 및 로컬 bare dry-run 검증만 완료, 16절)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15
+  (172차와 동일, 변동 없음 -- 이번 세션은 183차 이월 항목 상세 대조, 2절 정기 점검 아님)
+
+183차에서 "`.github/workflows/tests.yaml`만 컨텍스트 충돌하는 순서 의존 관계"로
+재분류했던 `cfe9251`/`cf288c1`을 상세 대조한 결과, carrot-ryu의 tests.yaml은
+carrot-ms와 구조가 달라(개별 파일 하드코딩이 아니라 glob 방식) 애초에 수동 병합
+대상 자체가 없었음을 확인(분류 정정). 실제 반영 대상은 `index.html`(viewport
+meta, cfe9251)과 `navigation.js`(goToSettingParent, cf288c1)였고 둘 다 무충돌
+(183차 당시 WIP_SYNC.md에도 "index.html/JS 쪽은 충돌 없음"으로 이미 기록돼
+있었음). 부수적으로 옛 구현을 검증하던 기존 회귀 테스트 1건을 갱신하고 신규
+테스트 2건을 추가함(상세는 WIP.md 184차 참고).
+
+**반영(push 대기) -- 5개 파일**
+- `index.html`: viewport meta `interactive-widget=resizes-content` -> `resizes-visual`.
+- `js/shared/ui/navigation.js`: `goToSettingParent()` 추가, `itemsTitle.onclick` 교체.
+- `tests/logs_player_transport.test.mjs`: 옛 구현 검증 단언문 갱신.
+- `tests/settings_parent_navigation.test.mjs`(신규), `tests/viewport_keyboard.test.mjs`(신규).
+
+남은 이월 항목: `288e212`/`84aa7f0`/`f0ee8f2`(중간 우선순위), `828fc8c`(고위험
+재분류, 별도 세션 필요), `b84621a`(반영 여부 사용자 판단 필요), 핵심 발견
+68/163차 게이트/xTurn=6 로그/pytest CI 환경 -- 변동 없음.
+
+- 다음 확인 시점: 사용자 스크립트 실행(push) 확인 후 GitHub 직접 재확인, 이어서
+  288e212/84aa7f0/f0ee8f2 순차 상세 대조.
+
 ## 체크포인트: 2026-09-27 (183차) -- 저위험 소규모 9건 상세 대조, 2건 반영 + 7건 재분류
 
 - carrot-ryu HEAD: dd357a10fe1c57712bc390dc47dcb310271b1189 (183차 스크립트 실행 후 6개 파일 반영분 push 대기, 사용자 실행 확인은 다음 세션에서 hash 재조회로)

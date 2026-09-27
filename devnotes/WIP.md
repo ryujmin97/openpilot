@@ -1,5 +1,69 @@
 # WIP
 
+## 184차 (완료) — cfe9251→cf288c1 순서 수동 병합: viewport 키보드 처리 + 설정 상위 이동
+
+183차에서 "`.github/workflows/tests.yaml`만 컨텍스트 충돌하는 순서 의존 관계"로
+재분류해 이월했던 `cfe9251`/`cf288c1` 두 커밋을 실제로 상세 대조·반영함.
+
+**중요한 발견(183차 분류 정정):** carrot-ryu의 `.github/workflows/tests.yaml`은
+carrot-ms와 워크플로 구조 자체가 달라(carrot-ryu는 개별 테스트 파일을 하드코딩하지
+않고 `package.json`의 `"test": "node --test tests/**/*.test.mjs"` 글롭 방식을
+씀), 애초에 tests.yaml에서 수동 병합할 줄 자체가 없었음. 두 커밋의 실제 반영 대상은
+`index.html`(viewport meta)과 `navigation.js`(설정 헤더 네비게이션)이었고, 이
+둘은 애초에 충돌이 없었음(183차 diff 검토 당시 이미 "index.html/JS 쪽은 충돌
+없음"으로 WIP_SYNC.md에 기록돼 있었으나 WIP.md 본문 설명이 tests.yaml 충돌
+쪽으로 요약돼 다음 세션에 그 부분만 남을 위험이 있었던 사례. 참고로 carrot-ryu의
+GitHub Actions 자체에는 현재 web 테스트를 돌리는 job이 없다는 것도 확인했는데,
+이는 이번 작업 범위 밖의 별개 이슈).
+
+**반영 내용 (carrot-ryu, 세션 시작 HEAD `480b7f7` 기준):**
+1. `cfe9251` — `index.html`의 viewport meta `interactive-widget=resizes-content`
+   → `resizes-visual`로 변경. `viewport.js`가 `visualViewport`로 가용 높이를
+   직접 추적하므로, 키보드 개폐와 무관하게 CSS 레이아웃 breakpoint를 안정적으로
+   유지하기 위함.
+2. `cf288c1` — `navigation.js`에 `goToSettingParent()` 함수 추가,
+   `itemsTitle.onclick`을 `() => history.back()`에서 `goToSettingParent`로 교체.
+   스플릿 레이아웃에서 이전 브라우저 히스토리 엔트리가 다른 페이지를 가리켜도
+   설정 화면을 벗어나지 않도록 함.
+3. **부수 발견:** 기존 회귀 테스트 `logs_player_transport.test.mjs`가 옛 구현
+   (`itemsTitle.onclick = () => history.back()`)을 그대로 단언하고 있어 새
+   구현과 충돌 — 의도를 보존하면서 단언문을 `goToSettingParent` 검증으로 갱신,
+   상세 케이스(스플릿/비스플릿, 히스토리 복원)는 신규 테스트로 이관.
+4. 신규 테스트 2개 추가: `viewport_keyboard.test.mjs`(20개 중 실제로는 공용
+   스위트에 포함되는 분량, 포커스된 3파일 합산 20/20 통과), `settings_parent_navigation.test.mjs`.
+
+**검증:**
+- 영향받는 3개 테스트 파일(신규 2개 + 갱신 1개) 20/20 통과.
+- `npm test` 전체 758개 중 757 통과(나머지 1개 `ar_projection_golden`은 Python
+  골든 픽스처 생성 환경 부재로 인한 기존 baseline 실패 — 변경 전 HEAD에서도
+  동일하게 실패함을 대조 확인, 이번 변경과 무관).
+- `node build.mjs` 실행 — `navigation.js`는 esbuild 번들이 아니라
+  `<script src>`로 직접 서빙되는 파일이고 `index.html`도 번들 대상이 아니라
+  생성 번들(`js/generated/`, `css/generated/`) diff 없음(정상, 9절 필수 규칙
+  확인 완료).
+- 로컬 bare 저장소 dry-run: clone → Replace-Block(anchor 매치 1회) → 신규 파일
+  작성 → `node --check` → `npm install && node build.mjs` → 테스트 → commit →
+  push 전 과정 실행, `git show --numstat`(5 files changed, 203 insertions(+),
+  8 deletions(-))과 push된 각 파일 내용이 의도한 최종본과 바이트 단위로
+  일치함을 확인.
+- 실차 검증: 미실시(진단/설정 화면 UI 변경, 주행 로직 무영향, 12절).
+
+**완료:** `cfe9251`+`cf288c1` 수동 병합, 회귀 테스트 갱신, 신규 테스트 2건 반영
+스크립트 작성 및 dry-run 검증 — push는 사용자 실행 대기(16절, 아직 반영 완료로
+간주하지 않음).
+
+**미완료(이월, 183차 대비 변동):**
+1. 사용자의 실제 스크립트 실행(push) — 아직 미확인. push 완료 후 GitHub 직접
+   재확인 필요.
+2. `288e212`(재부팅 필요 알림, 문서/번역 충돌), `84aa7f0`/`f0ee8f2`(PV5 내비 감속
+   카메라 로직, carstate.py 커스텀 대조) — 중간 우선순위로 계속 이월.
+3. `828fc8c`(3796줄 웹 리팩터, 생성 번들 다중 충돌) — 고위험 재분류, 별도 세션
+   상세 대조 필요.
+4. `b84621a`(AGNOS 자동 설치, 사용자 확인 없이) — 반영 여부 자체 사용자 판단 필요.
+5. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보,
+   pytest CI 환경(conftest.py 포함 실제 cereal 실행), 카메라 SOF gap 관측 —
+   계속 이월.
+
 ## 183차 (완료) — carrot-ms 저위험 후보 9건 상세 대조, 2건 반영 + 7건 재분류
 
 172차에서 "저위험 소규모, 아직 미착수"로만 분류돼 있던 9건(`cfe9251`/`cf288c1`/`828fc8c`/`9800be9`/`288e212`/`b84621a`/`cee4054`/`84aa7f0`/`f0ee8f2`)을 carrot-ryu 현재 HEAD(`dd357a10`, 182차 log.capnp 수정 반영 후)에 `git apply --check`로 개별 재검증함(2절/11절).
