@@ -1,5 +1,59 @@
 # WIP
 
+## 187차 (완료) — 186차 devnotes push 확인 + 828fc8c(고위험 웹 리팩터) carrot-ryu 반영 결과 GitHub 재확인
+
+세션 시작 시 4절 절차대로 지침 문서(0단계, 커밋 c55c2ec) 확인. 사용자가 "carrot-ryu에
+828fc8c 반영 및 push 성공"이라고 알려와, HANDOFF.md 기록(828fc8c을 "고위험 재분류,
+별도 세션 필요" 이월 상태로 기재)과 다르므로 16절에 따라 GitHub 직접 재확인 진행.
+
+**186차 devnotes push 확인:**
+- carrot-ryu-note HEAD: `77d42a8`(186차 세션 시작 시점) → `c55c2ec`(186차 devnotes
+  반영). 커밋 patch로 HANDOFF.md 교체 + WIP.md/WIP_SYNC.md 이어붙이기(3 files
+  changed, 129 insertions(+), 35 deletions(-))가 186차 기록과 일치함을 확인.
+  186차 미완료 1번(devnotes push 실행 확인) 해소.
+
+**828fc8c 반영 결과 재확인:**
+- carrot-ryu HEAD: `f56cae3`(186차 종료 시점) → `5d2c9b0`(1커밋). 커밋 메시지:
+  "828fc8c web work 반영: settings 검색 리팩터 + drive-layout 신규설치 기본값
+  area_1=vision/area_2=navigation".
+- 원본 828fc8c(happymaj11r/carrot-ms, 43 files changed, 1982(+)/767(-))와
+  반영 커밋(43 files changed, 2039(+)/824(-))의 **변경 파일 목록이 43개 전부
+  일치**함을 확인 — settings 검색 신규 모듈(search/entries.js, search/panel.js,
+  search/inline.js, search/results.js, search/highlight.js), setting.js
+  390줄 재작성, i18n.js, translations(en/ko/zh), drive-layout 기본값 변경,
+  생성 번들(settings.js/tools.js/settings.css/tools.css/asset-manifest.json),
+  문서 4개(en/ko × carrot-web/settings), 신규 테스트 다수 전부 포함. 라인 수
+  차이(+57/-57)는 carrot-ryu 컨텍스트에 맞춘 조정으로 추정(9절 관례와 일치,
+  이번 세션에서 라인별 diff까지는 대조하지 않음).
+- 신규 `Params.get()`/`.put()` 키 없음(diff 내 grep으로 확인, 10절 등록 대상
+  아님).
+- 특이사항: 반영 커밋 author 이메일 필드가
+  `여기에_깃허브_가입이메일@example.com`(치환 안 된 placeholder)로 남아 있음 —
+  기능에는 영향 없으나 다음 반영 스크립트 작성 시 참고.
+
+**미확인/한계:**
+- 828fc8c 반영은 다른 세션(또는 사용자 직접 조작)에서 이미 push까지 완료된
+  상태를 이번 세션이 GitHub 조회로 사후 재확인한 것 — 이번 세션 자체는
+  py_compile/node build.mjs 재실행 등 사전 검증을 수행하지 않았음(12절:
+  실차 검증 미실시, 이번 재확인도 "파일 목록/커밋 메시지/신규 Params 키
+  부재" 수준의 정적 확인에 한정).
+- setting.js 390줄 재작성 등 로직 상세 대조는 이번 세션에서 하지 않음 —
+  필요시 추후 세션에서 라인 단위 리뷰 가능.
+
+**검증:**
+- GitHub API/raw + github.com 커밋 patch(rate limit 우회)로 carrot-ryu-note
+  HEAD 이동(`77d42a8`→`c55c2ec`)과 carrot-ryu HEAD 이동(`f56cae3`→`5d2c9b0`)
+  둘 다 직접 확인.
+- 실차 검증: 미실시(12절).
+
+**다음 작업:**
+1. 828fc8c 반영분의 실제 온보드/디바이스 동작 확인, 필요시 라인 단위 로직
+   상세 대조.
+2. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보,
+   pytest CI 환경, 102ms wide-camera BOOT_TS gap — 계속 이월.
+3. carrot-ms 정기 동기화 점검(2절, 체크포인트 087fdca 이후 신규 커밋 재검토)
+   필요 여부 사용자 판단.
+
 ## 186차 (완료, 코드 push 완료 / devnotes push 대기) — carrot-ms b84621a(AGNOS 자동 설치) 반영, 자동 재부팅 대신 수동 재부팅으로 수정
 
 185차 HANDOFF "다음 작업" 3번(b84621a, "Automatically install required AGNOS

@@ -1,5 +1,39 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (187차) -- 828fc8c(고위험 웹 리팩터) carrot-ryu 반영 결과 GitHub 직접 재확인, 이월 목록에서 제외
+
+- carrot-ryu HEAD: f56cae36ee2554087a6db82d4cd13e1a7ed693e3(186차 종료 시점) ->
+  5d2c9b07230c332142a69a271ee584899983bc86(828fc8c 반영, push 완료를 GitHub
+  직접 재확인)
+- carrot-ryu-note HEAD: 77d42a8c9ade7e86aed2cbbc9b43764be0306714(186차 세션
+  시작 시점) -> c55c2ecee0fe9aa68d31da0353215bbf7222b432(186차 devnotes
+  push 완료 확인)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15
+  (172차와 동일, 변동 없음 -- 이번 세션은 이월 후보 828fc8c 1건의 반영 결과
+  사후 확인이며 2절 정기 점검 아님)
+
+**828fc8c("web work", happymaj11r/carrot-ms) 반영 확인:**
+- 원본 43 files changed, 1982(+)/767(-) / 반영 커밋 43 files changed,
+  2039(+)/824(-) -- 변경 파일 목록 43개 전부 일치.
+- 포함 범위: web_settings.py, setting.js(390줄 재작성), i18n.js,
+  translations(en/ko/zh), 생성 번들(settings.js/tools.js/settings.css/
+  tools.css/asset-manifest.json), index.html, 신규 검색 모듈
+  (search/entries.js, search/highlight.js, search/inline.js, search/panel.js,
+  search/results.js), drive-layout 기본값(area_1=vision/area_2=navigation),
+  신규 테스트 다수(settings_search_*.test.mjs 등), 문서 4개(en/ko x
+  carrot-web/settings).
+- 신규 Params.get()/.put() 키 없음(10절 대상 아님).
+- 특이사항: 반영 커밋 author 이메일이 placeholder
+  (`여기에_깃허브_가입이메일@example.com`)로 남음 -- 기능 영향 없음, 참고만.
+
+**한계:** 이번 세션은 사후 GitHub 재확인(파일 목록/커밋 메시지/신규 Params
+키 부재 수준)만 수행 -- py_compile/node build 재실행/라인 단위 로직 대조는
+하지 않음. 실차 검증 미실시(12절).
+
+남은 이월 항목: 핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경/102ms
+wide-camera BOOT_TS gap -- 변동 없음. `828fc8c`는 이번 확인으로 이월 목록에서
+제외.
+
 ## 체크포인트: 2026-09-27 (186차) -- b84621a(AGNOS 자동 설치) 반영 확정, 자동 재부팅은 제외
 
 - carrot-ryu HEAD: 세션 시작 시 226e2e653634dfdedd4135ff46907f7b79bb2011(185차
