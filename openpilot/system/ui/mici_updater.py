@@ -8,14 +8,14 @@ from collections import deque
 import pyray as rl
 
 from openpilot.common.realtime import config_realtime_process, set_core_affinity
-from openpilot.system.hardware.tici.agnos import (manifest_download_urls, mark_update_confirmed,
-                                                  update_confirmed)
+from openpilot.system.hardware.tici.agnos import manifest_download_urls
 from openpilot.system.hardware import HARDWARE, TICI
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.application import gui_app, FontWeight, TextAlignmentVertical
 from openpilot.system.ui.widgets.nav_widget import NavWidget
 from openpilot.system.ui.widgets.scroller import Scroller, NavScroller
 from openpilot.system.ui.widgets.label import UnifiedLabel
+from openpilot.system.ui.widgets.button import Button
 from openpilot.system.ui.mici_setup import (NetworkSetupPage, NetworkConnectivityMonitor,
                                             GreyBigButton, BigPillButton)
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationCircleButton
@@ -42,26 +42,35 @@ class UpdaterFailedPage(NavScroller):
     self._reason_card.set_value(reason)
 
 
+class UpdaterCompletePage(NavScroller):
+  def __init__(self, network_callback):
+    super().__init__()
+    self.set_back_callback(network_callback)
+    self._info_card = GreyBigButton("update ready", "reboot to finish installing")
+    self._scroller.add_widgets([
+      self._info_card,
+      BigConfirmationCircleButton("reboot\ndevice", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70),
+                                  HARDWARE.reboot, exit_on_confirm=False),
+    ])
+
+
 class UpdaterNetworkSetupPage(NetworkSetupPage):
   def __init__(self, network_monitor, continue_callback):
     super().__init__(network_monitor, continue_callback, back_callback=None)
-    self._continue_button.set_text("download\n& install")
+    self._continue_button.set_text("back to\nupdate")
     self._continue_button.set_green(False)
 
   def _nav_stack_tick(self):
     super()._nav_stack_tick()
-    has_internet = self._has_internet
-    # The downloader has its own bounded retry and resume handling. Keep an
-    # explicit install action available when a connectivity probe is blocked
-    # even though the actual manifest hosts are reachable.
+    # Connectivity probes are advisory; the running downloader retries the
+    # actual asset requests even if a HEAD probe is blocked.
     self._continue_button.set_visible(True)
-    self._continue_button.set_text("download\n& install" if has_internet else "try download\n& install")
-    if not has_internet:
-      self._waiting_button.set_text("update server\nnot ready")
+    if not self._has_internet:
+      self._waiting_button.set_text("waiting for\ninternet...")
 
 
 class ProgressPage(NavWidget):
-  def __init__(self):
+  def __init__(self, network_callback):
     super().__init__()
 
     self._progress_title_label = UnifiedLabel("", 64, text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
@@ -69,11 +78,14 @@ class ProgressPage(NavWidget):
     self._progress_percent_label = UnifiedLabel("", 132, text_color=rl.Color(255, 255, 255, int(255 * 0.9 * 0.65)),
                                                 font_weight=FontWeight.ROMAN,
                                                 alignment_vertical=TextAlignmentVertical.BOTTOM)
+    self._wifi_button = Button("Wi-Fi", click_callback=network_callback, font_size=36)
 
   def _back_enabled(self) -> bool:
     return False
 
   def set_progress(self, text: str, value: int):
+    if text == "waiting for internet":
+      text = "waiting for\ninternet"
     self._progress_title_label.set_text(text.replace("_", "_\n") + "...")
     self._progress_percent_label.set_text(f"{value}%")
 
@@ -94,9 +106,10 @@ class ProgressPage(NavWidget):
     self._progress_percent_label.render(rl.Rectangle(
       rect.x + 12,
       rect.y + 18,
-      rect.width,
+      rect.width - 180,
       rect.height,
     ))
+    self._wifi_button.render(rl.Rectangle(rect.x + rect.width - 160, rect.y + rect.height - 80, 148, 68))
 
 
 class Updater(Scroller):
@@ -110,6 +123,7 @@ class Updater(Scroller):
     self.process = None
     self.update_thread = None
     self._failure_reason: str | None = None
+    self._update_complete = False
     self._last_output: deque[str] = deque(maxlen=12)
 
     self._network_monitor = NetworkConnectivityMonitor(probe_urls=manifest_download_urls(manifest_path))
@@ -117,15 +131,17 @@ class Updater(Scroller):
 
     self._network_setup_page = UpdaterNetworkSetupPage(self._network_monitor, self._network_setup_continue_callback)
 
-    self._progress_page = ProgressPage()
+    self._progress_page = ProgressPage(self._open_network_setup)
 
     self._failed_page = UpdaterFailedPage(self._retry, self._open_network_setup)
 
-    self._continue_button = BigPillButton("next")
+    self._complete_page = UpdaterCompletePage(self._open_network_setup)
+
+    self._continue_button = BigPillButton("Connect\nto Wi-Fi")
     self._continue_button.set_click_callback(lambda: gui_app.push_widget(self._network_setup_page))
 
     self._scroller.add_widgets([
-      GreyBigButton("update required", "the download size\nis approximately 1 GB",
+      GreyBigButton("updating system", "tap reboot when\nthe update is ready",
                     gui_app.texture("icons_mici/offroad_alerts/green_wheel.png", 64, 64)),
       self._continue_button,
     ])
@@ -133,7 +149,10 @@ class Updater(Scroller):
     gui_app.add_nav_stack_tick(self._nav_stack_tick)
 
   def _network_setup_continue_callback(self, _):
-    self.install_update()
+    if self.update_thread is not None and self.update_thread.is_alive():
+      gui_app.pop_widgets_to(self, lambda: gui_app.push_widget(self._progress_page))
+    else:
+      self._retry()
 
   def _retry(self):
     gui_app.pop_widgets_to(self, self.install_update)
@@ -144,7 +163,11 @@ class Updater(Scroller):
   def _nav_stack_tick(self):
     self._progress_page.set_progress(self.progress_text, self.progress_value)
 
-    if self._failure_reason is not None:
+    if self._update_complete:
+      self._update_complete = False
+      self.show_event()
+      gui_app.pop_widgets_to(self, lambda: gui_app.push_widget(self._complete_page))
+    elif self._failure_reason is not None:
       reason = self._failure_reason
       self._failure_reason = None
       self._failed_page.set_reason(reason)
@@ -154,28 +177,20 @@ class Updater(Scroller):
   def install_update(self):
     if self.update_thread is not None and self.update_thread.is_alive():
       return
-    try:
-      mark_update_confirmed(self.manifest)
-    except OSError as e:
-      self._failure_reason = f"unable to save update confirmation: {e}"
-      return
-
     self.progress_value = 0
     self.progress_text = "starting update"
     self._last_output.clear()
 
-    def start_update():
-      self.update_thread = threading.Thread(target=self._run_update_process, daemon=True)
-      self.update_thread.start()
-
-    # Start the update process in a separate thread *after* show animation completes
-    self._progress_page.set_shown_callback(start_update)
+    # Wi-Fi navigation must not cancel or restart an update by interrupting
+    # the progress page's entrance animation.
+    self.update_thread = threading.Thread(target=self._run_update_process, daemon=True)
+    self.update_thread.start()
     gui_app.push_widget(self._progress_page)
 
   def _run_update_process(self):
     # TODO: just import it and run in a thread without a subprocess
     try:
-      cmd = [self.updater, "--swap", self.manifest]
+      cmd = [self.updater, "--swap", "--retry-network", self.manifest]
       self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
     except Exception as e:
@@ -188,9 +203,9 @@ class Updater(Scroller):
 
     exit_code = self.process.wait()
     if exit_code == 0:
-      self.progress_text = "rebooting"
+      self.progress_text = "update ready"
       self.progress_value = 100
-      HARDWARE.reboot()
+      self._update_complete = True
     else:
       detail = self._last_output[-1] if self._last_output else "no error output"
       self._failure_reason = f"updater exited with code {exit_code}: {detail}"
@@ -239,8 +254,7 @@ def main():
     gui_app.init_window("System Update")
     updater = Updater(updater_path, manifest_path)
     gui_app.push_widget(updater)
-    if update_confirmed(manifest_path):
-      updater.install_update()
+    updater.install_update()
     for _ in gui_app.render():
       pass
   except Exception as e:

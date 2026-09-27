@@ -19,17 +19,16 @@ def load_updater(name, namespace):
 
 
 @pytest.mark.parametrize("name", ["tici", "mici"])
-def test_failed_update_can_be_retried_without_reboot(name, mocker):
+def test_failed_update_can_be_retried_and_completes_without_auto_reboot(name, mocker):
   failed = mocker.Mock(stdout=iter(["Network retry 4/5 in 10s: ConnectionError: 0\n", "Download failed. Check Wi-Fi, then tap Retry.\n"]))
   failed.wait.return_value = 1
-  successful = mocker.Mock(stdout=iter(["Update complete; rebooting: 100\n"]))
+  successful = mocker.Mock(stdout=iter(["Update complete: 100\n"]))
   successful.wait.return_value = 0
   popen = mocker.Mock(side_effect=[failed, successful])
   hardware = mocker.Mock()
-  confirmation = mocker.Mock()
   app = mocker.Mock()
   namespace = {"subprocess": SimpleNamespace(Popen=popen, PIPE=-1, STDOUT=-2), "HARDWARE": hardware,
-               "re": re, "mark_update_confirmed": confirmation, "gui_app": app, "Screen": SimpleNamespace(PROGRESS=2)}
+               "re": re, "gui_app": app, "Screen": SimpleNamespace(PROGRESS=2)}
   cls = load_updater(name, namespace)
   updater = cls.__new__(cls)
   updater.updater = "/agnos.py"
@@ -37,10 +36,13 @@ def test_failed_update_can_be_retried_without_reboot(name, mocker):
   updater.update_thread = None
   updater._last_output = deque(maxlen=12)
   updater._failure_reason = None
+  updater._update_complete = False
+  updater.update_complete = False
   updater.show_reboot_button = False
   updater.failure_detail = ""
   updater._progress_page = mocker.Mock()
   updater._failed_page = mocker.Mock()
+  updater._complete_page = mocker.Mock()
   updater.show_event = mocker.Mock()
   pending = []
   updater._progress_page.set_shown_callback.side_effect = pending.append
@@ -57,14 +59,19 @@ def test_failed_update_can_be_retried_without_reboot(name, mocker):
     updater._nav_stack_tick()
     assert "Check Wi-Fi" in updater._failed_page.set_reason.call_args.args[0]
     updater._retry()
+    # Second run succeeded: the updater must wait for a manual reboot, not call HARDWARE.reboot() itself.
+    updater._nav_stack_tick()
+    app.push_widget.assert_called_with(updater._complete_page)
   else:
     assert updater.show_reboot_button
     assert "Check Wi-Fi" in updater.failure_detail
     updater.install_update()
+    # Second run succeeded: same manual-reboot expectation on the tici (raylib) updater.
+    assert updater.update_complete
 
   assert popen.call_count == 2
-  assert confirmation.call_count == 2
-  hardware.reboot.assert_called_once()
+  assert popen.call_args.args[0] == ["/agnos.py", "--swap", "--retry-network", "/agnos.json"]
+  hardware.reboot.assert_not_called()
   assert updater.progress_value == 100
 
 
@@ -83,10 +90,44 @@ def test_mici_failure_can_open_network_setup_without_starting_download(mocker):
 
 @pytest.mark.parametrize("name", ["tici", "mici"])
 def test_retry_does_not_start_a_second_active_updater(name, mocker):
-  confirmation = mocker.Mock()
-  namespace = {"mark_update_confirmed": confirmation}
+  thread = mocker.Mock()
+  namespace = {"threading": SimpleNamespace(Thread=thread)}
   cls = load_updater(name, namespace)
   updater = cls.__new__(cls)
   updater.update_thread = SimpleNamespace(is_alive=lambda: True)
   updater.install_update()
-  confirmation.assert_not_called()
+  thread.assert_not_called()
+
+
+def test_mici_wifi_return_keeps_existing_download(mocker):
+  app = mocker.Mock()
+  namespace = {"gui_app": app}
+  cls = load_updater("mici", namespace)
+  updater = cls.__new__(cls)
+  updater.update_thread = SimpleNamespace(is_alive=lambda: True)
+  updater._progress_page = object()
+  updater.install_update = mocker.Mock()
+  updater._network_setup_continue_callback(False)
+  app.pop_widgets_to.call_args.args[1]()
+  app.push_widget.assert_called_once_with(updater._progress_page)
+  updater.install_update.assert_not_called()
+
+
+@pytest.mark.parametrize("name", ["tici", "mici"])
+def test_ui_start_automatically_installs_without_confirmation(name, mocker):
+  path = Path(__file__).resolve().parents[1] / f"ui/{name}_updater.py"
+  tree = ast.parse(path.read_text(encoding="utf-8"))
+  main = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main")
+  app = mocker.Mock()
+  app.render.return_value = iter(())
+  updater = mocker.Mock()
+  namespace = {
+    "sys": SimpleNamespace(argv=[str(path), "/agnos.py", "/agnos.json"]),
+    "gui_app": app, "Updater": mocker.Mock(return_value=updater), "TICI": False,
+    "config_realtime_process": mocker.Mock(),
+    "FontWeight": SimpleNamespace(NORMAL=0, MEDIUM=1, BOLD=2, SEMI_BOLD=3),
+  }
+  exec(compile(ast.Module(body=[main], type_ignores=[]), str(path), "exec"), namespace)
+  namespace["main"]()
+  updater.install_update.assert_called_once_with()
+  updater.close.assert_called_once_with()
