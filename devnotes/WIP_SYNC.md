@@ -1,5 +1,51 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (186차) -- b84621a(AGNOS 자동 설치) 반영 확정, 자동 재부팅은 제외
+
+- carrot-ryu HEAD: 세션 시작 시 226e2e653634dfdedd4135ff46907f7b79bb2011(185차
+  288e212 push 완료를 GitHub 직접 재확인 후 진행) -> 186차 반영 후
+  f56cae36ee2554087a6db82d4cd13e1a7ed693e3(push 완료, GitHub 직접 재확인 완료)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15
+  (172차와 동일, 변동 없음 -- 이번 세션은 이월된 개별 후보 커밋 b84621a에 대한
+  사용자 결정 반영이며 2절 정기 점검 아님)
+
+185차 HANDOFF "다음 작업" 3번(b84621a 반영 여부 사용자 판단)에 대해, 사용자가
+"자동 설치는 유지 + 자동 재부팅은 제거하고 수동 재부팅으로 변경"해서 반영하기로
+결정.
+
+**반영(push 완료) -- 7개 파일 (전부 기존 파일 수정, 신규 파일 없음)**
+- `launch_chffrplus.sh`: 무인 설치 흐름에 맞춘 실패 메시지 문구 변경.
+- `openpilot/system/hardware/tici/agnos.py`: `transient_download_error()` 신설
+  (SSL/영구적 HTTP 에러는 중단, 연결/타임아웃/408/429/5xx는 계속 재시도),
+  `flash_agnos_update()`가 이를 사용하도록 재작성, `--retry-network` CLI 플래그
+  신설, 호출부 2곳 업데이트.
+- `openpilot/system/ui/mici_updater.py` / `tici_updater.py`: 설치 시작 전
+  탭/확인 게이팅 제거(부팅 시 자동 시작), 진행 중 Wi-Fi 접근 유지,
+  `--retry-network` 전달. **MODIFIED**: 설치 완료 시 `HARDWARE.reboot()` 자동
+  호출 대신 수동 Reboot 버튼 화면 표시(mici: 신규 `UpdaterCompletePage`, tici:
+  `update_complete` 플래그로 기존 reboot-button 레이아웃 재사용).
+- `openpilot/system/tests/test_agnos_update_reliability.py` /
+  `test_mici_updater_compatibility.py`: 자동 설치 흐름에 맞춰 갱신.
+- `openpilot/system/tests/test_agnos_updater_retry.py`: 성공 경로 assertion을
+  `hardware.reboot.assert_called_once()` -> `hardware.reboot.assert_not_called()`로
+  변경(수동 재부팅만 허용됨을 테스트로 고정).
+
+**제외**
+- `AGENTS.md`(carrot-ms 자체 AI 작업 로그, carrot-ryu 무관),
+  `docs/cinque_v3_integration_20260919.md`(carrot-ryu에 대응 파일 없음).
+
+**carrot-ryu 고유 수정 사항(향후 carrot-ms 재동기화 시 반드시 참고)**
+- 이번에 반영된 것은 b84621a 원본이 아니라 "자동 설치 + 수동 재부팅"으로 바꾼
+  버전. carrot-ms가 이 영역 후속 커밋을 내면, 재부팅 방식이 여전히 자동인지
+  먼저 확인하고 이 차이를 기준으로 충돌/반영 여부를 판단할 것.
+- 185차의 `managerState.rebootRequired` 알림(자체 재부팅 실행 없는 정보성
+  알림)과는 서로 다른 메커니즘 -- 이번 반영으로도 관계/충돌 없음, 참고용 기록
+  유지(185차 HANDOFF 주의사항 참고).
+
+남은 이월 항목: `828fc8c`(고위험 재분류, 별도 세션 필요), 핵심 발견 68/163차
+게이트/xTurn=6 로그/pytest CI 환경/102ms wide-camera BOOT_TS gap -- 변동 없음.
+`b84621a`는 이번 반영으로 이월 목록에서 제외.
+
 ## 체크포인트: 2026-09-27 (185차) -- 288e212(재부팅 필요 알림) 반영, PV5 전용 2건 제외 확정
 
 - carrot-ryu HEAD: 세션 시작 시 550ed0646d7760b22d44453642d8736252e07588(184차

@@ -1,5 +1,56 @@
 # WIP
 
+## 186차 (완료, 코드 push 완료 / devnotes push 대기) — carrot-ms b84621a(AGNOS 자동 설치) 반영, 자동 재부팅 대신 수동 재부팅으로 수정
+
+185차 HANDOFF "다음 작업" 3번(b84621a, "Automatically install required AGNOS
+updates at startup") 착수. 사용자가 원본 그대로가 아니라 **자동 설치는 유지하되
+자동 재부팅은 제거하고 사용자가 직접 누르는 수동 재부팅으로 변경**해서 반영하기로
+결정. 세션 안에서 코드 반영 스크립트를 v1(자동 설치+자동 재부팅, 실행 안 함)과
+v2(자동 설치+수동 재부팅, 최종 실행분) 두 벌로 준비했고, v2만 사용.
+
+**세션 시작 확인:** 185차 반영분(288e212, 재부팅 필요 알림, 11개 파일)이
+carrot-ryu HEAD `550ed06` → `226e2e6`으로 정상 push됐음을 커밋 patch
+(`github.com/.../commit/226e2e6.patch`, API rate limit 우회)로 직접 재확인 —
+8 수정 + 3 신규, WIP_SYNC.md 185차 기록과 일치.
+
+**b84621a 상세 대조 및 수정 방향:**
+- 원본(happymaj11r/carrot-ms): AGNOS 업데이트 실패 시 재시도 로직 강화
+  (`transient_download_error()` — SSL/영구적 HTTP 에러는 즉시 중단, 연결/타임아웃/
+  408/429/5xx는 `--retry-network`로 계속 재시도) + 설치 성공 시 자동 재부팅.
+- carrot-ryu 반영본: 재시도 로직은 원본 그대로 채택. **설치 완료 화면에서
+  `HARDWARE.reboot()`를 자동 호출하지 않고**, "update ready"/"reboot to finish
+  installing" 안내와 함께 사용자가 직접 눌러야 하는 Reboot 버튼만 제공
+  (mici: 신규 `UpdaterCompletePage`, tici: 기존 reboot-button 레이아웃을
+  `update_complete` 플래그로 재사용).
+- 반영 파일 7개: `launch_chffrplus.sh`(문구), `agnos.py`(재시도 로직+CLI 플래그),
+  `mici_updater.py`/`tici_updater.py`(자동 설치 시작 + 수동 재부팅 UI),
+  `test_agnos_update_reliability.py`/`test_agnos_updater_retry.py`/
+  `test_mici_updater_compatibility.py`(자동 설치·수동 재부팅에 맞춰 수정 —
+  특히 `test_agnos_updater_retry.py`의 성공 경로 assertion을
+  `hardware.reboot.assert_called_once()` → `hardware.reboot.assert_not_called()`로
+  변경해 자동 재부팅이 없음을 테스트로 고정).
+- 제외: `AGENTS.md`(carrot-ms 자체 AI 작업 로그, carrot-ryu와 무관),
+  `docs/cinque_v3_integration_20260919.md`(carrot-ryu에 대응 파일 없음).
+- `Params.get()`/`.put()` 신규 키 없음(10절 등록 대상 아님).
+
+**반영 전 검증(dry-run, carrot-ryu 실제 현재 HEAD `226e2e6` clone 대상):**
+Replace-Block 6곳(launch_chffrplus.sh 1 + agnos.py 5) 전부 원본 대비 정확히
+1회 매치, 전면교체 5개 파일 base64 디코딩/쓰기 정상, `bash -n` + `py_compile`
+6개 파일 전부 통과, 변경 파일이 의도한 7개와 정확히 일치.
+
+**push 후 재확인(16절):** carrot-ryu HEAD `226e2e6` → `f56cae3`. 커밋 메시지/
+변경 파일 7개가 의도와 일치, 7개 파일 전부 raw로 재조회해 dry-run 검증본과
+**바이트 단위로 완전 일치** 확인. `mici_updater.py`/`tici_updater.py`의
+`HARDWARE.reboot()`가 버튼 클릭 콜백에만 연결돼 있고
+`test_agnos_updater_retry.py`가 `hardware.reboot.assert_not_called()`를
+검증함을 재확인 — 자동 재부팅 없음, 커밋 메시지 설명과 일치.
+
+**미완료(이월):** `828fc8c`(고위험 웹 리팩터, 별도 세션 필요), 핵심 발견 68
+실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그, pytest CI 환경(capnp/pytest
+패키지 부재로 이번 세션도 신규/수정 테스트 3개 실제 실행은 미실시, py_compile
+문법 검증만 완료), 102ms wide-camera BOOT_TS gap — 전부 변동 없음.
+
+
 ## 185차 (완료, push 대기) — carrot-ms 288e212(재부팅 필요 알림) 반영, PV5 전용 2건(84aa7f0/f0ee8f2) 제외 확정
 
 184차 HANDOFF "다음 작업" 1번(288e212)을 상세 대조 후 반영. 2번 항목(84aa7f0/f0ee8f2,
