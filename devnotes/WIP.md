@@ -1,5 +1,34 @@
 # WIP
 
+## 182차 (완료) — log.capnp @62/@63 cruiseCoastingPercent 타입 정합성 확인 및 수정
+
+181차 HANDOFF 미완료 1순위였던 log.capnp @62/@63 필드 타입(UInt8 vs Int32) 정합성 재확인을 진행함.
+
+**대조 결과:**
+- happymaj11r/openpilot 0006296 원본 commit diff를 GitHub commit diff endpoint(`.diff`)로 직접 확보해 log.capnp 해당 hunk를 carrot-ryu 현재 HEAD(67f41f87)와 라인 단위로 대조.
+- 필드 번호(@62/@63)는 원본과 정확히 일치 -- 179차/176차 우려와 달리 번호 드리프트는 없었음(신규 확인).
+- `cruiseCoastingTarget @62 :Float32`는 타입까지 완전 일치.
+- `cruiseCoastingPercent @63`만 타입 불일치: 원본 `:UInt8`, carrot-ryu는 176차에 원본 diff 없이 실사용처만 근거로 재구성하며 `:Int32`로 임의 지정된 상태였음(원인 규명 완료).
+
+**영향 분석:**
+- `cruiseCoastingPercent`를 실제로 참조하는 곳은 `longitudinal_planner.py`/`longcontrol.py`/`test_cruise_coasting.py` 3곳뿐(전수 grep 확인).
+- 값은 항상 `cruise_coasting.py`의 `coasting_percent()`가 `int(min(MAX_COASTING_PERCENT, max(0, value)))`로 0~10 범위로 클램프 -- 음수/오버플로우 케이스가 없어 Int32였던 상태에서도 실제 기능 버그는 없었음(순수 스키마 정합성 이슈로 결론).
+- 10절 원칙(carrot-ms 대비 차이는 항상 설명 가능해야 함) 기준으로 이 Int32는 의도적 설계가 아니라 176차 재구성 부산물이라 설명 불가 상태였고, 향후 carrot-ms의 log.capnp 인접 영역 패치 diff가 `:UInt8;` context를 인용할 경우 문자열/git apply 매칭이 실패할 잠재 리스크가 있어 원본과 정확히 맞춤.
+
+**반영:** `cereal/log.capnp`의 `cruiseCoastingPercent @63` 타입을 `Int32` -> `UInt8`로 1줄 수정(주석 등 나머지 내용 무변경).
+
+**검증:**
+- anchor(`cruiseCoastingPercent @63 :Int32; ...` 전체 줄) SHA 고정 원본 대조로 매치 정확히 1회 확인.
+- 로컬 bare mirror(carrot-ryu 실제 HEAD 67f41f87 스냅샷 기준) dry-run으로 anchor 단일매치 + `git show --numstat`(1 insertion/1 deletion, 의도한 변경량과 일치) 확인.
+- 실차 검증: 해당 없음(스키마 타입 변경, 런타임 값 범위 무영향, 12절).
+
+**완료:** log.capnp @62/@63 정합성 확인(번호 일치 확인 + 타입 불일치 원인 규명) 및 수정 스크립트 작성 -- push는 사용자 실행 대기(16절, 아직 반영 완료로 간주하지 않음).
+
+**미완료(이월, 변동 없음):**
+1. 저위험 소규모 9건, 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보.
+2. pytest CI 환경(conftest.py 포함 실제 cereal 실행) 미실행.
+3. docs/camera_sof_gap_20260923.md의 102ms wide-camera BOOT_TS gap 자체 -- 향후 관측 필요.
+
 ## 181차 (완료) — c84b175(CPU 스케쥴링) 상세 대조 후 제외 확정
 
 세션 시작 시 4절 절차대로 지침 문서(커밋 619a338b)와 HANDOFF.md 확인 -- 코드/노트 브랜치 HEAD 모두 180차 기록과 일치, 괴리 없음. 180차 HANDOFF.md 미완료 1순위였던 c84b175(happymaj11r/openpilot, ajouatom a60f554a7dfb3a229be6fa7ae6715be5c3ae14da cherry-pick, "Run onroad displays at low priority on cores 6 and 7") 상세 대조를 진행함.
