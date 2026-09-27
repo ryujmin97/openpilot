@@ -1,5 +1,99 @@
 # WIP
 
+## 185차 (완료, push 대기) — carrot-ms 288e212(재부팅 필요 알림) 반영, PV5 전용 2건(84aa7f0/f0ee8f2) 제외 확정
+
+184차 HANDOFF "다음 작업" 1번(288e212)을 상세 대조 후 반영. 2번 항목(84aa7f0/f0ee8f2,
+PV5 내비 감속 카메라 로직)은 사용자 확인(이 차량은 PV5가 아님)에 따라 반영
+검토 대상에서 제외 확정.
+
+**288e212 "Remind drivers to reboot when downloaded code is not running"
+(happymaj11r, ajouatom ac4e9f4b cherry-pick) 상세 대조:**
+- 매니저가 부팅 락 보유 상태에서 시작 시 체크아웃 커밋을 스냅샷(`UpdateStatus`
+  신규 클래스)해두고, 5초 주기(일반 우선순위 매니저 루프, 100Hz 컨트롤 루프
+  아님)로 현재 체크아웃과 비교. 2회 연속 같은 값으로 바뀐 것이 확인돼야만
+  `managerState.rebootRequired`를 True로 설정(일시적 변화 오탐 방지).
+- selfdrived가 onroad 15초 경과 후 `managerState.rebootRequired`를 보고 1회성
+  PERMANENT 알림(8초, "Reboot to Apply Update" / "업데이트 적용을 위해
+  재부팅하세요") 표시. REPLAY/SIMULATION 제외, 참여(engage)를 막거나 해제하지
+  않음, 더 높은 우선순위 알림에 자리 양보.
+- `Params.get()`/`.put()` 신규 키 없음 — cereal 메시지 필드만 사용하므로
+  `params_keys.h` 등록 대상 아님(10절 해당 없음).
+
+**carrot-ryu 현재 HEAD(`550ed06`) 대비 상세 대조 결과:**
+1. `openpilot/cereal/log.capnp` — `OnroadEvent.EventName.updateRebootRequired
+   @125`(EventName enum 내 최고 사용 번호 `@124` 다음, 충돌 없음 확인),
+   `ManagerState.rebootRequired @1`(기존 `processes @0`만 있던 struct, 충돌
+   없음 확인). 참고: 파일 내 다른 위치(별도 struct)에 이미 `@125`를 쓰는
+   `navRouteNavd` 필드가 있으나, capnp 필드 번호는 struct별로 독립된
+   네임스페이스라 실제 충돌 아님을 확인.
+2. `openpilot/selfdrive/selfdrived/events.py` — `EVENTS` 딕셔너리에
+   `EventName.updateRebootRequired` 항목 추가. 사용된 심볼(`AlertStatus.userPrompt`,
+   `AlertSize.mid`, `Priority.LOW`, `VisualAlert.none`, `AudibleAlert.prompt`)
+   전부 파일 내 기존 사용례로 실존 확인.
+3. `openpilot/selfdrive/selfdrived/selfdrived.py` — `__init__`에
+   `update_reboot_alerted` 플래그, `update_events()` 초입에 `update_reboot_alert()`
+   호출 추가, 신규 메서드 `update_reboot_alert()`(`data_sample()` 직전) 추가.
+4. `openpilot/system/manager/manager.py` — `BASEDIR`/`UpdateStatus` import 2건,
+   `manager_init()` 반환형 `UpdateStatus`로 변경 + 인스턴스 생성/반환,
+   `manager_thread()`가 `update_status` 인자를 받아 `managerState.rebootRequired`
+   발행, `main()`의 두 호출부(`manager_init()`/`manager_thread()`)도 함께 수정.
+   기존 `test_manager.py`의 `manager.manager_init()`/`manager.main()` 호출은
+   반환값을 사용하지 않으므로 시그니처 변경에 영향받지 않음(확인 완료).
+5. 신규 파일 `openpilot/system/manager/update_status.py`(체크아웃 커밋
+   비교 로직, git/`build.json` 양쪽 지원), 신규 테스트
+   `openpilot/selfdrive/selfdrived/tests/test_update_reboot_alert.py`(AST로
+   `update_reboot_alert` 메서드만 추출해 격리 실행하는 방식, selfdrived 전체
+   임포트 없이 실행 가능),
+   `openpilot/system/tests/test_update_reboot_status.py`(git 저장소/worktree/
+   `build.json` 시나리오 8종).
+6. 번역: `app.pot`/`app_en.po`/`app_ko.po`/`app_zh-CHS.po` 4개 파일 끝에 신규
+   msgid 2종 추가(원본 patch도 이 4개 로케일에만 추가, en/ko/zh-CHS 외 8개
+   로케일은 원본 자체도 미추가 — 반영 범위 일치 확인). `app_ko.po`/`app_zh-CHS.po`는
+   원본 patch가 삽입하려던 위치(carrot-ryu 자체의 "SCC detected on camera bus"
+   항목 직후)가 carrot-ryu에는 다른 컨텍스트라 그대로 적용되지 않아, 파일 실제
+   끝(`NO DETECTION` 항목 뒤)에 동일 텍스트를 추가하는 방식으로 위치만 조정
+   (내용은 원본과 동일, 번역 키/문구 변경 없음).
+
+**제외:**
+- `docs/ev5_cluster_corner_display.md` — EV5 클러스터 코너 디스플레이 전용
+  문서(파일명 자체가 EV5 특정)로 DH2015와 무관, 반영 대상에서 제외.
+
+**PV5 전용 2건 제외 확정 (사용자 확인, 2026-09-27):**
+- `84aa7f0`/`f0ee8f2`(navi 7713/7714 감속 관련, carstate.py) — 172차/183차에서
+  "carrot-ryu 자체 carstate.py 커스텀과 얽혀 다중 충돌"로 이월돼 있던 항목.
+  사용자가 이 차량이 PV5가 아님을 확인해 반영 검토 대상에서 완전 제외.
+
+**검증:**
+- 정적 분석: `git apply --check`로 원본 patch를 carrot-ryu 현재 HEAD(`550ed06`)에
+  대조(문서 1건 부재 + 번역 2개 파일 컨텍스트 위치 차이만 실패, 핵심 코드
+  6개 파일은 라인 오프셋만 있고 전부 클린 적용 확인). 이후 Replace-Block
+  방식으로 재구성(앵커 18개 전부 원본 대비 1회 매치 확인 후 치환).
+- `py_compile`: 변경/신규 `.py` 파일 6개(`events.py`/`selfdrived.py`/
+  `manager.py`/`update_status.py`/신규 테스트 2개) 전부 통과.
+- `log.capnp`: pycapnp/capnp 컴파일러가 없는 샌드박스 환경이라 실제 스키마
+  컴파일은 미실시 — 대신 `EventName` enum 내 `@125` 미사용 확인, `ManagerState`
+  struct 내 `@1` 미사용 확인(모두 grep으로 실제 원본 파일 대조), 삽입 결과
+  줄 단위 재확인으로 문법 형태(세미콜론 등) 원본과 동일함을 확인.
+- pytest: 샌드박스에 `capnp`/`pytest` 패키지가 없어 cereal 임포트 및 실제
+  테스트 실행은 미실시(기존 세션들과 동일한 환경 제약, 새로 발생한 문제
+  아님). 신규 테스트 2개는 코드 리뷰로 로직 검증(예: 2회 연속 확인 로직,
+  15초 게이트, REPLAY/SIMULATION 제외 등 원본 커밋 메시지의 명세와 일치).
+- 스크립트 dry-run: 로컬 bare mirror(carrot-ryu 실 HEAD `550ed06` 스냅샷)
+  대상 전체 실행(clone → Replace-Block 14개 + 신규 파일 3개 + 번역 append
+  4개 → py_compile → commit → push). `git show --stat`(11 files changed,
+  323 insertions(+), 4 deletions(-))과 push된 11개 파일 전부가 이 세션에서
+  검증한 최종본과 바이트 단위로 일치함을 diff로 확인.
+- 실차 검증: 미실시(정적 분석 단계, 12절).
+
+**다음 작업:**
+1. 사용자 스크립트 실행(코드) 확인 후 GitHub 직접 재확인(carrot-ryu HEAD 이동,
+   11개 파일 diff 재조회).
+2. `828fc8c`(고위험 재분류, 3796줄 웹 리팩터) 별도 세션에서 상세 대조.
+3. `b84621a`(AGNOS 자동 설치) 반영 여부 사용자 판단 대기.
+4. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보,
+   pytest CI 환경(conftest.py 포함 실제 cereal 실행), 102ms wide-camera BOOT_TS
+   gap(`docs/camera_sof_gap_20260923.md`) — 계속 이월.
+
 ## 184차 (완료) — cfe9251→cf288c1 순서 수동 병합: viewport 키보드 처리 + 설정 상위 이동
 
 183차에서 "`.github/workflows/tests.yaml`만 컨텍스트 충돌하는 순서 의존 관계"로

@@ -1,5 +1,47 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (185차) -- 288e212(재부팅 필요 알림) 반영, PV5 전용 2건 제외 확정
+
+- carrot-ryu HEAD: 세션 시작 시 550ed0646d7760b22d44453642d8736252e07588(184차
+  push 완료를 GitHub 직접 재확인 후 진행), 이번 세션 반영분은 push 대기(스크립트
+  작성 및 로컬 bare dry-run 검증만 완료, 16절)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15
+  (172차와 동일, 변동 없음 -- 이번 세션은 184차 이월 항목 상세 대조, 2절 정기
+  점검 아님)
+
+184차 HANDOFF "다음 작업" 순서대로 `288e212`부터 착수. 사용자 확인에 따라
+`84aa7f0`/`f0ee8f2`(PV5 내비 감속 카메라 로직)는 이 차량이 PV5가 아니므로
+반영 검토 대상에서 완전 제외.
+
+**반영(push 대기) -- 11개 파일 (8 수정 + 3 신규)**
+- `openpilot/cereal/log.capnp`: `OnroadEvent.EventName.updateRebootRequired @125`,
+  `ManagerState.rebootRequired @1` 추가.
+- `openpilot/selfdrive/selfdrived/events.py`: `updateRebootRequired` PERMANENT
+  알림 추가.
+- `openpilot/selfdrive/selfdrived/selfdrived.py`: `update_reboot_alerted` 플래그
+  + `update_reboot_alert()` 메서드/호출 추가.
+- `openpilot/system/manager/manager.py`: `UpdateStatus` 배선(초기화/스레드/`main()`).
+- `openpilot/system/manager/update_status.py`(신규): 체크아웃 커밋 비교 로직.
+- `openpilot/selfdrive/selfdrived/tests/test_update_reboot_alert.py`(신규),
+  `openpilot/system/tests/test_update_reboot_status.py`(신규).
+- `openpilot/selfdrive/ui/translations/{app.pot,app_en.po,app_ko.po,app_zh-CHS.po}`:
+  신규 msgid 2종(en/ko/zh-CHS만, 원본 patch와 반영 범위 일치). ko/zh-CHS는
+  carrot-ryu 자체 항목과의 위치 충돌로 파일 끝에 삽입(내용은 원본과 동일).
+
+**제외**
+- `docs/ev5_cluster_corner_display.md`(EV5 클러스터 전용 문서, DH2015 무관).
+
+**PV5 전용 제외 확정**
+- `84aa7f0`/`f0ee8f2`(navi 7713/7714 감속, carstate.py) -- 사용자 확인(이
+  차량은 PV5 아님)에 따라 반영 검토 대상에서 완전 제외.
+
+남은 이월 항목: `828fc8c`(고위험 재분류, 별도 세션 필요), `b84621a`(반영 여부
+사용자 판단 필요), 핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경/
+102ms wide-camera BOOT_TS gap -- 변동 없음.
+
+- 다음 확인 시점: 사용자 스크립트 실행(push) 확인 후 GitHub 직접 재확인,
+  이어서 `828fc8c` 상세 대조 착수 여부 논의.
+
 ## 체크포인트: 2026-09-27 (184차) -- cfe9251→cf288c1 실제 반영 완료, 183차 tests.yaml 분류 정정
 
 - carrot-ryu HEAD: 세션 시작 시 480b7f7 (183차 스크립트 push 완료 확인됨), 이번 세션
