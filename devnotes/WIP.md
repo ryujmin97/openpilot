@@ -1,5 +1,42 @@
 # WIP
 
+## 189cha (완료) - 188cha push GitHub 직접 재확인, docs/driving_mode_recovery.md 개행 버그 발견/수정
+
+사용자가 188차 스크립트 2개(carrot-ryu용, carrot-ryu-note용) 실행 후 "완료"라고
+알려옴. 16절에 따라 보고를 그대로 신뢰하지 않고 GitHub을 직접 재확인:
+
+- carrot-ryu HEAD: 5d2c9b0 -> 23bcdc3 (push 확인). 원본 3441183과 동일하게
+  8 files changed, 51(+)/25(-).
+- carrot-ryu-note HEAD: d83554d -> 03c7f21 (push 확인). 3 files changed
+  (WIP.md/WIP_SYNC.md/HANDOFF.md), 188차 devnotes 반영과 일치.
+
+**8개 파일 blob hash 재대조 결과 (23bcdc3):**
+- driving_mode.py, test_driving_mode.py, carrot_settings.json,
+  docs/user/{en,ko}/{cruise-gap,settings}.md (7개): 이번 세션에서 사전
+  검증한 기대 hash와 byte 단위로 전부 정확히 일치.
+- docs/driving_mode_recovery.md (신규 파일, 1개): 기대 hash(bbcd9153bd)와
+  다름(실제 cf7cb3fc) -- 원본 대비 파일 끝 개행(trailing newline) 1개가
+  누락된 상태로 커밋됨. 내용 자체(25줄)는 완전히 동일, 마지막 줄 뒤 개행
+  유무만 다름.
+
+**원인:** 188cha_carrot_ryu_sync_3441183.ps1이 docs/driving_mode_recovery.md
+본문을 PowerShell 이중따옴표 here-string(@" ... "@)으로 작성했는데, 이
+here-string은 닫는 "@ 줄 바로 앞의 줄바꿈을 본문에 포함하지 않는다. 나머지
+7개 파일은 Invoke-ReplaceBlock으로 기존 파일의 앵커만 치환했기 때문에 이
+문제가 없었고, 신규 파일을 전체 작성한 이 1곳에서만 발생했다.
+
+**수정:** 189cha_fix_trailing_newline.ps1 작성 -- 기존 파일을 다시 쓰지 않고
+파일 끝에 개행 1바이트가 없을 때만 추가하도록 구성, 결과 hash가
+bbcd9153bd(기대값)와 일치하는지 스크립트 자체에서 재확인 후 종료하도록 함.
+Linux 샌드박스에서 동일 로직으로 시뮬레이션해 기대 hash와 정확히 일치함을
+사전 확인. 사용자에게 전달, 실행 대기.
+
+**교훈(다음 반영 스크립트 작성 시 참고):** 신규 파일 전체를 PowerShell
+here-string으로 작성할 때는 이중따옴표(@" ... "@)든 단일따옴표(@' ... '@)든
+본문 마지막 줄 뒤에 원본 파일의 trailing newline 유무를 별도로 확인하고,
+필요하면 명시적으로 "`n"을 추가해야 한다 -- here-string 자체가 마지막
+줄바꿈을 보존해주지 않는다.
+
 ## 188cha (스크립트 작성/검증 완료, push 대기) - carrot-ms 3441183(Safe 모드 해제 조건 완화) carrot-ryu 반영
 
 무료 사용량 소진으로 중단됐던 이전 세션(187차 이후, WIP.md/HANDOFF.md에 미기록)을
