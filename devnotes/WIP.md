@@ -1,5 +1,36 @@
 # WIP
 
+## 191cha (완료) (Claude, Claude Sonnet 5) - 5절 작업 흐름을 순차 전달로 변경 (세션당 코드1회+devnotes1회 push로 축소)
+
+**배경(사용자 지적):** 기존 5절은 코드 반영 스크립트와 devnotes 반영 스크립트를
+동시에 전달하는 구조였다. 그런데 devnotes(HANDOFF.md)에는 "코드 push가 성공했다"는
+확정 사실이 들어가야 하는데, 동시 작성 시점엔 아직 사용자가 코드 스크립트를
+실행하지 않아 그 결과를 알 수 없다. 그래서 실제로는 코드 push(1차) → devnotes
+push(2차, 결과 미확정 상태로 작성) → 사용자가 코드 push 로그를 전달하면 Claude가
+GitHub로 재확인(16절) → 확인 결과를 반영하려고 devnotes를 다시 고쳐 재push(3차)하는
+불합리한 흐름이 반복되고 있었다.
+
+**변경(19절 절차, 사용자 승인 완료):** 5절을 "코드 변경이 있는 세션"과 "없는
+세션"으로 나누고, 코드 변경이 있는 세션은 순차 전달로 바꿨다.
+1. 코드 반영 스크립트만 먼저 전달 (devnotes는 아직 작성하지 않음)
+2. 사용자 실행 → push 로그 전달
+3. Claude가 GitHub raw(SHA고정)로 재확인(16절 그대로 유지)
+4. 확인된 결과를 담아 devnotes 반영 스크립트를 그때 작성해 전달
+5. 사용자 실행 → push
+6. 다음 세션이 이어받음
+
+코드 변경이 없는 세션(devnotes/지침 문서만 다루는 세션, 이번 191cha 포함)은 기존과
+동일하게 devnotes 스크립트 1개만 전달한다.
+
+**결과:** 세션당 코드 1회 push + devnotes 1회 push로 종료되고, "완료 확인용 재push"가
+구조적으로 사라진다. 16절(임의로 완료로 가정하지 않음) 원칙은 그대로 유지 —
+오히려 devnotes를 확인 후에만 쓰므로 더 엄격해짐.
+
+**반영:** PROJECT_INSTRUCTIONS_carrot-ryu.md 5절 교체(19절 절차, 본 devnotes와 같은
+커밋으로 반영). HANDOFF.md도 이번 세션 기준으로 갱신.
+
+**실차 검증:** 미실시(12절, 이번 세션은 코드 변경 없음, devnotes/지침 문서만 변경).
+
 ## 190cha (완료) - 9절 체크리스트 8번(pwsh 파서 검증) rate limit 문제 해결 + 189cha 소급 검증
 
 189차까지 `api.github.com/repos/PowerShell/PowerShell/releases/latest`가 rate limit에
