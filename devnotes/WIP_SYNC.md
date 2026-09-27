@@ -1,5 +1,17 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (181차) -- c84b175(CPU 스케쥴링) 상세 대조 완료, 제외 확정
+
+- carrot-ryu HEAD: 67f41f87fec16ca5626f550c213b4b03eba53c0e (180차 이후 변동 없음, 이번 세션은 분석/devnotes만)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음)
+
+c84b175(happymaj11r/openpilot, ajouatom a60f554a7dfb3a229be6fa7ae6715be5c3ae14da cherry-pick, "Run onroad displays at low priority on cores 6 and 7") 26개 파일 diff 상세 대조 완료. 신규 DisplayScheduler가 onroad 시 core6(UI)/core7(클러스터 HUD)을 공유하는 구조인데, carrot-ryu는 core6=카메라 단독, core7=modeld+plannerd+dmonitoringmodeld 전용으로 이미 코어 격리 정책을 명시적으로 유지 중(carrot_ui_sched.py 주석, 이전 camera-core5-trial 롤백 9e1a5bf). 구조적 충돌 확인. 이 커밋이 노리는 이점(오프로드 little-core 배치, onroad 저우선순위 공유)은 carrot-ryu가 이미 다른 메커니즘으로 확보하고 있어 추가 실익 없음. 카롯 클러스터 HUD/eGPU 미사용도 사용자 확인.
+
+**반영 대상에서 완전 제외 -- 종결.**
+
+남은 이월 항목: log.capnp @62/@63 필드 타입 정합성, 저위험 9건/핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경. (c84b175, dcffb7f 모두 종결됨.)
+
+
 ## 체크포인트: 2026-09-27 (180차) -- dcffb7f(카메라 SOF 스타트업 phase) cherry-pick 완료, CI/AGENTS.md 누락분 추가 반영
 
 - carrot-ryu HEAD: 67f41f87fec16ca5626f550c213b4b03eba53c0e (parent c70dad323746a265be3b68939721e69845d5e9ff = dcffb7f 핵심 cherry-pick, 그 parent 005f1202 = 179차)

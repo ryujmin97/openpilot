@@ -1,5 +1,35 @@
 # WIP
 
+## 181차 (완료) — c84b175(CPU 스케쥴링) 상세 대조 후 제외 확정
+
+세션 시작 시 4절 절차대로 지침 문서(커밋 619a338b)와 HANDOFF.md 확인 -- 코드/노트 브랜치 HEAD 모두 180차 기록과 일치, 괴리 없음. 180차 HANDOFF.md 미완료 1순위였던 c84b175(happymaj11r/openpilot, ajouatom a60f554a7dfb3a229be6fa7ae6715be5c3ae14da cherry-pick, "Run onroad displays at low priority on cores 6 and 7") 상세 대조를 진행함.
+
+**분석 내용:**
+- 26개 파일(+453/-544) diff 전체를 GitHub API로 확보해 파일별로 직접 대조.
+- 핵심은 신규 `openpilot/common/display_scheduling.py`(`DisplayScheduler` 클래스): onroad일 때만 지정 코어에 nice19로 렌더 스레드를 붙이고, offroad에는 little core(0~3)로 되돌리는 자동화 로직.
+- `ui.py`: 기존 `cores={0,1,2,3}` 고정 방식을 `DisplayScheduler(6, ...)`로 교체 -- onroad 시 core6을 카메라와 공유.
+- `cluster/main.py`: 클러스터 HUD 렌더 스레드도 `DisplayScheduler(7, ...)`로 core7 공유. 이와 맞물려 사용자 설정 `ClusterHudCoreMode`/`ClusterHudLiveFps` 완전 폐지(자동 10fps/5fps-eGPU 판정으로 대체), `cluster_config.py`/`cluster_autorun.py`(-122줄)/`cluster_run.py`(-55줄)/`params_keys.h`/`carrot_settings.json` 연쇄 정리.
+- `camerad/main.cc`: 코드 자체는 무변경(`set_core_affinity({6})` 그대로), 주석만 갱신.
+
+**핵심 발견 -- 구조적 불일치:** carrot-ryu의 실제 코어 배치는 이 커밋의 전제와 다름.
+- core5: 업스트림=범용, carrot-ryu=UI(SCHED_OTHER)+radard(FIFO51) 전용.
+- core6: 업스트림=카메라+onroad UI 공유(nice19), carrot-ryu=카메라 단독.
+- core7: 업스트림=isolcpus+클러스터 HUD 공유(nice19), carrot-ryu=modeld(FIFO54)+plannerd(FIFO51)+dmonitoringmodeld 전용, carrot_ui_sched.py에 "UI 재배치 금지" 명시.
+
+이 커밋을 그대로 반영하면 carrot-ryu가 (이전 camera-core5-trial 롤백 9e1a5bf 이후) 의도적으로 지켜온 실시간 프로세스 코어 격리 정책과 정면 충돌. `test_camera_cpu_placement.py` 신규 테스트도 `assert core == 6`으로 이 가정을 하드코딩.
+
+**사용자 확인 및 결론:**
+- 카롯 클러스터 HUD(외장 USB 디스플레이)/eGPU 미사용 확인.
+- 코어 공유 방식이 주는 이점(오프로드 little-core 배치, 온로드 nice19 공유)은 carrot-ryu가 이미 다른 방식(오프로드 시 big core 자체 offline + core0 부팅 / 온로드 시 코어 격리+SCHED_OTHER 계약)으로 동등하게 확보하고 있어 추가 실익 없음 확인.
+- **제외 확정.** WIP_SYNC.md 이월 항목에서 c84b175 종결 처리.
+
+**미완료(이월, 변동 없음):**
+1. log.capnp @62/@63 필드 타입(UInt8 vs Int32) 정합성 재확인.
+2. 저위험 소규모 9건, 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보.
+3. pytest CI 환경(conftest.py 포함 실제 cereal 실행) 미실행.
+
+**검증:** 이번 세션은 코드 변경 없음(분석 및 devnotes 기록만) -- carrot-ryu HEAD 67f41f87 그대로. 실차 검증: 해당 없음(분석 세션).
+
 ## 180cha (완료) — dcffb7f(카메라 SOF 스타트업 phase 불일치) cherry-pick 반영
 
 이전 세션(터미널/Termux)에서 happymaj11r/openpilot dcffb7f(카메라 startup phase를 번들 Panda 펌웨어에 맞춤) cherry-pick 코드 반영까지는 완료됐으나(carrot-ryu HEAD c70dad323), devnotes 기록이 누락된 채 세션이 종료됨. 이번 세션에서 GitHub 상태 직접 재확인으로 이 괴리를 발견(16절)하고, 누락 부분 마무리 + devnotes 반영을 진행함.
