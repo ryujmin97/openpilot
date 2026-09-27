@@ -1,5 +1,27 @@
 # WIP
 
+## 180cha (완료) — dcffb7f(카메라 SOF 스타트업 phase 불일치) cherry-pick 반영
+
+이전 세션(터미널/Termux)에서 happymaj11r/openpilot dcffb7f(카메라 startup phase를 번들 Panda 펌웨어에 맞춤) cherry-pick 코드 반영까지는 완료됐으나(carrot-ryu HEAD c70dad323), devnotes 기록이 누락된 채 세션이 종료됨. 이번 세션에서 GitHub 상태 직접 재확인으로 이 괴리를 발견(16절)하고, 누락 부분 마무리 + devnotes 반영을 진행함.
+
+**반영 내용 (원본 dcffb7f, ajouatom 7bdd374e 기준):**
+1. `hw.h`: DRIVER_CAMERA_CONFIG.staggered_sof를 true→false로 변경 — 번들된 panda/board/drivers/clock_source.h가 모든 FSIN을 TIM1에서 동일 위상으로 구동하는데(TIM8 오프셋 펌웨어 없음), 기존 코드는 driver 카메라에 25ms stagger를 기대해 매 부팅마다 raw frame 41에서 sync timeout 후 fallback되는 상태였음.
+2. `test_onroad.py`/`test_camerad.py`: driver 25ms stagger 검증 assert 제거, 3개 카메라 모두 2ms/1.1ms 이내 동기화 검증으로 변경(현재 하드웨어 실제 동작에 맞춤).
+3. `spectra.cc`/`spectra.h`/`camera_event_timing.h`(신규): SOF 이벤트 타이밍 수동 진단 로직 추가(카메라별 초당 최대 1회, 75ms 이상 SOF 간격/수신 지연 시 WARN 로그) — 프레임 accept/reject, validity, 스케줄링에는 영향 없는 순수 관측용.
+4. `docs/camera_sof_gap_20260923.md`(신규): Ioniq5 C4 실제 로그(102.044ms wide-camera BOOT_TS gap) 분석 원문 — 이 startup phase 수정이 그 gap의 해결책이 아님을 명시.
+5. (이번 세션 추가) `.github/workflows/tests.yaml`: CI에 신규 진단 테스트(test_camera_event_timing) 실행 스텝 추가. `AGENTS.md`: 위 카메라 SOF 이슈 요약을 저장소 메모리 최상단에 기록. 최초 cherry-pick 시 이 2개 파일이 빠져 있던 것을 사용자 확인 후 추가 반영.
+
+**검증:**
+- GitHub 직접 재확인(16절): carrot-ryu HEAD `c70dad323`(dcffb7f 핵심 cherry-pick) → `67f41f87`(CI/AGENTS.md 추가분), 두 커밋 모두 diff 내용을 SHA 고정 조회로 직접 대조해 upstream 원본과 일치 확인(단 .github/workflows/tests.yaml 앵커 주변은 carrot-ryu 자체 CI 구성이 upstream과 달라 위치만 동등하게 맞춤).
+- CI/AGENTS.md 추가분은 로컬 bare mirror(carrot-ryu 실제 HEAD 기준) dry-run으로 anchor 단일매치 + 삽입 결과 사전 검증 후 전달.
+- 실차 검증: 미실시(12절) — 이 커밋 자체가 "실제 25ms stagger 미지원 하드웨어에 맞춰 startup 오검출을 제거"하는 성격이라, 다음 실주행 시 카메라 부팅이 raw frame 41 fallback 없이 정상 동기화되는지 확인 필요.
+
+**미완료(이월):**
+1. docs/camera_sof_gap_20260923.md에 기술된 102ms wide-camera BOOT_TS gap 자체(주행 중 간헐적 발생)는 이번 수정의 대상이 아님 — 별도 관측 필요(진단 로그가 이번에 추가됐으므로 향후 발생 시 WARN 로그로 포착 가능).
+2. WIP_SYNC.md 이월 항목 중 dcffb7f는 이번 반영으로 해소, c84b175(CPU 스케쥴링)는 계속 미착수.
+3. (기존 이월과 동일) log.capnp @62/@63 필드 타입 정합성, 저위험 9건, 핵심 발견 68/163차 게이트/xTurn=6 로그, pytest CI 환경.
+
+
 ## 179cha (완료) — carrot_settings.json UI 노출 + test_settings_schema.py 가드 테스트 (0006296 잔여 항목)
 
 178차 HANDOFF 다음 작업 1번(carrot_settings.json UI 노출, test_settings_schema.py 183→184 불일치 재확인)을 이어받음.

@@ -1,5 +1,15 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-27 (180차) -- dcffb7f(카메라 SOF 스타트업 phase) cherry-pick 완료, CI/AGENTS.md 누락분 추가 반영
+
+- carrot-ryu HEAD: 67f41f87fec16ca5626f550c213b4b03eba53c0e (parent c70dad323746a265be3b68939721e69845d5e9ff = dcffb7f 핵심 cherry-pick, 그 parent 005f1202 = 179차)
+- carrot-ms 마지막 검토·동기화 체크포인트: 087fdca74f0e2c90b7c6b216e913736961ef8c15 (172차와 동일, 변동 없음 -- 이번 세션은 기존 이월 항목 해소, 2절 정기 점검 아님)
+
+happymaj11r/openpilot dcffb7f(원본 ajouatom 7bdd374e cherry-pick, "Match camera startup phase to bundled Panda firmware") 반영 완료. 172차 이후 장기 이월되던 개별 커밋 이월 항목(c84b175, dcffb7f) 중 dcffb7f 해소. 코드 cherry-pick 자체(c70dad323)는 이전 세션에서 push까지 완료됐으나 devnotes 기록이 누락된 채 세션이 종료된 상태를 이번 세션이 GitHub 직접 재확인(16절)으로 발견해 devnotes를 소급 반영함. 원본 diff 중 .github/workflows/tests.yaml(CI 진단 테스트 스텝)과 AGENTS.md(이슈 요약 메모)는 최초 cherry-pick에서 누락되어 있던 것을 사용자 확인 후 이번 세션에서 추가 반영(67f41f87).
+
+남은 이월 항목: c84b175(CPU 스케쥴링) 미착수. 그 외 저위험 9건/핵심 발견 68/163차 게이트/xTurn=6 로그/log.capnp 타입 정합성/pytest CI 환경은 변동 없음.
+
+
 ## 체크포인트: 2026-09-27 (179차) -- 0006296 잔여 항목(carrot_settings.json/test_settings_schema.py) 반영 완료
 
 - carrot-ryu HEAD: 005f1202b3bd1139ca97195e7cda716e70f35588 (parent 107279570bc9110fc58b9937707f9ae448343c51, 178차)
