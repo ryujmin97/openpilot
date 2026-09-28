@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-29 (207차)
+- README.md: 207차 추가 절(pytest 밖에서 Plant를 돌릴 때 OpenpilotPrefix로 감쌀 것) 추가. 197cha 측정 스크립트는 저장소에 없는 스크래치라 toolkit에 등록하지 않기로 결정(사용자 승인, WIP.md 207cha). 스크립트 파일은 변경 없음.
+
 ## 2026-09-29 (206차 계속)
 - pytest_ci_setup.sh: pip 목록에 pytest-mock 추가 + 주석 2줄(README 206차 계속 추가 참고). mocker 픽스처 테스트(test_plannerd_clock.py 등)가 pytest-mock 없이 54 errors였던 것을 설치 후 54 passed로 확인(206cha 샌드박스). 다른 단계와 다른 toolkit 파일은 변경 없음.
 

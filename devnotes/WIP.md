@@ -1,5 +1,35 @@
 # WIP
 
+## 207cha (완료) (Claude, Claude Sonnet 5.5) - (g) 남은 결정 2건 확정: (b') dashcam_replay는 코드 수정 없이 "carrot-ms와 동일한 알려진 업스트림 불일치"로 기록하고 종결, (v) 197cha 측정 스크립트는 toolkit에 넣지 않고 README에 OpenpilotPrefix 메모만 (코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 206cha 계속에서 사용자가 (c) pytest-mock만 승인하고 (b')/(v)는 미결정으로 남겼는데, 이번 세션에서 사용자가 두 제안을 그대로 승인했다. 코드 변경이 없고 devnotes(toolkit README/CHANGELOG 포함)만 바뀌므로 5절의 "코드 변경이 없는 경우"로 devnotes 스크립트 1개로 처리한다.
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 조회한 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `5671ec2e4b22737efd479e2a38f3fdcd3cba4c94`(206cha 계속 devnotes)를 얻어 SHA 고정본을 다시 조회했고 `cmp` 일치(50,696바이트, 변경 없음)를 확인했다. carrot-ryu HEAD `058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044`는 HANDOFF의 코드 base와 일치했다. 사용자가 붙여준 numstat(`5671ec2`, 5개 파일)은 206cha 계속 작업 8번의 기록과 일치하지만, 그 커밋의 내용은 조회하지 않았고 HEAD SHA만 대조했다. 이번 편집 대상은 note `5671ec2` SHA 고정으로 조회했다(blob: HANDOFF.md `b73ce49`, WIP.md `4c52ee5`, toolkit/README.md `0418427`, toolkit/CHANGELOG.md `f8a86ae`).
+
+**1. (b') dashcam_replay 처리 방침 확정(사용자 승인, 코드 변경 없음).**
+- 결정: 코드를 고치지 않고 "carrot-ms 원본과 동일한 알려진 업스트림 불일치"로 기록하고 종결한다. 원인과 이력은 WIP.md 206cha 계속 1번 그대로다(replay_query.py 554행이 이벤트마다 `value_kind`를 덮어써 마지막 이벤트가 결정, 테스트 201행은 `number-list` 기대, 두 줄 모두 업스트림 a6a174cf에서 함께 들어와 이후 수정 없음, 두 파일 모두 carrot-ms 원본과 바이트 동일).
+- 근거: 10절 최소 변경 원칙과 carrot-ms 일치 원칙, 고치면 원본과 갈라지고 업스트림의 의도를 알 수 없음, `number-list` 라벨로 동작이 갈리는 곳을 찾지 못함(206cha 계속 조사 범위, `*.map`/`*.min.js` 제외).
+- 앞으로의 취급: `test_dashcam_replay.py`의 `test_raw_query_extracts_nested_lists_and_state_transitions`(201행) 1건 실패는 "알려진 업스트림 실패"로 보고 회귀로 세지 않는다(기준선 1 failed / 10 passed). 재검토 조건은 (a) carrot-ms가 `replay_query.py`나 그 테스트를 바꿔 동기화 점검(2절)에 나타날 때, (b) 이 label이 실제 기능 문제로 이어진다는 근거가 나올 때다.
+
+**2. (v) 197cha 측정 스크립트 toolkit 등록 여부 확정(사용자 승인, 코드 변경 없음).**
+- 결정: toolkit에 넣지 않는다. `toolkit/README.md`에 "207차 추가" 절로 `OpenpilotPrefix` 메모만 남겼다.
+- 근거: 그 스크립트는 저장소에 없는 스크래치라 재현할 수 없고, 핵심 아이디어(Plant를 서브클래스로 감싸 매 스텝 기록)는 `controls/tests/test_following_distance.py`의 `RecordingPlant`에 이미 있다.
+
+**3. README 메모의 근거 확인(carrot-ryu `058391e` raw, SHA 고정으로 조회).**
+- `openpilot/common/prefix.py`에 `OpenpilotPrefix`가 있고(`OPENPILOT_PREFIX` 환경변수, msgq 경로 `/dev/shm/msgq_<prefix>` 생성, 종료 시 정리), 루트 `conftest.py` 6행이 import하고 51행이 `with OpenpilotPrefix(...)`로 쓴다.
+- `openpilot/selfdrive/test/longitudinal_maneuvers/plant.py`의 `Plant.__init__`이 `Params()`를 만들고(68행) 값이 없는 키에 `params_keys.h` 기본값을 put한다(주석 "same as manager_init()", 69~73행).
+- `test_following_distance.py` 25행에 `RecordingPlant(original_plant)`가 있고 33행에서 `maneuver_module.Plant`를 대체한다.
+- 확인하지 않은 것: 기본 Params 경로(`Path.home()/.comma/params/d`, 디바이스 `/data/params/d`)와 감싸지 않았을 때의 `IpcError: Messaging failure with radarState` 증상은 197cha 세션 기록이며 이번에 재현하지 않았다. README에도 그렇게 표기했다.
+
+**4. 변경한 파일(devnotes 1회 push).** `devnotes/WIP.md`(이 회차 추가), `devnotes/HANDOFF.md`(교체), `devnotes/toolkit/README.md`(207차 추가 절 추가), `devnotes/toolkit/CHANGELOG.md`(2026-09-29 207차 항목 추가). 코드와 toolkit 스크립트 파일은 변경 없음.
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). 주행 코드는 바뀌지 않았다.
+- `toolkit/pytest_ci_setup.sh` 수정본(206cha 계속, pytest-mock 추가)의 처음부터 끝까지 재실행은 이번에도 하지 않았다(다음 새 세션에서 처음 실행할 때 `pip list`로 확인).
+- (b')는 `058391e` 한 시점에서만 재현했고 도입 커밋 `a6a174cf`에서의 실행 여부와 업스트림 실제 CI 결과는 확인하지 않았다(206cha 계속과 동일).
+- carrot/server/tests 7건과 넓은 회귀 재집계는 이번에도 손대지 않았다.
+- 이번 devnotes 스크립트 사전 검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다.
+
 ## 206cha 계속 (완료) (Claude, Claude Sonnet 5.5) - (g) toolkit·테스트 정리: (b') dashcam_replay 원인 확정(업스트림 불일치, 코드 변경 없음) + toolkit/pytest_ci_setup.sh에 pytest-mock 추가(사용자 승인 1번, 실차 미실시)
 
 **배경:** 206cha 앞부분((i) 설계 판단 A 확정, note `6de0834` 반영을 GitHub로 재확인)에 이어 사용자가 다음 작업 (g) toolkit·테스트 정리를 선택했다. HANDOFF 미완료 6의 (b')/(c)/(v) 세 항목이다. 조사 결과와 함께 세 가지 결정을 제안했고(1번 (c) pytest-mock 추가, 2번 (v) 넣지 않음 + README에 OpenpilotPrefix 메모만, 3번 (b') 기록만), 사용자는 "1번"만 승인했다. 2번과 3번은 응답이 없어 미결정으로 남긴다. 코드 변경은 없고 toolkit(devnotes) 변경이라 5절의 "코드 변경이 없는 경우"로 devnotes 스크립트 1개로 처리한다.

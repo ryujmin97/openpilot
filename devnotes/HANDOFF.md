@@ -1,18 +1,24 @@
-Worker: Claude (206cha 세션, Claude Sonnet 5.5). 사용자가 다음 작업 중 (i) blended forceDecel이 ACC보다 약한 점의 설계 판단을 선택했고, 코드 읽기와 carrot-ms 원본 대조 뒤 "의도로 확정(A, 현행 유지)"으로 결정했다(코드 변경 없음, 실차 미실시). 같은 세션에서 이어서 (g) toolkit·테스트 정리를 진행해 (b') dashcam_replay 원인을 확정하고(업스트림 불일치, 코드 변경 없음) 사용자 승인(1번)으로 toolkit/pytest_ci_setup.sh에 pytest-mock을 추가했다(실차 미실시). 직전 205cha 세션(Claude Sonnet 5.5)은 미완료 15번 검토와 comfort_brake 2.5 통일(carrot-ryu 058391e)을 처리했고, 그 앞 204cha 세션(Claude Sonnet 5.5)은 99012c3(blended forceDecel)을 독립 검증했다.
+Worker: Claude (207cha 세션, Claude Sonnet 5.5). 사용자가 (g)의 남은 결정 2건을 제안대로 승인했다: (b') dashcam_replay는 코드 수정 없이 "carrot-ms와 동일한 알려진 업스트림 불일치"로 기록하고 종결, (v) 197cha 측정 스크립트는 toolkit에 넣지 않고 toolkit/README.md에 OpenpilotPrefix 메모만 추가했다(코드 변경 없음, 실차 미실시). 직전 206cha 세션(Claude Sonnet 5.5)에서 사용자가 다음 작업 중 (i) blended forceDecel이 ACC보다 약한 점의 설계 판단을 선택했고, 코드 읽기와 carrot-ms 원본 대조 뒤 "의도로 확정(A, 현행 유지)"으로 결정했다(코드 변경 없음, 실차 미실시). 같은 세션에서 이어서 (g) toolkit·테스트 정리를 진행해 (b') dashcam_replay 원인을 확정하고(업스트림 불일치, 코드 변경 없음) 사용자 승인(1번)으로 toolkit/pytest_ci_setup.sh에 pytest-mock을 추가했다(실차 미실시). 직전 205cha 세션(Claude Sonnet 5.5)은 미완료 15번 검토와 comfort_brake 2.5 통일(carrot-ryu 058391e)을 처리했고, 그 앞 204cha 세션(Claude Sonnet 5.5)은 99012c3(blended forceDecel)을 독립 검증했다.
 Date: 2026-09-29
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (base commit 058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044 = 205cha comfortBrake 2.4 -> 2.5 통일 커밋, 부모 99012c363cc4177e93e4b250b06bf3898ee6bba9 = 204cha blended forceDecel 수정 커밋, 그 부모 0a1a9fc5da304cef25de23eabbff678d68aa396a = 202cha ACC forceDecel 수정 커밋. 206cha는 코드 변경 없음, HEAD는 058391e 그대로.)
-Note Branch: carrot-ryu-note (base commit 6de0834d433ef21caf7c7c7b40814d0c6bad544b = 206cha 앞부분 devnotes(GitHub 재확인 완료). 206cha 계속 devnotes는 이 커밋 위에 push.)
+Note Branch: carrot-ryu-note (base commit 5671ec2e4b22737efd479e2a38f3fdcd3cba4c94 = 206cha 계속 devnotes(git ls-remote HEAD 일치 확인, 커밋 내용은 사용자가 붙인 numstat 5개 파일과 206cha 계속 작업 8번 기록의 일치까지만 대조). 207cha devnotes는 이 커밋 위에 push.)
 carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 완료: 948b139 이식, 4770067 제외, DM2 계열 8건 보류, jetlink 12건 + a482d02 제외). 다음 점검은 c771c4e 이후 신규 커밋부터이며, 세션 시점 HEAD인 c36f6e7(Hyundai CAN-FD 조향 터치 감지)은 아직 판정하지 않았다.
 
-작업(206cha, 이 세션):
+작업(207cha, 이 세션):
+1. 4절 0단계: 지침 문서 v2를 브랜치 URL로 읽은 뒤 note 5671ec2 SHA 고정본으로 재조회, 일치(변경 없음, 50,696바이트) 확인. carrot-ryu HEAD 058391e가 HANDOFF base와 일치.
+2. (b') 처리 방침 확정(사용자 승인, 코드 변경 없음): "carrot-ms 원본과 동일한 알려진 업스트림 불일치"로 기록하고 종결. test_dashcam_replay.py의 test_raw_query_extracts_nested_lists_and_state_transitions(201행) 1건 실패는 회귀로 세지 않는다(기준선 1 failed / 10 passed). 재검토 조건: carrot-ms가 replay_query.py나 그 테스트를 바꿔 동기화 점검에 나타날 때, 또는 실제 기능 문제 근거가 나올 때(WIP.md 207cha 1번).
+3. (v) 결정(사용자 승인, 코드 변경 없음): 197cha 측정 스크립트는 toolkit에 넣지 않는다. toolkit/README.md에 "207차 추가" 절(pytest 밖에서 Plant를 돌릴 때 OpenpilotPrefix로 감쌀 것)만 추가했다. 근거 확인은 carrot-ryu 058391e raw로 했다(prefix.py, conftest.py 6/51행, plant.py 68~73행, test_following_distance.py 25/33행). 기본 Params 경로와 IpcError 증상은 197cha 기록이며 재현하지 않았다(WIP.md 207cha 2~3번).
+4. WIP.md 207cha, 이 HANDOFF.md, toolkit/README.md, toolkit/CHANGELOG.md를 기록(devnotes push 1).
+
+작업(206cha, 이전 세션 이월):
 1. 4절 0단계: 지침 문서 v2를 브랜치 URL로 읽은 뒤 note 9941726 SHA 고정본으로 재조회, 일치(변경 없음, 50,696바이트) 확인. carrot-ryu HEAD 058391e가 HANDOFF base와 일치.
 2. (i) blended forceDecel이 ACC보다 약한 점의 설계 판단(코드 변경 없음): long_mpc.py 536행 `np.clip(v_cruise, v_ego - 2.0, 1e3)`가 blended의 약한 감속의 원인이고, carrot-ms 원본 491행에 같은 줄이 있음을 확인했다. 사용자가 A(현행 유지)로 확정했다(WIP.md 206cha).
 3. forceDecel 트리거 확인: controlsd.py 323행(alertLevel three 또는 softDisabling), driverUnresponsive3는 PERMANENT 알림만 있어 3초보다 길게 이어질 수 있음(다른 해제 경로는 미확인).
 4. WIP.md 206cha와 이 HANDOFF.md를 기록(devnotes push 1, note 6de0834, GitHub 재확인 완료).
 5. (계속) 다음 작업 (g) toolkit·테스트 정리 선택. (b') dashcam_replay 1건 원인 확정: replay_query.py 554행이 이벤트마다 value_kind를 덮어써 마지막 이벤트(값 1개)가 `number`로 결정, 테스트는 `number-list` 기대. 두 줄 모두 업스트림 a6a174cf(2026-07-17)에서 함께 들어와 그 뒤 수정 없음, carrot-ms 원본과 바이트 동일. 코드 변경 없음.
 6. (계속) (c) 사용자 승인(1번): toolkit/pytest_ci_setup.sh 3/6 단계 pip 목록에 pytest-mock 추가(+주석 2줄), README.md/CHANGELOG.md 갱신. 근거 실측: test_plannerd_clock.py pytest-mock 없이 54 errors -> 설치 후 54 passed.
-7. (계속) (v)와 (b') 처리 방침은 사용자가 아직 결정하지 않았다(제안: (v) 넣지 않음 + README에 OpenpilotPrefix 메모, (b') 기록만).
+7. (계속) (v)와 (b') 처리 방침은 사용자가 아직 결정하지 않았다(제안: (v) 넣지 않음 + README에 OpenpilotPrefix 메모, (b') 기록만). -> 207cha에서 사용자가 두 제안을 모두 승인했다(위 작업(207cha) 2~3번).
 8. (계속) WIP.md 206cha 계속, 이 HANDOFF.md, toolkit 3개 파일을 기록(devnotes push 2).
 
 작업(205cha, 이전 세션 이월):
@@ -52,6 +58,7 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 10. (205cha) 미완료 15번 검토 결과(코드 변경 없음): blended 하한을 -autoNaviSpeedDecelRate로 맞추지 않고 ACCEL_MIN(-4.0)을 유지하는 것을 권고. 앞차 없음: -4.0/-3.0/-1.2 모두 min a=-0.587(하한이 걸리지 않음). 정지 앞차(25 m/s 접근, 60 m): -4.0은 정지(최소 간격 +1.47 m), -1.2는 앞차를 지나감(-90.77 m). ACC는 source == 'cruise'일 때만 그 하한을 쓰므로 조건이 다르다. 사용자가 이의를 제기하지 않으면 이 부분은 종결.
 11. (206cha) (i) 설계 판단 결과(코드 변경 없음): blended forceDecel이 ACC보다 약한 것은 carrot-ms 원본의 blended 설계(long_mpc.py 536행 clip 하한 v_ego - 2.0, 원본 491행과 동일)에서 온 의도된 동작으로 확정(A, 현행 유지). 202cha/204cha는 원본에서 두 모드 모두 작동하지 않던 forceDecel을 작동하게 만든 변경이고, 204cha는 blended를 원본 설계 수준까지만 고쳤다. 앞차가 있으면 두 모드 모두 ACCEL_MIN 제동이 살아 있다. 수치는 204/205cha 값과 등가속도 외삽이며(외삽: blended 정지까지 약 29 s/360 m, ACC 약 21 s/260 m, 측정 아님) 실차 검증: 미실시(12절).
 12. (206cha 계속) (b') dashcam_replay 원인 확정(코드 변경 없음)과 (c) pytest_ci_setup.sh에 pytest-mock 추가(toolkit 변경). (b')는 업스트림 불일치(replay_query.py 554행 value_kind가 이벤트마다 덮어써짐 vs 테스트 `number-list` 기대, a6a174cf에서 함께 도입, carrot-ms와 바이트 동일, 업스트림 tests.yaml에 이 테스트가 없는 것으로 보임). (c)는 test_plannerd_clock.py 54 errors -> 54 passed로 확인, 수정한 스크립트의 전체 재실행은 하지 않았다(bash -n만). 실차 검증: 미실시(12절).
+13. (207cha) (g) 남은 결정 2건 종결(코드 변경 없음): (b') dashcam_replay는 코드 수정 없이 "carrot-ms와 동일한 알려진 업스트림 불일치"로 기록(재검토 조건은 위 작업(207cha) 2번), (v) 197cha 측정 스크립트는 toolkit에 넣지 않고 toolkit/README.md 207차 추가 절에 OpenpilotPrefix 메모만 남김. 실차 검증: 미실시(12절).
 
 미완료:
 1. test_longitudinal 서브테스트 실패 4건이 남음(204cha 기준, 203cha의 5건에서 disabled+blended가 해소됨): allow_throttle=False pitch +0.1(e2e=True와 e2e=False, force_decel=False 2건, 원인 기존과 동일), ACC cut-in + force_decel(203cha 재확인 speed=0.1208/a=-0.0283, 199cha와 일치), resume from a stop(e2e=False, 지연시간 0.15초/3프레임). 부모 포함 신판 7 failed(서브테스트 4 + 부모 3). 아래 2번 참고.
@@ -59,7 +66,7 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 3. (205cha 해결) comfort_brake는 2.5로 통일(058391e). 남은 것은 실차에서 정상상태 추종 거리를 로그로 확인하는 항목(60 km/h 약 2.3 m, 100 km/h 약 6.4 m 짧아짐, 계산, 실차 미검증)과 승차감/뒤차 관점 확인.
 4. v=0 정상상태 gap이 desired(5.502)보다 약 1.06 m 작은 현상(4.43~4.48) 원인 미조사. 정지 제어 쪽 별개 요인으로 추정, 테스트는 통과.
 5. carrot/server/tests 7건 원인 확인(6건 aiohttp NotAppKeyWarning 에러 취급 -- 샌드박스 aiohttp 버전 문제일 수 있으나 프로젝트 핀 미조회, 1건 test_web_upload.py:215 소스 문자열 단언), 기준선 실행 범위 포함 여부 미확인. 넓은 회귀 현재 수치도 미확인(198cha와 같음).
-6. (206cha 계속 갱신) (b') 원인은 확정됐다(위 완료 12번, 업스트림 불일치). 남은 것은 처리 방침의 사용자 결정뿐이다(제안: 코드 수정 없이 "carrot-ms와 동일한 알려진 업스트림 불일치"로 기록, 고친다면 replay_query.py에서 `"[]" in path`일 때만 list로 표기하는 안이며 원본과 갈라진다). (c) pytest-mock 추가는 반영됐다(사용자 승인 1번). 다음 새 세션에서 pytest_ci_setup.sh를 처음 실행할 때 pytest-mock이 함께 설치되는지 확인할 것(수정본 전체 재실행은 미실시). (v) 197cha 측정 스크립트는 사용자 결정 대기(제안: 넣지 않음, `RecordingPlant`가 test_following_distance.py 25행에 이미 있고 저장소에 없는 스크래치라 재현 불가, README에 OpenpilotPrefix 메모만).
+6. (207cha 종결) (b')와 (v) 결정은 끝났다(위 완료 13번). 남은 것은 다음 새 세션에서 pytest_ci_setup.sh를 처음 실행할 때 pytest-mock이 함께 설치되는지 확인하는 것뿐이다(206cha 계속에서 추가했고, 수정본 전체 재실행은 미실시).
 7. (이월) 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보, 102ms wide-camera BOOT_TS gap(진단 WARN 로그 대기).
 8. (이월) 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR=1.00 실차 검증.
 9. (이월) f992f9c LFS 전환 재검토: 디바이스에서 LFS pull 실패나 계정 LFS 한도 문제가 확인되면 별도 코드 세션 + 사용자 승인으로 판단.
@@ -71,6 +78,7 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 15. (205cha 검토 완료, 실차/설계 확인만 남음) blended 하한(ACCEL_MIN -4.0)과 ACC 경로(-autoNaviSpeedDecelRate, source == 'cruise' 한정)의 차이는 코드 읽기와 프로브로 검토했고 ACCEL_MIN 유지를 권고한다(위 완료 10번, WIP.md 205cha 1번). 남은 것: (a) DM alert 3 / softDisabling에서 blended + reset_state True + v_cruise=0이 실제 발생하는지(LongControl 상태 전이와 로그, 202cha 확인 항목 13번과 같은 계열), (b) (206cha 해결) blended forceDecel이 ACC보다 약한 점은 의도로 확정(A, 현행 유지, 위 완료 11번, WIP.md 206cha). 재검토 조건: 실차 로그에서 blended + forceDecel이 발생하고 정지가 늦다고 확인될 때, 또는 DH 2015에서 운전자 무반응 상황에 blended를 쓰는 빈도가 높다고 확인될 때(B: v_cruise=0일 때만 blended의 v_ego - 2.0 하한을 낮춰 ACC 수준으로 강화, 별도 승인 필요). 코드 변경이 되면 안전 관련이라 별도 승인 필요(10절).
 
 검증:
+- (207cha) 코드 변경 없음. 근거 확인은 carrot-ryu 058391e raw(SHA 고정)를 grep/head로 읽은 것이 전부다: openpilot/common/prefix.py(OpenpilotPrefix 정의), conftest.py 6/51행, plant.py 68~73행, test_following_distance.py 25/33행. 기본 Params 경로와 IpcError 증상은 재현하지 않았다. 이번 devnotes 스크립트 사전 검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다. 실차 검증: 미실시(12절).
 - (206cha 계속) 코드 변경 없음. (b') carrot-ryu 058391e에서 pytest_ci_setup.sh(수정 전본)로 환경 구성 후 test_dashcam_replay.py -n 0 -p no:randomly: 1 failed / 10 passed(0.61 s), 실패는 test_raw_query_extracts_nested_lists_and_state_transitions 201행. git log -S(pickaxe)와 파일별 git log로 두 줄이 a6a174cf에서 함께 도입되고 이후 수정 없음을 확인, replay_query.py/test_dashcam_replay.py를 carrot-ms 원본 raw와 cmp해 바이트 동일 확인. `number-list` git grep 2건(코드 1, 테스트 1, *.map/*.min.js 제외). (c) test_plannerd_clock.py(-n 0 -p no:randomly): pytest-mock 제거 상태 54 errors(0.20 s), 설치 후 54 passed(0.59 s). 수정한 pytest_ci_setup.sh는 bash -n만 통과했고 전체 재실행은 하지 않았다. 이번 devnotes 스크립트 사전 검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다. 실차 검증: 미실시(12절).
 - (206cha) 코드 변경 없음. long_mpc.py(058391e)의 536행/546~547행/468행 부근과 carrot-ms 원본 raw(long_mpc.py 491행 clip, `min(v_cruise, carrot.v_cruise)`/`reset_state and v_cruise` 줄 없음 grep)를 대조했고, controlsd.py 323행/events.py 590~596행/policy.py 360~362행/state.py SOFT_DISABLE_TIME을 읽었다. 감속 수치는 203~205cha 샌드박스 값과 등가속도 외삽이며 이번 세션에 재측정하지 않았다. 이번 devnotes 스크립트 사전 검증은 Linux pwsh 7.6.6 기준(파서 오류 0건, bare 저장소 일반/CRLF 재현)이며 Windows PowerShell 5.1 실제 실행이 아니다. 실차 검증: 미실시(12절).
 - (205cha) 코드 058391e 독립 검증(이 세션): `git ls-remote` HEAD 일치, 부모 99012c3, numstat 2파일 각 1/1, blob 2989b30 -> f7d1bfe(carrot_functions.py)와 34894be -> 1a9f682(test_longitudinal_gap_recovery.py)가 스크립트 기대값과 일치, CR 0개, py_compile 통과. pytest 7개 파일(-n 0 -p no:randomly, pytest-mock): 기준선 99012c3 7 failed / 278 passed / 54 subtests passed(108 s), 신판 같은 수치(109 s), SUBFAILED/FAILED 7줄 diff 없음. 15번 프로브: 하한 -4.0/-3.0/-1.2 앞차 없음 min a=-0.587 동일, 정지 앞차 60 m에서 -4.0 정지(+1.47 m)/-1.2 통과(-90.77 m). 코드 스크립트 사전 검증은 Linux pwsh 7.6.6 기준(파서 오류 0건, 앵커 시뮬레이션, bare 저장소 일반/CRLF 재현)이며 Windows PowerShell 5.1 실제 실행이 아니다(실제 실행은 사용자 PC, push 로그와 GitHub 재확인). 이번 devnotes 스크립트도 Linux pwsh 기준. 실차 검증: 미실시(12절).
@@ -85,7 +93,7 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 주의사항:
 - 199cha 계속의 재현 수치는 샌드박스 하네스 값이다(toolkit/pytest_ci_setup.sh로 구성, 정확한 수치는 -n 0). 재현 스크래치는 untracked 임시 테스트 파일로 만들고, 저장소 파일을 임시로 고친 뒤에는 반드시 `git checkout <파일>`로 되돌린 다음 `git status`로 확인할 것(`openpilot/cereal/gen/`는 환경 구성 산출물). 코드 변경(특히 force_decel 계열)은 별도 승인이 필요하다(10절). long_mpc.py 468행은 202cha(0a1a9fc)에서 이미 수정됐다.
 - 시작 전에 WIP.md 197cha 회차(원인, 공식, 표), 필요하면 196cha(T_FOLLOW 매핑, 18건 표), 195cha, 193cha 계속 회차도 읽을 것.
-- Plant.__init__은 Params()에 params_keys.h 기본값을 put한다(값이 없는 키만). pytest 안에서는 conftest의 OpenpilotPrefix로 격리되지만, pytest 밖에서 Plant를 돌리면 기본 Params 경로(Path.home()/.comma/params/d, 디바이스는 /data/params/d)에 실제로 쓴다. pytest 밖에서 돌릴 때는 `with OpenpilotPrefix():`(openpilot.common.prefix)로 감쌀 것: msgq 경로(안 감싸면 IpcError: Messaging failure with radarState)와 Params가 함께 격리된다.
+- Plant.__init__은 Params()에 params_keys.h 기본값을 put한다(값이 없는 키만). pytest 안에서는 conftest의 OpenpilotPrefix로 격리되지만, pytest 밖에서 Plant를 돌리면 기본 Params 경로(Path.home()/.comma/params/d, 디바이스는 /data/params/d)에 실제로 쓴다. pytest 밖에서 돌릴 때는 `with OpenpilotPrefix():`(openpilot.common.prefix)로 감쌀 것: msgq 경로(안 감싸면 IpcError: Messaging failure with radarState)와 Params가 함께 격리된다. (207cha: toolkit/README.md 207차 추가 절에도 같은 내용을 옮겼다. 이 두 증상은 197cha 기록이며 207cha에서 재현하지 않았다.)
 - pytest 실행 옵션: pyproject.toml addopts에 `-n auto --dist=loadgroup`이 있으므로 `-p no:xdist`는 쓰지 말 것(사용법 오류로 종료). xdist는 `-n 0`으로 끄고 병렬은 `-n 4`. 요약 줄을 grep으로 걸러 볼 때 결과가 비면 tail로 에러부터 확인할 것(197cha에서 옵션 오류가 grep에 가려져 2회 헛실행).
 - 소요 시간: 환경 구성 1분 남짓(백그라운드), following_distance 18건 약 53초(-n 4), 프로브 1회(v 하나, 3 personality) 약 8초.
 - 전역 git user.email은 ryujmin97@gmail.com(사용자 확인, f075028f, df0da45, b788ac1에 반영 확인). 기존 커밋 99754dc8/82ed7712 등의 author는 자리표시자이고 6ee1ce7b만 깨진 문자열(기능 영향 없음, --force 금지라 그대로). 스크립트는 전역 값이 ASCII 이메일 형식이 아니거나 미설정이면 ryujmin97@users.noreply.github.com으로 폴백한다(미설정이어도 죽지 않는 ((@(& git config --global user.email) -join "")).Trim() 형태 사용, toolkit 템플릿에는 아직 미반영).
@@ -104,5 +112,5 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 - (205cha) 058391e의 Author 이메일이 사용자 로그에서 ryujmin@naver.com로 표시됐다. 위 전역 user.email 기록(ryujmin97@gmail.com)과 다르다. 스크립트는 전역 설정이 ASCII 이메일 형식이면 그대로 쓰므로 사용자 PC 설정이 바뀌었거나 다른 값일 수 있다. 기능 영향 없고 --force 금지라 그대로다. 의도 확인이 필요하면 사용자에게 물을 것.
 
 다음 작업:
-1. 사용자가 선택: (d) carrot-ms 점검 계속(c771c4e 이후, c36f6e7부터), (b) 202cha/204cha/205cha 실차 확인 항목 정리(미완료 13, 15번 (a)와 comfort_brake 정상상태 추종 거리), (f) 이월 항목(실차 검증들, 미완료 10번 포함), (g) 남은 결정 2건((b') dashcam_replay 처리 방침, (v) 197cha 스크립트 toolkit 추가 여부, 미완료 6 참고). (i) blended forceDecel 설계 판단은 206cha에서 A(현행 유지)로 확정해 종결했고 (c) pytest-mock 추가도 206cha 계속에서 반영했다.
+1. 사용자가 선택: (d) carrot-ms 점검 계속(c771c4e 이후, c36f6e7부터), (b) 202cha/204cha/205cha 실차 확인 항목 정리(미완료 13, 15번 (a)와 comfort_brake 정상상태 추종 거리), (f) 이월 항목(실차 검증들, 미완료 10번 포함). (g)는 207cha에서 종결했다((b') 기록만, (v) 넣지 않음 + README 메모). (i) blended forceDecel 설계 판단은 206cha에서 A(현행 유지)로 확정해 종결했고 (c) pytest-mock 추가도 206cha 계속에서 반영했다.
 2. 코드 변경이 나오면 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes 1회).

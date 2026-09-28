@@ -159,3 +159,17 @@ carrot-ryu의 dead code(호출/참조되지 않는 코드) 판별에 115~135차�
 ### 206차 계속 추가 (pytest_ci_setup.sh에 pytest-mock 추가)
 
 `pytest_ci_setup.sh`의 3/6 단계 pip 목록 끝에 `pytest-mock`을 추가하고 이유를 주석 2줄로 남겼다(다른 단계는 변경 없음). `mocker` 픽스처를 쓰는 테스트(예: `controls/tests/test_plannerd_clock.py`, `system/athena/tests`, `system/hardware/tests`)는 pytest-mock이 없으면 전부 ERROR로 끝난다. 206cha 샌드박스 실측(`test_plannerd_clock.py`, `-n 0 -p no:randomly`): pytest-mock 없이 54 errors, 설치 후 54 passed. 이전에는 세션마다 `pip install pytest-mock`을 수동으로 해야 했다. 수정한 스크립트를 처음부터 끝까지 다시 실행해 보지는 않았고 `bash -n` 구문 검사만 통과했다(다음에 이 스크립트를 새 세션에서 처음 돌릴 때 실제 확인).
+
+### 207차 추가 (pytest 밖에서 Plant를 돌릴 때: OpenpilotPrefix로 감쌀 것)
+
+`openpilot/selfdrive/test/longitudinal_maneuvers/plant.py`의 `Plant.__init__`은 `Params()`를 만들고 `params_keys.h` 기본값을 아직 값이 없는 키에 put한다(68~73행, 주석 "same as manager_init()"). pytest 안에서는 루트 `conftest.py`(51행)가 테스트마다 `OpenpilotPrefix`(`openpilot/common/prefix.py`)로 msgq 경로와 Params 경로를 격리한다. pytest 밖(임의의 측정/분석 스크립트)에서 Plant를 돌릴 때는 이 격리가 없으므로 아래처럼 감싼다.
+
+```python
+from openpilot.common.prefix import OpenpilotPrefix
+with OpenpilotPrefix():
+    ...  # Plant/Maneuver 생성과 실행
+```
+
+197cha 측정 기록: 감싸지 않으면 기본 Params 경로(`Path.home()/.comma/params/d`, 디바이스는 `/data/params/d`)에 실제로 쓰고, msgq 경로도 격리되지 않아 `IpcError: Messaging failure with radarState`가 났다. 이 두 증상은 197cha 세션 기록이며 207cha에서는 재현하지 않았다(코드로 확인한 것은 위 68~73행, `conftest.py` 51행, `prefix.py`의 존재까지).
+
+매 스텝 기록이 필요하면 `openpilot/selfdrive/controls/tests/test_following_distance.py` 25행의 `RecordingPlant`(Plant 서브클래스를 만들어 33행에서 `maneuver_module.Plant`를 대체하는 방식)를 참고한다. 197cha 측정 스크립트 자체는 저장소에 없는 스크래치라 재현할 수 없어 toolkit에 넣지 않기로 했다(207cha 사용자 결정, WIP.md 207cha 2번).
