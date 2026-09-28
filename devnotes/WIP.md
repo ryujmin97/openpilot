@@ -1,5 +1,50 @@
 # WIP
 
+## 199cha (완료) (Claude, Claude Sonnet 5) - 남은 12건 분류 결과 기록(직전 세션 채팅 기록 기반, 이 세션에서 재현하지 않음), 코드 변경 없음
+
+**배경:** 198cha 이후 이어진 세션에서 HANDOFF 미완료 3번(남은 12건 분류)을 읽기 전용으로 진행했으나, 결과가 devnotes에 기록되기 전에 세션이 끊겼다. 사용자가 그 채팅 기록을 이번 세션에 붙여줬고, 이 세션은 재현 없이 그 기록만 근거로 devnotes에 남기는 방식을 사용자가 선택했다(재현 후 기록하는 안과 둘 중 하나로 제시). 따라서 아래 수치·원인·측정값은 모두 그 채팅 기록에서 옮긴 것이며, 이 세션의 샌드박스에서 다시 실행하거나 코드를 다시 읽어 확인하지 않았다(3절, 12절). 기록 이후 코드가 바뀌었을 가능성도 이 세션에서는 대조하지 않았다.
+
+**0. 4절 0단계와 반영 상태 확인(이 세션에서 직접 수행).** 지침 문서 v2를 브랜치 URL과 SHA 고정 URL(carrot-ryu-note `3fdfeae72bc076f03ccb3760caf093453475c4bb`) 양쪽으로 조회해 `cmp` 일치(50696 바이트)를 확인했다. `git ls-remote` 결과 carrot-ryu HEAD는 `df0da457b3bc527a994cb77fae50126567ee3b3f`(198cha 코드), carrot-ryu-note HEAD는 `3fdfeae`(198cha devnotes)였다. HANDOFF.md는 198cha 상태였고, 아래 분류 결과는 저장소 어디에도 기록돼 있지 않음을 확인했다(16절: 채팅 기록과 저장소 사이의 괴리를 해소하는 것이 이 회차의 목적).
+
+**1. test_cruise_speed 8건(채팅 기록: 원인 확정).**
+- 실패 8건은 speed=35 조합 전부(e2e 2 x personality 4)이고, speed=5는 전부 통과했다고 기록돼 있다.
+- 원인으로 기록된 것은 `CruiseEcoControl` 기본값 2(`params_keys.h`, `carrot_functions.py`의 `cruise_eco_control`)다. 설정속도가 20 km/h 초과이고 v_ego+3 < 설정속도이면 설정속도에 +2 km/h를 더해, 35 m/s 설정이 128 km/h(약 35.556 m/s)로 수렴한다. 5 m/s(18 km/h)는 20 km/h 조건 미달이라 영향이 없다.
+- 기록된 측정: eco=2에서 35.5553(ACC)/35.5591(e2e), eco=0에서 34.9998~35.0044. 스크래치 사본에서 eco=0으로 돌리면 16건 전부 통과(16 passed, 13.15s)했다고 기록돼 있다.
+- 성격(채팅 기록의 판단): 기능 자체의 문제가 아니라 테스트 기대(스톡)와 carrot 기본값의 불일치.
+- 조사하지 않은 것: eco 종료 조건(`v_ego_kph > eco_target_speed`)이 코드에 있는데도 +2 지점으로 수렴하는 이유.
+
+**2. test_longitudinal 서브테스트 7건(채팅 기록의 분류).**
+
+| 항목 | 건수 | 판정(채팅 기록) |
+|---|---|---|
+| ACC에서 force_decel이 무시됨 | 2건 (아래 3번의 스크래치 패치로 해소) | 실제 동작 이슈, 업스트림에도 있음 |
+| 'slow to 5m/s ... allow_throttle' | 3 | 업스트림이 스톡 기능을 꺼둔 것 |
+| 'resume from a stop' | 1 | 시작 자체는 됨, 하네스 검사가 약 0.15초 구간에서 걸림 |
+| 'approach slower cut-in' (force_decel) | 1 | 원인 미확정 |
+| 'cruising while disabled' (e2e, force_decel) | 1 | 원인 미확정 |
+
+**3. forceDecel이 ACC 모드에서 무시됨(채팅 기록: 가장 중요한 발견, 안전 관련 동작).**
+- 기록된 위치: `long_mpc.py` 468행이 ACC 모드에서 플래너가 넘긴 `v_cruise`를 버리고 `carrot.v_cruise`를 쓴다. 플래너가 force_decel일 때 만든 `v_cruise = 0.0`이 여기서 사라진다.
+- 기록된 재현(스크래치, 샌드박스): 리드 없이 25 m/s로 순항하며 force_decel을 켜면 ACC는 25.555 m/s 그대로이고 가속도 0, e2e(blended)는 7.87 m/s까지 계속 감속했다.
+- 스크래치 패치(인자가 0이면 존중하는 한 줄)를 적용하면 ACC도 0.73 m/s까지 감속했고, 서브테스트 실패는 7건에서 5건이 됐다. 스크래치 실험은 모두 되돌렸고 코드 변경은 없다고 기록돼 있다.
+- forceDecel이 켜지는 조건(기록): `controlsd.py` 321~324행에서 운전자 모니터링 경고 3단계 또는 softDisabling일 때(DisableDM==0).
+- 업스트림 대조(기록): carrot-ms(HEAD `097826b`)에도 같은 덮어쓰기 줄과 `force_slow_decel -> v_cruise = 0.0`이 있다. carrot-ryu가 만든 편차가 아니라 물려받은 구조로 보인다고 기록돼 있고, 해당 줄만 대조했으며 앞뒤 맥락은 확인하지 않았다.
+
+**4. 나머지 항목 근거(채팅 기록).**
+- allow_throttle 3건: 업스트림 carrot-ms에 스톡 표현식이 주석 처리된 채 `self.allow_throttle = True`로 있다. 측정상 eco=0에서도 20 m/s에서 감속하지 않았다.
+- resume from a stop 1건: t=10.15초에 리드가 출발할 때 자차 가속도 -0.0066이 3스텝 이어져 검사에 걸렸고, 이후 t=12.6초에 가속도 0.273으로 출발한다. 지연 원인은 조사하지 않았다.
+
+**5. 판단과 남은 것.**
+- 이 회차는 코드·테스트 변경 없음, WIP_SYNC.md 변경 없음, carrot-ms 점검 없음(체크포인트 4445c29 유지).
+- 다음에 어떤 조치를 할지는 사용자 결정 대기: (a) test_cruise_speed에 eco=0을 넣고 allow_throttle 테스트는 알려진 차이로 처리하는 테스트 전용 수정, (b) force_decel 코드 수정 검토(안전 관련 동작이라 별도 세션과 명시적 승인 필요, 10절), (c) 기록 수치를 근거로 무엇이든 바꾸기 전에 샌드박스 재현.
+- 남은 미확정 항목: cut-in(force_decel) 1건, cruising while disabled(e2e, force_decel) 1건의 원인, resume from a stop의 출발 지연 원인, eco가 +2 지점으로 수렴하는 이유.
+
+**검증하지 않은 것 / 한계:**
+- 이 세션은 위 1~4번을 재실행하지 않았다(샌드박스 환경 구성도 하지 않음). 전부 직전 채팅 기록 그대로의 인용이며, 그 기록 자체도 이 세션에서 독립 검증하지 않았다.
+- 실차 검증: 미실시(12절). 기록된 측정은 샌드박스 하네스(Ubuntu 24)에서의 값이고 실차 거동과 같다고 확인된 바 없다.
+- forceDecel 발견은 코드 줄과 스크래치 패치 실험에 대한 기록일 뿐, 실주행에서 DM 경고 3단계가 어떻게 동작하는지는 확인하지 않았다.
+- 넓은 회귀 재집계, carrot/server/tests 7건, dashcam_replay 1건 등 198cha HANDOFF의 나머지 미완료는 손대지 않았다.
+
 ## 198cha (완료) (Claude, Claude Sonnet 5) - test_following_distance 기대값을 플래너 값으로 교체(테스트 전용) 반영 확인 및 18건 통과 재현 (코드 df0da45, 실행 코드 변경 없음)
 
 **배경:** 197cha HANDOFF 미완료 1번(following_distance 남은 1건 TestFollowingDistance_10 처리 방침)에서 옵션 (i) "기대값을 실제 플래너 값으로 교체(테스트 전용, carrot-ryu)"가 코드 커밋 `df0da457b3bc527a994cb77fae50126567ee3b3f`로 반영되었다. 이 세션은 사용자가 붙여준 push 로그(`f075028..df0da45  carrot-ryu -> carrot-ryu`, DONE)로 시작했고, 그 코드 스크립트를 만든 경위는 이 세션에서 확인하지 못했다. 따라서 아래는 GitHub에서 직접 확인하고 샌드박스에서 재현한 범위로 한정한다(3절). 4절 0단계: 지침 문서 v2를 브랜치 URL과 SHA 고정 URL(carrot-ryu-note `39d39b75b74a5acab0d0da4e21cf1a379ecc586a`) 양쪽으로 조회해 50696 바이트로 동일함(cmp 일치)을 확인했고, HANDOFF.md는 197cha 상태(코드 base f075028f)였다.
