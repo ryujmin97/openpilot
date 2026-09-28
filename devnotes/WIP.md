@@ -1,5 +1,60 @@
 # WIP
 
+## 196cha (완료) (Claude, Claude Sonnet 5) - pytest 재실행: following_distance 18건 -> 1건 실패로 확정, 남은 1건 원인 측정, Plant 변경의 다른 테스트 영향 조사 (코드 변경 없음)
+
+**배경:** 사용자가 후속 작업 선택을 "너의 판단대로"로 위임(195cha와 동일). 4절 0단계(`git ls-remote`로 브랜치 HEAD `5f99b1f85f98516fc1e2138830d48179f772a885`를 얻고 그 SHA로 고정한 raw 조회, 브랜치 URL 사본과 SHA 고정본이 cmp로 동일)와 HANDOFF.md(195cha) 확인 후, HANDOFF 미완료 1번(pytest 재실행)을 수행했다. 코드 push가 없어 5절 "코드 변경이 없는 경우"로 이 devnotes 스크립트 1개만 만든다.
+
+**환경:** `toolkit/pytest_ci_setup.sh carrot-ryu`로 구성했고(시작 후 1분 남짓에 완료, 검증 출력 "params_pyx / msgq / acados long_mpc 전부 정상"), 클론 HEAD가 `f075028f`(195cha 코드 커밋)임을 확인했다. 이 스크립트에는 pytest-mock이 없어 샌드박스에서만 `pip install pytest-mock`을 했다(toolkit 미변경). 실행은 pytest.ini 기본(xdist)에 `-p no:randomly`. 195cha가 이 작업을 미룬 사유("컴파일 환경 구성 비용이 크다")는 이번에는 해당하지 않았다.
+
+**1. following_distance: 18건 실패 -> 17 통과 / 1 실패.** 전체 18건이 예외 없이 끝났고, 193cha 계속에서 스크래치로 본 대규모 단언 실패(시뮬 91.1 vs 기대 67.25류)와 ZeroDivisionError는 재현되지 않았다. 남은 1건은 `TestFollowingDistance_10`(e2e=False, relaxed, v=10): 시뮬 20.333 vs 기대 23.5 ± 2.85(0.317 m 초과). 18건 전체(기대값은 스톡 T 기준, `desired_follow_distance(v,v,get_T_FOLLOW(p))`):
+
+```
+idx e2e   pers        v   sim      exp     diff    tol     결과
+ 0  True  relaxed     0    4.721   6.000  -1.279   2.350  ok
+ 1  True  relaxed    10   19.630  23.500  -3.870   5.200  ok
+ 2  True  relaxed    35   62.556  67.250  -4.694  13.950  ok
+ 3  True  standard    0    4.636   6.000  -1.364   2.350  ok
+ 4  True  standard   10   17.624  20.500  -2.876   4.600  ok
+ 5  True  standard   35   55.547  56.750  -1.203  11.850  ok
+ 6  True  aggressive  0    4.598   6.000  -1.402   2.350  ok
+ 7  True  aggressive 10   16.621  18.500  -1.879   4.200  ok
+ 8  True  aggressive 35   52.043  49.750  +2.293  10.450  ok
+ 9  False relaxed     0    4.477   6.000  -1.523   1.750  ok
+10  False relaxed    10   20.333  23.500  -3.167   2.850  FAIL
+11  False relaxed    35   64.792  67.250  -2.458   7.225  ok
+12  False standard    0    4.440   6.000  -1.560   1.750  ok
+13  False standard   10   18.333  20.500  -2.167   2.550  ok
+14  False standard   35   57.802  56.750  +1.052   6.175  ok
+15  False aggressive  0    4.434   6.000  -1.566   1.750  ok
+16  False aggressive 10   17.333  18.500  -1.167   2.350  ok
+17  False aggressive 35   54.307  49.750  +4.557   5.475  ok
+```
+
+**원인(측정으로 확정): 하네스 미비가 아니라 기대값과 실제 플래너의 T_FOLLOW 정의 차이.** 테스트는 `long_mpc.get_T_FOLLOW(personality)`(스톡 relaxed 1.75 / standard 1.45 / aggressive 1.25)로 기대 거리를 계산한다. 실제 플래너(`long_mpc.py` 450행)는 `carrot.get_T_FOLLOW(personality, v_ego, a_ego)`를 쓰며, 이 함수는 personality를 TFollowGap 파라미터에 매핑한다(aggressive->Gap1, standard->Gap2, relaxed->Gap3, moreRelaxed->Gap4). `params_keys.h` 기본값은 Gap1=110, Gap2=120, Gap3=140, Gap4=160, SpeedTFFactor=10(속도 스케일 없음). `LongitudinalMpc.update`를 감싸 2000회 갱신 동안 `mpc.t_follow`를 기록하자 수렴값이 relaxed 1.40 / standard 1.20 / aggressive 1.10으로 carrot 값과 일치했다(첫 값은 relaxed 1.45, standard 1.30, aggressive 1.10). 이 측정은 비-e2e의 relaxed/standard/aggressive x v=10,35만 했고 e2e 모드는 측정하지 않았다.
+
+**미설명 편차(원인 미확정):** 비-e2e에서 `시뮬 - (T_carrot*v + 6)`이 personality와 무관하게 속도별로 거의 같다. v=10에서 +0.333(세 personality 모두), v=35에서 +9.79 / +9.80 / +9.81(relaxed/standard/aggressive), v=0에서는 시뮬 값이 4.43~4.48(기대 6 대비 약 -1.5). 정상상태는 수렴한 값이다(relaxed v=35를 t_end 100/200/400 s로 돌리면 64.792/64.709/64.708, v=10은 20.333 불변). 이 편차를 만드는 메커니즘은 조사하지 않았다. 추론(별도 실험으로 확인하지 않음): 나머지 17건의 통과는 T 매핑이 맞아서가 아니라, 허용오차와 이 편차가 carrot T가 스톡보다 작은 것을 우연히 상쇄한 결과일 수 있다. 예를 들어 relaxed v=35의 시뮬 64.79는 스톡 기대 67.25(허용 ±7.2) 안이지만 carrot T 기대 55 기준으로는 +9.8이다. 표의 숫자로 계산하면 기대값을 carrot T로 바꿀 경우 비-e2e v=35(허용오차 각각 약 6.0/5.3/5.0)는 편차 9.8 때문에 실패한다(실행하지는 않음). 그래서 기대값 교체 전에 이 편차 원인을 먼저 알아야 한다.
+
+**2. Plant를 쓰는 다른 테스트(HANDOFF 주의사항 조회 결과).** `Plant`를 직접 쓰는 `openpilot/selfdrive/test/longitudinal_maneuvers/test_longitudinal.py`와 `openpilot/selfdrive/car/tests/test_cruise_speed.py`를 통제 실험했다: (A) 현재 HEAD의 plant.py(blob `824098da`), (B) 부모 커밋 `99754dc8`의 plant.py(blob `81a4144c`, raw SHA 고정 조회로 받아 교체). B는 78 failed / 5 passed(9초), 실패 74건이 `TypeError: LongitudinalPlanner.update() missing 1 required positional argument: 'carrot'`였다. 즉 195cha 이전에는 이 영역의 Plant 사용 테스트도 전부 깨져 있었다(이 영역은 이전 기준선 실행 범위에 없었다). A는 19 failed / 13 passed / 51 subtests passed. 서브테스트가 섞여 총합 비교가 안 되므로 FAILED 줄로 비교하면 B 20(test_cruise_speed 16, test_longitudinal 4) -> A 12(test_cruise_speed 8, test_longitudinal 4)이고, A의 실패 12건은 B 실패 20건의 부분집합이다(B에서 통과하다 A에서 실패한 테스트 없음). 실험 후 plant.py를 HEAD 버전으로 복원하고 blob `824098da`와 작업 트리 변경 없음을 확인했다.
+
+**남은 12건(분류 미실시, 원인 미확정):**
+- `test_cruise_speed` 8건(TestCruiseSpeed_1,3,5,7,9,11,13,15): 로그에 "Did not reach 35 m/s" 8회, `35.55x == 35.0 ± 0.01` 단언 8회(값 35.5552~35.5591). 35.559/35 = 1.016은 산술 확인일 뿐 원인은 확인하지 않았다.
+- `test_longitudinal` 서브테스트 7건(4개 클래스에 분산): "cruising at 25 m/s while disabled" 2(e2e/force_decel = True/True, False/True), "slow to 5m/s with allow_throttle = False and pitch = +0.1" 3(True/False, False/True, False/False), "approach slower cut-in car at 20m/s" 1(False/True), "resume from a stop" 1(False/False). 실패 형태는 `assert valid`(Maneuver.evaluate가 valid=False).
+- 이 테스트들이 스톡 플래너 기대로 쓰였는지, 하네스가 아직 부족한지는 확인하지 않았다.
+
+**3. 넓은 회귀(controls + carrot 전체 디렉터리, HEAD `f075028f`):** 18 failed / 2506 passed / 31 errors(79초). 파일별 실패: `carrot/server/tests/test_xiaoge_proxy.py` 6, `carrot/tests/test_radar_lead_simulator.py` 4, `controls/tests/test_latcontrol.py` 3, `carrot/tests/test_xiaoge_inference.py` 2, `controls/tests/test_following_distance.py` 1, `carrot/tests/test_dashcam_replay.py` 1, `carrot/server/tests/test_web_upload.py` 1. 에러 31 = `test_xiaoge_vision.py` 22 + ImportError 수집 에러 9(HANDOFF의 기존 수치와 같음). 193cha 계속 기준선(plant.py 변경 전, 28 failed / 2196 passed / 31 errors: following_distance 18, radar_lead_simulator 4, latcontrol 3, xiaoge_inference 2, dashcam_replay 1)과 항목별로 대조하면 following_distance만 18->1로 줄고 나머지는 같다. 기준선에 없던 항목은 `carrot/server/tests`의 7건(xiaoge_proxy 6, web_upload 1)이다. 통과 수가 2196->2506으로 늘어난 점으로 보아 기준선의 실행 범위가 이번보다 좁았을 수 있으나, 기준선의 정확한 경로는 기록에 없어 확인하지 못했다. 이 7건은 Plant/플래너를 참조하지 않는다(`server/tests`에서 longitudinal_planner/Plant/plant grep 결과 없음). 6건은 `aiohttp.web_exceptions.NotAppKeyWarning`이 에러로 취급돼 실패하며(샌드박스 aiohttp 버전 문제일 수 있으나 프로젝트 핀 버전은 조회하지 않음), 1건(test_web_upload.py:215)은 'Toss upload token is not configured' 문자열이 대상 소스 텍스트에 없다는 단언이다. 로그에서 ImportError 원인 중 `test_latcontrol_torque_buffer`의 `cannot import name 'LAT_ACCEL_REQUEST_BUFFER_SECONDS' from latcontrol_torque`는 환경이 아니라 코드/테스트 불일치처럼 보이나, 192cha 분류와 대조하지 않았다(pyray, visionipc_pyx, lateral_mpc c_generated_code 미존재 등 나머지는 환경 의존으로 보임).
+
+**4. Params 격리(HANDOFF 주의사항 조회 결과).** pytest 안에서는 `conftest.py`의 autouse fixture `openpilot_function_fixture`가 `OpenpilotPrefix`로 테스트마다 Params 경로를 격리한다(코드로 확인). 반대로 pytest 밖에서 Plant를 직접 실행하면 기본 Params 경로에 기본값이 실제로 써진다: 이 세션의 스크래치 스크립트(pytest 밖) 실행 후 샌드박스의 `Params()` 경로 `/root/.comma/params/d`에 207개 키가 있었다(Path.home()/.comma/params/d, 스크래치 실행이 원인이라는 것은 추정이고 실행 전 상태는 조회하지 않았다). 디바이스나 개발 PC에서 하네스를 pytest 밖으로 돌릴 때는 `OPENPILOT_PREFIX` 지정이 필요하다.
+
+**기타 관찰:** `-p no:xdist`를 넘긴 pytest 실행은 출력이 비어 결과를 얻지 못했다(원인 미확인, 이후 사용하지 않음). pytest-mock은 이번에도 toolkit에 넣지 않았다(HANDOFF (c)는 승인 대기 상태 유지).
+
+**검증하지 않은 것 / 한계:**
+- 위 수치는 모두 샌드박스(Ubuntu 24, Python 3.12.3) 단위 테스트/시뮬레이션이며 실차 검증이 아니다. 실차 검증: 미실시(12절). 코드 변경이 없어 주행 동작은 바뀌지 않았다.
+- t_follow 실측은 비-e2e 6개 조합만이다. e2e 모드 T와 편차는 미측정.
+- 미설명 편차(v=35에서 약 +9.8 m)의 원인, 남은 12건(test_cruise_speed 8, test_longitudinal 서브테스트 7)의 원인, carrot/server/tests 7건의 기준선 포함 여부는 확정하지 못했다.
+- 이 devnotes 스크립트의 자가검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실행은 사용자 로그로만 확인된다.
+
+**이월:** 사용자 승인/선택 대기: (i) 남은 following_distance 1건 처리 방침(기대값을 carrot T로 바꿀지, 알려진 차이로 문서화할지, 그대로 둘지; 위 편차 원인 조사가 선행돼야 함), (ii) 남은 12건 분류, (iii) HANDOFF (b') dashcam_replay 1건, (c) pytest_ci_setup.sh에 pytest-mock 추가. 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보, 102ms wide-camera BOOT_TS gap, 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR=1.00 실차 검증, f992f9c LFS 전환 재검토 -- 변동 없음. carrot-ms 점검은 이 세션에서 하지 않았다(체크포인트 4445c29 유지).
+
 ## 195cha (완료) (Claude, Claude Sonnet 5) - (a'') Plant 하네스 갱신 코드 push(f075028f) 사후 확인 + 이 devnotes (pytest 재실행 미실시)
 
 **배경:** 사용자가 후속 작업 선택을 "너의 판단대로"로 위임. 4절 0단계(지침 문서 SHA 고정 조회 `4114b5fd`, 브랜치 URL 사본과 SHA 고정본이 동일함을 cmp로 확인)와 HANDOFF.md(194cha) 확인 후, 5절 순차 전달로 코드 스크립트(`195cha_code-v1.ps1`)를 먼저 전달·실행하고 GitHub에서 직접 재확인한 다음 이 devnotes를 작성했다. 194cha 이월 항목 중 (a'') following_distance 18건 하네스 갱신을 선택했다.
