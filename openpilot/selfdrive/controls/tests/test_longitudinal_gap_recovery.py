@@ -61,7 +61,7 @@ def run_update(cls, level=1, *, distance=45.15, speed=79.04/3.6, lead_speed=None
                          aLeadK=lead_accel, aLeadTau=1.5, modelProb=1.)
   absent = SimpleNamespace(status=False, radar=False, radarTrackId=-1, vRel=0., aLeadK=0., modelProb=0.)
   rs = SimpleNamespace(leadOne=lead if lead_index == 0 else absent, leadTwo=lead if lead_index == 1 else absent)
-  carrot = SimpleNamespace(leadAccelResponse=level, myDrivingMode=driving_mode, jerk_factor=1., comfort_brake=2.4, stop_distance=6.,
+  carrot = SimpleNamespace(leadAccelResponse=level, myDrivingMode=driving_mode, jerk_factor=1., comfort_brake=2.5, stop_distance=6.,
                            mode=mode, v_cruise=30., stop_dist=1000., trafficStopDistanceAdjust=0., lane_change_active=lane_change,
                            get_T_FOLLOW=lambda *args, **kwargs: .65)
   mpc = cls(mode=mode)
