@@ -541,6 +541,10 @@ class LongitudinalMpc:
       x = np.min(x_and_cruise, axis=1)
 
       self.source = 'e2e' if x_and_cruise[1,0] < x_and_cruise[1,1] else 'cruise'
+      # forceDecel: the planner hands over v_cruise=0.0, but while reset_state the decel bound is pinned
+      # to a_ego (no braking). ACC mode lifts this for v_cruise == 0; do the same in blended mode.
+      if reset_state and v_cruise == 0:
+        self.params[:,0] = ACCEL_MIN
 
     else:
       raise NotImplementedError(f'Planner mode {self.mode} not recognized in planner update')
