@@ -1,5 +1,59 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-28 (192차) -- carrot-ms 3441183 -> 735a9a4 신규 74건 전수 판정: 전부 제외 확정(코드 변경 없음)
+
+- carrot-ms 마지막 검토 대상 체크포인트: 3441183(188차) -> 735a9a4(2026-09-28
+  carrot-ms HEAD, "Record verified Jetson installer layout release"). 3441183이
+  현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `3441183..HEAD` 범위를 잡음.
+- carrot-ryu HEAD: 6ed56f0d64df0612e3993e247d03fc199903569e(변동 없음, 이번 세션
+  코드 변경 없음)
+- 신규 커밋 74건 중 WIP_SYNC.md에 기존 검토 기록이 있는 것은 0건.
+
+**판정 (2절 7번: 종류만으로 제외하지 않고 개별 확인, 제외 사유 기록)**
+
+1. Jetson/Jetlink/설치기 계열 70건 -- 제외.
+   사유: 외장 Jetson 추론 호스트(USB-C 연결), SD 이미지/설치기, NAS 배포,
+   Jetlink v2 전송 등 이 차량(제네시스 DH 2015 + 콤마 C3) 구성에 없는 하드웨어
+   전용 기능. 일부 커밋이 공유 파일을 건드리지만(`3a12c37`: modeld.py/
+   selfdrived.py/hud_renderer.py/ui_state.py/process_config.py, `619603d`:
+   modeld.py/dmonitoringmodeld.py, `cf01424`: carrot_navi.py, `12f34da`/
+   `ae68f74`/`fe13538`: egpu_model.py 및 웹 번들/번역, `29667d9`/`e3809fe`:
+   cluster_*.py) 전부 Jetson 연동 경로 안의 변경이라 Jetson 미사용 환경에는
+   무관하다고 판단해 함께 제외. 이 70건의 제외는 커밋 제목/변경 파일 목록
+   수준 확인이며 라인 단위 diff 대조는 하지 않음.
+2. `eefd372`("Keep stationary Hyundai CAN FD HUD leads white") -- 제외.
+   사유: `hyundaicanfd.py`(CAN FD 전용). carrot-ryu values.py 기준
+   Genesis DH 2015는 HYUNDAI_GENESIS(일반 CAN)라 해당 경로가 아님.
+3. `72a33fb`("Raise the stopping-speed setting minimum and repair legacy
+   values") + 후속 `5e10742`("Adapt the model-selector mirror to the
+   stopping-speed repair") -- 사용자 결정으로 제외(선택지 c).
+   내용: VEgoStopping 최소값 1->10, 기존 10 미만 저장값을 부팅 시 자동 상향,
+   `openpilot/common/stopping_params.py` 신설(`get_stopping_speed`),
+   longitudinal_planner.py/carrot_modeld.py가 이를 사용. 업스트림 사유는
+   Ioniq 5에서 VEgoStopping=2일 때 shouldStop이 48초 지연된 사고이며 차량
+   정차 개선 효과는 업스트림도 미검증으로 명시. 이 차량의 실적용값은
+   VEgoStopping=5(PARAMS_REGISTRY.md)라 반영 시 5->10으로 자동 상향되어
+   정차 판단/재출발 민감도가 바뀌므로 사용자가 제외 결정.
+4. `14e2cfa`("Reject tentative front tracks in radar-only primary selection")
+   -- 제외(사용자 확정). 사유: `radar_motion/primary.py`에
+   `point.source == "frontRadar" and point.radar_track_state == 1` 조건 1건 추가.
+   carrot-ryu의 `hyundai/radar_interface.py`는 `trackState`를 CAN FD 분기
+   (`canfd_group2_track_status`)에서만 채우고 일반 CAN은 `track_state = 0`으로
+   남으므로, DH2015에서는 조건이 참이 될 수 없는 no-op. 10절 최소 변경 원칙에
+   따라 제외.
+
+**carrot-ryu 고유 상태(향후 재동기화 시 참고)**
+- carrot-ryu에는 `openpilot/common/stopping_params.py`가 없고 VEgoStopping은
+  `params.get_float("VEgoStopping") * 0.01`을 그대로 쓴다(최소값 1, 기본 50 유지).
+  carrot-ms가 이후 커밋에서 `get_stopping_speed`에 의존하면 이 차이를 먼저 확인할 것.
+
+**한계:** 실차 검증 미실시(12절, 코드 변경 없음). 위 판정은 정적 확인
+(커밋 목록/변경 파일/핵심 diff/radar_interface.py 코드 경로)이며, 70건의
+Jetson 계열은 라인 단위로 읽지 않았다.
+
+남은 이월 항목: 핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경/102ms
+wide-camera BOOT_TS gap -- 변동 없음.
+
 ## 체크포인트: 2026-09-27 (188차) -- 3441183(happymaj11r/carrot-ms 통해 노출, 원커밋 ajouatom/carrot-wip) 반영 확정, 스크립트 작성/검증 완료 push 대기; 1f56076은 제외
 
 - carrot-ms 마지막 검토 대상 체크포인트: 087fdca(172차) -> 3441183(신규 커밋 2건

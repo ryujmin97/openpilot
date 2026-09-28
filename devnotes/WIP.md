@@ -1,5 +1,26 @@
 # WIP
 
+## 192cha (완료) (Claude, Claude Sonnet 5) - carrot-ms 정기 동기화 점검(2절): 3441183 -> 735a9a4 신규 74건 전수 판정, 전부 제외
+
+**작업:** HANDOFF.md의 "다음 작업 1번"에 따라 carrot-ms 신규 커밋 점검 수행.
+`3441183..735a9a4` 74건 중 Jetson 계열 70건 + `eefd372`(CAN FD) + `72a33fb`/
+`5e10742`(VEgoStopping 최소값 상향, 사용자 결정 c) + `14e2cfa`(radar_track_state
+필터, DH2015 no-op) 전부 제외. 상세 판정/사유는 WIP_SYNC.md 192차 참고.
+
+**진행 중 정정:** 세션 초반 분석은 오래된 체크포인트(3756e6d5)를 기준으로 잡아
+이미 검토·반영된 커밋까지 신규로 나열하고, 종류(Jetson/VW 등)만으로 제외 분류
+했다(2절 7번 위반). 지침/HANDOFF/WIP_SYNC를 다시 읽고 체크포인트를 3441183으로
+바로잡아 재분석했다.
+
+**확인 내용:**
+- `72a33fb`: 이 차량 실적용값 VEgoStopping=5(PARAMS_REGISTRY.md). 반영 시 부팅에서
+  5->10으로 자동 상향되므로 제외.
+- `14e2cfa`: `hyundai/radar_interface.py`가 trackState를 CAN FD 분기에서만 채움
+  (일반 CAN은 0) -> 새 조건이 DH2015에서 참이 될 수 없음.
+
+**결과:** carrot-ryu 코드 변경 없음(HEAD 6ed56f0d 유지). devnotes만 갱신.
+**실차 검증:** 미실시(12절).
+
 ## 191cha (완료) (Claude, Claude Sonnet 5) - 5절 작업 흐름을 순차 전달로 변경 (세션당 코드1회+devnotes1회 push로 축소)
 
 **배경(사용자 지적):** 기존 5절은 코드 반영 스크립트와 devnotes 반영 스크립트를
