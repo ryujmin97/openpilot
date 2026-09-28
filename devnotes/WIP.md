@@ -1,5 +1,60 @@
 # WIP
 
+## 192cha 계속 (완료) (Claude, Claude Sonnet 5) - 오프라인 미결 점검: pytest를 현재 HEAD(6ed56f0d)로 재실행하고 실패 분류 (코드 변경 없음)
+
+**배경:** 사용자가 "오프라인에서 할 수 있는 미결"을 물어 pytest CI 환경 항목을 진행.
+HANDOFF/WIP에는 "pytest CI 환경(conftest.py 포함 실제 cereal 실행) 미실행/환경 제약
+지속"으로 계속 이월돼 있었으나, 125차에 이미 구축·실행되었고(toolkit/pytest_ci_setup.sh,
+23/23 목표 테스트 통과, 전체 1928 passed/59 failed/85 errors) 126/127차에 test_latcontrol
+시그니처 문제도 원본부터 존재하던 것으로 확정·수정됐다. 즉 "미실행"은 사실과 다른 stale
+이월이었다. 실제로 남은 일은 현재 HEAD 기준 재실행과 실패 분류.
+
+**실행:** `bash devnotes/toolkit/pytest_ci_setup.sh carrot-ryu`로 carrot-ryu HEAD
+`6ed56f0d64df0612e3993e247d03fc199903569e` 환경 구성(params_pyx/msgq/acados 자가검증 OK) 후
+`python3 -m pytest openpilot/selfdrive/controls/tests openpilot/selfdrive/carrot/tests -q
+-p no:cacheprovider -x --maxfail=100000` (pyproject addopts 적용, 26초).
+참고: 첫 시도는 백그라운드 프로세스가 params_pyx 컴파일 중 조용히 종료돼 멈췄고, 같은 스크립트를
+`setsid nohup ... < /dev/null`로 분리 실행하자 끝까지 완료됐다.
+
+**결과: 2011 passed, 159 failed, 85 errors** (125차: 1928/59/85). 파일별 실패+에러 건수(합 244):
+test_longitudinal_preview_release 96 / test_plannerd_clock 54(에러) / test_longitudinal_gap_recovery 28
+/ test_xiaoge_vision 22(에러) / test_following_distance 18 / test_radar_lead_simulator 4 /
+test_latcontrol 3 / test_cutout_mpc_integration 3 / test_turn_accel 2 / test_xiaoge_inference 2 /
+test_torqued_lat_accel_offset 1 / test_dashcam_replay 1 / test_carrot_navi 1 / ImportError 수집 에러
+9개 파일 각 1(test_leads, test_lateral_mpc, test_latcontrol_torque_buffer, test_cluster_* 5개 등).
+
+**분류 (에러 메시지와 코드 대조로 확인한 것만):**
+1. 테스트 하네스가 코드 변경을 따라가지 못한 것
+   - test_longitudinal_preview_release 96건: `SimpleNamespace` 가짜 `self.mpc`가
+     `mode`/`source`만 가져 `preview_gate` 없음. 플래너의 `self.mpc.preview_gate()`
+     호출은 147cha(`c0a0165`, 2026-09-23)에서 도입됐고 이 테스트 파일은 2026-09-11 이후
+     수정된 적 없음 -> 147cha 이후 이 스위트는 사실상 아무것도 검증하지 못함.
+   - `coasting_param_time` 없음 2건: 176cha(`5161837`)의 코스팅 병합으로 플래너에
+     필드가 추가됨. test_turn_accel 2건(`run_update` lambda 인자 불일치)은 같은 계열로
+     추정하나 원인 코드를 직접 열어 확인하지는 않음.
+   - test_following_distance 18건: `LongitudinalPlanner.update() missing 1 required
+     positional argument: 'carrot'`. `update(self, sm, carrot)` 시그니처는 61차 스쿼시
+     (`1644166`)부터 존재. 그런데 이 테스트 파일은 100cha(`f78e51e`)에서 하네스를 손봤으므로
+     언제부터 깨졌는지는 미확인.
+   - test_longitudinal_gap_recovery 28건: 테스트의 `log` 스텁이 `LongitudinalPersonality`에
+     `standard`/`aggressive`만 정의해 `moreRelaxed` 접근에서 AttributeError. 코드의
+     `moreRelaxed` 참조가 언제 생겼는지는 확인 못함.
+2. 샌드박스 환경 한계
+   - `pyray` 미설치 ImportError 약 10건(cluster/UI 계열), xiaoge ONNX를 OpenCV 4.13.0이
+     못 읽음 23건, `mocker` fixture(pytest-mock) 없음 54건(test_plannerd_clock 전체),
+     Toyota/Nissan/Honda 생성 DBC 부재 3건, lateral_mpc `c_generated_code` 및
+     `visionipc_pyx` 미빌드 각 1건.
+   - pytest_ci_setup.sh의 pip 목록에 pytest-mock이 없어 test_plannerd_clock 54건은 스크립트에
+     추가하면 해소될 가능성이 있음(미시도).
+3. 원인 미확인 약 10건: test_cutout_mpc_integration 3, test_radar_lead_simulator 4,
+   test_torqued_lat_accel_offset 1, test_dashcam_replay 1, test_carrot_navi 1,
+   test_latcontrol 3(HONDA/TOYOTA/NISSAN DBC 부재 파생이 아닌 것이 있는지 미확인).
+
+**해석/한계:** 위 실패는 주행 코드가 아니라 테스트 하네스 노후 문제로 보이나, 실패 전건을
+개별 확인한 것은 아니다. 특히 preview_release 96건은 147cha 이후 회귀 방지망 역할을 못 하고
+있다. 이 통과/실패는 실차 검증이 아니다(12절: 실차 검증 미실시). carrot-ryu와 carrot-ms
+코드는 이번 조사에서 변경하지 않았다.
+
 ## 192cha (완료) (Claude, Claude Sonnet 5) - carrot-ms 정기 동기화 점검(2절): 3441183 -> 735a9a4 신규 74건 전수 판정, 전부 제외
 
 **작업:** HANDOFF.md의 "다음 작업 1번"에 따라 carrot-ms 신규 커밋 점검 수행.
