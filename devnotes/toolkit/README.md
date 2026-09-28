@@ -155,3 +155,7 @@ carrot-ryu의 dead code(호출/참조되지 않는 코드) 판별에 115~135차�
 - `@pytest.fixture(autouse=True)` 픽스처(예: `clean_baseline`/`fake_param_key_type`/`isolated_git`)
 - 커스텀 데코레이터로 등록되는 함수(예: `@register_command`)
 - 테스트에서만 참조되는 이름 — 곧바로 삭제 대상에 넣지 말고 "보류"로 분류해 별도 검토(회귀 가드일 수 있음, 예: `_draw_navi_traffic_light_panel`)
+
+### 206차 계속 추가 (pytest_ci_setup.sh에 pytest-mock 추가)
+
+`pytest_ci_setup.sh`의 3/6 단계 pip 목록 끝에 `pytest-mock`을 추가하고 이유를 주석 2줄로 남겼다(다른 단계는 변경 없음). `mocker` 픽스처를 쓰는 테스트(예: `controls/tests/test_plannerd_clock.py`, `system/athena/tests`, `system/hardware/tests`)는 pytest-mock이 없으면 전부 ERROR로 끝난다. 206cha 샌드박스 실측(`test_plannerd_clock.py`, `-n 0 -p no:randomly`): pytest-mock 없이 54 errors, 설치 후 54 passed. 이전에는 세션마다 `pip install pytest-mock`을 수동으로 해야 했다. 수정한 스크립트를 처음부터 끝까지 다시 실행해 보지는 않았고 `bash -n` 구문 검사만 통과했다(다음에 이 스크립트를 새 세션에서 처음 돌릴 때 실제 확인).

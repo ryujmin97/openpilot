@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-29 (206차 계속)
+- pytest_ci_setup.sh: pip 목록에 pytest-mock 추가 + 주석 2줄(README 206차 계속 추가 참고). mocker 픽스처 테스트(test_plannerd_clock.py 등)가 pytest-mock 없이 54 errors였던 것을 설치 후 54 passed로 확인(206cha 샌드박스). 다른 단계와 다른 toolkit 파일은 변경 없음.
+
 ## 2026-09-24 (154차)
 - route_decel/ 추가: replay_route_geom.py (153차 get_path_after_distance() 수정 rlog 재생 교차검증, README 154차 추가 참고). 실제 함수 원문(ast 추출)을 재구현 없이 exec하는 방식. 기존 스크립트는 변경 없음.
 

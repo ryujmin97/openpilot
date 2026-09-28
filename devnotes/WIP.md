@@ -1,5 +1,32 @@
 # WIP
 
+## 206cha 계속 (완료) (Claude, Claude Sonnet 5.5) - (g) toolkit·테스트 정리: (b') dashcam_replay 원인 확정(업스트림 불일치, 코드 변경 없음) + toolkit/pytest_ci_setup.sh에 pytest-mock 추가(사용자 승인 1번, 실차 미실시)
+
+**배경:** 206cha 앞부분((i) 설계 판단 A 확정, note `6de0834` 반영을 GitHub로 재확인)에 이어 사용자가 다음 작업 (g) toolkit·테스트 정리를 선택했다. HANDOFF 미완료 6의 (b')/(c)/(v) 세 항목이다. 조사 결과와 함께 세 가지 결정을 제안했고(1번 (c) pytest-mock 추가, 2번 (v) 넣지 않음 + README에 OpenpilotPrefix 메모만, 3번 (b') 기록만), 사용자는 "1번"만 승인했다. 2번과 3번은 응답이 없어 미결정으로 남긴다. 코드 변경은 없고 toolkit(devnotes) 변경이라 5절의 "코드 변경이 없는 경우"로 devnotes 스크립트 1개로 처리한다.
+
+**0. 상태 확인.** 이 부분 시작 시 `git ls-remote`로 note HEAD `6de0834d433ef21caf7c7c7b40814d0c6bad544b`(206cha 앞부분 devnotes)가 그대로임을 확인했다. carrot-ryu는 이 부분에서 새로 받은 샌드박스 clone의 HEAD가 `058391e`(HANDOFF의 코드 base와 같음)임을 `git rev-parse`로 확인했다. toolkit 3개 파일, HANDOFF.md, WIP.md는 note `6de0834` SHA 고정으로 다시 조회했다(blob: pytest_ci_setup.sh `98e92b2`, README.md `4cf6764`, CHANGELOG.md `63f2f1e`, HANDOFF.md `3916697`, WIP.md `27b6946`).
+
+**1. (b') dashcam_replay 1건 원인 확정(코드 변경 없음).**
+- 재현: carrot-ryu `058391e`에서 `pytest_ci_setup.sh`로 환경을 구성한 뒤 `openpilot/selfdrive/carrot/tests/test_dashcam_replay.py`를 `-n 0 -p no:randomly`로 실행하면 1 failed / 10 passed(0.61 s). 실패는 `test_raw_query_extracts_nested_lists_and_state_transitions`의 201행 `assert list_result["kind"] == "number-list"`(실제 값 `number`).
+- 원인: `replay_query.py`의 `query_field_events`(426행~)가 이벤트 루프 안에서 `value_kind`를 매 이벤트마다 덮어쓴다(554행 `value_kind = "number-list" if len(values) > 1 else "number"`). 테스트의 첫 이벤트는 값 2개라 `number-list`가 되지만 마지막 이벤트는 값 1개라 최종 `kind`가 `number`가 된다(마지막 이벤트가 결정, 결정적 동작).
+- 이력(HANDOFF의 "코드/테스트 중 어느 쪽이 나중에 바뀌었는지" 질문에 대한 답): 해당 줄과 단언 모두 업스트림 커밋 `a6a174cf`(2026-07-17, "web work (#450)")에서 함께 들어왔고(`git log -S` pickaxe), 이후 `replay_query.py`와 `test_dashcam_replay.py`는 수정된 적이 없다(파일별 `git log` 각 1건). 즉 어느 쪽이 나중에 바뀐 것이 아니라 처음부터 서로 어긋난 채 들어왔다. 두 파일 모두 carrot-ms 원본과 바이트 동일(`cmp` 일치). 논리상 도입 시점부터 결정적으로 실패하는 것으로 보이나 그 커밋에서 직접 실행해 보지는 않았다.
+- 업스트림 CI(`.github/workflows/tests.yaml`의 pytest 호출 목록)에 이 테스트 파일이 없는 것으로 보인다(호출 줄만 grep, 워크플로 전체 정독은 아님). 그래서 실패가 드러나지 않았을 가능성이 있다.
+- 영향 범위: `number-list` 문자열은 저장소 전체 `git grep`(`*.map`, `*.min.js` 제외)에서 이 코드 줄과 이 테스트 단언 2곳에만 있다. 이 라벨로 동작이 갈리는 곳은 찾지 못했다(프론트 번들 제외 범위는 위 그대로).
+- 처리 방침은 미결정이다. 제안은 코드 수정 없이 "carrot-ms 원본과 동일한 알려진 업스트림 불일치"로 기록하는 것이다(10절 최소 변경, carrot-ms 일치 원칙). 고치려면 `"[]" in path`일 때만 list로 표기하는 식이 가능하지만 원본과 갈라지고 업스트림의 의도를 알 수 없다.
+
+**2. (c) pytest_ci_setup.sh에 pytest-mock 추가(사용자 승인, toolkit 변경).**
+- 변경: 3/6 단계 pip 목록 끝에 `pytest-mock` 추가 + 그 위에 이유 주석 2줄(`toolkit/pytest_ci_setup.sh`, +3/-1). README.md에 "206차 계속 추가" 섹션, CHANGELOG.md에 2026-09-29 항목 추가(14절).
+- 근거 실측(206cha 샌드박스, carrot-ryu `058391e`): `openpilot/selfdrive/controls/tests/test_plannerd_clock.py`를 `-n 0 -p no:randomly`로 실행. pytest-mock 없이 54 errors(0.20 s), 설치 후 54 passed(0.59 s). 이 파일은 `mocker`가 22줄에 나온다(`git grep -c`). `mocker`를 쓰는 다른 테스트 파일(athenad, fan_controller, power_monitoring 등)도 같은 영향을 받을 수 있으나 그 파일들은 실행하지 않았다.
+- 검증 한계: 수정한 스크립트를 처음부터 끝까지 다시 실행하지 않았다(`bash -n` 구문 검사만 통과). 다음에 새 세션에서 이 스크립트를 처음 실행할 때 pytest-mock이 함께 설치되는지 확인해야 한다. 이 세션에서는 수정 전 스크립트로 환경을 구성했고 pytest-mock은 수동 설치로 확인했다.
+
+**3. (v) 197cha 측정 스크립트를 toolkit에 넣을지(미결정, 제안: 넣지 않음).** 그 스크립트는 저장소에 없는 스크래치라 재현할 수 없고, 핵심 아이디어(Plant를 서브클래스로 감싸 매 스텝 기록)는 `controls/tests/test_following_distance.py`의 `RecordingPlant`(25행)에 이미 들어 있다. `OpenpilotPrefix`로 감싸야 한다는 주의는 HANDOFF 주의사항에 있다. 제안은 넣지 않고 종결하며 README에 `OpenpilotPrefix` 메모 한 줄만 옮기는 것이다. 사용자 결정 전이라 이번에 README에 넣지 않았다.
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). 이번 작업은 테스트/toolkit 정리이고 주행 코드는 바뀌지 않았다.
+- (b')는 `058391e` 한 시점에서만 재현했고, 도입 커밋 `a6a174cf`에서의 실행 여부와 업스트림 실제 CI 결과는 확인하지 않았다.
+- carrot/server/tests 7건(HANDOFF 미완료 5)과 넓은 회귀 재집계는 이번에도 손대지 않았다.
+- 이번 devnotes 스크립트 사전 검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다.
+
 ## 206cha (완료) (Claude, Claude Sonnet 5.5) - (i) blended forceDecel이 ACC보다 약한 점의 설계 판단: 의도로 확정(A, 현행 유지, 코드 변경 없음, 실차 미실시)
 
 **배경:** 205cha 다음 작업 중 (i)를 사용자가 선택했다. blended 모드의 forceDecel 감속(25 -> 약 8 m/s를 -0.87 m/s^2, 정지하지 않음)이 ACC(20 s 안에 거의 정지)보다 약한 것을 의도로 볼지 판단하는 작업이다. 코드 읽기와 원본 대조만 했고 코드 변경은 없어, 5절의 "코드 변경이 없는 경우"에 따라 devnotes 1회 push로 마무리한다.

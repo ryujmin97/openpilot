@@ -36,6 +36,8 @@ apt-get update >/dev/null 2>&1 || true
 apt-get install -y capnproto libcapnp-dev libzmq3-dev >/dev/null
 
 echo "=== [3/6] pip (Cython/pycapnp/comma-deps-*/기타 런타임 의존성) ==="
+# pytest-mock: mocker 픽스처를 쓰는 테스트(예: controls/tests/test_plannerd_clock.py)에 필요하다.
+# 없으면 그 테스트들이 전부 ERROR로 끝난다(206cha 실측: 54 errors, 설치 후 54 passed).
 pip install --break-system-packages -q \
   Cython pycapnp==2.1.0 \
   comma-deps-json11==20170411.0.post103 \
@@ -44,7 +46,7 @@ pip install --break-system-packages -q \
   sounddevice setproctitle psutil pycryptodome PyJWT json-rpc \
   websocket_client sentry-sdk xattr qrcode jeepney inputs av aiohttp aiortc \
   libusb1 pyusb \
-  pytest pytest-randomly pytest-xdist pytest-timeout pytest-asyncio pytest-cpp
+  pytest pytest-randomly pytest-xdist pytest-timeout pytest-asyncio pytest-cpp pytest-mock
 
 echo "=== [4/6] cereal capnp C++ 헤더 생성 (SConscript와 동일 커맨드) ==="
 mkdir -p openpilot/cereal/gen/cpp
