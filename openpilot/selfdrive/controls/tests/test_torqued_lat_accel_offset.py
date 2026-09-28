@@ -42,6 +42,11 @@ def simulate_straight_road_msgs(est):
   carOutput = messaging.new_message('carOutput').carOutput
   carState = messaging.new_message('carState').carState
   livePose = messaging.new_message('livePose').livePose
+  livePose.angularVelocityDevice.valid = True
+  livePose.orientationNED.valid = True
+  livePose.inputsOK = True
+  livePose.sensorsOK = True
+  livePose.posenetOK = True
   carControl.latActive = True
   carState.vEgo = V_EGO
   carState.steeringPressed = False

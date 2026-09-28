@@ -33,7 +33,7 @@ def run_update(*, confidence=0., mode="acc", reset=False, enabled=True, second_d
                    "A_CHANGE_COST": 200., "J_EGO_COST": 5., "X_EGO_OBSTACLE_COST": 5.,
                    "X_EGO_COST": 0., "V_EGO_COST": 0., "A_EGO_COST": 0.,
                    "LIMIT_COST": 1e6, "DANGER_ZONE_COST": 100., "LEAD_ACCEL_TAU": 1.5,
-                   "LEAD_ACCEL_MIN_TRACK_FRAMES": 3,
+                   "LEAD_ACCEL_MIN_TRACK_FRAMES": 3, "GATE_TAU_G": 1., "GATE_TAU_TARGET": 1.5,
                    "gap_reference": gap_reference, "displayed_follow_distance": displayed_follow_distance,
                    "get_lead_accel_mpc_request": get_lead_accel_mpc_request,
                    "get_traffic_stop_distance_adjust": get_traffic_stop_distance_adjust,
@@ -64,7 +64,10 @@ def run_update(*, confidence=0., mode="acc", reset=False, enabled=True, second_d
   self.set_weights = lambda *args, **kwargs:namespace['set_weights'](self, *args, **kwargs)
   if lead_tau is not None:
     self.extrapolate_lead = namespace['extrapolate_lead']
-    self.process_lead = lambda lead:namespace['process_lead'](self, lead)
+    # Lead gate fully open (g=1): these tests cover cutout relief only, so keep pre-gate behavior.
+    self._gate_raw = lambda *a, **kw: (1., 1.)
+    self._gate_g = np.array([0., 0.])
+    self.process_lead = lambda lead, lead_index=0:namespace['process_lead'](self, lead, lead_index)
   self.update_predicted_danger_margin=lambda *a:namespace["update_predicted_danger_margin"](self,*a)
   arrays=[np.zeros(13) for _ in range(4)]
   namespace["update"](self, carrot, reset, NS(leadOne=lead, leadTwo=second), 20., *arrays, cutout_relief_enabled=enabled)

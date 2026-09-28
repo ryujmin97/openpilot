@@ -27,18 +27,18 @@ def planner_preview():
   hi = next(i for i, n in enumerate(update.body) if assigns(n, 'output_a_target_mpc'))
   code = compile(ast.Module(body=update.body[lo:hi+1], type_ignores=[]), str(lib / 'longitudinal_planner.py'), 'exec')
   times = 10 * (np.arange(17) / 32)**2
-  state = SimpleNamespace(lead_preview=.87, mpc=SimpleNamespace(mode='acc', source='lead0'))
+  state = SimpleNamespace(lead_preview=.87, mpc=SimpleNamespace(mode='acc', source='lead0', preview_gate=lambda gap, v_ego, v_lead: 1.))
 
   def step(a_lead, *, a_ego=0., mode=preview.DRIVING_MODE_NORMAL, status=True, radar=True,
            track_id=52, gas=False, brake=False, reset=False, mpc_mode='acc', source='lead0', a_now=1.6, jerk=-.6):
     state.mpc.mode, state.mpc.source = mpc_mode, source
     state.v_desired_trajectory = 10 + a_now * times + .5 * jerk * times**2
     state.a_desired_trajectory = a_now + jerk * times
-    lead = SimpleNamespace(status=status, radar=radar, radarTrackId=track_id, aLeadK=a_lead)
+    lead = SimpleNamespace(status=status, radar=radar, radarTrackId=track_id, aLeadK=a_lead, dRel=30., vLead=10.)
     absent = SimpleNamespace(status=False, radar=False, radarTrackId=-1, aLeadK=0.)
     rs = SimpleNamespace(leadOne=lead if source != 'lead1' else absent, leadTwo=lead if source == 'lead1' else absent)
     base = ns['get_accel_from_plan'](state.v_desired_trajectory, state.a_desired_trajectory, times, action_t=.35)[0]
-    ns.update(self=state, sm={'radarState': rs, 'carState': SimpleNamespace(aEgo=a_ego, gasPressed=gas, brakePressed=brake)},
+    ns.update(self=state, sm={'radarState': rs, 'carState': SimpleNamespace(aEgo=a_ego, vEgo=10., gasPressed=gas, brakePressed=brake)},
               carrot=SimpleNamespace(myDrivingMode=mode), reset_state=reset, action_t=.35,
               vEgoStopping=.05, CONTROL_N_T_IDX=times, output_a_target_base=base)
     exec(code, ns)

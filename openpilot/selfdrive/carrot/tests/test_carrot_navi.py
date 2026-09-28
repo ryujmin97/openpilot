@@ -392,7 +392,7 @@ def test_safe_websocket_error_send_ignores_closing_transport():
 
 
 def test_map_param_change_reconnects_websocket_with_new_manifest():
-  map_config = ["dark", "normal", 10, 3000]
+  map_config = ["dark", "normal", 10, 3000, 0.8]
 
   async def scenario():
     receiver = CarrotNaviReceiver(
@@ -410,7 +410,7 @@ def test_map_param_change_reconnects_websocket_with_new_manifest():
       first_map = next(stream for stream in first_manifest["streams"] if stream["kind"] == "render")
       assert first_map["params"]["map_type"] == "normal"
 
-      map_config[:] = ["light", "satellite", 60, 12000]
+      map_config[:] = ["light", "satellite", 60, 12000, 0.8]
       message = await first_control.receive(timeout=2.0)
       assert message.type in (WSMsgType.CLOSE, WSMsgType.CLOSED)
 
