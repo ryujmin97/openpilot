@@ -1,11 +1,15 @@
-Worker: Claude (203cha 세션, Claude Sonnet 5). 사용자가 202cha 다음 작업 중 (c) 미확정 원인 조사를 선택해, 남은 test_longitudinal 서브테스트 실패 5건의 원인을 샌드박스 실험으로 조사했다(코드 변경 없음, 실차 미실시). 직전 202cha 세션(Claude Sonnet 5)은 carrot-ryu 0a1a9fc(long_mpc.py 468행 ACC forceDecel 수정)를 GitHub/독립 샌드박스로 검증했다(아래 완료 2번, WIP.md 202cha).
-Date: 2026-09-28
+Worker: Claude (204cha 세션, Claude Sonnet 5.5). 사용자가 carrot-ryu push 완료(99012c3, blended 모드 forceDecel 수정)를 알려 와, 5절 순서대로 독립 샌드박스에서 신/구 비교 검증을 한 뒤 이 devnotes를 기록했다(코드는 이 세션에서 작성하지 않았고 이 세션에 코드 스크립트도 없음, 실차 미실시). 직전 203cha 세션(Claude Sonnet 5)은 남은 서브테스트 실패 5건의 원인을 조사했다(코드 변경 없음, 아래 완료 1번, WIP.md 203cha).
+Date: 2026-09-29
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base commit 0a1a9fc5da304cef25de23eabbff678d68aa396a = 202cha ACC forceDecel 수정 커밋, 부모 69eaf32ace3666a3e7669908c47df7973201b86c = 201cha 948b139 이식 커밋. 이 세션은 코드를 변경하지 않았다.)
-Note Branch: carrot-ryu-note (base commit c5d501dc7aa48cd107bda4c9ad0e45ea4dc6843e = 202cha devnotes. 203cha devnotes는 이 커밋 위에 push.)
+Code Branch: carrot-ryu (base commit 99012c363cc4177e93e4b250b06bf3898ee6bba9 = 204cha blended forceDecel 수정 커밋, 부모 0a1a9fc5da304cef25de23eabbff678d68aa396a = 202cha ACC forceDecel 수정 커밋. 이 세션은 코드를 변경하지 않고 push된 결과만 검증했다.)
+Note Branch: carrot-ryu-note (base commit 80b9ce947c89299975b80701c79b944eda35b5d9 = 203cha devnotes. 204cha devnotes는 이 커밋 위에 push.)
 carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 완료: 948b139 이식, 4770067 제외, DM2 계열 8건 보류, jetlink 12건 + a482d02 제외). 다음 점검은 c771c4e 이후 신규 커밋부터이며, 세션 시점 HEAD인 c36f6e7(Hyundai CAN-FD 조향 터치 감지)은 아직 판정하지 않았다.
 
-작업(203cha, 이 세션):
+작업(204cha, 이 세션):
+1. 4절 0단계: 지침 문서 v2를 note 80b9ce9 SHA 고정으로 조회, 브랜치 URL 본과 일치(변경 없음) 확인. carrot-ryu HEAD 99012c3가 HANDOFF base(0a1a9fc)보다 1커밋 앞선 것을 16절대로 대조.
+2. carrot-ryu 99012c3(long_mpc.py, blended 모드 forceDecel, +4/-0)를 GitHub 독립 bare clone과 독립 샌드박스로 검증(numstat/blob/CR/BOM/py_compile, pytest 7개 파일 신/구 비교). WIP.md 204cha와 이 HANDOFF.md를 기록.
+
+작업(203cha, 이전 세션 이월):
 1. 4절 0단계: 지침 문서 v2를 note c5d501d SHA 고정으로 조회, 브랜치 URL 본과 일치(변경 없음) 확인.
 2. 202cha 세션 샌드박스(체크아웃 0a1a9fc)를 재사용해, 남은 서브테스트 실패 5건을 Plant 직접 호출 프로브로 프레임 단위 재현. disabled+blended 1건은 reset_state 스크래치 실험(원복 확인)으로 근본 원인을 구조적으로 확정. WIP.md 203cha와 이 HANDOFF.md를 기록.
 
@@ -27,10 +31,11 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 5. (201cha) 샌드박스 측정(코드 스크립트 작성 시 실행, 이번 확인 단계에서는 재실행하지 않음): test_radar_motion_predictor.py 420 -> 436 통과, 새 테스트를 옛 코드에 적용하면 정지 유지 테스트 3건 실패, 관련 11개 파일 수정 전후 모두 4 failed / 271 passed(test_radar_lead_simulator.py 4건, 이번 변경과 무관).
 6. (201cha) carrot-ms 23건 판정(WIP_SYNC.md 201차 참고): 이식 1, 제외 1(4770067), 보류 8(DM2), 제외 13(jetlink 12 + a482d02).
 7. 실차 검증: 미실시(12절).
+8. (204cha) carrot-ryu 99012c3: blended 모드에서 `reset_state and v_cruise == 0`이면 `self.params[:,0] = ACCEL_MIN`(long_mpc.py 약 544행, +4/-0, 1파일). 203cha가 확정한 disabled+blended forceDecel 미감속 원인의 수정이다. 독립 검증: blob f087a48 -> f4f81e2, CR 0/BOM 없음/py_compile 통과, pytest 7개 파일 신판 7 failed / 278 passed / 54 subtests passed(기준선 test_longitudinal만 9 failed / 53 subtests passed). 신/구 차이는 `cruising at 25 m/s while disabled`(e2e=True, force_decel=True) 서브테스트와 그 부모 1건이 사라진 것뿐, 나머지 6개 파일 통과. 안전 관련 동작이며 실차 검증: 미실시(12절).
 
 미완료:
-1. test_longitudinal 서브테스트 실패 5건이 남음(202cha 이후 그대로, 코드 변경 없음): e2e 순항 disabled + force_decel(e2e=True, 203cha에서 원인 확정 - 아래 2번), allow_throttle=False pitch +0.1(e2e=True와 e2e=False, force_decel=False 2건, 원인 기존과 동일), ACC cut-in + force_decel(203cha 재확인 speed=0.1208/a=-0.0283, 199cha와 일치), resume from a stop(e2e=False, 203cha에서 지연시간 0.15초/3프레임으로 정량화). 아래 2번 참고.
-2. (203cha 갱신) e2e 순항 disabled + force_decel: 원인 확정(reset_state가 blended 모드에서만 force_decel 감속을 막음, ACC 모드는 영향 없음). 수정은 안전 관련 코드 변경이라 별도 승인 필요(10절, 아직 미착수). ACC cut-in + force_decel과 resume from a stop의 출발 지연은 둘 다 v=0 근처 가속도 스무딩과 하네스의 즉각적 급제동/양전환 요구 사이 불일치로 보인다는 가설까지만 세웠고(203cha), jerk_factor/a_change_cost 코스트 파라미터로 인과를 격리하지는 않았다.
+1. test_longitudinal 서브테스트 실패 4건이 남음(204cha 기준, 203cha의 5건에서 disabled+blended가 해소됨): allow_throttle=False pitch +0.1(e2e=True와 e2e=False, force_decel=False 2건, 원인 기존과 동일), ACC cut-in + force_decel(203cha 재확인 speed=0.1208/a=-0.0283, 199cha와 일치), resume from a stop(e2e=False, 지연시간 0.15초/3프레임). 부모 포함 신판 7 failed(서브테스트 4 + 부모 3). 아래 2번 참고.
+2. (204cha 갱신) e2e 순항 disabled + force_decel: 99012c3으로 수정됨(하네스에서 해당 서브테스트 통과 확인). 남은 것은 ACC cut-in + force_decel과 resume from a stop의 출발 지연으로, 둘 다 v=0 근처 가속도 스무딩과 하네스의 즉각적 급제동/양전환 요구 사이 불일치로 보인다는 가설까지만 세웠고(203cha), jerk_factor/a_change_cost 코스트 파라미터로 인과를 격리하지는 않았다.
 3. (판단만, 코드 변경 없음) comfort_brake 2.4와 정지등가 항 상수 2.5 불일치를 의도로 볼지. 실주행 영향: 60 km/h 약 +2.3 m, 100 km/h 약 +6.4 m, 35 m/s +10.2 m(계산, 실차 미검증), stop_distance -0.5 m. 198cha의 기대값은 플래너 실제 값을 따르므로 이 불일치를 테스트가 검출하지 않는다. 필요하면 실차에서 정상상태 추종 거리를 로그로 확인하는 항목으로 이월.
 4. v=0 정상상태 gap이 desired(5.502)보다 약 1.06 m 작은 현상(4.43~4.48) 원인 미조사. 정지 제어 쪽 별개 요인으로 추정, 테스트는 통과.
 5. carrot/server/tests 7건 원인 확인(6건 aiohttp NotAppKeyWarning 에러 취급 -- 샌드박스 aiohttp 버전 문제일 수 있으나 프로젝트 핀 미조회, 1건 test_web_upload.py:215 소스 문자열 단언), 기준선 실행 범위 포함 여부 미확인. 넓은 회귀 현재 수치도 미확인(198cha와 같음).
@@ -42,9 +47,11 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 11. (신규) c771c4e 이후 carrot-ms 신규 커밋 점검(세션 시점 HEAD c36f6e7부터, 미판정).
 12. (신규, 보류 유지) DM2 계열 8건과 4770067(부팅 실패 자동 Git 복구)은 사용자가 원할 때만 별도 코드 세션 + 승인으로 재검토(WIP_SYNC.md 201차의 재검토 조건 참고).
 13. (신규, 실차) 202cha 변경의 실주행 확인: DM alert 3 / softDisabling 등 플래너가 v_cruise=0.0을 넘기는 상황에서 ACC 모드일 때 감속 요구가 MPC와 실제 제동에 반영되는지 로그로 확인. 그 조건이 controlsd 경로에서 실제로 발생하는 경우와 carrot 쪽 vCluRatio 출처(플래너와 같은 carState.vCluRatio인지)는 202cha 세션에서 읽지 않았다. 확인 전까지 정적/샌드박스 단계.
-14. (신규, 코드 변경/승인 필요) disabled+blended에서 force_decel이 감속하지 않는 문제의 실제 수정: longitudinal_planner.py의 reset_state가 blended 모드 MPC에 미치는 영향을 더 읽어 원인을 코드 레벨로 설명하고, 수정 방향을 제안. 안전 관련 코드라 별도 세션 + 명시적 승인 필요(10절).
+14. (204cha 완료) disabled+blended force_decel 미감속 수정은 99012c3으로 반영됐다. 남은 것은 아래 15번의 실차/설계 확인이다.
+15. (신규, 실차/설계 확인) 99012c3의 blended 감속 하한이 ACC 경로와 다르다: ACC는 `v_cruise == 0 and source == 'cruise'`일 때 `-carrot.autoNaviSpeedDecelRate`(reset_state 무관), blended 수정은 `reset_state and v_cruise == 0`이면 source와 무관하게 `ACCEL_MIN`(-4.0 m/s^2). autoNaviSpeedDecelRate 값과 blended에서 -4.0까지 허용될 때 실주행 제동 강도를 확인하고, 같은 값/조건으로 맞출지 판단. DM alert 3 / softDisabling에서 blended + reset_state True + v_cruise=0이 실제 발생하는 조건도 함께 확인(202cha 확인 항목 13번과 같은 계열). 확인 전까지 정적/샌드박스 단계. 코드 변경이 되면 안전 관련이라 별도 승인 필요(10절).
 
 검증:
+- (204cha) carrot-ryu 99012c3 독립 검증(이 세션): `git ls-remote` HEAD 일치, 부모 0a1a9fc, numstat 1파일 +4/-0, blob f087a48 -> f4f81e2, CR 0개, BOM 없음(23 21 2f), py_compile 통과. pytest 7개 파일(-n 0 -p no:randomly, pytest-mock 설치) 신판: 7 failed / 278 passed / 54 subtests passed(111 s), 실패는 모두 test_longitudinal.py. long_mpc.py를 0a1a9fc판으로 임시 교체한 기준선(test_longitudinal만): 9 failed / 53 subtests passed(55 s). 신/구 차이는 `cruising at 25 m/s while disabled`(e2e=True, force_decel=True) 서브테스트와 그 부모가 사라진 것뿐이다. 임시 교체는 `git checkout`으로 원복했고 blob f4f81e2/빈 diff/HEAD 99012c3를 확인했다. 샌드박스(Ubuntu 24, Python 3.12) 값이며 넓은 회귀는 실행하지 않았다. 이번 devnotes 스크립트 사전 검증은 Linux pwsh 기준이며 Windows PowerShell 5.1 실제 실행이 아니다. 실차 검증: 미실시(12절).
 - (203cha) 남은 서브테스트 5건 프레임 단위 재현(이 세션, 202cha 샌드박스 재사용): disabled+blended reset_state 스크래치 실험(강제 False 시 20 s간 a=-0.866으로 7.87 m/s까지 감속 확인, 실험 후 `git checkout`으로 원복하고 `git diff --stat` 빈 결과 확인 - 코드 변경 없음). cut-in force_decel 20 s 종료 speed=0.1208/a=-0.0283(199cha와 일치). resume from a stop t=10.15~10.25 a=-0.00665~-0.00153(3프레임, 0.15초), t=10.30부터 양전환, t=12.60 a=0.273(199cha와 일치). allow_throttle force_decel=False 2건 종료 speed 20.0048/20.0000(감속 없음, 기존과 동일). 코드 변경 없음, 실차 검증: 미실시(12절).
 - (202cha) 코드 0a1a9fc 독립 검증(이 세션): `git ls-remote` HEAD 일치, 부모 69eaf32, numstat 1파일 +3/-1, blob 446c2ed -> f087a48, CR 0개, BOM 없음, py_compile 통과. pytest 7개 파일(-n 0, pytest-mock 설치): 9 failed / 277 passed / 53 subtests passed, 실패는 모두 test_longitudinal.py. long_mpc.py를 69eaf32판으로 임시 교체한 기준선(test_longitudinal만)은 11 failed / 51 subtests passed였고, 신/구 차이는 ACC 모드 force_decel 2건이 사라진 것뿐이다. 임시 교체는 `git checkout`으로 원복했다. 샌드박스(Ubuntu 24, Python 3.12.3) 값이며 넓은 회귀는 실행하지 않았다. 이번 devnotes 스크립트 사전 검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다. 실차 검증: 미실시(12절).
 - 코드 push 재확인(201cha, 독립 clone): HEAD 69eaf32 일치, 부모 bef8edf, --numstat 4파일이 위 수치와 일치, 4개 파일 CR 0개, py_compile과 JSON 파싱 통과. pytest는 이 세션 샌드박스에 없어 재실행하지 않았고, push된 blob과 코드 스크립트 기대 해시의 대조도 하지 않았다(스크립트가 이 세션에 없었음).
@@ -68,7 +75,8 @@ carrot-ms 마지막 검토 체크포인트: 4445c29 -> c771c4e (201차 판정 �
 - 이 세션의 샌드박스 셸은 dash라 $'\r' 같은 bash 전용 인용이 해석되지 않는다. CR 개수는 tr -cd '\r' | wc -c로 센다(첫 CRLF 재현이 이 때문에 잘못된 0으로 나왔음).
 - 이 세션 샌드박스에서 `cut -c`는 한글 UTF-8을 바이트 단위로 잘라 출력이 invalid UTF-8이 됐다. 한글 문서는 python 슬라이스로 읽을 것. pytest 재현에는 pip install pytest-mock이 필요했다(pytest_ci_setup.sh가 설치하지 않음). 기준선 비교/스크래치 패치는 대상 파일만 임시 교체하고 반드시 `git checkout <파일>`로 원복해 `git diff --stat`(또는 `git status`)으로 빈 결과를 확인할 것.
 - (203cha) 202cha 세션의 샌드박스(/home/claude/repo, 체크아웃 0a1a9fc)는 세션 간 파일시스템이 남아있을 수도, 초기화됐을 수도 있다(이번엔 남아있었다). 있으면 재사용해 환경 구성(약 1분)을 건너뛸 수 있으니 먼저 `git rev-parse HEAD` 등으로 확인할 것.
+- (204cha) 이 세션에서 99012c3을 만든 코드 스크립트와 그 사전 검증은 확인하지 못했다(이 세션에 없음). 커밋 주석의 "ACC mode lifts this for v_cruise == 0"은 방향만 같고 조건/값이 다르다(WIP.md 204cha 4번, 미완료 15번). 샌드박스가 남아 있다면 /home/claude/repo(체크아웃 99012c3)를 재사용할 수 있으나 세션 간 초기화될 수 있으니 `git rev-parse HEAD`로 먼저 확인할 것.
 
 다음 작업:
-1. 사용자가 선택: (d) carrot-ms 점검 계속(c771c4e 이후, c36f6e7부터), (b) 202cha 실차 확인 항목 정리(미완료 13번), (a) disabled+blended force_decel 수정 코드 작업(미완료 14번, 승인 필요), (e) comfort_brake 2.4 vs 2.5 의도 판단, (f) 이월 항목(실차 검증들, 미완료 10번 포함), (g) (b')/(c)/(v).
+1. 사용자가 선택: (d) carrot-ms 점검 계속(c771c4e 이후, c36f6e7부터), (h) 미완료 15번(blended ACCEL_MIN vs ACC autoNaviSpeedDecelRate 확인과 blended 진입 조건 읽기), (b) 202cha/204cha 실차 확인 항목 정리(미완료 13, 15번), (e) comfort_brake 2.4 vs 2.5 의도 판단, (f) 이월 항목(실차 검증들, 미완료 10번 포함), (g) (b')/(c)/(v).
 2. 코드 변경이 나오면 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes 1회).

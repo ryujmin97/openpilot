@@ -1,5 +1,35 @@
 # WIP
 
+## 204cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ryu 99012c3(blended 모드 forceDecel, long_mpc.py) push 독립 검증(실차 미실시)
+
+**배경:** 사용자가 carrot-ryu push 완료를 알려 왔다. 203cha 미완료 14번(disabled+blended에서 force_decel이 감속하지 않는 문제)의 수정에 해당하는 코드 커밋 `99012c3`가 GitHub에 올라와 있었다. 이 세션에는 그 코드 스크립트를 작성한 논의가 없어서(스크립트도 이 세션에 없음), 이 세션의 일은 push된 결과를 GitHub와 독립 샌드박스로 검증하고 devnotes에 기록하는 것이다. 5절 순차 전달(코드 push -> 확인 -> devnotes 1회)에서 "확인"과 "devnotes" 단계에 해당한다.
+
+**0. 지침 문서 재확인과 상태 대조.** `git ls-remote`로 note HEAD `80b9ce947c89299975b80701c79b944eda35b5d9`(203cha devnotes)와 carrot-ryu HEAD `99012c363cc4177e93e4b250b06bf3898ee6bba9`를 확인했다. 지침 문서 v2를 note SHA로 고정 조회한 본과 브랜치 URL 본이 `cmp` 일치(50,696바이트, 변경 없음). 203cha HANDOFF의 코드 base는 `0a1a9fc`였으므로 carrot-ryu가 그 위 1커밋 앞서 있음(16절 대조)을 확인했고, 이 커밋이 이번 push다.
+
+**1. 변경 내용(`99012c3`, 부모 `0a1a9fc`).** `long_mpc.py` 1개 파일 +4/-0. blended 분기의 `self.source = ...` 줄 바로 뒤(약 544행)에 아래를 추가했다.
+
+```python
+if reset_state and v_cruise == 0:
+  self.params[:,0] = ACCEL_MIN
+```
+
+`reset_state`가 True이면 감속 하한이 `a_ego`로 고정돼(478행 `self.params[:,0] = ACCEL_MIN if not reset_state else a_ego`) 브레이크 계획을 세울 수 없다. forceDecel 때 플래너가 넘기는 `v_cruise = 0.0`이면 그 하한을 `ACCEL_MIN`으로 되돌린다. 조건이 `reset_state`이면서 `v_cruise == 0`일 때뿐이라 평상시 disabled 동작은 그대로이고, blended 분기 안이라 ACC 분기는 건드리지 않는다. 안전 관련 동작 변경이다(202cha 다음).
+
+**2. GitHub 재확인(독립 blobless bare clone).** HEAD 일치, 부모 `0a1a9fc`, `--numstat` 1파일 4/0, blob `f087a48` -> `f4f81e2`, 변경 후 파일 CR 0개, BOM 없음(첫 3바이트 `23 21 2f`), `py_compile` 통과.
+
+**3. pytest 신/구 비교(이 세션, 독립 샌드박스).** toolkit/pytest_ci_setup.sh로 구성(Ubuntu 24, Python 3.12, 코어 1개)하고 `pip install pytest-mock`을 추가했다. `-n 0 -p no:randomly`.
+- 신판(체크아웃 `99012c3`) 7개 파일(test_longitudinal.py, test_lead_gate_margin.py, test_longitudinal_gap_recovery.py, test_longitudinal_preview.py, test_following_distance.py, test_long_mpc_a_change_cost.py, carrot/tests/test_cutout_mpc_integration.py): **7 failed, 278 passed, 54 subtests passed**(111 s). 실패 7건은 모두 test_longitudinal.py(서브테스트 4 + 부모 3)이고 나머지 6개 파일은 전부 통과했다.
+- 기준선: 같은 하네스에서 long_mpc.py만 `0a1a9fc`판(blob `f087a48`)으로 임시 교체해 test_longitudinal.py만 실행: **9 failed, 53 subtests passed**(55 s, 서브테스트 5 + 부모 4). 교체 후 `git checkout`으로 원복하고 blob이 `f4f81e2`, `git diff --stat` 빈 결과, HEAD `99012c3`임을 확인했다(`openpilot/cereal/gen/`는 환경 산출물).
+- 신/구 차이는 딱 하나: 서브테스트 `cruising at 25 m/s while disabled`(e2e=True, force_decel=True)가 사라졌고 그 부모(TestLongitudinalControl_0)도 통과로 바뀌었다. 나머지 서브테스트 4건(allow_throttle=False pitch +0.1 두 건, ACC cut-in force_decel, resume from a stop)은 신/구 모두 그대로 실패한다. 202cha 세션 기록(9 failed / 277 passed / 53 subtests)과도 일관된다(9 -> 7 failed, 277 -> 278 passed, 53 -> 54 subtests). 203cha가 스크래치 실험으로 확정한 원인(reset_state가 blended 모드에서만 force_decel 감속을 막음)이 실제 수정으로 해소됨을 하네스가 확인해 준 것이다.
+
+**4. 발견: ACC 경로와 조건/값이 다르다(코드 읽기, 동작 검증 아님).** 커밋 주석은 "ACC mode lifts this for v_cruise == 0"이라고 하지만, ACC 분기(약 520행)는 `if v_cruise == 0 and self.source == 'cruise': self.params[:,0] = - carrot.autoNaviSpeedDecelRate`로 풀고, `reset_state`와 무관하며 source가 cruise일 때만 적용된다. 이번 blended 수정은 `reset_state and v_cruise == 0`이면 source와 상관없이 `ACCEL_MIN`(opendbc `interfaces.py` 34행 `-4.0`, 원래 값 3.5는 주석 처리됨)으로 푼다. 방향(감속을 허용)은 같지만 조건과 하한 값이 같지 않다. `autoNaviSpeedDecelRate`의 실제 값과 blended에서 -4.0 m/s^2까지 허용됐을 때 실주행 제동 강도(승차감/뒤차 안전)는 이번에 조회하지 않았다.
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). 안전 관련 동작이며 정적/샌드박스 단계다.
+- DM alert 3 / softDisabling 등에서 controlsd 경로가 실제로 blended 모드 + `reset_state` True + `v_cruise=0`을 만드는 조건, 그리고 blended가 실주행에서 선택되는 조건(모드 전환 로직)은 읽지 않았다.
+- 넓은 회귀(7개 파일 밖)는 실행하지 않았다. 테스트 수치는 샌드박스(Ubuntu 24, Python 3.12) 값이다.
+- 이 코드 커밋을 만든 스크립트의 사전 검증(구문/bare 저장소 시뮬레이션)은 이 세션에 없어서 확인하지 못했다. 이번 devnotes 스크립트 사전 검증은 Linux pwsh 기준이며 Windows PowerShell 5.1 실제 실행이 아니다.
+
 ## 203cha (완료) (Claude, Claude Sonnet 5) - test_longitudinal 남은 서브테스트 5건 원인 조사(코드 변경 없음, 실차 미실시)
 
 **배경:** 사용자가 202cha 다음 작업 중 (c) 미확정 원인 조사를 선택했다. 대상은 202cha 이후에도 남은 test_longitudinal 서브테스트 실패 5건이다. 코드 변경 없음, WIP_SYNC.md 변경 없음, carrot-ms 점검 없음.
