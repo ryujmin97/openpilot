@@ -1,5 +1,29 @@
 # WIP
 
+## 201cha (완료) (Claude, Claude Sonnet 5) - carrot-ms 948b139(전방 레이더 리드 정지까지 유지) carrot-ryu 이식(69eaf32), 4445c29..c771c4e 신규 23건 판정 기록
+
+**배경:** 사용자가 이번 세션에서 carrot-ms 점검(HANDOFF 다음 작업 (d))을 위임했고, Claude가 `948b139` 이식과 `4770067` 제외를 권고해 그대로 진행했다. 5절 순차 전달(코드 스크립트 -> 실행 -> GitHub 재확인 -> devnotes)에 따라 코드 push가 먼저 나갔고, 이 기록은 확인 이후에 작성했다. 실차 검증: 미실시(12절).
+
+**0. 4절 0단계와 지침 문서.** 지침 문서 v2를 carrot-ryu-note `eb765755f27f0667766d8440a5b0502cb14f678e` SHA 고정으로 조회해 브랜치 URL 본과 일치함을 확인했다. 두 번째 조회(devnotes 작성 전 재확인)에서도 `git ls-remote`로 carrot-ryu HEAD `69eaf32ace3666a3e7669908c47df7973201b86c`, carrot-ryu-note HEAD `eb76575`를 확인했다.
+
+**1. 코드 반영(carrot-ryu `69eaf32`, 사용자가 스크립트를 실행해 push).**
+- 부모는 base로 고정한 `bef8edf`(199cha 코드)이다. author `ryujmin97 <ryujmin97@gmail.com>`, 커밋 메시지는 `201cha: port carrot-ms 948b139 - keep confirmed front radar lead through braking to standstill (primary.py held_stopping_front, +16 tests, Sonata cutin case, doc); upstream tentative-track test case not ported because 14e2cfa is excluded`이다.
+- 변경 파일 4개(`git show --numstat`으로 확인): `openpilot/selfdrive/carrot/radar_motion/primary.py` +23/-2, `openpilot/selfdrive/carrot/tests/test_radar_motion_predictor.py` +78/-0, `openpilot/selfdrive/carrot/cluster/cutin_validation_cases.json` +15/-0, `docs/sonata_stopping_lead_continuity_20260928.md` +93/-0(신규).
+- 동작 변경: 확정된 전방 레이더(`frontRadar`) 리드가 정지까지 제동하는 동안 `RADAR_ONLY_MOVING_MIN_VLEAD_MPS` 미만 속도라는 이유로 후보에서 탈락하지 않도록, 같은 식별자로 위치가 연속인 측정 포인트에 한해 `held_stopping_front`(v_lead >= -1.0 m/s)를 후보 유지 조건으로 추가했다. 새 상수는 `RADAR_ONLY_MOVING_HELD_FRONT_MIN_VLEAD_MPS = -1.0`이다. 종방향 표적 선택에 영향을 준다.
+- 업스트림과 다른 점: (a) carrot-ryu에는 우리가 제외한 `14e2cfa`(`radar_track_state == 1` 거부) 줄이 없어 `primary.py`의 두 hunk를 한 블록으로 합쳤다. (b) 업스트림 릴리스 테스트의 `tentative` 케이스는 그 거부 로직이 없으면 실패하므로 이식하지 않았다(업스트림 테스트 +80 대비 carrot-ryu +78, 추가 테스트 16건). (c) 업스트림 문서에 carrot-ryu 전용 메모(14e2cfa 미이식, DH2015는 일반 CAN이라 상태값이 항상 0이라 실제 영향 없음)를 붙였다(+89 대비 +93).
+- 이식 결과 blob(단축 7자리): `primary.py` 241acd2, 테스트 4e6e6ac, cutin JSON f7a9847, 문서 d836865.
+
+**2. 검증.**
+- 코드 스크립트를 만들 때 샌드박스에서 측정한 값(이번 확인 단계에서는 재실행하지 않음): `test_radar_motion_predictor.py` 수정 전 420 통과 -> 수정 후 436 통과. 새 테스트를 옛 `primary.py`에 적용하면 정지 유지 테스트 3건이 실패한다(수정 필요성의 증거). 관련 테스트 11개 파일은 수정 전후 모두 4 failed / 271 passed이고 실패 4건은 `test_radar_lead_simulator.py`로 같다(이번 변경과 무관).
+- 이번 GitHub 재확인(16절, 독립 clone): `git ls-remote` HEAD 일치, 부모 `bef8edf`, `--numstat` 4파일 위 수치와 일치, 4개 파일 모두 CR 0개, `py_compile`(primary.py, 테스트)와 JSON 파싱 통과, `held_stopping_front` 심볼 존재.
+- 이번 재확인에서 하지 않은 것: pytest 재실행(샌드박스에 pytest 없음), push된 blob과 코드 스크립트의 기대 해시(`Post` 값) 대조(스크립트 파일이 이 세션에 없었음).
+- 코드 스크립트 검증은 Linux PowerShell 7.6.6 기준(구문 오류 0건, 후행 쉼표 대조군 2건 검출, 로컬 bare 저장소 (a) 일반 (b) 작업 트리 CR 3,952개인 CRLF 체크아웃 모두 앵커 5블록 1회 매치와 blob 기대값 일치, 커밋 blob CR 0개)이다. Windows PowerShell 5.1 실제 실행이 아니며, 실행은 사용자 PC에서 이뤄졌고 push 로그와 GitHub 재확인으로 결과를 확인했다. 첫 CRLF 재현은 셸이 dash라 `$'\r'`가 해석되지 않아 CR을 0개로 잘못 센 검사 방식 오류였고, `tr`로 다시 세어 재현했다.
+- 실차 검증: 미실시(12절). 이 변경은 종방향 표적 선택을 바꾸므로 실주행 확인 전까지 정적 분석/샌드박스 단계다.
+
+**3. carrot-ms 점검 결과(체크포인트 `4445c29` -> `c771c4e`, 신규 23건, 세부는 WIP_SYNC.md 201차).** `948b139` 이식 1건, `4770067` 제외 1건, DM2 계열 8건 보류, Jetson jetlink 계열 12건 제외, 문서 1건(`a482d02`) 제외. 사용자가 판단을 위임("너가 원하는대로 진행")해 Claude가 위와 같이 판정했다. 이 세션에서 carrot-ms HEAD는 이미 `c36f6e7`("Detect steering touch by received CAN profile across Hyundai CAN-FD")까지 진행돼 있었고, 이 커밋은 판정하지 않아 다음 점검 대상으로 남겼다.
+
+**4. 이번에 손대지 않은 것.** `c36f6e7` 판정, DM2 도입 여부, `4770067` 재검토, test_longitudinal 서브테스트 7건과 `long_mpc.py` 468행, comfort_brake 2.4 vs 2.5 판단, 넓은 회귀 재집계, 이월된 실차 검증 항목 전부.
+
 ## 199cha 계속2 (완료) (Claude, Claude Sonnet 5) - 남은 12건 중 test_cruise_speed 8건 해소: plant.py가 carState.vEgoCluster를 발행하도록 코드 반영(bef8edf, 테스트 전용) 후 GitHub 재확인
 
 **배경:** 199cha 계속에서 test_cruise_speed 8건의 원인이 하네스의 `vEgoCluster` 미발행으로 정정됐고, 사용자가 HANDOFF 다음 작업 (a)(테스트 전용 수정)를 선택했다. 5절 순차 전달(코드 스크립트 -> 실행 -> GitHub 재확인 -> devnotes)에 따라 이번 회차의 코드 push가 먼저 나갔고, 이 기록은 확인 이후에 작성했다. 실차 검증: 미실시(12절).

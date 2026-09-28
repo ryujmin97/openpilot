@@ -1,5 +1,33 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-28 (201차) -- carrot-ms 4445c29 -> c771c4e 신규 23건 판정: 948b139 이식, 4770067 제외, DM2 계열 8건 보류, jetlink 12건 + 문서 1건 제외
+
+- carrot-ms 마지막 검토 대상 체크포인트: 4445c29(194차) -> c771c4e(2026-09-28). 4445c29가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `4445c29..c771c4e` 범위를 잡음(blobless bare clone + git log, 변경 파일은 `git show --numstat`). 세션 시점 carrot-ms HEAD는 `c36f6e7`이며 이 커밋은 이번 범위 밖(미판정, 아래 참고).
+- carrot-ryu HEAD: 69eaf32ace3666a3e7669908c47df7973201b86c(이번 세션 코드 변경 1건, 부모 bef8edf).
+- 신규 커밋 23건 중 WIP_SYNC.md에 기존 검토 기록이 있는 것은 0건. 판정은 사용자 위임("너가 원하는대로 진행")에 따라 Claude가 수행. 별도 표기가 없으면 제목/변경 파일 목록/carrot-ryu 존재 여부 수준 확인이며 라인 단위 diff 대조는 하지 않음.
+
+**판정 (2절 7번: 종류만으로 제외하지 않고 개별 확인, 제외 사유 기록)**
+
+1. `948b139`("Keep confirmed front radar leads through braking to standstill") -- 이식 완료(carrot-ryu `69eaf32`).
+   내용: `primary.py`의 `held_stopping_front` 추가(+23/-2), 테스트, Sonata cutin 케이스 1건, 문서. 실차에서 Sonata 리드를 정지까지 추종하지 못하던 문제의 수정.
+   carrot-ryu 차이: 제외한 `14e2cfa`(`radar_track_state == 1` 거부)가 없어 `primary.py` 두 hunk를 한 블록으로 합침, 업스트림 릴리스 테스트의 `tentative` 케이스는 이식하지 않음(그 거부 로직이 없으면 실패). DH2015는 일반 CAN이라 상태값이 항상 0이라 실제 동작 영향 없음. 테스트 +78(업스트림 +80), 문서 +93(업스트림 +89, carrot-ryu 전용 메모 4줄 추가).
+   검증: 샌드박스 pytest 420 -> 436 통과, 새 테스트를 옛 코드에 적용하면 3건 실패. 실차 검증: 미실시.
+2. `4770067`("Recover failed startup with automatic Git updates and reboot") -- 제외(Claude 판단, 사용자 위임).
+   내용: `launch_chffrplus.sh`의 빌드/매니저 실패 처리를 모두 복구 화면(`show_startup_failure`)으로 보내고, 복구 화면이 실패 상태에서 자동으로 Git fast-forward 후 재부팅한다(`common/startup_recovery.py`, `system/ui/startup_recovery.py`, `manager.py`, `build.py`, `text_window.py` 변경, 신규 +120/+208줄과 테스트 +193줄).
+   사유: (a) 디바이스 부팅 경로 자체를 바꾸는 변경이라 실기기 부팅 검증 없이 반영하기 어렵고 10절 최소 변경 원칙과 어긋난다. (b) 자동 Git 갱신 + 재부팅은 20절 7번(디바이스 배포 전 사용자 확인)과 충돌할 수 있다. carrot-ryu는 콤마 디바이스가 추적하는 브랜치이므로 사용자 승인 없는 자동 갱신은 원치 않는 배포가 될 수 있다. (c) carrot-ryu에는 `startup_recovery.py`와 복구 UI가 없어 통째로 이식해야 한다. 재검토 조건: 사용자가 부팅 실패 자동 복구를 원한다고 판단할 때(별도 코드 세션 + 승인).
+3. DM2(실험적 운전자 모니터링) 계열 8건 -- 보류(반영하지 않음, 사용자 위임 판단).
+   대상: `e7b9eb1`(DM2 신규 도입: `dm2.py`/`dm2d.py`/`dm2_context.py`, cereal `log.capnp`, `params_keys.h`, `carrot_settings.json` 등), `13eca74`(DM2 타이밍 재조정), `6262570`, `7171d42`, `2326be2`(DM 초기화/리더 수정), `7bd44b5`(Ioniq 5 PE 조향 터치를 DM 입력으로 사용, opendbc Hyundai `steering_touch.py`와 `car.capnp` 변경), `847d81f`(잠금 경고 한국어 문구 1줄), `c771c4e`(주차 확인 후 DM 잠금 해제, `selfdrived.py` 포함).
+   보류 사유: carrot-ryu에 `openpilot/selfdrive/monitoring/dm2.py`, `dm2d.py`, `dm2_context.py`, `opendbc_repo/opendbc/car/hyundai/steering_touch.py`가 없다(clone으로 확인). `e7b9eb1`이 기능 전체를 새로 들이고 나머지 7건이 그 위의 수정/확장이라 일부만 골라 반영할 수 없다. 반영하면 운전자 모니터링 경고/잠금 동작이 바뀌므로 별도 코드 세션과 명시적 승인이 필요하다. `7bd44b5`는 제목/파일 기준으로 CAN-FD 계열(Ioniq 5 PE)용으로 보이며 DH2015 일반 CAN과 무관해 보이나 라인 단위로는 확인하지 않음. 재검토 조건: 사용자가 DM2 도입을 결정할 때(`e7b9eb1`부터 순서대로).
+4. Jetson jetlink 계열 12건 -- 제외.
+   대상: `ee017db`, `87f8bed`, `01b52be`, `997f839`, `c38833a`, `c5b0a63`, `097826b`, `9a36181`, `0c4b84d`, `0f37b09`, `35d2841`, `b1df74b`.
+   사유: 변경 파일이 `tools/jetlink/*`, `docs/jetson_*`, `docs/jetlink_*`, `docs/INSTALL-WINDOWS-KO.md`, `.github/workflows/jetlink-checks.yaml`이며, `35d2841`만 `openpilot/common/jetlink_peer.py`, `jetlink_status.py`, `selfdrive/modeld/jetlink/daemon.py`, `mac.py`를 건드린다. 모두 외장 Jetson 호스트/SD 이미지/Windows 설치기/Mac 앱 연동 전용이며, carrot-ryu에는 `tools/jetlink`, `selfdrive/modeld/jetlink`, `common/jetlink_peer.py`가 존재하지 않는다(clone으로 확인). 이 차량(제네시스 DH 2015 + 콤마 C3) 구성에 없는 하드웨어다.
+5. `a482d02`("Record verified Sonata radar fix deployment and replay results") -- 제외.
+   내용: 문서 1개(`docs/sonata_stopping_lead_continuity_20260928.md`, +25/-2)만 변경, 업스트림 쪽 배포/리플레이 결과 기록. 사유: 코드 변경 없음, 업스트림 실차/리플레이 결과라 carrot-ryu 검증 기록이 아니다. 이식한 문서(`948b139` 시점 본문)에 그 결과 기록은 넣지 않았다. 필요하면 참고용으로만 재조회.
+
+**다음 점검**
+- 다음 점검은 `c771c4e` 이후 신규 커밋부터. 이 세션에서 이미 확인된 것은 `c36f6e7`(2026-09-28, "Detect steering touch by received CAN profile across Hyundai CAN-FD") 1건이며 판정하지 않았다. 그 이후 신규 커밋은 조회하지 않았다.
+- 보류 유지: `f992f9c`(LFS 일반 blob 전환, 194차), DM2 계열 8건(이번). 제외 유지: `fc7ee88`(UI 코어 배치, 194차), `4770067`.
+
 ## 체크포인트: 2026-09-28 (194차) -- carrot-ms 735a9a4 -> 4445c29 신규 11건 판정: 10건 제외, f992f9c 보류(코드 변경 없음)
 
 - carrot-ms 마지막 검토 대상 체크포인트: 735a9a4(192차) -> 4445c29(2026-09-28 carrot-ms HEAD, "Record full installer execution and verified NAS candidate artifacts"). 735a9a4가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `735a9a4..HEAD` 범위를 잡음(api.github.com compare는 rate limit이라 blobless bare clone + git log로 대체).
