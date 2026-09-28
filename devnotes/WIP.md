@@ -1,5 +1,31 @@
 # WIP
 
+## 206cha (완료) (Claude, Claude Sonnet 5.5) - (i) blended forceDecel이 ACC보다 약한 점의 설계 판단: 의도로 확정(A, 현행 유지, 코드 변경 없음, 실차 미실시)
+
+**배경:** 205cha 다음 작업 중 (i)를 사용자가 선택했다. blended 모드의 forceDecel 감속(25 -> 약 8 m/s를 -0.87 m/s^2, 정지하지 않음)이 ACC(20 s 안에 거의 정지)보다 약한 것을 의도로 볼지 판단하는 작업이다. 코드 읽기와 원본 대조만 했고 코드 변경은 없어, 5절의 "코드 변경이 없는 경우"에 따라 devnotes 1회 push로 마무리한다.
+
+**0. 지침 문서 재확인과 상태 대조.** 지침 문서 v2를 브랜치 URL로 조회한 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `9941726611980dc4aee7ac45190f0e8f790816b1`(205cha devnotes)를 얻어 SHA 고정본을 다시 조회했고 `cmp` 일치(50,696바이트, 변경 없음)를 확인했다. carrot-ryu HEAD `058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044`는 205cha HANDOFF의 코드 base와 일치했다.
+
+**1. 코드 읽기(carrot-ryu 058391e, blob 전체 읽음 아님: 아래 줄 범위만).**
+- blended 분기의 크루즈 목표는 `cruise_target = T_IDXS * np.clip(v_cruise, v_ego - 2.0, 1e3) + x[0]`(long_mpc.py 536행)이라, v_cruise=0을 받아도 목표가 현재 속도 -2 m/s 아래로 내려가지 않는다. 그래서 blended의 forceDecel 감속이 구조적으로 약하다.
+- 같은 줄이 carrot-ms 원본 long_mpc.py 491행에 그대로 있다(원본 raw를 받아 grep으로 확인). 원본에는 `min(v_cruise, carrot.v_cruise)`(202cha 추가)와 `reset_state and v_cruise`(204cha 추가) 줄이 없다(grep 0건).
+- 즉 blended가 ACC보다 약한 것은 carrot-ms 원본의 blended 설계에서 온 것이고, 202cha(ACC)와 204cha(blended)는 forceDecel이 원래 두 모드에서 작동하지 않던 것을 작동하게 만든 변경이다. 204cha는 blended를 원본 설계 수준(clip 하한 안)까지만 고친 것이다.
+- ACC 경로는 `v_cruise == 0 and self.source == 'cruise'`일 때 `params[:,0] = -carrot.autoNaviSpeedDecelRate`(기본 1.2)를 쓰고(약 519~520행), blended는 `reset_state and v_cruise == 0`이면 `ACCEL_MIN`이다(546~547행). 앞차가 있으면 두 모드 모두 앞차 제동 권한이 살아 있어서 차이는 앞이 비어 있을 때의 서행 정지 속도에서만 생긴다(205cha 프로브와 같은 결론).
+
+**2. 차이의 크기(이번 세션 재측정 아님, 204/205cha 샌드박스 수치와 산술).**
+- blended: 25 -> 약 8 m/s를 20 s 동안 약 -0.87 m/s^2(204/205cha 측정값).
+- ACC: 20 s 안에 거의 정지(0.376 m/s, 203cha 측정값). 하한은 -autoNaviSpeedDecelRate = 1.2.
+- 등가속도 외삽(측정 아님): blended가 20 s 이후에도 -0.87을 유지한다고 가정하면 정지까지 약 29 s/약 360 m, ACC 약 21 s/약 260 m. 20 s 이후 거동은 측정하지 않았으므로 참고 수치로만 쓴다. 실차 검증: 미실시(12절).
+
+**3. forceDecel 트리거 확인(이번 세션 새로 읽음).**
+- controlsd.py 323행: `forceDecel = alertLevel == three or selfdriveState.state == softDisabling`(DisableDM == 0일 때만).
+- events.py 590~596행: `driverUnresponsive3`는 `ET.PERMANENT` 알림만 있고 SOFT_DISABLE/IMMEDIATE_DISABLE이 없다. policy.py 360~362행은 awareness <= 0이면 alert_level=three를 유지한다. 따라서 운전자가 반응할 때까지 forceDecel이 3초(state.py SOFT_DISABLE_TIME=3)보다 길게 이어질 수 있다. 다른 경로(예: DM lockout, 재활성 조건)로 해제되는지와 `driverDistracted3`(비전 DM) 이벤트 유형은 이번 세션에서 읽지 않았다.
+
+**4. 결정(사용자 확정: A).** 현행 유지. blended의 forceDecel 감속이 ACC보다 약한 것은 carrot-ms 원본 설계에서 온 의도된 동작으로 본다. 근거: (a) 원본과 같은 clip 구조, (b) 앞차가 있으면 두 모드 모두 `ACCEL_MIN` 제동 권한 유지, (c) 실주행 근거 없이 안전 관련 코드를 추가로 바꾸지 않음. 코드 변경 없음, 미완료 15번 (b)는 이것으로 종결한다.
+- 선택하지 않은 B(v_cruise=0일 때만 blended의 `v_ego - 2.0` 하한을 낮춰 ACC 수준(-1.2 근처)으로 강화)는 폐기하지 않는다. 재검토 조건: 실차 로그에서 blended + forceDecel이 실제로 발생하고 정지가 늦다고 확인될 때, 또는 DH 2015에서 운전자 무반응 상황에 blended(실험 모드)를 쓰는 빈도가 높다고 확인될 때. 이 경우 안전 관련이라 별도 승인 + 5절 순차 전달(10절)이다.
+
+**5. 검증.** 정적 코드 읽기와 carrot-ms 원본 grep만 수행했다. 테스트 실행 없음, 코드 변경 없음. 실차 검증: 미실시(12절).
+
 ## 205cha (완료) (Claude, Claude Sonnet 5.5) - 미완료 15번 검토(코드 변경 없음, ACCEL_MIN 유지 권고) + carrot-ryu 058391e(comfortBrake 2.4 -> 2.5) 반영/재확인(실차 미실시)
 
 **배경:** 사용자가 204cha 다음 작업 중 (h) 미완료 15번(blended 감속 하한 `ACCEL_MIN` -4.0과 ACC 경로 `-autoNaviSpeedDecelRate`가 다른 점을 읽고 같은 값/조건으로 맞출지 검토)을 진행하라고 했고, (e) comfort_brake 2.4와 정지등가 항 상수 2.5의 불일치는 "2.5로 통일"하라고 지시했다. 앞의 것은 검토(코드 변경 없음), 뒤의 것은 코드 변경이라 5절 순차 전달(코드 스크립트 -> 사용자 실행 -> GitHub 재확인 -> devnotes 1회)을 따랐다.
