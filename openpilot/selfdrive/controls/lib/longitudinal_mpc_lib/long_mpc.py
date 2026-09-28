@@ -465,7 +465,9 @@ class LongitudinalMpc:
     if mode == 'blended':
       stop_x = 1000.0
     else:
-      v_cruise, stop_x, mode = carrot.v_cruise, carrot.stop_dist, carrot.mode
+      # forceDecel: the planner hands over v_cruise=0.0 (longitudinal_planner.py); carrot.v_cruise is never
+      # above the planner value, so min() keeps carrot's stop logic and still honors force decel.
+      v_cruise, stop_x, mode = min(v_cruise, carrot.v_cruise), carrot.stop_dist, carrot.mode
 
     # To estimate a safe distance from a moving lead, we calculate how much stopping
     # distance that lead needs as a minimum. We can add that to the current distance
