@@ -1,5 +1,36 @@
 # WIP
 
+## 205cha (완료) (Claude, Claude Sonnet 5.5) - 미완료 15번 검토(코드 변경 없음, ACCEL_MIN 유지 권고) + carrot-ryu 058391e(comfortBrake 2.4 -> 2.5) 반영/재확인(실차 미실시)
+
+**배경:** 사용자가 204cha 다음 작업 중 (h) 미완료 15번(blended 감속 하한 `ACCEL_MIN` -4.0과 ACC 경로 `-autoNaviSpeedDecelRate`가 다른 점을 읽고 같은 값/조건으로 맞출지 검토)을 진행하라고 했고, (e) comfort_brake 2.4와 정지등가 항 상수 2.5의 불일치는 "2.5로 통일"하라고 지시했다. 앞의 것은 검토(코드 변경 없음), 뒤의 것은 코드 변경이라 5절 순차 전달(코드 스크립트 -> 사용자 실행 -> GitHub 재확인 -> devnotes 1회)을 따랐다.
+
+**0. 지침 문서 재확인과 상태 대조.** 세션 시작 지시대로 지침 문서 v2를 조회했다. 첫 조회는 브랜치 URL이었고, 4절 0단계에 따라 `git ls-remote`로 note HEAD `66375ec121286b88a5e599b263a41eef57cb2133`(204cha devnotes)를 얻어 SHA 고정본을 다시 조회해 `cmp` 일치(50,696바이트, 변경 없음)를 확인했다. carrot-ryu HEAD `99012c363cc4177e93e4b250b06bf3898ee6bba9`는 204cha HANDOFF의 코드 base와 일치했다.
+
+**1. 미완료 15번 검토(코드 읽기 + 샌드박스 프로브, 코드 변경 없음).**
+- 코드 읽기: ACC 분기(long_mpc.py 약 520행)는 `v_cruise == 0 and self.source == 'cruise'`일 때만 `params[:,0] = -carrot.autoNaviSpeedDecelRate`이고 reset_state와 무관하다. blended 분기(약 547행, 99012c3)는 `reset_state and v_cruise == 0`이면 source와 무관하게 `ACCEL_MIN`이다. `autoNaviSpeedDecelRate`는 params_keys.h 기본값 120(=1.2 m/s^2), carrot_settings.json 범위 50~300(0.5~3.0 m/s^2), 설명은 "과속카메라/방지턱 접근 감속 곡선용 값"이다(CarrotPlanner.__init__의 1.5는 param 로드 전 초기값). `ACCEL_MIN`은 opendbc `interfaces.py` 34행 -4.0. blended에서 reset_state가 False인 평상시 경로의 하한도 `ACCEL_MIN`(478행)이라, 99012c3은 reset 상태의 하한을 평상시와 같은 값으로 되돌리는 셈이다.
+- forceDecel 발생 조건: controlsd.py 321~324행, `DisableDM == 0`이고 (DM alertLevel three 또는 selfdriveState softDisabling). 플래너의 reset_state는 `controlsState.longControlState == off`(openpilotLongitudinalControl 차량) 또는 vCruise 미초기화 또는 soft hold이다. 그래서 DM alert 3 / softDisabling은 롱컨트롤이 켜져 있는 동안 reset_state False가 일반적일 것으로 읽힌다(추정. LongControl 상태 전이 코드와 실제 로그는 읽지 않음). 즉 99012c3이 다루는 `reset_state True + v_cruise 0`은 드문 경계 상황이다.
+- 프로브(샌드박스, 이 세션 작성, 저장소에 넣지 않음): `long_mpc.py`에 하한을 환경변수(PROBE_LB)로 바꾸는 임시 패치를 넣고 Plant를 직접 돌렸다(실험 후 `git checkout`으로 원복, 빈 diff 확인). 시나리오는 25 m/s, force_decel=True, 20 s.
+  - 앞차 없음, blended, enabled=False(reset_state True): PROBE_LB가 -4.0/-3.0/-1.2 어느 값이어도 min a=-0.587, 종료 속도 13.26 m/s로 완전히 같았다(하한이 걸리지 않음). -0.5일 때만 -0.571/13.58. 같은 조건에서 enabled=True(reset_state False)는 min a=-0.866, 종료 7.87 m/s. ACC는 enabled=False에서 min a=-2.584/종료 0.38 m/s, enabled=True에서 min a=-1.990/종료 0.73 m/s.
+  - 정지한 앞차가 있는 경우(blended, enabled=False, force_decel=True, 25 m/s 접근): 초기 간격 60 m에서 PROBE_LB=-4.0은 min a=-6.889, 종료 속도 0, 최소 간격 +1.47 m. -1.2는 min a=-2.068, 종료 0.57 m/s, 최소 간격 -90.77 m(앞차를 지나감). 90 m에서 -4.0은 -5.046/0/+3.88 m, -1.2는 -2.068/0.58/-60.81 m. (-4.0 하한을 넘는 -6.889가 나온 이유는 하네스 값이라 조사하지 않았다.) 같은 조건의 ACC(enabled=False)는 min a=-0.002로 전혀 제동하지 않았다(종료 24.98 m/s). 이는 이번 변경과 무관한 기존 동작이다(reset_state에서 하한이 a_ego이고 source가 lead라 ACC 분기의 v_cruise==0 해제가 적용되지 않음).
+- 결론(권고): blended 하한을 `-autoNaviSpeedDecelRate`로 맞추는 것은 권하지 않는다. 앞차가 없을 때는 결과가 같아 얻는 것이 없고, 앞차가 있을 때는 제동 권한을 잃는다. ACC가 그 값을 쓸 수 있는 것은 source == 'cruise' 조건이 있기 때문이다. 이 파라미터의 의미(카메라/방지턱 곡선)도 DM 강제감속과 맞지 않는다. 그래서 코드 변경 없이 `ACCEL_MIN`을 유지한다. 사용자가 이의를 제기하지 않으면 미완료 15번의 "값/조건을 맞출지"는 종결이고, 실차/설계 확인 부분만 남는다.
+- 부수 발견: blended의 forceDecel 감속은 ACC보다 약하다(blended 25 -> 약 8 m/s를 -0.87 m/s^2로, 정지하지 않음. ACC는 20 s 안에 거의 정지). 원인은 하한이 아니라 blended의 감속 요구(`cruise_target = T_IDXS * clip(v_cruise, v_ego - 2.0, ...)`, 즉 v_ego - 2 m/s 목표) 자체로 보이며 조사는 이 정도까지다. 의도인지 설계 판단은 미결(HANDOFF 다음 작업 (i)).
+- 커밋 99012c3의 주석 "ACC mode lifts this for v_cruise == 0"은 방향만 같고 조건/값이 다르다는 점(204cha 기록)이 그대로 남는다. 주석만 고치려면 별도 코드 변경이 필요해 하지 않았다.
+
+**2. comfort_brake 2.5 통일(코드 변경, carrot-ryu 058391e).**
+- 변경: `openpilot/selfdrive/carrot/carrot_functions.py` 103행 `self.comfortBrake = 2.4` -> `2.5`(+1/-1). `comfortBrake`를 덮어쓰는 param/설정은 없고(코드/JSON/JS grep), 이 한 줄이 기본값의 유일한 출처다. long_mpc.py의 모듈 상수 `COMFORT_BRAKE = 2.5`(정지등가 항)와 같아진다. 같은 커밋에서 테스트 가짜 carrot 객체의 `comfort_brake=2.4`(test_longitudinal_gap_recovery.py 64행)도 2.5로 맞췄다(+1/-1). 다른 테스트의 2.5 상수(test_lead_gate_margin.py 등)는 원래 2.5였다.
+- 파급(코드 읽기): `mode_comfort_brake = comfortBrake * 모드 계수`(456행, Safe 0.9 -> 2.25), 정지 표지판 분기 `min(mode_comfort_brake, comfortBrake * 0.9)`(543행, 2.16 -> 2.25)도 함께 바뀐다. `comfort_brake`는 desired_follow_distance/안전 거리/리드 게이팅 margin에 들어가므로, 정상상태 추종 거리의 v^2/(2*cb) 항이 줄어든다: 60 km/h 약 -2.3 m, 100 km/h 약 -6.4 m, 35 m/s 약 -10.2 m(계산, 실차 미검증). stop_distance(6.0)는 그대로다.
+- 사용자 의도: 201cha에서는 comfort_brake 2.4가 의도한 값이라고 했으나 이번에 2.5 통일을 직접 지시했다(이 회차가 그 결정).
+- 검증(샌드박스, 이 세션, toolkit/pytest_ci_setup.sh + pytest-mock, `-n 0 -p no:randomly`, 7개 파일): 기준선(99012c3) 7 failed / 278 passed / 54 subtests passed(108 s), 신판(2.5 기본값) 7 failed / 278 passed / 54 subtests passed(109 s). 실패 목록(SUBFAILED/FAILED 7줄)은 `diff`가 비어 완전히 같았다(모두 test_longitudinal.py, 204cha와 동일). 테스트가 플래너 실제 값을 따르기 때문에 이 결과가 변경의 영향이 작다는 뜻은 아니다. 픽스처 변경 뒤 test_longitudinal_gap_recovery.py 78 passed. 두 파일 py_compile 통과.
+- 반영: 코드 스크립트 `205cha_code_comfort_brake_2p5_v1.ps1`을 작성해 사전 검증(BOM 첫 3바이트 EF BB BF와 이후 비ASCII 0, pwsh 7.6.6 파서 오류 0건과 후행 쉼표 대조군 1건 검출, 전달 파일에서 추출한 앵커를 SHA 고정 원본에 시뮬레이션해 매치 1회/변경 1줄씩, 로컬 bare 저장소 일반 체크아웃과 CRLF 재현 두 모드 모두 끝까지 실행: 2파일 numstat 1/1, blob 일치, blob CR 0)한 뒤 전달했다. 스크립트에는 base 커밋/수정 전 blob 가드, 수정 후 staged blob 가드, 대상 2경로만 add, `GIT_LFS_SKIP_SMUDGE=1`을 넣었다. 사전 검증은 Linux pwsh 기준이고 Windows PowerShell 5.1 실제 실행이 아니다. 실제 실행은 사용자 PC에서 이뤄졌고(사용자가 붙여준 로그의 result 부분: 커밋 `058391e`, Date 2026-09-29 08:19 +0900, `DONE: pushed to carrot-ryu`), 아래 3번으로 GitHub에서 재확인했다.
+
+**3. GitHub 재확인(사용자 push 로그 이후, 독립 blobless bare clone).** `git ls-remote` carrot-ryu HEAD `058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044` 일치(note HEAD는 `66375ec` 그대로), 부모 `99012c363cc4177e93e4b250b06bf3898ee6bba9`, `--numstat` 2파일 각 1/1, blob `2989b30` -> `f7d1bfe446f0783352b4e5d6a8d8de800112905b`(carrot_functions.py), `34894be` -> `1a9f682a194803bba5a055910fb17c96f7d7e3d5`(test_longitudinal_gap_recovery.py)로 스크립트의 기대값과 일치, 두 파일 CR 0개, py_compile 통과, diff는 위 두 줄뿐. 커밋 Author 이메일은 로그에서 `ryujmin@naver.com`로 표시돼 HANDOFF 주의사항에 적힌 전역 user.email 기록(ryujmin97@gmail.com)과 다르다(스크립트는 전역 설정이 ASCII 이메일 형식이면 그대로 씀. 기능 영향 없음).
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). comfort_brake 변경은 추종 거리와 감속 계획에 영향을 주는 안전 관련 동작이다. 15번 프로브도 샌드박스 하네스 값이다.
+- LongControl 상태 전이(softDisabling/DM alert 3에서 longControlState가 off가 되는지), blended가 실주행에서 선택되는 조건, autoNaviSpeedDecelRate의 실제 사용자 설정값은 읽지 않았다.
+- 넓은 회귀(7개 파일 밖)는 실행하지 않았다. 테스트 수치는 샌드박스(Ubuntu 24, Python 3.12) 값이다.
+- 스크립트 사전 검증은 Linux pwsh 시뮬레이션이다. 이번 devnotes 스크립트도 같다.
+
 ## 204cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ryu 99012c3(blended 모드 forceDecel, long_mpc.py) push 독립 검증(실차 미실시)
 
 **배경:** 사용자가 carrot-ryu push 완료를 알려 왔다. 203cha 미완료 14번(disabled+blended에서 force_decel이 감속하지 않는 문제)의 수정에 해당하는 코드 커밋 `99012c3`가 GitHub에 올라와 있었다. 이 세션에는 그 코드 스크립트를 작성한 논의가 없어서(스크립트도 이 세션에 없음), 이 세션의 일은 push된 결과를 GitHub와 독립 샌드박스로 검증하고 devnotes에 기록하는 것이다. 5절 순차 전달(코드 push -> 확인 -> devnotes 1회)에서 "확인"과 "devnotes" 단계에 해당한다.
