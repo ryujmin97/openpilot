@@ -1,5 +1,36 @@
 # WIP
 
+## 199cha 계속2 (완료) (Claude, Claude Sonnet 5) - 남은 12건 중 test_cruise_speed 8건 해소: plant.py가 carState.vEgoCluster를 발행하도록 코드 반영(bef8edf, 테스트 전용) 후 GitHub 재확인
+
+**배경:** 199cha 계속에서 test_cruise_speed 8건의 원인이 하네스의 `vEgoCluster` 미발행으로 정정됐고, 사용자가 HANDOFF 다음 작업 (a)(테스트 전용 수정)를 선택했다. 5절 순차 전달(코드 스크립트 -> 실행 -> GitHub 재확인 -> devnotes)에 따라 이번 회차의 코드 push가 먼저 나갔고, 이 기록은 확인 이후에 작성했다. 실차 검증: 미실시(12절).
+
+**0. 4절 0단계와 지침 문서.** 지침 문서 v2를 브랜치 URL과 SHA 고정 URL(carrot-ryu-note `04f9790ad20e129aef93c38b48d9d6f0c591ebfb`)로 조회해 `cmp` 일치(50696 바이트)를 확인했다. `git ls-remote`로 carrot-ryu HEAD가 `bef8edfcc8f113c7e0e534b2904352d2a5331f2f`, carrot-ryu-note HEAD가 `04f9790`임을 확인했다.
+
+**1. 코드 반영(carrot-ryu `bef8edf`, 사용자가 스크립트를 실행해 push).**
+- 변경 파일은 `openpilot/selfdrive/test/longitudinal_maneuvers/plant.py` 1개, +2/-0이다. 주석 1줄과 `car_state.carState.vEgoCluster = float(self.speed)` 1줄을 `carState.vEgo` 발행(148행) 바로 뒤에 추가했다. 테스트 하네스만 바뀌고 실행 코드는 바뀌지 않는다.
+- 부모는 base로 고정한 `df0da457`(198cha 코드)이다. blob은 `824098d` -> `f238ce1`, mode `100755` 유지, author `ryujmin97 <ryujmin97@gmail.com>`이다. 커밋 메시지는 `199cha: Plant publishes carState.vEgoCluster so carrot cruise_eco_control can release in the sim (test harness only, no runtime change; test_cruise_speed 8 failures -> 0)`이다.
+- 사용자 PC의 push 로그(`commit bef8edf`, `1 file changed, 2 insertions(+)`)와 별개로, 이 세션에서 GitHub를 직접 재확인했다(16절): `git ls-remote`(HEAD `bef8edf`), blobless bare clone의 `git log`(부모 `df0da457`), `git show --numstat`(plant.py 2/0), `git ls-tree`(blob과 mode), `git diff df0da457 bef8edf`(위 2줄만). `api.github.com`은 rate limit으로 실패해 bare clone으로 대체했다.
+
+**2. 변경 후 테스트(샌드박스 측정, 코드 스크립트를 만들 때 실행한 값. 이번 확인 단계에서는 다시 실행하지 않았다).** 최종 blob `f238ce1` 기준이다.
+
+| 테스트 | 변경 전 | 변경 후 |
+|---|---|---|
+| test_cruise_speed | 8 failed / 13 passed | 21 passed |
+| test_following_distance | 18 passed | 18 passed |
+| test_longitudinal | 서브테스트 실패 7건 | 같은 7건(변화 없음) |
+
+- 이 `Plant`를 쓰는 테스트는 위 3개 파일뿐이다(샌드박스에서 확인).
+- test_longitudinal의 7건은 이 수정과 무관하다(force_decel, allow_throttle, resume).
+
+**3. 남은 12건 분류의 현재 상태.** test_cruise_speed 8건은 해소됐다. 남은 것은 test_longitudinal 서브테스트 7건이다: ACC force_decel 무시로 설명된 2건(순항 disabled ACC, allow_throttle ACC force_decel; `long_mpc.py` 468행 수정 시 해소, 코드 수정은 별도 승인 필요), ACC cut-in + force_decel 1건(패치 후에도 20 s 판정 여유로 실패), e2e 순항 disabled + force_decel 1건(원인 미확정), allow_throttle force_decel=False 2건(알려진 차이/추가 조사), resume from a stop 1건(추가 조사). 세부는 199cha 계속과 199cha 참고.
+
+**4. 이번에 손대지 않은 것.** `long_mpc.py` 468행(ACC forceDecel 무시) 수정, e2e 순항 disabled + force_decel 원인 조사, resume from a stop, comfort_brake 2.4 vs 2.5 판단, carrot-ms 점검(체크포인트 `4445c29` 이후), 넓은 회귀 재집계, 이월된 실차 검증 항목 전부.
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). 이 수정은 테스트 하네스만 바꾸므로 실주행 동작은 달라지지 않는다(코드 diff 기준 판단).
+- 표의 테스트 수치는 샌드박스(Ubuntu 24, Linux pwsh/pytest) 값이며 사용자 PC(Windows)에서 pytest를 다시 돌리지 않았다.
+- 코드 반영 스크립트의 검증은 Linux pwsh 기준(파서 오류 0건, bare 저장소 (a) 일반 (b) CRLF 체크아웃 (c) `core.autocrlf=true` 세 모드 통과)이며 Windows PowerShell 5.1 실제 실행이 아니다. 실제 실행은 사용자 PC에서 이뤄졌고 push 로그와 GitHub 재확인으로 결과를 확인했다.
+
 ## 199cha 계속 (완료) (Claude, Claude Sonnet 5) - 남은 12건 분류 수치를 샌드박스에서 재현하고 원인 정정, 코드 변경 없음
 
 **배경:** 199cha 회차는 직전 채팅 기록을 재현 없이 옮긴 것이었다. 사용자가 "너의 판단대로"로 위임해 같은 세션에서 그 기록을 재현했다. 환경은 `devnotes/toolkit/pytest_ci_setup.sh carrot-ryu`(clone HEAD `df0da457`, 샌드박스 Ubuntu 24, Python 3.12, 환경 구성 2분 미만)이고, 실행은 `-n 4 -p no:randomly`(정확한 재현 수치는 `-n 0`)이다. 스크래치 실험(임시 테스트 파일, plant.py 1줄, long_mpc.py 1줄)은 모두 되돌렸고 추적 파일 변경은 0이다(`git status`에 환경 구성 산출물 `openpilot/cereal/gen/`만 미추적). 실차 검증: 미실시(12절).
