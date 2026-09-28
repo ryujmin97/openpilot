@@ -1,5 +1,26 @@
 # WIP
 
+## 195cha (완료) (Claude, Claude Sonnet 5) - (a'') Plant 하네스 갱신 코드 push(f075028f) 사후 확인 + 이 devnotes (pytest 재실행 미실시)
+
+**배경:** 사용자가 후속 작업 선택을 "너의 판단대로"로 위임. 4절 0단계(지침 문서 SHA 고정 조회 `4114b5fd`, 브랜치 URL 사본과 SHA 고정본이 동일함을 cmp로 확인)와 HANDOFF.md(194cha) 확인 후, 5절 순차 전달로 코드 스크립트(`195cha_code-v1.ps1`)를 먼저 전달·실행하고 GitHub에서 직접 재확인한 다음 이 devnotes를 작성했다. 194cha 이월 항목 중 (a'') following_distance 18건 하네스 갱신을 선택했다.
+
+**코드 push (carrot-ryu):** `f075028f`(부모 `99754dc8`). 메시지 "195cha: Plant test harness builds CarrotPlanner + manager param defaults + modelV2 position y/z/t (test-only)".
+- 변경 1파일 `openpilot/selfdrive/test/longitudinal_maneuvers/plant.py` +27/-3, blob `81a4144c51c48cc986b86b5c7662d68db67957f3` -> `824098dae1e587985a1878cd876b96ef5604982e`.
+- 내용: (1) `FakeSubMaster(dict)` 추가(`seen`/`alive`/`valid`/`logMonoTime` defaultdict + `all_checks()`가 True 반환). (2) `Plant.__init__`에서 `params.all_keys()`를 돌며 값이 없는 키에 `params_keys.h` 기본값을 put(manager_init 흉내, MyDrivingMode 기본값 3)한 뒤 `CarrotPlanner()` 생성. (3) `modelV2.position`의 y/z를 0 리스트, t를 `ModelConstants.T_IDXS`로 채움. (4) `sm`을 `FakeSubMaster`로 감싸고 `planner.update(sm, self.carrot)` 호출.
+- 193cha 계속에서 스크래치로 확인했던 연쇄 (1)~(3)과 (4)의 "modelV2 경로 리스트가 비어 있음"을 겨냥한 변경이다. 주행 코드는 바꾸지 않았다.
+
+**GitHub 직접 재확인(이 세션):** 커밋 API는 rate limit이라 `git clone --bare --filter=blob:none`으로 확인. HEAD `f075028fee5d5c0277a4c3c557606a9e6ccd2ee3`, 부모 `99754dc8`, author `ryujmin97 <ryujmin97@gmail.com>`(전역 이메일 설정이 처음으로 실제 커밋에 반영됨), numstat 27/3(1파일), blob이 위 값과 일치, CR 0줄/LF 209줄(원본 185줄), 첫 바이트 `#!/`(BOM 없음), `python3 -m py_compile` 통과. `LongitudinalPlanner.update(self, sm, carrot)`와 `CarrotPlanner.__init__(self)` 시그니처가 호출과 맞고, `params_keys.h`의 `MyDrivingMode` 기본값이 "3"임을 확인.
+
+**전달 시점 자가검증(코드 스크립트 전달 메시지 기록을 옮긴 것이며 이 세션에서 재실행하지 않음):** pwsh 7.6.6 파서 오류 0건(후행 쉼표 대조군은 1건 검출), 로컬 bare 저장소로 (a) 일반 체크아웃 (b) CRLF 체크아웃 두 모드 실행에서 1파일 +27/-3, push된 blob `824098da...` 일치, 임시 폴더 잔존 없음. 스크립트 앵커 5개를 SHA 고정 원본에 시뮬레이션해 각각 1회 매치. 그 메시지에서 셸이 `$'\r'`를 해석하지 못해 무효였던 CR 측정을 정정했고, (b)에서 작업 트리가 실제로 CRLF(185/185줄)가 된 것을 확인한 뒤 실행했다. 사용자 PC 실행 로그: `99754dc8..f075028f carrot-ryu -> carrot-ryu` push 성공, `DONE`까지 도달.
+
+**검증하지 않은 것 / 한계:**
+- pytest 재실행 미실시. following_distance 18건이 실제로 풀렸는지, 남는 12건 단언 실패(시뮬 91.1 vs 기대 67.25 등)가 하네스 미비인지 실제 동작 차이인지는 여전히 미확정. 재실행하지 않은 사유: 사용자 위임 판단으로, 컴파일 환경 구성(toolkit/pytest_ci_setup.sh) 비용이 크고 이번 변경의 정확성은 정적으로 확인했으므로 다음 코드 세션의 첫 작업으로 넘김.
+- `Plant.__init__`이 `Params()`에 기본값을 put한다(manager_init과 같은 동작). 테스트 실행 환경의 Params 경로에 실제로 쓰므로, 격리 없이 디바이스나 개발 PC에서 이 하네스를 돌리면 그곳 Params가 채워질 수 있다. diff를 읽어 확인한 것이고 Params 경로 격리 여부는 조회하지 않았다.
+- `Plant`를 쓰는 다른 테스트(longitudinal_maneuvers 계열)가 이 변경으로 영향받는지는 조회하지 않았다.
+- 실차 검증: 미실시(12절). 테스트 하네스뿐이라 주행 동작과 무관하다.
+
+**이월:** pytest 후속 (a'')는 위 push로 1차 반영 완료, 결과 검증 대기. (b') dashcam_replay 1건 원인 확정, (c) pytest_ci_setup.sh에 pytest-mock 추가(toolkit 변경, 승인 필요). 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보, 102ms wide-camera BOOT_TS gap, 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR=1.00 실차 검증, f992f9c LFS 전환 재검토 -- 변동 없음. carrot-ms 점검은 이 세션에서 하지 않았다(체크포인트 4445c29 유지).
+
 ## 194cha (완료) (Claude, Claude Sonnet 5) - carrot-ms 정기 동기화 점검(2절): 735a9a4 -> 4445c29 신규 11건 판정 (코드 변경 없음)
 
 **배경:** 사용자가 후속 작업 선택을 "너의 판단대로"로 위임. 4절 0단계(지침 문서 SHA 고정 조회 `82ed7712`)와 HANDOFF.md 확인 후, 읽기 전용이고 다음 코드 세션의 범위를 정하는 데 필요한 carrot-ms 점검(2절)을 먼저 진행했다. 코드 변경 없음, carrot-ryu HEAD `99754dc8` 그대로.
