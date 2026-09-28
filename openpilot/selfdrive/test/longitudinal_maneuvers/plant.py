@@ -9,6 +9,20 @@ from openpilot.selfdrive.controls.lib.longcontrol import LongCtrlState
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlanner
 from openpilot.selfdrive.controls.radar_constants import LEAD_ACCEL_TAU
+from openpilot.selfdrive.carrot.carrot_functions import CarrotPlanner
+from openpilot.common.params import Params
+from collections import defaultdict
+
+
+class FakeSubMaster(dict):
+  def __init__(self, *a, **k):
+    super().__init__(*a, **k)
+    self.seen = defaultdict(bool)
+    self.alive = defaultdict(lambda: True)
+    self.valid = defaultdict(lambda: True)
+    self.logMonoTime = defaultdict(int)
+  def all_checks(self, services=None):
+    return True
 
 
 class Plant:
@@ -51,6 +65,13 @@ class Plant:
     from opendbc.car.honda.values import CAR
     from opendbc.car.honda.interface import CarInterface
 
+    params = Params()
+    # same as manager_init(): unset params take their params_keys.h default
+    for k in params.all_keys():
+      default_value = params.get_default_value(k)
+      if default_value is not None and params.get(k) is None:
+        params.put(k, default_value)
+    self.carrot = CarrotPlanner()
     self.planner = LongitudinalPlanner(CarInterface.get_non_essential_params(CAR.HONDA_CIVIC), init_v=self.speed)
 
   @property
@@ -106,6 +127,9 @@ class Plant:
     # does not predict slowdown in e2e mode
     position = log.XYZTData.new_message()
     position.x = [float(x) for x in (self.speed + 0.5) * np.array(ModelConstants.T_IDXS)]
+    position.y = [0.0 for _ in ModelConstants.T_IDXS]
+    position.z = [0.0 for _ in ModelConstants.T_IDXS]
+    position.t = [float(t) for t in ModelConstants.T_IDXS]
     model.modelV2.position = position
     model.modelV2.action.desiredAcceleration = float(self.acceleration + 0.1)
     velocity = log.XYZTData.new_message()
@@ -127,14 +151,14 @@ class Plant:
     car_control.carControl.orientationNED = [0., float(pitch), 0.]
 
     # ******** get controlsState messages for plotting ***
-    sm = {'radarState': radar.radarState,
+    sm = FakeSubMaster({'radarState': radar.radarState,
           'carState': car_state.carState,
           'carControl': car_control.carControl,
           'controlsState': control.controlsState,
           'selfdriveState': ss.selfdriveState,
           'liveParameters': lp.liveParameters,
-          'modelV2': model.modelV2}
-    self.planner.update(sm)
+          'modelV2': model.modelV2})
+    self.planner.update(sm, self.carrot)
     self.acceleration = self.planner.output_a_target
     self.speed = self.speed + self.acceleration * self.ts
     self.should_stop = self.planner.output_should_stop
