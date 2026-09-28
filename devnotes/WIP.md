@@ -1,5 +1,36 @@
 # WIP
 
+## 193cha 계속 (완료) (Claude, Claude Sonnet 5) - (a') gap_recovery 하네스 갱신 코드 push(99754dc8) + following_distance/dashcam_replay 조사 + author 이메일 사고 기록
+
+**배경:** 193cha 세션 말미에 사용자가 후속 작업 선택을 "너의 판단대로"로 위임. 남은 하네스 실패 46건(gap_recovery 28 + following_distance 18) 중 원인이 가장 단순한 쪽부터 진행하고, 나머지는 스크래치 클론에서 원인만 조사했다.
+
+**코드 push (carrot-ryu):** `99754dc8`(부모 `f6768af8`, 5절 순차 전달로 코드 스크립트 먼저 push -> GitHub 직접 재확인 -> 이 devnotes).
+- 변경: `openpilot/selfdrive/controls/tests/test_longitudinal_gap_recovery.py` 1줄. 테스트 `log` 스텁의 `LongitudinalPersonality`에 `relaxed=2, moreRelaxed=3` 추가(`long_mpc.get_T_FOLLOW`가 `moreRelaxed`를 참조해 AttributeError였음). 실행 코드 변경 없음, 단언 불변.
+- GitHub 직접 재확인: HEAD `99754dc8`, 부모 `f6768af8`, 변경 1파일 +1/-1, blob `34894be3c3d6f4ccf3a5f16bf7d3e32a8a1a8923`(스크립트 기대값과 일치), BOM 없음, CR 0줄. carrot-ryu-note는 이 push 전까지 `6ee1ce7b`. (커밋 API는 rate limit이라 git fetch로 대체 확인.)
+- 사용자 PC 실행 로그: `py -3`으로 Python 3.12.7 compile check OK, numstat 1/1.
+
+**검증(샌드박스, 실차 검증 아님):**
+- test_longitudinal_gap_recovery: 반영 전 28 failed / 50 passed -> 반영 후 78 passed.
+- controls/tests 전체(이번 세션 재실행, pytest-mock 미설치): 21 failed / 626 passed / 57 errors. 실패는 following_distance 18 + latcontrol 3뿐, 에러는 plannerd_clock 54(pytest-mock 부재) + ImportError 3. 새로 생긴 실패 없음.
+- 이전 샌드박스(pytest-mock 설치 상태)에서 gap_recovery 수정만 적용하고 controls+carrot tests 전체 실행: 28 failed / 2196 passed / 31 errors. 남은 실패 28 = following_distance 18, radar_lead_simulator 4, latcontrol 3, xiaoge_inference 2, dashcam_replay 1. gap_recovery 실패 0. 이 전체 실행은 이번 세션 최종 상태에서 다시 하지는 않았다.
+
+**following_distance 18건 조사(스크래치에서만 시도, 전부 폐기, 저장소 미변경):** `plant.py`에 `carrot` 인자만 넣으면 안 풀리고 연쇄로 걸린다. 스크래치에서 아래를 순서대로 적용해 봤다.
+1. `Plant.__init__`에 `CarrotPlanner()` 생성 + `planner.update(sm, self.carrot)` 호출 -> `ValueError: 0 is not a valid DrivingMode`(테스트 Params에 `MyDrivingMode`가 비어 0; `params_keys.h` 기본값은 3, DrivingMode는 1~4).
+2. 기본값 3을 put -> `sm.all_checks` 없음(sm이 dict) -> `dict` 서브클래스로 `all_checks`/`valid`/`alive`/`logMonoTime` 흉내.
+3. -> `carrot_man_input.py`가 `sm.seen[...]` 요구 -> `seen`(defaultdict(bool)) 추가.
+4. 그 다음 결과: 18건 중 6건 `ZeroDivisionError`(`carrot_functions.check_model_stopping`의 `y[-1]`, `modelV2` 경로 리스트가 비어 있음), 12건은 단언 실패(예: 시뮬 91.1 vs 기대 67.25±7.2, 시뮬 4.17 vs 기대 18.5±2.35). 마지막 12건이 하네스 미비인지 실제 동작 차이인지는 확정하지 못했다.
+- 결론: 스텁 몇 줄로 끝나는 작업이 아니라 별도 코드 세션이 필요. 이번 push에는 포함하지 않았다.
+
+**dashcam_replay 1건 조사(원인 미확정):** `test_raw_query_extracts_nested_lists_and_state_transitions`가 `modelV2.leads[].prob`(이벤트 2개, 값 3개)에서 `kind == "number-list"`를 기대하는데 코드는 `"number"`를 반환. `replay_query.py:554`가 값이 2개 이상일 때만 `number-list`를 쓴다(`value_kind = "number-list" if len(values) > 1 else "number"`). 코드와 테스트 파일 모두 depth 400 조회에서 마지막 변경이 `bca590a`(2026-08-23)로만 보여 어느 쪽이 나중에 바뀐 것인지는 못 가렸다. 미해결.
+
+**author 이메일 사고(193cha devnotes 커밋 `6ee1ce7b`):** 그 커밋의 author가 `ryujmin97 <?ш린??源껎뿀釉?...@example.com>`으로 깨져 찍혔다. 원인 확정(사용자 PC에서 `git config --global user.email` 확인): 전역 user.email에 자리표시자 `여기에_깃허브_가입이메일@example.com`이 실제로 들어 있었고, 스크립트가 그 값을 읽어 다시 git에 넘기는 과정에서 Windows PowerShell 5.1의 인코딩 변환으로 깨졌다(git에 저장된 전역 값 자체는 정상). 이전 스크립트들은 자리표시자를 스크립트 안에 하드코딩해서 깨지지 않았다. 이미 push된 `6ee1ce7b`는 --force 금지(18절)로 그대로 둔다. 기능 영향 없음.
+- 조치: 이후 스크립트는 전역 값이 ASCII 이메일 형식(`^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$`)일 때만 쓰고 아니면 스크립트 안 자리표시자로 폴백한다. 그래서 `99754dc8`의 author는 자리표시자로 정상 표시됐다.
+- 선택 사항(사용자): GitHub 계정과 연결하려면 `git config --global user.email "..."`에 ASCII 이메일(또는 GitHub noreply 주소)을 설정하면 이후 커밋에 그대로 찍힌다. 안 해도 동작에는 문제 없다.
+
+**스크립트 결함 발견(9절 9번 시뮬레이션 덕분):** 전역 user.email을 읽는 줄 `([string](& git config --global user.email)).Trim()`은 전역 값이 비어 있으면 null 메서드 호출 오류로 스크립트가 죽는다(로컬 bare 저장소 시뮬레이션에서 재현). `((@(& git config --global user.email) -join "")).Trim()`로 고쳐 v2 스크립트에 반영했다. 이 패턴은 toolkit 템플릿에는 아직 없다.
+
+**한계:** 위 결과는 모두 샌드박스 단위 테스트/정적 분석이며 Windows PowerShell 5.1에서의 실행은 사용자 로그로만 확인했다. 실차 검증: 미실시(12절). 이번 코드 변경은 테스트 스텁뿐이라 주행 동작과 무관하다.
+
 ## 193cha (완료) (Claude, Claude Sonnet 5) - 192cha 후속 (a) 테스트 하네스 갱신 커밋 f6768af8 사후 확인 + pytest 재실행 (코드 변경은 이 세션 밖, 이 세션은 코드 변경 없음)
 
 **배경:** 이 세션 시작 시점에 carrot-ryu HEAD가 HANDOFF(192cha) 기록 base `6ed56f0d`가 아니라 `f6768af86b74f737e50159e476ec43ef837287bd`였다(16절: 기록과 실제 GitHub 상태 불일치). 이 커밋의 작성 세션/도구는 이 세션에서 확인하지 못했고, 이 세션은 GitHub 조회로 사후 확인만 했다. carrot-ryu-note HEAD는 `bfa53c8`(192cha-cont)로, 193cha에 대한 devnotes 기록은 그때까지 없었다. `api.github.com`이 rate limit에 걸려 `git fetch --filter=blob:none`으로 대체 조회했다.
