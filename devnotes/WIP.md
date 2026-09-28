@@ -1,5 +1,54 @@
 # WIP
 
+## 197cha (완료) (Claude, Claude Sonnet 5) - following_distance 미설명 편차 원인 확정(측정): carrot.comfortBrake 2.4와 앞차 정지등가 항 상수 2.5의 불일치, stop_distance 5.5 (코드 변경 없음)
+
+**배경:** 사용자가 196cha 마무리 뒤 후속 선택을 "너의 판단대로"로 위임했고(196cha 제안의 1순위: 미설명 편차 원인 조사), 이어서 "코드는 건드리지 않고 devnotes 스크립트만 먼저 만들어 이번 발견을 기록"을 선택했다. 코드 push가 없어 5절 "코드 변경이 없는 경우"로 이 devnotes 스크립트 1개만 만든다. 4절 0단계는 세션 첫 도구 호출로 `git ls-remote`(그 시점 carrot-ryu-note HEAD `5f99b1f8`)와 지침 문서 v2 조회를 했다. 다만 조회는 4절이 정한 SHA 고정 raw URL이 아니라 브랜치명 raw URL로 했다(절차 이탈). 사후에 현재 HEAD `b788ac18`로 고정한 raw로 다시 받아 처음 읽은 사본과 cmp가 바이트 단위로 동일함을 확인했고, `git diff`로 지침 파일이 `5f99b1f`~`b788ac1` 사이에 변경되지 않았음도 확인했다.
+
+**0. 196cha devnotes 반영 확인(16절).** 사용자가 196cha 스크립트를 실행한 뒤 carrot-ryu-note HEAD가 `b788ac1855442bdaa2f86acc763a0dde5abca63d`로 이동했다. 직접 조회로 확인: 부모 `5f99b1f`, author ryujmin97, 변경 파일 HANDOFF.md(+35/-26)와 WIP.md(+55/-0) 두 개뿐, blob이 스크립트 기대값(WIP `c36e1b60...`, HANDOFF `5f04c191...`)과 일치, WIP.md 최상단이 196cha 회차. 이 세션의 노트 브랜치 base는 `b788ac18`이다. 그 전에 전달용 스크립트를 이어받아 9절 체크리스트를 다시 돌렸다(BOM 확인, pwsh 7.6.6 파서 오류 0건/후행 쉼표 대조군 2건 검출, bare 저장소 시뮬 (a) 일반 체크아웃과 (b) `core.eol=crlf`에서 DONE까지 통과). 추가로 더 강한 CRLF 재현(`core.attributesFile`로 `* text eol=crlf` 강제)을 시도했더니 스크립트가 "변경 파일 2개 기대, 3개" 검사에서 커밋 전에 중단했고 push는 일어나지 않았다. 세 번째 파일은 `FINDINGS.md`로, 이 파일이 원래 LF/CRLF 혼재(`git ls-files --eol`의 `i/mixed`)여서 강제 정규화 대상이 된 것이다. carrot-ryu-note에는 `.gitattributes`가 없으므로 실제 발생 가능성은 낮다고 보지만(추정), 발생하면 스크립트는 중단하므로 그 에러를 그대로 전달할 것.
+
+**1. 미설명 편차의 원인(측정으로 확정).** 196cha가 남긴 "비-e2e에서 `시뮬 - (T_carrot*v + 6)`이 personality와 무관하게 속도별로 일정"(v=10 +0.333, v=35 약 +9.8)의 원인은 다음 세 값의 조합이다.
+- `carrot.comfort_brake` = 2.4(`carrot_functions.py` 103~104행 `self.comfortBrake = 2.4`, 456~457행에서 `get_driving_mode_comfort_brake_factor`(Safe만 0.9)를 곱해 `self.comfort_brake`로 설정). 스톡 `COMFORT_BRAKE`는 2.5.
+- `carrot.stop_distance` = 5.5(`StopDistanceCarrot` 기본값 550, `params_keys.h` 260행, `carrot_functions.py` 203행에서 /100). 스톡 `STOP_DISTANCE`는 6.0.
+- `long_mpc.py`의 `get_stopped_equivalence_factor(v_lead)`(101~102행)는 `comfort_brake` 인자를 받지 않고 모듈 상수 `COMFORT_BRAKE`(2.5)로 고정이다. 이 함수는 `desired_follow_distance`(모듈 함수, 자체가 `get_safe_obstacle_distance`(carrot 값 사용)에서 이 항을 뺌)와 솔버 obstacle 정의(473~474행 `lead_x + get_stopped_equivalence_factor(lead_v)`)에 쓰인다.
+스톡에서는 `v_ego**2/(2*cb)`(자차 안전거리)와 `v_lead**2/(2*cb)`(앞차 정지등가)가 같은 상수라 v_lead = v_ego일 때 상쇄된다. carrot에서는 `v**2/(2*2.4) - v**2/(2*2.5)` = `v**2 * 0.008333`이 남는다(v=10에서 +0.833, v=35에서 +10.208). 정상상태 gap의 공식: `gap = T_carrot*v_ego + stop_distance + v_ego**2/(2*carrot_cb) - v_lead**2/(2*2.5)`. 여기서 stop_distance가 5.5라 -0.5가 더해져 v=10의 순 편차는 +0.833 - 0.5 = +0.333이고, 이것이 196cha가 본 값과 정확히 일치한다.
+
+**측정 방법:** 샌드박스에서 `Maneuver`가 쓰는 `Plant`를 서브클래스로 감싸(`maneuver.Plant` 교체) 매 스텝 종료 후 `planner.mpc.t_follow`, `carrot.comfort_brake`, `carrot.stop_distance`, `mpc.base_desired_distances[0]`, `mpc.desired_distance`, 자차 속도를 기록하고 t_end=100 s 마지막 값을 썼다(비-e2e, personality 0/1/2 x v=0/10/35, initial_distance_lead=100, 앞차 등속). personality enum은 aggressive=0, standard=1, relaxed=2. 스크립트는 저장소에 넣지 않았다(스크래치). pytest 밖에서 Plant를 돌릴 때는 `openpilot.common.prefix.OpenpilotPrefix` 컨텍스트로 감싸야 한다(안 감싸면 `msgq.ipc_pyx.IpcError: Messaging failure with radarState: No such file or directory`, 감싸면 Params도 함께 격리됨).
+
+```
+v  personality  T     cb   sd   시뮬 gap   base_des  v_ego_end  gap-공식(실측 v_ego 사용)
+0  aggressive   1.10  2.4  5.5   4.434     5.502     0.0013     -1.068 (공식으로 설명 안 됨, 아래 5)
+0  standard     1.20  2.4  5.5   4.440     5.502     0.0014     -1.062
+0  relaxed      1.40  2.4  5.5   4.477     5.502     0.0014     -1.025
+10 aggressive   1.10  2.4  5.5  17.333    17.333    10.0000     +0.0000
+10 standard     1.20  2.4  5.5  18.333    18.333    10.0000     +0.0000
+10 relaxed      1.40  2.4  5.5  20.333    20.333    10.0000     +0.0000
+35 aggressive   1.10  2.4  5.5  54.307    54.307    35.0063     -0.0006
+35 standard     1.20  2.4  5.5  57.802    57.803    35.0060     -0.0006
+35 relaxed      1.40  2.4  5.5  64.792    64.793    35.0053     -0.0005
+```
+v=10, v=35는 시뮬 gap이 플래너 자신의 `base_desired_distances`와 0.001 m 안에서 일치하고 공식과도 0.0006 m 이하로 일치한다(v=35에서 단순 `35`를 넣으면 0.1 m 어긋나는 것은 종료 시점 v_ego가 35.006이기 때문). 즉 196cha의 "정상상태는 수렴한 값"과 이 편차는 MPC가 추종하는 목표(desired distance) 자체가 원인이며 추종 오차가 아니다. T는 196cha 측정(relaxed 1.40 / standard 1.20 / aggressive 1.10)과 같다.
+
+**2. 업스트림 대조(carrot-ms).** carrot-ms HEAD `87f8bed700f7a7a3d74875e5a8f5c269d23f40c0`(조회 시점, 재생성되는 브랜치라 참고용)의 `openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py`에도 `COMFORT_BRAKE = 2.5`/`STOP_DISTANCE = 6.0`(63~64행), `get_stopped_equivalence_factor`(97행, 상수 사용), 솔버 obstacle의 같은 사용(430행)이 있고, `carrot_functions.py`에도 `self.comfortBrake = 2.4`(103행)와 `mode_comfort_brake`(456~457행)가 같다. 이 두 파일에서 해당 줄만 대조했고 전체 diff는 하지 않았다. 따라서 이 불일치는 carrot-ryu가 만든 것이 아니라 업스트림에서 물려받은 구조로 보인다. 이는 2절 carrot-ms 점검(체크포인트 4445c29)이 아니라 이번 원인 조사용 조회이며 WIP_SYNC.md는 변경하지 않는다.
+
+**3. 기대값 교체 스크래치 실험(저장소 미반영, 실험 후 삭제).** `test_following_distance.py`의 복사본에서 기대값만 `get_safe_obstacle_distance(v, T, 2.4, 5.5) - get_stopped_equivalence_factor(v)`(T = {aggressive 1.10, standard 1.20, relaxed 1.40}, 앞차 항은 플래너와 같은 상수 2.5)로 바꿔 실행: 18 passed(53.09 s, `-n 4`). 같은 조건에서 원본 파일은 1 failed / 17 passed(53.37 s)로 기준선이 재현됐다(실패는 `TestFollowingDistance_10`). 실험 후 스크래치 파일을 삭제했고 `git status`에 `?? openpilot/cereal/gen/`(환경 구성 산출물)만 남았다. 이 수치는 하드코딩이며, 실제 반영 시에는 파라미터 변경에 깨지지 않게 `CarrotPlanner`/Params에서 값을 읽는 방식을 먼저 검토해야 한다(미검토). e2e 케이스의 통과는 허용오차(±20%)가 넓어서일 수 있고 e2e의 실제 T/편차는 여전히 직접 측정하지 않았다.
+
+**4. 196cha 기록의 보완.** 196cha 본문(수정하지 않음)에는 "기대값을 carrot T로 바꾸면 비-e2e v=35가 편차 9.8 m 때문에 실패한다(실행하지 않음)"와 "편차 원인 미확정"이 있다. 이번 조사로: (a) 원인은 위 1로 확정, (b) 그 실패 계산은 T만 바꾸고 상수(2.5, 6.0)를 그대로 둘 때에 해당하며, 위 3처럼 carrot의 comfort_brake/stop_distance까지 반영하면 18건이 통과한다. 196cha의 나머지 내용(T 매핑, Plant A/B 실험, 넓은 회귀 수치)은 그대로 유효하다.
+
+**5. v=0은 별개 현상(원인 미조사).** v=0에서는 시뮬 gap이 4.43~4.48로 desired(5.502)보다 약 1.06 m 작다. 위 공식으로는 설명되지 않는다. 테스트의 v=0 허용오차(1.75 등) 안이라 통과하지만, 정지 제어(stop 로직) 쪽 별개 요인으로 보이며 확인하지 않았다.
+
+**6. 주행 영향의 크기(계산, 실차 미검증).** 이 항(`v**2 * 0.008333`)은 60 km/h(16.67 m/s)에서 약 +2.3 m, 100 km/h(27.78 m/s)에서 약 +6.4 m, 35 m/s에서 +10.2 m이고, stop_distance 5.5는 -0.5 m 고정이다. 따라서 현재 코드는 T*속도로 예상되는 거리보다 고속에서 더 멀리 떨어져 따라간다. 의도된 동작인지는 판단하지 않았고 코드는 바꾸지 않았다. 측정은 Plant Params 기본값 기준이며 디바이스에서 사용자가 바꾼 값(StopDistanceCarrot, TFollowGap, 주행 모드 등)은 반영되지 않았다.
+
+**7. 기타 관찰.** 196cha가 원인 미확인으로 남긴 "`-p no:xdist`를 넘긴 pytest 실행이 출력이 비어 있다"의 원인은 `pyproject.toml` 141행 `addopts`에 `-n auto --dist=loadgroup`이 들어 있어 xdist를 끄면 `unrecognized arguments: -n --dist=loadgroup` 사용법 오류로 즉시 종료되기 때문이다(출력을 grep으로 걸러 낸 탓에 이 에러가 안 보였다). xdist를 끄려면 `-n 0`(2건 실행으로 동작 확인, 7.32 s), 병렬 수를 정하려면 `-n 4`(18건 약 53 s). 이번 세션의 pytest 환경 구성은 196cha와 같은 절차(`toolkit/pytest_ci_setup.sh carrot-ryu`, HEAD `f075028f`)였고 pytest-mock은 이번에는 설치하지 않았으며(following_distance에는 불필요) toolkit도 변경하지 않았다.
+
+**검증하지 않은 것 / 한계:**
+- 위 수치는 모두 샌드박스(Ubuntu 24, Python 3.12.3) 시뮬레이션이며 실차 검증이 아니다. 실차 검증: 미실시(12절). 코드 변경이 없어 주행 동작은 바뀌지 않았다.
+- 측정은 비-e2e 조합(v=0/10/35 x 3 personality)이다. e2e 모드의 T, comfort_brake 적용, 편차는 직접 측정하지 않았다.
+- 주행 모드(`myDrivingMode`)별 `comfort_brake`(Safe 0.9배)와 다른 T 보정(`SpeedTFFactor`, `myTFollowFactor`, decel boost 등) 경로는 이번 기본값 조건에서만 확인했다.
+- 업스트림 대조는 위 파일의 해당 줄만이다. 남은 12건(test_cruise_speed 8, test_longitudinal 서브테스트 7), carrot/server/tests 7건, dashcam_replay 1건의 원인은 이번에도 조사하지 않았다.
+- 이 devnotes 스크립트의 자가검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실행은 사용자 로그로만 확인된다.
+
+**이월:** 사용자 승인/선택 대기: (i) following_distance 남은 1건 처리 방침(원인이 확정됐으므로 기대값을 실제 플래너 값으로 바꾸는 테스트 전용 코드 변경 -- 파라미터에서 읽는 방식을 먼저 검토, 또는 알려진 차이로 문서화, 또는 그대로 둠), (ii) `comfort_brake` 2.4와 정지등가 항 상수 2.5 불일치를 코드에서 의도로 볼지 여부(코드 변경 없이 판단만; 실주행 거리에 미치는 영향은 위 6), (iii) 남은 12건 분류, (iv) HANDOFF (b') dashcam_replay 1건, (c) pytest_ci_setup.sh에 pytest-mock 추가, (v) 이번 측정 스크립트를 toolkit에 넣을지(승인 필요, toolkit 변경). 핵심 발견 68 실차 검증, 163차 게이트 실주행 검증, xTurn=6 로그 확보, 102ms wide-camera BOOT_TS gap, 110차 GATE_M 0.8/1.0, 114차 MAP_TURN_GUIDE_FACTOR=1.00 실차 검증, f992f9c LFS 전환 재검토 -- 변동 없음. carrot-ms 점검은 이 세션에서 하지 않았다(체크포인트 4445c29 유지).
+
 ## 196cha (완료) (Claude, Claude Sonnet 5) - pytest 재실행: following_distance 18건 -> 1건 실패로 확정, 남은 1건 원인 측정, Plant 변경의 다른 테스트 영향 조사 (코드 변경 없음)
 
 **배경:** 사용자가 후속 작업 선택을 "너의 판단대로"로 위임(195cha와 동일). 4절 0단계(`git ls-remote`로 브랜치 HEAD `5f99b1f85f98516fc1e2138830d48179f772a885`를 얻고 그 SHA로 고정한 raw 조회, 브랜치 URL 사본과 SHA 고정본이 cmp로 동일)와 HANDOFF.md(195cha) 확인 후, HANDOFF 미완료 1번(pytest 재실행)을 수행했다. 코드 push가 없어 5절 "코드 변경이 없는 경우"로 이 devnotes 스크립트 1개만 만든다.
