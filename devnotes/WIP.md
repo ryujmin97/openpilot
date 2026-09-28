@@ -1,5 +1,36 @@
 # WIP
 
+## 193cha (완료) (Claude, Claude Sonnet 5) - 192cha 후속 (a) 테스트 하네스 갱신 커밋 f6768af8 사후 확인 + pytest 재실행 (코드 변경은 이 세션 밖, 이 세션은 코드 변경 없음)
+
+**배경:** 이 세션 시작 시점에 carrot-ryu HEAD가 HANDOFF(192cha) 기록 base `6ed56f0d`가 아니라 `f6768af86b74f737e50159e476ec43ef837287bd`였다(16절: 기록과 실제 GitHub 상태 불일치). 이 커밋의 작성 세션/도구는 이 세션에서 확인하지 못했고, 이 세션은 GitHub 조회로 사후 확인만 했다. carrot-ryu-note HEAD는 `bfa53c8`(192cha-cont)로, 193cha에 대한 devnotes 기록은 그때까지 없었다. `api.github.com`이 rate limit에 걸려 `git fetch --filter=blob:none`으로 대체 조회했다.
+
+**커밋 확인 (`git show`, 전체 diff 직접 읽음):** `f6768af8` "193cha: refresh stale test harnesses (preview_release/turn_accel/cutout_mpc/navi/torqued), tests only". 부모 `6ed56f0d`, 변경 5파일 +16/-8, 전부 tests 경로. 내용은 스텁/픽스처를 현재 코드 시그니처에 맞춘 것뿐이고 단언(assert)은 바뀌지 않았다.
+- test_carrot_navi: `map_config`에 5번째 값(0.8) 추가.
+- test_cutout_mpc_integration: `GATE_TAU_G`/`GATE_TAU_TARGET` 상수 추가, `_gate_raw`를 (1,1)로, `_gate_g`를 0으로 고정, `process_lead`에 `lead_index=0` 인자.
+- test_longitudinal_preview_release: `mpc.preview_gate` 스텁(항상 1.), lead에 `dRel`/`vLead`, carState에 `vEgo`.
+- test_torqued_lat_accel_offset: livePose valid/inputsOK/sensorsOK/posenetOK 플래그 설정.
+- test_turn_accel: planner 스텁에 `coasting_param_time`, `dt`.
+- 한계: preview_release와 cutout 하네스는 게이트를 완전 개방(g=1)으로 고정한 스텁이다. 이 테스트들은 릴리즈/컷아웃 로직만 보며 147차 감속 프리뷰 게이트 자체는 검증하지 않는다.
+- 커밋 author 이메일이 `여기에_깃허브_가입이메일@example.com` 자리표시자다(828fc8c 이후 반복, 기능 영향 없음). author 이름은 ryujmin97.
+
+**pytest 재실행:** `bash devnotes/toolkit/pytest_ci_setup.sh carrot-ryu`로 HEAD `f6768af8` 환경 구성(params_pyx/msgq/acados 자가검증 OK) 후 192cha와 같은 명령 `python3 -m pytest openpilot/selfdrive/controls/tests openpilot/selfdrive/carrot/tests -q -p no:cacheprovider -x --maxfail=100000`.
+- **결과: 2114 passed, 56 failed, 85 errors (25.2초).** 192cha(6ed56f0d)는 2011/159/85. 실패 103건 감소, errors 변동 없음.
+- 수정한 5파일의 실패/에러는 0건. 감소분 103 = preview_release 96 + cutout_mpc 3 + turn_accel 2 + torqued 1 + carrot_navi 1로 192cha 파일별 집계와 정확히 일치.
+
+**남은 56 failed (실패 파일만 `--tb=line`으로 재실행해 예외 메시지 집계):**
+- test_longitudinal_gap_recovery 28: 테스트 `log` 스텁의 `LongitudinalPersonality`에 `moreRelaxed`가 없어 `long_mpc.py`에서 AttributeError (하네스 노후).
+- test_following_distance 18: `plant.py`가 `LongitudinalPlanner.update()`를 `carrot` 인자 없이 호출해 TypeError (하네스 노후).
+- test_radar_lead_simulator 4: `radar_validation_replay.py`의 `pyray` 없음 (샌드박스 한계, 192cha에서는 원인 미확인이었음).
+- test_latcontrol 3: 생성 DBC(toyota_new_mc/nissan_leaf_2018/honda_civic_touring_2016) 부재 FileNotFoundError (샌드박스 한계).
+- test_xiaoge_inference 2: OpenCV 4.13.0이 ONNX(lane.onnx 등)를 못 읽음 (샌드박스 한계).
+- test_dashcam_replay 1: `assert 'number' == 'number-list'` (원인 미조사).
+
+**남은 85 errors:** test_plannerd_clock 54, test_xiaoge_vision 22, ImportError 수집 에러 9개 파일 각 1. 앞의 두 항목은 192cha 분류를 유지했고 plannerd_clock은 아래 (c) 확인으로 원인이 재확인됐다. xiaoge_vision 22와 ImportError 9건의 원인은 이 세션에서 다시 열어보지 않았다.
+
+**후속 (c) 사전 확인 (샌드박스 한정, 저장소/toolkit 미변경):** `pip install pytest-mock` 후 test_plannerd_clock.py만 실행하면 **54 passed**. 전체 재실행은 하지 않았지만, 이 결과대로면 전체는 2168 passed / 56 failed / 31 errors가 된다(산술 추정, 미실측). pytest_ci_setup.sh 반영은 별도 승인 대상.
+
+**검증 상태:** 위 결과는 샌드박스 단위 테스트이며 실차 검증이 아니다(12절: 실차 검증 미실시). 이 세션은 carrot-ryu/carrot-ms 코드를 변경하지 않았다.
+
 ## 192cha 계속 (완료) (Claude, Claude Sonnet 5) - 오프라인 미결 점검: pytest를 현재 HEAD(6ed56f0d)로 재실행하고 실패 분류 (코드 변경 없음)
 
 **배경:** 사용자가 "오프라인에서 할 수 있는 미결"을 물어 pytest CI 환경 항목을 진행.
