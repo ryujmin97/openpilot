@@ -1,5 +1,31 @@
 # WIP
 
+## 198cha (완료) (Claude, Claude Sonnet 5) - test_following_distance 기대값을 플래너 값으로 교체(테스트 전용) 반영 확인 및 18건 통과 재현 (코드 df0da45, 실행 코드 변경 없음)
+
+**배경:** 197cha HANDOFF 미완료 1번(following_distance 남은 1건 TestFollowingDistance_10 처리 방침)에서 옵션 (i) "기대값을 실제 플래너 값으로 교체(테스트 전용, carrot-ryu)"가 코드 커밋 `df0da457b3bc527a994cb77fae50126567ee3b3f`로 반영되었다. 이 세션은 사용자가 붙여준 push 로그(`f075028..df0da45  carrot-ryu -> carrot-ryu`, DONE)로 시작했고, 그 코드 스크립트를 만든 경위는 이 세션에서 확인하지 못했다. 따라서 아래는 GitHub에서 직접 확인하고 샌드박스에서 재현한 범위로 한정한다(3절). 4절 0단계: 지침 문서 v2를 브랜치 URL과 SHA 고정 URL(carrot-ryu-note `39d39b75b74a5acab0d0da4e21cf1a379ecc586a`) 양쪽으로 조회해 50696 바이트로 동일함(cmp 일치)을 확인했고, HANDOFF.md는 197cha 상태(코드 base f075028f)였다.
+
+**0. push 반영 확인(16절).** `git ls-remote`로 carrot-ryu HEAD가 `df0da457b3bc527a994cb77fae50126567ee3b3f`임을 확인했고, blobless bare clone으로 직접 조회했다: 부모 `f075028fee5d5c0277a4c3c557606a9e6ccd2ee3`(195cha plant.py 하네스 커밋), author `ryujmin97 <ryujmin97@gmail.com>`, 커밋 시각 2026-09-28 16:34:34 +0900, 변경 파일 1개 `openpilot/selfdrive/controls/tests/test_following_distance.py`(+32/-4). 메시지: `198cha: test_following_distance reads carrot T/comfort_brake/stop_distance from the planner instead of stock constants (test-only, no runtime change)`.
+
+**1. 변경 내용(diff를 직접 읽음).**
+- import 추가: `contextlib`, `maneuver as maneuver_module`(`openpilot.selfdrive.test.longitudinal_maneuvers.maneuver`), `Plant`(같은 패키지 `plant`).
+- 컨텍스트 매니저 `record_planner_values(record)`: `maneuver_module.Plant`를 잠시 `RecordingPlant`(Plant 서브클래스)로 교체하고 finally에서 원복한다. `RecordingPlant.step()`은 부모 `step()` 뒤에 `self.planner.mpc.t_follow`, `self.carrot.comfort_brake`, `self.carrot.stop_distance`를 record에 덮어써서, 마지막 스텝의 값이 남는다. 코드 주석의 이유: Plant가 `Maneuver.evaluate()` 안에서만 만들어져 밖으로 나오지 않는다.
+- `run_following_distance_simulation(..., record=None)`: `evaluate()`를 위 컨텍스트 안에서 호출한다. 반환값(`output[-1,2] - output[-1,1]`)은 그대로다.
+- `test_following_distance`: 기대값을 `get_safe_obstacle_distance(v_lead, record["t_follow"], record["comfort_brake"], record["stop_distance"]) - get_stopped_equivalence_factor(v_lead)`로 계산한다. 허용오차(`err_ratio` e2e 0.2 / 비-e2e 0.1, `abs_err_margin` v>0이면 0.5, 아니면 1.15)는 바뀌지 않았다.
+- 197cha 스크래치 실험은 T/2.4/5.5를 직접 넣었지만, 이 커밋은 값을 하드코딩하지 않고 시뮬레이션이 실제로 쓴 값을 읽는다(197cha HANDOFF 다음 작업 1의 권고 방향). 모듈 함수 `desired_follow_distance`는 diff에 없다(변경 없음, 다른 사용처는 조사하지 않았다).
+
+**2. 통과 재현.** `devnotes/toolkit/pytest_ci_setup.sh carrot-ryu`로 환경을 구성했다(clone HEAD `df0da457`, 작업 트리의 미추적 변경은 생성물 `openpilot/cereal/gen/`뿐). 이어서 `python3 -m pytest openpilot/selfdrive/controls/tests/test_following_distance.py -n 4 -p no:randomly -q` 실행 결과 **18 passed in 52.90s**. 197cha 기록의 같은 조건 기준선은 17 passed / 1 failed(TestFollowingDistance_10)였다. 이번에 부모 `f075028`에서 기준선을 다시 돌리지는 않았고, 197cha 기록을 그대로 인용한다. 환경 구성은 2분 남짓(백그라운드)이었다.
+
+**3. 판단과 남은 것.**
+- 기대값이 플래너가 실제 쓴 값을 따르므로, 이 테스트는 197cha에서 확정한 `carrot.comfort_brake` 2.4 대 정지등가 항 상수 2.5의 불일치를 검출하지 않고 그대로 받아들인다. 이 불일치를 의도로 볼지는 197cha 미완료 2번 그대로 이월한다(코드/테스트 변경 없음).
+- 기대값 식이 `get_stopped_equivalence_factor`(모듈 상수 `COMFORT_BRAKE` 사용)에 의존하므로, 플래너의 정지등가 항이 나중에 바뀌면 이 기대 식도 함께 봐야 할 수 있다(추정, 확인하지 않음).
+- HANDOFF의 미완료 1번은 해소로 옮겼다. 나머지 미완료(남은 12건 분류, v=0 gap 1.06 m, server/tests 7건, (b')/(c)/(v), 이월 실차 검증들)는 이번 세션에서 손대지 않았다.
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). 테스트 전용 변경이라 주행 동작은 바뀌지 않았다.
+- 샌드박스(Ubuntu 24, Python 3.12) 재현이며 following_distance 파일의 18건만 실행했다. 넓은 회귀는 재집계하지 않았으므로 197cha 이월분(test_cruise_speed 8건, test_longitudinal 서브테스트 7건, carrot/server/tests 7건 등)의 현재 수치는 미확인이다.
+- e2e 모드의 T 결정 경로와 주행 모드별 comfort_brake(Safe 0.9배)는 이번에도 직접 측정하지 않았다.
+- 이 회차의 devnotes 반영 스크립트는 Windows PowerShell 5.1에서 실제로 실행하지 않았고, pwsh 7 파서와 Linux 로컬 bare 저장소 시뮬레이션(9절 9번 (a) 일반 체크아웃, (b) CRLF 체크아웃 재현)으로만 검증했다.
+
 ## 197cha (완료) (Claude, Claude Sonnet 5) - following_distance 미설명 편차 원인 확정(측정): carrot.comfortBrake 2.4와 앞차 정지등가 항 상수 2.5의 불일치, stop_distance 5.5 (코드 변경 없음)
 
 **배경:** 사용자가 196cha 마무리 뒤 후속 선택을 "너의 판단대로"로 위임했고(196cha 제안의 1순위: 미설명 편차 원인 조사), 이어서 "코드는 건드리지 않고 devnotes 스크립트만 먼저 만들어 이번 발견을 기록"을 선택했다. 코드 push가 없어 5절 "코드 변경이 없는 경우"로 이 devnotes 스크립트 1개만 만든다. 4절 0단계는 세션 첫 도구 호출로 `git ls-remote`(그 시점 carrot-ryu-note HEAD `5f99b1f8`)와 지침 문서 v2 조회를 했다. 다만 조회는 4절이 정한 SHA 고정 raw URL이 아니라 브랜치명 raw URL로 했다(절차 이탈). 사후에 현재 HEAD `b788ac18`로 고정한 raw로 다시 받아 처음 읽은 사본과 cmp가 바이트 단위로 동일함을 확인했고, `git diff`로 지침 파일이 `5f99b1f`~`b788ac1` 사이에 변경되지 않았음도 확인했다.
