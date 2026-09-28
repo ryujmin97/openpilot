@@ -1,5 +1,29 @@
 # WIP
 
+## 203cha (완료) (Claude, Claude Sonnet 5) - test_longitudinal 남은 서브테스트 5건 원인 조사(코드 변경 없음, 실차 미실시)
+
+**배경:** 사용자가 202cha 다음 작업 중 (c) 미확정 원인 조사를 선택했다. 대상은 202cha 이후에도 남은 test_longitudinal 서브테스트 실패 5건이다. 코드 변경 없음, WIP_SYNC.md 변경 없음, carrot-ms 점검 없음.
+
+**0. 지침 문서 재확인.** `git ls-remote`로 note HEAD `c5d501dc7aa48cd107bda4c9ad0e45ea4dc6843e`(202cha devnotes push 결과)와 carrot-ryu HEAD `0a1a9fc5da304cef25de23eabbff678d68aa396a`(변동 없음)를 확인했다. 지침 문서 v2를 이 SHA로 재조회했고 이전 조회본과 `cmp` 일치(변경 없음)를 확인했다.
+
+**1. 방법.** 202cha 세션에서 구성해둔 샌드박스(체크아웃 `0a1a9fc`, toolkit/pytest_ci_setup.sh 산출물)를 재사용했다. `maneuver.py`/`plant.py`를 읽어 각 서브테스트의 단언 조건을 확인하고, `Plant`를 직접 호출하는 프로브 스크립트로 문제 구간의 speed/acceleration을 프레임 단위로 찍었다. 저장소 파일을 스크래치로 고친 실험은 실행 직후 `git checkout <파일>`로 원복하고 `git diff --stat`으로 빈 diff를 확인했다(코드 변경 없음).
+
+**2. cruising at 25 m/s while disabled(e2e=True, force_decel=True) — 원인 확정.** `longitudinal_planner.py` 131행 `reset_state = long_control_off if CP.openpilotLongitudinalControl else ...`에서, 이 시나리오는 `enabled=False`가 전 구간 고정이라 `longControlState`가 항상 off이고 `reset_state`가 매 프레임 True로 고정된다(HANDOFF 미완료 2번의 가설). 스크래치로 `reset_state`를 항상 False로 강제하자(파일 원복 확인함) 25 m/s에서 20초간 7.87 m/s까지 `a=-0.866`으로 감속했다(원본 코드는 `a≈-0.0001`로 고정, 전혀 감속하지 않음). 같은 disabled+force_decel을 ACC 모드(e2e=False)로 원본 코드에서 돌리면 20초 뒤 speed=0.376, a=-0.047로 정상 정지하며 이 서브테스트는 통과한다(HANDOFF의 "ACC 경로는 disabled에서도 감속했다" 기록과 일치). 즉 `reset_state=True`가 blended(e2e) 모드에서만 force_decel 감속을 막고 ACC 모드에서는 막지 않는다는 비대칭을 실험으로 확인했다. MPC 내부에서 왜 이 비대칭이 생기는지(예: `mode=='blended'`일 때 `stop_x=1000.0`과 매 프레임 `prev_a` 리셋의 상호작용)는 이번에 더 파고들지 않았다.
+
+**3. approach slower cut-in car at 20m/s(force_decel=True) — 정량 재확인, 원인은 구조적.** 20초 종료 시점 speed=0.1208, a=-0.0283(199cha 기록 speed 0.12/a=-0.029와 일치, 202cha 이후에도 변동 없음). 판정 조건은 `speed > 0.1 and a > -0.04`일 때 실패인데, 두 값 모두 그 경계에 근접해 있다(margin: speed +0.0208, a +0.0117). 프레임별로 보면 정지 직전 가속도 크기가 점점 줄어드는 점근적 정지 곡선이며, 이는 4번(resume from a stop)과 같은 계열의 현상(가속도 스무딩이 v=0 근처에서 급격한 감속을 유지하지 않음)으로 보인다. 이 판정 조건 자체가 "v=0 근처에서도 급제동 크기를 유지"를 요구해 부드러운 정지 제어와 구조적으로 충돌하는 것으로 보이나, 이 세션은 그 이상 파고들지 않았다(가설 수준).
+
+**4. resume from a stop(force_decel=False) — 정확한 메커니즘 확인.** t=10.0s에 리드가 출발(breakpoint), t=10.15~10.25s 3프레임(0.15s) 동안 `v_rel>0`이면서 `a`가 각각 -0.00665, -0.00411, -0.00153로 여전히 음수라 하네스 조건(`v_rel>0 and a<1e-3`)을 위반한다. t=10.30s부터 a가 양수로 전환되고 t=12.60s에 a=0.273까지 오른다(199cha 채팅 기록과 일치). 즉 자차가 정지 상태에서 걸린 감속 관성(가속도 변화율/jerk 스무딩)이 리드 출발 신호 직후 약 0.15초(3 제어 주기) 동안 남아 있다가 가속으로 전환되는 지연이며, 이번에 그 지연 시간(0.15초, 3프레임)까지 정확히 수치로 확인했다. 더 짧게 줄일 수 있는지는 조사하지 않았다.
+
+**5. slow to 5m/s with allow_throttle = False and pitch = +0.1(force_decel=False, e2e True/False 2건) — 재확인, 변동 없음.** force_decel=False 조합에서 종료 시점 speed가 e2e=True/False 각각 20.0048/20.0000으로 전혀 감속하지 않는다(임계 5.5 m/s 초과). 이미 알려진 원인(carrot-ryu가 `self.allow_throttle = True`를 상수로 둬 스톡 gasPress 기반 coast-down 표현식이 실행되지 않음, 201cha 이전부터 기록됨) 그대로이고 202cha 이후에도 수치 변동이 없다. force_decel=True 조합은 참고로 speed 0.05/0.01까지 정지해 이미 통과한다.
+
+**6. 결론과 판단.** 5건 모두 202cha 이후에도 여전히 남아 있고, 이 세션은 코드를 바꾸지 않았으므로 pass/fail 상태에는 변화가 없다(202cha devnotes에 기록한 9 failed / 277 passed / 53 subtests passed 그대로). 1번(disabled+blended)은 근본 원인을 구조적으로 확정했지만 수정은 안전 관련 코드 변경이라 별도 승인이 필요하다(10절). 2, 4번은 같은 계열(v=0 근처 스무딩 vs 하네스의 즉각적 급제동 요구)로 보이며 코드 버그라기보다 테스트 하네스의 엄격한 임계값 설계와 컨트롤러의 부드러운 정지 동작 사이 불일치일 가능성이 있다(가설, 확정 아님). 5번은 상류(upstream) 스톡 기능이 이 포크에서 의도적으로 꺼져 있는 것으로 이미 판단됐고 이번에도 그대로다.
+
+**검증하지 않은 것 / 한계:**
+- 실차 검증: 미실시(12절). 1번의 reset_state 실험은 스크래치 패치이며 저장소에 반영하지 않았다(저장 전 `git diff --stat` 빈 결과로 원복 확인).
+- 2, 4번의 "스무딩 vs 하네스 임계값 불일치" 판단은 프레임별 수치 관찰에 기반한 가설이며, jerk_factor/a_change_cost 등 MPC 코스트 파라미터를 바꿔가며 인과를 격리하지는 않았다.
+- 1번에서 blended와 ACC 모드가 reset_state=True 아래서 왜 다르게 반응하는지(내부 MPC 코스트/제약 차이)는 코드를 더 읽지 않아 설명하지 못한다.
+- 이 세션은 넓은 회귀나 carrot-ms 점검을 하지 않았다(체크포인트 c771c4e 유지).
+
 ## 202cha (완료) (Claude, Claude Sonnet 5) - ACC 모드에서 forceDecel이 무시되던 문제 수정(long_mpc.py 468행, carrot-ryu 0a1a9fc) push 확인, 독립 검증 결과 기록
 
 **배경:** 이 세션은 시작 시 사용자가 붙여넣은 push 로그(`69eaf32a..0a1a9fc5  carrot-ryu -> carrot-ryu`, `PUSH OK: carrot-ryu HEAD = 0a1a9fc5da304cef25de23eabbff678d68aa396a`)에서 출발했다. 이 세션에는 202cha 코드 스크립트, 그 사전 검증 기록, 사용자 승인 경위(HANDOFF 미완료 1번은 "승인 필요"였다)가 없었고, 이 세션은 코드 스크립트를 작성하지 않았다. 5절 순서대로 GitHub를 직접 재확인한 뒤 이 기록을 작성했다. 실차 검증: 미실시(12절).
