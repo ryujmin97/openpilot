@@ -1,5 +1,33 @@
 # WIP
 
+## 199cha 계속 (완료) (Claude, Claude Sonnet 5) - 남은 12건 분류 수치를 샌드박스에서 재현하고 원인 정정, 코드 변경 없음
+
+**배경:** 199cha 회차는 직전 채팅 기록을 재현 없이 옮긴 것이었다. 사용자가 "너의 판단대로"로 위임해 같은 세션에서 그 기록을 재현했다. 환경은 `devnotes/toolkit/pytest_ci_setup.sh carrot-ryu`(clone HEAD `df0da457`, 샌드박스 Ubuntu 24, Python 3.12, 환경 구성 2분 미만)이고, 실행은 `-n 4 -p no:randomly`(정확한 재현 수치는 `-n 0`)이다. 스크래치 실험(임시 테스트 파일, plant.py 1줄, long_mpc.py 1줄)은 모두 되돌렸고 추적 파일 변경은 0이다(`git status`에 환경 구성 산출물 `openpilot/cereal/gen/`만 미추적). 실차 검증: 미실시(12절).
+
+**1. 기준선 재현(기록과 일치).**
+- `openpilot/selfdrive/car/tests/test_cruise_speed.py`: 8 failed, 13 passed in 12.64s. 실패는 TestCruiseSpeed_1,3,5,7,9,11,13,15(speed=35 조합 전부). 실패 메시지의 35.55x 구체 값은 이번에 다시 뽑지 않았다.
+- `openpilot/selfdrive/test/longitudinal_maneuvers/test_longitudinal.py`: 11 failed, 51 subtests passed in 51.61s(테스트 함수 4건 FAILED + 서브테스트 SUBFAILED 7건). 7건은 cut-in(ACC, force_decel) 1, cruising while disabled(e2e와 ACC, force_decel) 2, slow to 5m/s ... allow_throttle 3(e2e True/force_decel False, e2e False/force_decel True, e2e False/force_decel False), resume from a stop(ACC, force_decel False) 1이다.
+
+**2. test_cruise_speed 8건의 원인 정정: 테스트 하네스가 `carState.vEgoCluster`를 발행하지 않는다.**
+- 199cha 기록의 설명(테스트 기대와 CruiseEcoControl 기본값 2의 불일치)은 절반만 맞았다. eco가 35 m/s 설정을 +2 km/h로 밀어 올리는 것은 맞지만, 실제 원인은 eco가 해제되지 않는 것이었다. `carrot_functions.py` 470행이 `cruise_eco_control(v_ego_cluster_kph, ...)`에 클러스터 속도(462~463행 `carstate.vEgoCluster`)를 넘기고, 종료 조건 `v_ego_kph > eco_target_speed`(416~417행)는 그 값으로 판정한다. `plant.py`는 `carState.vEgo`만 채우고(148행) `vEgoCluster`는 채우지 않아 기본값 0이 된다. 그러면 종료 조건이 절대 참이 될 수 없어 eco가 계속 +2 km/h를 적용한다(199cha 기록의 "조사하지 않은 것"이 이것이다). 실주행에서는 `vEgoCluster`가 채워지므로 설정속도를 넘는 순간 eco가 해제된다고 코드로는 읽히지만 실차 확인은 하지 않았다.
+- 실험 E1(스크래치 테스트에서 Params CruiseEcoControl=0, plant 변경 없음): 16 passed in 13.10s(199cha 기록의 13.15s와 일치).
+- 실험 E2(eco 기본값 2 유지, plant.py 148행 뒤에 `car_state.carState.vEgoCluster = float(self.speed)` 1줄 임시 추가): 16 passed in 12.20s. 35 m/s 설정의 수렴값 35.0000~35.0047(ACC 35.0000~35.0004, e2e 35.0047), 5 m/s는 4.9998~5.0044.
+- 판단: eco=0을 테스트에 넣는 것보다, 하네스가 `vEgoCluster`를 발행하게 하는 편이 원인에 맞고 eco 로직도 그대로 시험한다(테스트 전용 후보, 아직 적용하지 않음).
+
+**3. force_decel 재현과 분류 정정.**
+- 코드 확인(HEAD `df0da457`): `long_mpc.py` 468행 `v_cruise, stop_x, mode = carrot.v_cruise, carrot.stop_dist, carrot.mode`는 mode가 blended가 아닌 분기(ACC)에서 인자로 받은 `v_cruise`를 버린다. 플래너는 `longitudinal_planner.py` 183~184행에서 `force_slow_decel`이면 `v_cruise = 0.0`을 만든다. `controlsd.py` 321~324행과 업스트림 carrot-ms 097826b는 이번에 다시 대조하지 않았다.
+- 판정 방식: `maneuver.py` 78행은 루프가 끝난 뒤 마지막 스텝 하나로 판정한다(force_decel이고 speed > 0.1이고 acceleration > -0.04이면 "Not stopping with force decel").
+- 실험 P1(468행을 `(0.0 if v_cruise == 0.0 else carrot.v_cruise)`로 바꾸는 한 줄 임시 패치): 서브테스트 실패 7건에서 5건. 해소된 것은 cruising while disabled(ACC, force_decel)와 allow_throttle(ACC, force_decel) 2건이다. 따라서 199cha 표의 allow_throttle 3건은 정정한다: force_decel=False인 2건이 "ensure_slowdown"류이고, force_decel=True인 1건은 ACC force_decel 무시 쪽이다.
+- 프로브(기준선, 20 s 종료까지의 속도/가속도, t=1/5/10/15/19.9): e2e 순항 disabled + force_decel은 25.00 m/s, a=-0.000 그대로(감속 없음). ACC 순항 disabled + force_decel도 25.00 m/s, a=0.000 그대로. ACC cut-in + force_decel은 19.75 -> 16.57 -> 15.62 -> 15.30 -> 15.14 m/s로 리드(15 m/s)를 추종하며 정지하지 않는다. e2e cut-in + force_decel은 18.60 -> 2.03 m/s로 감속해 통과했다.
+- 프로브(P1 패치 후, ACC): 순항 disabled는 22.52 -> 13.76 -> 3.99 -> 0.78 -> 0.38 m/s(t=19.9에서 a=-0.048)로 통과. cut-in은 19.29 -> 13.74 -> 7.74 -> 1.74 -> 0.12 m/s(t=19.9에서 a=-0.029)로 감속하지만 마지막 스텝이 speed 0.12 > 0.1, a=-0.029 > -0.04라 약간의 차로 실패한다(20 s 안에 거의 정지). 이 1건은 패치가 맞아도 시나리오 길이/판정 여유 문제일 수 있다(추정, 확인하지 않음).
+- 원인 미확정으로 남은 것: e2e 순항 disabled + force_decel. `plant.py` 144행은 `enabled=False`이면 `longControlState=off`로 보내고, `longitudinal_planner.py` 127~131행은 long control off이면 `reset_state=True`를 만든다. blended 경로에서 이것이 감속을 막는지는 실험으로 확인하지 않았다(가설 수준, ACC 경로는 P1 후 disabled에서도 감속했으므로 같은 원인이라고 단정할 수 없음).
+
+**4. 이번에 손대지 않은 것.** resume from a stop(기준선 실패만 재확인, 원인은 재조사하지 않음), 넓은 회귀 재집계, carrot/server/tests 7건, dashcam_replay 1건, carrot-ms 점검, 실차 검증.
+
+**검증하지 않은 것 / 한계:**
+- 모든 측정은 샌드박스 하네스 값이다. 실차 검증: 미실시(12절). forceDecel이 실주행에서 어떻게 동작하는지, 실제 controlsd 경로에서 ACC에 v_cruise 덮어쓰기가 어떤 영향을 주는지는 확인하지 않았다.
+- E2의 plant.py 임시 패치와 P1의 long_mpc.py 임시 패치는 실험용이며 저장소에 반영하지 않았다. 코드 변경은 승인 전까지 하지 않는다(10절).
+
 ## 199cha (완료) (Claude, Claude Sonnet 5) - 남은 12건 분류 결과 기록(직전 세션 채팅 기록 기반, 이 세션에서 재현하지 않음), 코드 변경 없음
 
 **배경:** 198cha 이후 이어진 세션에서 HANDOFF 미완료 3번(남은 12건 분류)을 읽기 전용으로 진행했으나, 결과가 devnotes에 기록되기 전에 세션이 끊겼다. 사용자가 그 채팅 기록을 이번 세션에 붙여줬고, 이 세션은 재현 없이 그 기록만 근거로 devnotes에 남기는 방식을 사용자가 선택했다(재현 후 기록하는 안과 둘 중 하나로 제시). 따라서 아래 수치·원인·측정값은 모두 그 채팅 기록에서 옮긴 것이며, 이 세션의 샌드박스에서 다시 실행하거나 코드를 다시 읽어 확인하지 않았다(3절, 12절). 기록 이후 코드가 바뀌었을 가능성도 이 세션에서는 대조하지 않았다.

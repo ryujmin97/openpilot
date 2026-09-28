@@ -1,27 +1,24 @@
-Worker: Claude (199cha 세션, Claude Sonnet 5). 198cha 이후 같은 흐름의 새 세션. 사용자가 붙여준 직전 세션 채팅 기록(남은 12건 분류, devnotes 기록 전에 끊김)을 재현 없이 devnotes에만 기록(devnotes 1회 push, 코드 변경 없음).
+Worker: Claude (199cha 계속 세션, Claude Sonnet 5). 199cha와 같은 세션에서 사용자가 "너의 판단대로"로 위임해, 채팅 기록만 옮겼던 남은 12건 분류를 샌드박스에서 재현하고 원인을 정정해 devnotes에 추가 기록(코드 변경 없음, WIP.md 199cha 계속 + 이 HANDOFF.md).
 Date: 2026-09-28
 Repository: ryujmin97/openpilot
-Code Branch: carrot-ryu (base commit df0da457b3bc527a994cb77fae50126567ee3b3f = 198cha test_following_distance 기대값 교체 커밋, 테스트 전용. 199cha에서 코드 변경 없음.)
-Note Branch: carrot-ryu-note (base commit 3fdfeae72bc076f03ccb3760caf093453475c4bb = 198cha devnotes. 199cha devnotes는 이 커밋 위에 push.)
+Code Branch: carrot-ryu (base commit df0da457b3bc527a994cb77fae50126567ee3b3f = 198cha test_following_distance 기대값 교체 커밋, 테스트 전용. 199cha와 199cha 계속에서 코드 변경 없음.)
+Note Branch: carrot-ryu-note (base commit d1ce99bb1357e80a157eabe52fee0029825c2cf0 = 199cha devnotes. 199cha 계속 devnotes는 이 커밋 위에 push.)
 carrot-ms 마지막 검토 체크포인트: 735a9a4 -> 4445c29 (194cha 판정 완료, 195cha~199cha에서는 점검하지 않음. 다음 점검은 4445c29 이후 신규 커밋부터.)
 
 작업:
-1. 4절 0단계(지침 문서 v2를 브랜치 URL과 SHA 고정 URL 양쪽으로 조회, 50696 바이트 동일) + HANDOFF.md/WIP.md 최상단 조회.
-2. GitHub 상태 재확인(16절): ls-remote로 carrot-ryu df0da457, carrot-ryu-note 3fdfeae 확인. 직전 채팅 기록의 분류 결과가 저장소에 없음을 확인.
-3. 그 분류 결과(test_cruise_speed 8건, test_longitudinal 서브테스트 7건, ACC forceDecel 무시)를 WIP.md 199cha에 기록. 사용자가 선택한 방식은 "재현 없이 지난 세션 기록만 근거". 샌드박스 재실행과 코드 재조회는 하지 않았다.
-4. WIP.md 199cha 회차, 이 HANDOFF.md 갱신(devnotes 1회 push). WIP_SYNC.md 변경 없음.
+1. 199cha에서 devnotes에 기록한 남은 12건 분류(직전 채팅 기록 인용)를 샌드박스에서 재현: toolkit/pytest_ci_setup.sh 환경 구성(HEAD df0da457), 기준선 실행, 스크래치 실험 E1/E2/P1 및 force_decel 프로브.
+2. 스크래치 실험은 모두 되돌림(추적 파일 변경 0). WIP.md 199cha 계속 회차, 이 HANDOFF.md 갱신(devnotes push). WIP_SYNC.md 변경 없음.
 
 완료:
-1. 198cha까지의 코드/devnotes 반영 상태 확인(코드 df0da457, devnotes 3fdfeae).
-2. 남은 12건 분류 결과를 devnotes에 기록(채팅 기록 기반, 이 세션 미재현). 핵심 요약:
-   - test_cruise_speed 8건: speed=35 조합 전부. 원인은 CruiseEcoControl 기본값 2(설정속도 +2 km/h, 35 m/s -> 약 35.556 m/s). 기록상 eco=0 스크래치에서 16건 통과. 테스트 기대(스톡)와 carrot 기본값의 불일치로 기록됨.
-   - test_longitudinal 서브테스트 7건: ACC force_decel 무시 2, allow_throttle 3(업스트림이 스톡 기능을 꺼둠), resume from a stop 1, cut-in(force_decel) 1과 cruising while disabled(e2e, force_decel) 1(원인 미확정).
-   - 기록상 가장 중요: long_mpc.py 468행이 ACC에서 플래너의 v_cruise를 버려 force_decel의 v_cruise=0.0이 사라짐(업스트림 carrot-ms 097826b에도 같은 줄). 코드 변경은 없음.
-3. 실차 검증: 미실시(12절). 코드/테스트 변경 없음.
+1. 기준선 재현: test_cruise_speed 8 failed/13 passed, test_longitudinal 서브테스트 실패 7건(199cha 기록과 일치).
+2. test_cruise_speed 8건 원인 정정: eco 해제 조건이 클러스터 속도(carState.vEgoCluster)를 쓰는데 plant.py가 이를 발행하지 않아(기본 0) eco가 해제되지 않고 +2 km/h를 계속 적용한다. plant.py에 vEgoCluster=vEgo 1줄(임시)을 넣으면 eco 기본값 2에서도 16 passed(35 m/s 수렴값 35.0000~35.0047). eco=0(Params)으로도 16 passed. 하네스 부족이 원인이며 carrot 기본값 자체의 문제가 아니다(199cha의 "기대와 기본값 불일치"는 정정).
+3. ACC force_decel 무시 재현: long_mpc.py 468행이 ACC에서 플래너의 v_cruise(force_decel이면 0.0)를 버린다. 한 줄 임시 패치로 서브테스트 실패 7 -> 5(해소: 순항 disabled ACC, allow_throttle ACC force_decel). allow_throttle 3건 분류 정정(force_decel=False 2건 + force_decel=True ACC 1건). ACC cut-in + force_decel은 패치 후에도 20 s 종료 시점 speed 0.12/a=-0.029로 판정 여유 차이로 실패.
+4. e2e 순항 disabled + force_decel은 감속 없음(25.00 m/s 그대로), 원인 미확정(reset_state 가설, 미확인).
+5. 실차 검증: 미실시(12절). 코드/테스트 변경 없음.
 
 미완료:
-1. (사용자 결정 대기, 기록 수치는 미재현) 남은 12건 처리 방침: (a) test_cruise_speed에 eco=0을 넣고 allow_throttle 테스트는 알려진 차이로 처리하는 테스트 전용 수정, (b) ACC forceDecel 무시(long_mpc.py 468행) 코드 수정 검토(안전 관련 동작이라 별도 세션과 명시적 승인 필요, 10절), (c) 무엇이든 바꾸기 전에 기록 수치를 샌드박스에서 재현.
-2. 원인 미확정: cut-in(force_decel) 1건, cruising while disabled(e2e, force_decel) 1건, resume from a stop의 출발 지연, eco가 +2 지점으로 수렴하는 이유(종료 조건이 코드에 있는데도).
+1. (사용자 결정 대기) 남은 12건 처리 방침: (a) 테스트 전용: plant.py가 vEgoCluster를 발행하게 해 test_cruise_speed 8건 해소(eco=0 설정보다 원인에 맞음), allow_throttle force_decel=False 2건과 resume from a stop은 알려진 차이/추가 조사, (b) ACC forceDecel 무시(long_mpc.py 468행) 코드 수정 검토(안전 관련 동작이라 별도 세션과 명시적 승인 필요, 10절; 실주행 controlsd 경로 영향 확인 필요), (c) 테스트 전용 후보를 적용할 때 5절 순차 전달.
+2. 원인 미확정: e2e 순항 disabled + force_decel(reset_state 가설), ACC cut-in + force_decel의 20 s 판정 여유, resume from a stop의 출발 지연(t=10.15 s 리드 출발 후 a=-0.0066이 3스텝, t=12.6 s에 a=0.273; 199cha 채팅 기록, 재조사 안 함).
 3. (판단만, 코드 변경 없음) comfort_brake 2.4와 정지등가 항 상수 2.5 불일치를 의도로 볼지. 실주행 영향: 60 km/h 약 +2.3 m, 100 km/h 약 +6.4 m, 35 m/s +10.2 m(계산, 실차 미검증), stop_distance -0.5 m. 198cha의 기대값은 플래너 실제 값을 따르므로 이 불일치를 테스트가 검출하지 않는다. 필요하면 실차에서 정상상태 추종 거리를 로그로 확인하는 항목으로 이월.
 4. v=0 정상상태 gap이 desired(5.502)보다 약 1.06 m 작은 현상(4.43~4.48) 원인 미조사. 정지 제어 쪽 별개 요인으로 추정, 테스트는 통과.
 5. carrot/server/tests 7건 원인 확인(6건 aiohttp NotAppKeyWarning 에러 취급 -- 샌드박스 aiohttp 버전 문제일 수 있으나 프로젝트 핀 미조회, 1건 test_web_upload.py:215 소스 문자열 단언), 기준선 실행 범위 포함 여부 미확인. 넓은 회귀 현재 수치도 미확인(198cha와 같음).
@@ -31,13 +28,14 @@ carrot-ms 마지막 검토 체크포인트: 735a9a4 -> 4445c29 (194cha 판정 �
 9. (이월) f992f9c LFS 전환 재검토: 디바이스에서 LFS pull 실패나 계정 LFS 한도 문제가 확인되면 별도 코드 세션 + 사용자 승인으로 판단.
 
 검증:
-- 이 세션은 테스트를 실행하지 않았다. 남은 12건 분류의 모든 수치(eco 측정값, 16 passed 13.15s, force_decel 25.555/7.87/0.73 m/s, 서브테스트 7건에서 5건 등)는 직전 채팅 기록의 인용이며 이 세션에서 재현·재조회하지 않았다. 실차 검증: 미실시(12절).
-- 198cha에서 재현한 following_distance 18 passed(HEAD df0da457)는 그대로 유효하다(코드 변경 없음). 넓은 회귀는 재집계하지 않았다.
+- 이번 회차 실행은 샌드박스(Ubuntu 24, Python 3.12, HEAD df0da457, xdist -n 4 -p no:randomly, 프로브는 -n 0)이다. 실차 검증: 미실시(12절).
+- test_cruise_speed 기준선 8 failed/13 passed(12.64s), test_longitudinal 11 failed(함수 4 + 서브테스트 7)/51 subtests passed(51.61s), E1 16 passed(13.10s), E2 16 passed(12.20s), P1 서브테스트 실패 5건(9 failed/53 subtests passed, 51.42s).
+- controlsd.py 321~324행(forceDecel 조건)과 업스트림 carrot-ms 097826b의 같은 줄은 이번에 재대조하지 않았다(199cha 채팅 기록 인용 그대로). 넓은 회귀 재집계는 하지 않았다.
 - 게이트를 완전 개방(g=1)으로 고정한 스텁이라 preview_release/cutout 테스트는 147차 게이트 동작을 검증하지 않음(193차에서 이월). e2e 모드의 T 결정 경로, 주행 모드별 comfort_brake(Safe 0.9배), SpeedTFFactor/myTFollowFactor/decel boost 경로, 디바이스에서 사용자가 바꾼 파라미터는 미측정.
-- 세부는 WIP.md 199cha(분류 결과와 한계), 198cha, 197cha 참고.
+- 세부는 WIP.md 199cha 계속(측정값, 프로브, 정정), 199cha, 198cha 참고.
 
 주의사항:
-- 199cha 분류 수치(eco=2/eco=0 측정, force_decel 스크래치 실험)는 재현되지 않은 채팅 기록 기반이다. 이 값을 근거로 코드/테스트를 바꾸기 전에 샌드박스에서 먼저 재현할 것(toolkit/pytest_ci_setup.sh부터). force_decel(ACC에서 v_cruise 덮어쓰기)은 안전 관련 동작이므로 코드 수정은 별도 세션 + 명시적 승인.
+- 199cha 계속의 재현 수치는 샌드박스 하네스 값이다(toolkit/pytest_ci_setup.sh로 구성, 정확한 수치는 -n 0). 재현 스크래치는 untracked 임시 테스트 파일로 만들고, 저장소 파일을 임시로 고친 뒤에는 반드시 `git checkout <파일>`로 되돌린 다음 `git status`로 확인할 것(`openpilot/cereal/gen/`는 환경 구성 산출물). 코드 변경(특히 force_decel, long_mpc.py 468행)은 별도 승인이 필요하다(10절).
 - 시작 전에 WIP.md 197cha 회차(원인, 공식, 표), 필요하면 196cha(T_FOLLOW 매핑, 18건 표), 195cha, 193cha 계속 회차도 읽을 것.
 - Plant.__init__은 Params()에 params_keys.h 기본값을 put한다(값이 없는 키만). pytest 안에서는 conftest의 OpenpilotPrefix로 격리되지만, pytest 밖에서 Plant를 돌리면 기본 Params 경로(Path.home()/.comma/params/d, 디바이스는 /data/params/d)에 실제로 쓴다. pytest 밖에서 돌릴 때는 `with OpenpilotPrefix():`(openpilot.common.prefix)로 감쌀 것: msgq 경로(안 감싸면 IpcError: Messaging failure with radarState)와 Params가 함께 격리된다.
 - pytest 실행 옵션: pyproject.toml addopts에 `-n auto --dist=loadgroup`이 있으므로 `-p no:xdist`는 쓰지 말 것(사용법 오류로 종료). xdist는 `-n 0`으로 끄고 병렬은 `-n 4`. 요약 줄을 grep으로 걸러 볼 때 결과가 비면 tail로 에러부터 확인할 것(197cha에서 옵션 오류가 grep에 가려져 2회 헛실행).
@@ -49,5 +47,5 @@ carrot-ms 마지막 검토 체크포인트: 735a9a4 -> 4445c29 (194cha 판정 �
 - 다음 코드 변경 세션은 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes)을 따른다.
 
 다음 작업:
-1. 사용자가 선택: (a) 테스트 전용 수정(test_cruise_speed eco=0, allow_throttle 알려진 차이 처리), (b) ACC forceDecel 코드 수정 검토(승인 필요), (c) 분류 수치 샌드박스 재현, (d) carrot-ms 점검(체크포인트 4445c29 이후 신규 커밋부터), (e) comfort_brake 2.4 vs 2.5 의도 판단, (f) 이월 항목(실차 검증들), (g) (b')/(c)/(v).
+1. 사용자가 선택: (a) 테스트 전용 수정(plant.py vEgoCluster 발행 등, 5절 순차 전달), (b) ACC forceDecel 코드 수정 검토(승인 필요), (c) 미확정 원인 조사(e2e disabled force_decel, resume from a stop), (d) carrot-ms 점검(체크포인트 4445c29 이후 신규 커밋부터), (e) comfort_brake 2.4 vs 2.5 의도 판단, (f) 이월 항목(실차 검증들), (g) (b')/(c)/(v).
 2. 코드 변경이 나오면 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes 1회).
