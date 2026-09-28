@@ -1,5 +1,31 @@
 # WIP
 
+## 202cha (완료) (Claude, Claude Sonnet 5) - ACC 모드에서 forceDecel이 무시되던 문제 수정(long_mpc.py 468행, carrot-ryu 0a1a9fc) push 확인, 독립 검증 결과 기록
+
+**배경:** 이 세션은 시작 시 사용자가 붙여넣은 push 로그(`69eaf32a..0a1a9fc5  carrot-ryu -> carrot-ryu`, `PUSH OK: carrot-ryu HEAD = 0a1a9fc5da304cef25de23eabbff678d68aa396a`)에서 출발했다. 이 세션에는 202cha 코드 스크립트, 그 사전 검증 기록, 사용자 승인 경위(HANDOFF 미완료 1번은 "승인 필요"였다)가 없었고, 이 세션은 코드 스크립트를 작성하지 않았다. 5절 순서대로 GitHub를 직접 재확인한 뒤 이 기록을 작성했다. 실차 검증: 미실시(12절).
+
+**0. 4절 0단계와 지침 문서.** `git ls-remote`로 carrot-ryu-note HEAD `fa8bbd23b2a5471a5307301e67d91d5b12940414`를 얻어 SHA 고정으로 지침 문서 v2를 조회했고 브랜치 URL 본과 `cmp` 일치를 확인했다. 같은 시점 carrot-ryu HEAD는 `0a1a9fc5da304cef25de23eabbff678d68aa396a`였다(HANDOFF의 코드 base `69eaf32`보다 한 커밋 앞).
+
+**1. 코드 반영(carrot-ryu `0a1a9fc`).**
+- 부모 `69eaf32ace3666a3e7669908c47df7973201b86c`, author/committer `ryujmin97 <ryujmin97@gmail.com>`, 커밋 메시지 `202cha: ACC honors forceDecel - long_mpc.py 468 uses min(planner v_cruise, carrot.v_cruise) so the planner's v_cruise=0.0 under DM alert 3 / softDisabling is no longer discarded in ACC mode (blended unaffected)`.
+- 변경 파일 1개(`git show --numstat`): `openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py` +3/-1. blob `446c2edb8e257c0ce8721ecbb2f2f3baab0f4cda` -> `f087a48df7d9efbf070255126198363751ad2594`.
+- 변경 내용: 468행 `v_cruise, stop_x, mode = carrot.v_cruise, carrot.stop_dist, carrot.mode`를 `v_cruise, stop_x, mode = min(v_cruise, carrot.v_cruise), carrot.stop_dist, carrot.mode`로 바꾸고 이유 주석 2줄을 추가했다. `if mode == 'blended':` 분기는 그대로다.
+
+**2. 동작 변경과 정적 근거.**
+- 이전에는 비 blended 모드(ACC)에서 플래너가 넘긴 `v_cruise`가 항상 `carrot.v_cruise`로 덮여, 플래너의 `if force_slow_decel: v_cruise = 0.0`(longitudinal_planner.py)이 MPC에 도달하지 못했다. 이제 두 값의 최솟값을 쓴다. 커밋 메시지는 DM alert 3 / softDisabling에서 이 값이 0.0이라고 설명한다(그 조건의 원천은 이 세션에서 확인하지 않았다).
+- `min()`이 forceDecel일 때만 값을 바꾼다는 근거(정적 읽기): 플래너의 `v_cruise`와 `carrot.v_cruise`는 모두 `carrot.update()`가 계산한 `v_cruise_kph * KPH_TO_MS`에 vCluRatio(> 0.5일 때)를 곱한 값에서 출발하고, `carrot_functions.py`에서 이후에는 낮추는 방향으로만 바뀐다(e2eStop 근처 `v_cruise = 0`, 정지 접근 시 `v_cruise = min(v_cruise, v_soft)`, 마지막에 `self.v_cruise = v_cruise`). 확인하지 못한 것: carrot 쪽 vCluRatio 변수의 출처가 플래너의 `carState.vCluRatio`와 같은지는 읽지 않았다.
+- 안전 관련 동작 변경이다. DM 경고/softDisabling 상황에서 ACC 모드에서도 정지 요구가 MPC까지 반영된다.
+
+**3. 검증(이 세션, 독립 clone/샌드박스).**
+- GitHub 재확인: `git ls-remote` HEAD 일치, 부모 `69eaf32`, numstat 1파일 +3/-1, 이전/이후 파일 모두 CR 0개, BOM 없음(첫 3바이트 `23 21 2f`), 변경 후 파일 `py_compile` 통과.
+- pytest: toolkit/pytest_ci_setup.sh로 구성(Ubuntu 24, Python 3.12.3, 코어 1개)하고 `pip install pytest-mock` 추가, checkout `0a1a9fc`, `-n 0 -p no:randomly`로 7개 파일(test_longitudinal.py, test_lead_gate_margin.py, test_longitudinal_gap_recovery.py, test_longitudinal_preview.py, test_following_distance.py, test_long_mpc_a_change_cost.py, carrot/tests/test_cutout_mpc_integration.py) 실행: 9 failed, 277 passed, 53 subtests passed(109 s). 실패 9건은 모두 test_longitudinal.py(서브테스트 5 + 부모 4)이고 나머지 6개 파일은 전부 통과했다.
+- 기준선: 같은 하네스에서 long_mpc.py만 이전판(69eaf32)으로 임시 교체해 test_longitudinal.py만 실행: 11 failed(서브테스트 7 + 부모 4), 51 subtests passed(55 s). 교체 후 `git checkout`으로 원복했고 `git status`는 `openpilot/cereal/gen/`(환경 산출물)만 보였다.
+- 신/구 차이는 정확히 2건이 사라진 것이다: `cruising at 25 m/s while disabled`(e2e=False, force_decel=True)와 `slow to 5m/s with allow_throttle = False and pitch = +0.1`(e2e=False, force_decel=True). 둘 다 ACC 모드 force_decel이며 HANDOFF(199cha 분류)가 "ACC forceDecel 무시"로 설명한 2건과 일치한다.
+- 남은 서브테스트 5건은 신/구 동일하다: `cruising at 25 m/s while disabled`(e2e=True, force_decel=True), `slow to 5m/s with allow_throttle = False and pitch = +0.1`(e2e=True, force_decel=False), 같은 케이스(e2e=False, force_decel=False), `approach slower cut-in car at 20m/s`(e2e=False, force_decel=True), `resume from a stop`(e2e=False, force_decel=False). 이 세션은 이들의 원인을 조사하지 않았고 수치(종료 시점 speed/a 등)도 측정하지 않았다(통과/실패만 확인).
+- 기준선을 측정하지 않은 6개 파일은 수정 후 전부 통과했으므로 이 변경으로 인한 회귀는 관측되지 않았다. 넓은 회귀 실행은 하지 않았다.
+
+**4. 이 세션의 한계.** 실차 검증: 미실시(12절). 실주행 controlsd 경로에서 forceDecel 발생 조건과 이 변경의 상호작용은 정적/샌드박스 단계다. 이번 devnotes 스크립트의 사전 검증은 Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다. 이 세션의 샌드박스 셸에서 `cut -c`가 한글 UTF-8을 바이트 단위로 잘라 출력이 깨진 적이 있어 한글 확인은 python 슬라이스로 했다.
+
 ## 201cha (완료) (Claude, Claude Sonnet 5) - carrot-ms 948b139(전방 레이더 리드 정지까지 유지) carrot-ryu 이식(69eaf32), 4445c29..c771c4e 신규 23건 판정 기록
 
 **배경:** 사용자가 이번 세션에서 carrot-ms 점검(HANDOFF 다음 작업 (d))을 위임했고, Claude가 `948b139` 이식과 `4770067` 제외를 권고해 그대로 진행했다. 5절 순차 전달(코드 스크립트 -> 실행 -> GitHub 재확인 -> devnotes)에 따라 코드 push가 먼저 나갔고, 이 기록은 확인 이후에 작성했다. 실차 검증: 미실시(12절).
