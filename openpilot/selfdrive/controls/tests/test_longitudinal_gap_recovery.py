@@ -23,7 +23,7 @@ def load_mpc_update(path):
     def cost_set(self, i, key, value): self.weights[i, key] = np.copy(value)
     def constraints_set(self, *args): pass
 
-  ns = {'np': np, 'log': SimpleNamespace(LongitudinalPersonality=SimpleNamespace(standard=1, aggressive=0)),
+  ns = {'np': np, 'log': SimpleNamespace(LongitudinalPersonality=SimpleNamespace(aggressive=0, standard=1, relaxed=2, moreRelaxed=3)),
             'DT_MDL': .05, 'N': 12, 'COMFORT_BRAKE': 2.5, 'STOP_DISTANCE': 6., 'ACCEL_MIN': -3.5, 'LEAD_ACCEL_TAU': 1.5,
             'MODEL_NAME': 'long', 'ACADOS_SOLVER_TYPE': 'SQP_RTI', 'COST_DIM': 6, 'COST_E_DIM': 5, 'X_DIM': 3, 'PARAM_DIM': 8,
             'A_CHANGE_COST': 200., 'A_CHANGE_COST_STARTING': 10., 'LEAD_DANGER_FACTOR': .8, 'LIMIT_COST': 1e6,
