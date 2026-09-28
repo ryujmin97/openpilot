@@ -1,5 +1,21 @@
 # WIP
 
+## 194cha (완료) (Claude, Claude Sonnet 5) - carrot-ms 정기 동기화 점검(2절): 735a9a4 -> 4445c29 신규 11건 판정 (코드 변경 없음)
+
+**배경:** 사용자가 후속 작업 선택을 "너의 판단대로"로 위임. 4절 0단계(지침 문서 SHA 고정 조회 `82ed7712`)와 HANDOFF.md 확인 후, 읽기 전용이고 다음 코드 세션의 범위를 정하는 데 필요한 carrot-ms 점검(2절)을 먼저 진행했다. 코드 변경 없음, carrot-ryu HEAD `99754dc8` 그대로.
+
+**조회 방법:** `api.github.com` compare는 rate limit이라 `git clone --bare --filter=blob:none happymaj11r/openpilot carrot-ms`로 대체. 체크포인트 735a9a4가 현재 히스토리에 존재함을 확인(`git cat-file -t`) 후 `735a9a4..carrot-ms`(HEAD `4445c29`) 11건을 `git diff-tree --numstat`로 전수 확인.
+
+**판정 요약 (자세한 사유는 WIP_SYNC.md 194차):** Jetson 설치기 계열 9건 제외, `fc7ee88` 제외, `f992f9c` 보류(사용자 위임 판단, 반영하지 않음).
+- `fc7ee88`(C3 UI가 little core와 core6 공유): carrot-ryu에 `openpilot/common/display_scheduling.py`가 없고 `ui.py` 구조(core0 부트스트랩 -> core5, core7 재배치 금지 주석)가 달라 이식 전제가 성립하지 않음. 업스트림도 실차 FPS 개선 미검증.
+- `f992f9c`(LFS 산출물 7개를 일반 blob으로 전환): carrot-ryu는 아직 `.gitattributes`가 LFS 설정이고 `driving_supercombo.onnx`/`updater`/`lane.onnx`가 133바이트 LFS 포인터 상태(clone으로 확인). 반영 시 약 60MB blob이 히스토리에 들어가고 디바이스 업데이트 경로가 바뀌므로 지금 반영하지 않고 보류. ryujmin97 계정의 LFS 대역폭 소진 여부는 확인 불가.
+
+**한계:** 실차 검증 미실시(12절, 코드 변경 없음). Jetson 9건은 제목/변경 파일 목록 수준 판정이며 라인 단위 diff 대조는 하지 않았다. `fc7ee88`/`f992f9c`만 핵심 diff를 읽었다.
+
+**같은 세션 기타:** 사용자가 전역 `git config --global user.email`을 `ryujmin97@gmail.com`으로 설정(193cha-cont 마지막 확인). 이 회차 스크립트 로그에 `commit author: ryujmin97 <ryujmin97@gmail.com>`이 나오면 적용된 것.
+
+**이월:** pytest 후속(a''/b'/c), 핵심 발견 68/163차 게이트/xTurn=6 로그/102ms wide-camera BOOT_TS gap, 110차 GATE_M/114차 MAP_TURN_GUIDE_FACTOR 실차 검증 -- 변동 없음.
+
 ## 193cha 계속 (완료) (Claude, Claude Sonnet 5) - (a') gap_recovery 하네스 갱신 코드 push(99754dc8) + following_distance/dashcam_replay 조사 + author 이메일 사고 기록
 
 **배경:** 193cha 세션 말미에 사용자가 후속 작업 선택을 "너의 판단대로"로 위임. 남은 하네스 실패 46건(gap_recovery 28 + following_distance 18) 중 원인이 가장 단순한 쪽부터 진행하고, 나머지는 스크래치 클론에서 원인만 조사했다.

@@ -1,5 +1,32 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-28 (194차) -- carrot-ms 735a9a4 -> 4445c29 신규 11건 판정: 10건 제외, f992f9c 보류(코드 변경 없음)
+
+- carrot-ms 마지막 검토 대상 체크포인트: 735a9a4(192차) -> 4445c29(2026-09-28 carrot-ms HEAD, "Record full installer execution and verified NAS candidate artifacts"). 735a9a4가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `735a9a4..HEAD` 범위를 잡음(api.github.com compare는 rate limit이라 blobless bare clone + git log로 대체).
+- carrot-ryu HEAD: 99754dc847c5d0353a3535a46bbeadaaf055846b(변동 없음, 이번 세션 코드 변경 없음).
+- 신규 커밋 11건 중 WIP_SYNC.md에 기존 검토 기록이 있는 것은 0건.
+
+**판정 (2절 7번: 종류만으로 제외하지 않고 개별 확인, 제외 사유 기록)**
+
+1. Jetson 보호 이미지/설치기/Wi-Fi 복구 계열 9건 -- 제외.
+   대상: `3a75293`, `5aad6df`, `f29ccd5`, `330c3a3`, `dd24f8f`, `3d88361`, `a104ebe`, `97c828a`, `4445c29`.
+   사유: 변경 파일이 전부 `tools/jetlink/*`, `third_party/jetlink/*`, `docs/jetson_power_loss_protection.md`, `.github/workflows/jetlink-checks.yaml`로, 외장 Jetson 호스트/SD 이미지/Windows 설치기/NAS 후보 산출물 전용이다. 이 차량(제네시스 DH 2015 + 콤마 C3) 구성에 없는 하드웨어이며 공유 런타임 파일 변경 없음. 제목/변경 파일 목록 수준 확인이고 라인 단위 diff 대조는 하지 않음.
+2. `fc7ee88`("Allow C3 UI to share little cores and core6 at nice19") -- 제외(Claude 판단, 사용자 위임).
+   내용: `DisplayScheduler(include_little=...)`로 C3/C3X 온로드 UI 스레드 affinity를 core6 -> cores0,1,2,3,6(SCHED_OTHER/nice19)으로 확장. `ui.py`, `display_scheduling.py`와 테스트 3개 변경.
+   사유: carrot-ryu에는 `openpilot/common/display_scheduling.py`와 그 테스트가 없다(이전 9/23 UI core6/USB core7 배치 커밋 계열을 아예 가져오지 않음). carrot-ryu `ui.py`는 core0 부트스트랩 후 core5로 옮기는 별개 구조이고 "core7은 modeld+plannerd+dmonitoringmodeld 전용이라 UI 재배치 금지" 주석이 있다. 반영하려면 UI 스케줄링 인프라 전체를 이식해야 하며 코어 배치가 제어 주기에 미치는 영향이 커서 10절 최소 변경 원칙과 어긋난다. 업스트림 자체도 실차 FPS 개선은 미검증이라고 명시.
+3. `f992f9c`("Store remaining LFS artifacts as ordinary Git blobs") -- 보류(반영하지 않음, 사용자 위임 판단).
+   내용: 업스트림 계정의 LFS 대역폭 소진으로 LFS 포인터 7개(`driving_supercombo.onnx` 60,792,584B, `tici/updater` 24,709,487B, `xiaoge/lane.onnx`, `xiaoge/v_asm_model.onnx`, `docs/assets/comma-logo.png`, 웹 `alert_camera.svg`/`alert_police.svg`)를 원본 내용의 일반 blob으로 교체, `.gitattributes`를 `* text=auto -filter` + `.onnx`/updater `-diff -merge -text`로 변경, setup/CI의 `git lfs pull` 제거.
+   carrot-ryu 상태(clone으로 확인): `.gitattributes`가 LFS 설정 그대로이고 위 대용량 파일이 133바이트 LFS 포인터 상태.
+   보류 사유: 반영하면 약 60MB급 blob이 carrot-ryu 히스토리에 들어가고 콤마 디바이스의 업데이트/체크아웃 경로가 바뀐다. 저장소 운영 방식에 관한 결정이라 이번 세션에서 확정하지 않는다. ryujmin97 계정의 LFS 대역폭 소진 여부는 확인할 수 없음. 재검토 조건: 디바이스에서 LFS pull이 실패하거나 계정 LFS 한도 문제가 확인될 때(별도 코드 세션 + 사용자 승인, 20절 버전 리셋 시점에 함께 판단해도 됨).
+
+**한계:** 실차 검증 미실시(12절, 코드 변경 없음). 위 판정은 정적 확인(커밋 목록/변경 파일/핵심 diff/carrot-ryu 파일 존재 확인)이다.
+
+**carrot-ryu 고유 상태(향후 재동기화 시 참고)**
+- 이전 기록 유지: `openpilot/common/stopping_params.py` 없음(VEgoStopping은 `get_float * 0.01` 직접 사용).
+- 추가: `openpilot/common/display_scheduling.py` 없음, `.gitattributes`는 LFS 설정(대용량 파일은 LFS 포인터).
+
+남은 이월 항목: 변동 없음(핵심 발견 68/163차 게이트/xTurn=6 로그/pytest CI 환경/102ms wide-camera BOOT_TS gap).
+
 ## 체크포인트: 2026-09-28 (192차) -- carrot-ms 3441183 -> 735a9a4 신규 74건 전수 판정: 전부 제외 확정(코드 변경 없음)
 
 - carrot-ms 마지막 검토 대상 체크포인트: 3441183(188차) -> 735a9a4(2026-09-28
