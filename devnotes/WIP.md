@@ -1,5 +1,21 @@
 # WIP
 
+## 217cha (완료) (Claude, Claude Sonnet 5.5) - DM2 계열 8건 제외 확정 기록 (devnotes만, carrot-ryu 코드 변경 없음, 실차 미실시)
+
+**배경:** 같은 날 216cha 세션이 이어진 대화. 사용자가 216cha devnotes 반영("완료")을 알려 주었고, 이 세션이 push 로그 없이 GitHub를 직접 재확인했다(16절). 이어 사용자가 HANDOFF 다음 작업 후보의 "DM2 계열 보류 건"이 무엇인지 물었고, 설명을 들은 뒤 "DM2는 반영하지 않음. 제외 확정. 현행 유지"라고 결정했다. 이어서 "지금 devnotes 반영"을 요청했다.
+
+**1. 216cha devnotes 반영 재확인.** `git ls-remote`로 note HEAD가 `f316697b811fc39eb48a346f9355a05244a139f0`(부모 `631d1e6`)임을 확인했고, 독립 clone에서 변경 파일 5개와 numstat(HANDOFF +20/-7, WIP +33/-0, CHANGELOG +3/-0, README +10/-0, pytest_ci_setup.sh +26/-1), 파일별 blob 해시(eb64881, f6ea04d, 70e2245, f9a6e93, 2f77fc7)가 스크립트 기대값과 일치함을 봤다. 5개 파일 모두 CR 0개, BOM 없음. carrot-ryu는 `a78d531` 그대로.
+
+**2. 결정(사용자).** DM2 계열 8건(`e7b9eb1`, `13eca74`, `6262570`, `7171d42`, `2326be2`, `7bd44b5`, `847d81f`, `c771c4e`)은 반영하지 않고 제외로 확정한다. 201차의 "보류"가 "제외 확정"으로 바뀐다. 208차에 제외한 후속 4건(`c36f6e7`, `44d2707`, `2beefa3`, `8472d35`)과 같다. 사용자가 사유를 따로 덧붙이지는 않았다. 내가 설명한 보류 근거(WIP_SYNC.md 201차 3번: 기능 전체를 `e7b9eb1`이 새로 들이는 구조라 부분 반영 불가, 경고/잠금 동작이 바뀌는 안전 관련 변경, `7bd44b5`는 파일 기준 CAN-FD용으로 보이나 라인 단위 확인은 안 함)가 그대로 기록에 남는다. 이번 세션에서 DM2 코드를 새로 읽지는 않았다.
+
+**3. 갱신한 문서(devnotes만).** WIP_SYNC.md 217차 체크포인트(+새 절), 이 WIP.md 회차, HANDOFF.md(Worker, Note Branch, 작업, 완료 24번, 미완료 12번에서 DM2 부분 제거, 다음 작업). WIP_SYNC.md 201차 기존 기록과 FINDINGS.md, toolkit은 변경하지 않았다.
+
+**4. 반영 스크립트와 사전 검증.** `217cha_devnotes_dm2_excluded_v1.ps1`(PowerShell, 한글이 있어 UTF-8 BOM 포함). 코드 변경이 없는 세션이라 devnotes 스크립트 1개만 전달했다(5절). 스크립트는 clone 직후 note HEAD가 f316697인지와 대상 3개 파일의 blob 해시가 이 세션이 읽은 값과 같은지 확인한 뒤에만 쓰고(모든 git 상태 조회는 `git -C`), 쓴 결과의 blob 해시, BOM/CR 없음, 변경 파일 3개와 파일별 numstat을 확인하고, 3개 경로만 add한다. 사전 검증은 Linux pwsh 7.6.6 기준이며(파서 오류 확인, 전달 .ps1에서 추출한 앵커의 SHA 고정 원본 매치 확인, 실제 note 저장소를 복제한 로컬 bare 저장소로 일반/CRLF 재현/전역 autocrlf=true 전체 실행) Windows PowerShell 5.1 실제 실행이 아니다.
+
+**5. 이 push의 확인.** 이 회차의 devnotes push는 이 스크립트 자체라 이 회차 안에서는 GitHub 재확인을 할 수 없다. 다음 세션이 `git ls-remote`와 이 3개 파일로 확인한다(16절).
+
+**6. 하지 않은 것.** carrot-ryu 코드 변경 없음, carrot-ms 점검 없음(체크포인트 8472d35 그대로), carrot-ryu 재생성 없음, DM2 코드 재조사 없음. 실차 검증 미실시(12절).
+
 ## 216cha (완료) (Claude, Claude Sonnet 5.5) - test_raylib_ui.py 1건/test_widget_leaks.py 수집 에러 원인 조사, toolkit pytest_ci_setup.sh에 visionipc_pyx 빌드 추가 (carrot-ryu 코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 지침 문서 읽기를 요청하며 215cha devnotes push 로그(`60adea9..631d1e6`)를 붙여넣었고, 내가 다음 작업 선택지를 제시하자 "`test_raylib_ui.py` 1건과 `mici/tests/test_widget_leaks.py` 수집 에러 원인 조사"(HANDOFF 미완료 21번, 읽기만이면 승인 불필요)를 골랐다. 조사 결과와 제안 (A)/(B)/(C)를 보고하자 사용자가 "너의 제안대로"로 세 가지를 모두 승인했다(toolkit 변경 승인 포함, 14절).
