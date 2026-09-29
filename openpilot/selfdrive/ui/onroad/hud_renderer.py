@@ -28,6 +28,11 @@ WEEKDAYS_KO = ("일", "월", "화", "수", "목", "금", "토")
 # [209차] 좌측 상단 시간/일자 텍스트를 우측으로 옮기는 픽셀 수(액정 좌측 손상부에 가려지는 부분 보정).
 # 값을 키우면 더 오른쪽, 줄이면 원래 위치에 가까워진다.
 DATE_TIME_X_SHIFT = 110
+# [210차] 액정 좌측 손상으로 좌하단 패널의 현재속도/CPU 온도가 가려져, 두 텍스트를 우측 상단
+# TPMS 표시(x = rect 우측 - 125, 뒷바퀴 행 기준선 y = rect.y + 200) 바로 아래로 옮긴다.
+# 아래 두 값은 rect.y 기준 글자 하단(center_bottom) y 오프셋이며, 겹치거나 어긋나면 이 숫자만 조정한다.
+TOP_RIGHT_SPEED_Y = 350
+TOP_RIGHT_CPU_Y = 420
 
 
 @dataclass(frozen=True)
@@ -677,8 +682,10 @@ class HudRenderer(Widget):
     cur_speed_int = 123 if self._debug_speed_panel else int(round(self.speed))
     cur_text = str(cur_speed_int)
 
+    # [210차] 좌하단 패널이 액정 손상으로 가려져 현재속도를 우측 상단 TPMS 아래로 이동
+    tr_x, tr_y = self._hud_top_right
     draw_text_ui_style(
-      cur_text, bx, by + 50, 120, rl.WHITE,
+      cur_text, tr_x, tr_y + TOP_RIGHT_SPEED_Y, 120, rl.WHITE,
       font=self._font_display,
       border_width=3.0,
       shadow_offset=8.0,
@@ -1012,11 +1019,11 @@ class HudRenderer(Widget):
     dy = by - 200
     ok_color = COLORS.GREEN_190
 
-    # CPU
-    cpu_fill = COLORS.RED_SOLID if (self._cpu_temp > 80 and self._blink_timer <= 8) else ok_color
-    self._draw_round_box(dx - 65, dy - 38, 130, 90, cpu_fill, line_color=rl.WHITE, roundness=0.16, segments=8, line_thickness=2)
-    draw_text_ui_style("CPU", dx, dy - 5, 25, rl.WHITE, font=self._font_display, border_width=1.0, shadow_offset=4.0, align="center_bottom")
-    draw_text_ui_style(self._cpu_temp_text, dx, dy + 40, 40, rl.WHITE, font=self._font_display, border_width=1.0, shadow_offset=4.0, align="center_bottom")
+    # CPU: [210차] 좌하단 박스가 액정 손상으로 가려져 우측 상단 TPMS 아래 텍스트로 이동.
+    # 80도 초과 시 기존 박스와 같은 주기로 깜빡이는 빨간 글자로 경고한다.
+    tr_x, tr_y = self._hud_top_right
+    cpu_color = COLORS.RED_SOLID if (self._cpu_temp > 80 and self._blink_timer <= 8) else rl.WHITE
+    draw_text_ui_style(f"CPU {self._cpu_temp_text}", tr_x, tr_y + TOP_RIGHT_CPU_Y, 40, cpu_color, font=self._font_display, border_width=1.0, shadow_offset=4.0, align="center_bottom")
 
     # MEM
     dx2 = dx + 150
@@ -1485,6 +1492,8 @@ class HudRenderer(Widget):
     # C drawHud anchor
     bx = int(rect.x + 140)
     by = int(rect.y + rect.height - 230)
+    # [210차] 우측 상단 TPMS 아래에 그리는 현재속도/CPU 온도의 기준점(TPMS와 같은 x 중심)
+    self._hud_top_right = (int(rect.x + rect.width - 125), int(rect.y))
 
     speed_limit_info = self._get_speed_limit_info()
     self._draw_carrot_main_background(bx, by, speed_limit_info)
