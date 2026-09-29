@@ -1,5 +1,23 @@
 # WIP
 
+## 223cha (완료) (Claude, Claude Sonnet 5.5) - 진출 램프 안내 중에만 route 전방 탐색거리 300 m -> 600 m (carrot-ryu 0b6bbeb)
+
+**배경.** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했고(지침 v2, note b05d249 기준, 브랜치 URL 본과 SHA 고정본 cmp 동일), 업로드된 222cha devnotes 스크립트의 Termux 실행 명령을 받아 실행했다(그 push로 note HEAD가 20c47cc가 됨을 확인). 이어서 사용자가 "라우트 로직에서 고속도로 진출입램프에서 300m 전방 게이트는 짧은듯. 이 구간만 600m로 바꿀 수 있어? 다른 구간은 그대로"라고 요청했다.
+
+**위치 파악.** 말한 300 m는 `carrot_man.py`의 `carrot_navi_route()` 안 `get_path_after_distance(..., 300)` 호출(경로 폴리라인 전방 탐색거리)이다. 163차에 제거된 `carrot_serv.py`의 안내 지점 300 m 게이트(0<=xDistToTurn<=300)와는 별개다.
+
+**결정.** 적용 조건을 물었더니 사용자가 "진입 램프도 필요(로그로 신호 먼저 확인)"를 골랐다. 그러나 이 세션에는 로그가 없어 진입 램프 신호를 확인할 수 없었고, 사용자가 "진출 램프만 먼저"로 정했다. 진입 램프는 미해결이다.
+
+**변경(carrot_man.py +21/-1, 새 테스트 tests/test_carrot_route_lookahead.py +19, 부모 8cdb515).**
+- 상수 `ROUTE_LOOKAHEAD_M = 300`, `ROUTE_LOOKAHEAD_OFF_RAMP_M = 600`, `ROUTE_OFF_RAMP_TRIGGER_DIST_M = 1000`과 함수 `route_lookahead_distance(nav_type, x_turn_info, x_dist_to_turn)`를 추가했다. navType가 `off ramp`이고 xTurnInfo가 3/4(좌/우)이며 안내 지점까지 거리가 1000 m 이하면 600, 아니면 300을 돌려준다.
+- 호출부는 carrot_serv의 navType/xTurnInfo/xDistToTurn을 getattr로 읽어 lookahead_m을 `get_path_after_distance`에 넘긴다. 그 외 곡률·감속·freeze 로직은 그대로다.
+- 판별에 쓴 navType는 `_update_tbt`의 매핑(TBT 코드 101/102/104/105/111/112/114/115)에서 정해진다. `nav_type_mapping`에만 있는 1006/1007은 이 매핑에 없어 navType가 invalid가 되므로 600 m 대상이 아니다. 분기(fork)는 xTurnInfo가 같은 3/4여도 navType가 fork라 300 m 그대로다.
+- 1000 m 트리거와 600 m 값 중 1000 m는 사용자가 정하지 않은 내 가정이다(상수라 조정 쉬움).
+
+**반영 확인(16절).** 사용자가 Termux 스크립트 `223cha_code_offramp_lookahead_600_v1.sh`를 실행하고 "완료"라고 알렸다. GitHub에서 직접 확인했다: carrot-ryu HEAD 0b6bbeb737f960591d7575cd3471990469faa78f, 부모 8cdb515, numstat carrot_man.py 21/1 · 테스트 19/0, SHA 고정 raw의 carrot_man.py blob 500bd1c8e3751a6097e0d061375326cf787aa9a8이 샌드박스 시뮬레이션 blob과 일치, 테스트 파일 존재.
+
+**검증/한계.** 스크립트 사전 검증은 Linux bash/python3 샌드박스에서 실제 carrot-ryu(8cdb515)를 복제한 로컬 bare 저장소로 끝까지 실행한 것이며 Termux 실기기 실행이 아니다(py_compile, 변경량, 개행/BOM 통과). 판정 함수는 7개 입력(램프 600, 1001 m 초과·fork·turn·invalid·None은 300)을 확인했다. 새 pytest는 이 샌드박스에 openpilot 실행 환경이 없어 실행하지 못했다. 안내 지점을 지난 뒤 navType가 다음 안내로 바뀌면 램프 도중 300 m로 돌아가며, 그때 route 속도 변화는 확인하지 않았다. Windows CRLF 재현은 하지 않았다(Termux 대상). 진입 램프 신호는 확인하지 못했다. 실차 검증: 미실시(12절).
+
 ## 222cha (완료) (Claude, Claude Sonnet 5.5) - 8cdb515 실차 로그로 220cha 수정(SCC 앞차 비전 거리 완화) 동작 확인 (코드 변경 없음, 실차 로그 확인)
 
 **배경.** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했고(지침 v2, note b05d249 기준, 브랜치 URL 본과 SHA 고정본 cmp 바이트 동일, carrot-ryu HEAD 8cdb515가 HANDOFF base와 일치), 이어서 "최신코드 실차검증해"와 함께 실차 로그 zip(HYUNDAI_GENESIS_541384155f4f8ca5_20260930_071908.zip, 약 323 MB, 세그먼트 4~28 연속 25개, rlog.zst + qcamera.ts, 약 1,500초)을 올렸다. 사용자가 이어서 "기록", "Termux"라고 해 이 devnotes를 만들었다.
