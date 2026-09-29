@@ -170,6 +170,21 @@ ROUTE_PATH_MIN_POINTS = 4
 # 계기가 없으면 마지막 값(예: 27.4km/h)에 영구 고정될 수 있었다.
 ROUTE_FREEZE_MAX_CYCLES = 15 * 20
 
+# 진출 램프 안내 중에만 route 폴리라인 전방 탐색거리를 300m에서 600m로 늘린다(223차).
+# 300m로는 램프 곡선이 늦게 보여 감속이 늦다는 실주행 판단. 그 외 구간은 300m 그대로.
+# 판별: carrot_serv.navType == "off ramp"(_update_tbt 매핑의 101/102/104/105/111/112/114/115)이고
+# xTurnInfo가 3/4(좌/우)이며 안내 지점까지 거리가 ROUTE_OFF_RAMP_TRIGGER_DIST_M 이하일 때.
+# 진입 램프는 로그로 신호를 확인한 뒤 별도로 다룬다.
+ROUTE_LOOKAHEAD_M = 300
+ROUTE_LOOKAHEAD_OFF_RAMP_M = 600
+ROUTE_OFF_RAMP_TRIGGER_DIST_M = 1000
+
+
+def route_lookahead_distance(nav_type, x_turn_info, x_dist_to_turn):
+    if nav_type == "off ramp" and x_turn_info in (3, 4) and x_dist_to_turn <= ROUTE_OFF_RAMP_TRIGGER_DIST_M:
+        return ROUTE_LOOKAHEAD_OFF_RAMP_M
+    return ROUTE_LOOKAHEAD_M
+
 # Haversine formula to calculate distance between two GPS coordinates
 #haversine_cache = {}
 def haversine(lon1, lat1, lon2, lat2):
@@ -592,7 +607,12 @@ class CarrotMan:
 
     distance_interval = 10.0
     out_speed = 300
-    path, self.navi_points_start_index, start_point = get_path_after_distance(self.navi_points_start_index, self.navi_points, current_position, 300)
+    lookahead_m = route_lookahead_distance(
+      getattr(self.carrot_serv, "navType", None),
+      getattr(self.carrot_serv, "xTurnInfo", -1),
+      getattr(self.carrot_serv, "xDistToTurn", 0),
+    )
+    path, self.navi_points_start_index, start_point = get_path_after_distance(self.navi_points_start_index, self.navi_points, current_position, lookahead_m)
     # 핵심 발견 59(161차): 원본 폴리라인 점이 ROUTE_PATH_MIN_POINTS개 미만이면(경로 소진) 아래에서
     # 계산되는 곡률을 신뢰하지 않는다.
     route_info_sufficient = len(path) >= ROUTE_PATH_MIN_POINTS
