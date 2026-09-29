@@ -1,5 +1,28 @@
 # WIP
 
+## 208cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms c771c4e -> 8472d35 신규 7건 판정: 전부 제외 (코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 다음 작업 중 (d) carrot-ms 점검 계속을 선택했다. 코드 변경이 없고 devnotes(WIP_SYNC.md 포함)만 바뀌므로 5절의 "코드 변경이 없는 경우"로 devnotes 스크립트 1개로 처리한다(사용자가 이번 세션은 Termux로 진행한다고 명시했으므로 bash `.sh`).
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 조회한 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `56f832ad2bb8dbdd6541c8d0a87afaa6adb55976`(207cha devnotes)을 얻어 SHA 고정본을 다시 조회했고 sha256 일치(50,696바이트, 변경 없음)를 확인했다. carrot-ryu HEAD `058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044`는 HANDOFF의 코드 base와 일치했다.
+
+**1. 범위와 방법.** WIP_SYNC.md 201차 체크포인트(`c771c4e`)가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤(`git cat-file -t`) blobless bare clone으로 `c771c4e..HEAD`를 잡았다(HEAD `8472d35088ce427ccdc33681ae513ab3862cc2d9`, 2026-09-29). 신규 7건, WIP_SYNC.md에 기존 검토 기록이 있는 것은 0건. 변경 파일은 `git show --numstat`로, carrot-ryu 존재 여부는 carrot-ryu `058391e` blobless bare clone의 `git cat-file -e HEAD:<경로>`로 확인했다. `soundd.py`(5e0060d), `augmented_road_view.py`(a24b3a5), `2beefa3`은 diff를 읽었고 나머지는 제목/커밋 본문/변경 파일 목록 수준이며 라인 단위 대조는 하지 않았다.
+
+**2. 신규 7건과 판정(사용자 결정: 전부 제외).**
+1. `c36f6e7`("Detect steering touch by received CAN profile across Hyundai CAN-FD") -- 제외. Ioniq 5 PE 지문 게이트를 없애고 `steering_touch.py`의 STEER_TOUCH_2AF 프로파일을 CAN-FD 전 플랫폼에 적용. 변경 10개 파일(`steering_touch.py`, 테스트, `carstate.py` 1줄, DM 문서/설정 카탈로그 포함). carrot-ryu에 `steering_touch.py`와 그 테스트가 없고(DM2 계열 의존), DH2015는 일반 CAN이라 CAN-FD 지문과 무관.
+2. `a24b3a5`("Show passive onroad DM camera insets on C3 and C4") -- 제외. 온로드 DM 카메라 인셋 표시(신규 `dm_preview.py` +63, `onroad/driver_preview.py` +118, 테스트 +208, `augmented_road_view.py` 2개 파일에서 `DriverStateRenderer`를 `DriverPreview`로 교체). 제어와 무관한 UI 변경이고 carrot-ryu에 `driver_preview.py`/`dm_preview.py`가 없어 UI 렌더 경로를 새로 들여와야 하며 C3 렌더링 영향을 실기기 없이 판단하기 어렵다(10절 최소 변경 원칙).
+3. `44d2707`("Apply driver monitoring mode changes live without resetting attention history") -- 제외. `dm2.py`/`dm2d.py`/`monitoring/config.py` 등 DM2 파일 수정. carrot-ryu에 해당 파일이 없다(201차 보류한 `e7b9eb1` DM2 도입 위의 수정).
+4. `2a14472`("docs: preserve Ioniq 5 acceleration investigation") -- 제외. `docs/ioniq5_acceleration_20260926.md` +192 한 개만 추가, 코드 변경 없음. Ioniq 5 조사 기록이라 이 차량과 무관.
+5. `2beefa3`("fix") -- 제외. `dm2.py` 한 파일(+12/-3): `_get_distracted_types`에서 experimental일 때 `_PHONE_THRESH`를 0.98로 두고 finally에서 복원. carrot-ryu에 `dm2.py`가 없다(DM2 계열).
+6. `5e0060d`("Move C4 DM inset beside gear and protect DM warning volume") -- 제외. C4 인셋 배치(a24b3a5 위의 수정)와 `soundd.py`의 `dm_warning_volume`(driverDistracted2/3, driverUnresponsive2/3 알림음의 최종 PCM 볼륨 하한/최대치 적용, `update_alert(new_alert, alert_type)` 시그니처 확장, `test_soundd.py` +48) 두 부분. 인셋 부분은 a24b3a5에 의존하고, 볼륨 부분은 표준 DM 알림음 동작을 바꾸는 안전 관련 변경이라 실차 검증 없이 들이지 않는다. 별도 후보로 올리지 않고 제외로 확정.
+7. `8472d35`("Use standard DM for 20 seconds on first surrounding traffic") -- 제외. `dm2.py`/`dm2_context.py`와 테스트 수정(+25/-11, +7/-2). carrot-ryu에 DM2 파일이 없다(DM2 계열).
+
+**3. 사용자 결정 기록.** Claude는 판정안으로 DM2 후속 4건(1, 3, 5, 7)을 "보류 유지", 나머지를 "제외 제안"(6번은 소리만 별도 코드 세션 후보 여부를 질문)으로 제시했고, 사용자가 "위 커밋 모두 제외하는 게 맞는 듯"이라고 답해 7건 전부 제외로 확정했다. 201차의 DM2 8건(`e7b9eb1` 등)의 보류 상태는 이번에 변경하지 않았다(사용자가 그 8건의 분류를 바꾸라고 지시하지 않았으며, 이번 DM2 후속 4건은 제외로 정리).
+
+**4. 체크포인트와 다음 점검.** carrot-ms 마지막 검토 체크포인트는 `c771c4e -> 8472d35`. 다음 점검은 `8472d35` 이후 신규 커밋부터. WIP_SYNC.md에 208차 체크포인트를 기록했다.
+
+**5. 코드/실차.** carrot-ryu 코드 변경 없음(HEAD `058391e` 그대로). 이 판정은 파일 존재 여부와 diff 읽기에 근거한 정적 판단이다. 실차 검증: 미실시(12절).
+
 ## 207cha (완료) (Claude, Claude Sonnet 5.5) - (g) 남은 결정 2건 확정: (b') dashcam_replay는 코드 수정 없이 "carrot-ms와 동일한 알려진 업스트림 불일치"로 기록하고 종결, (v) 197cha 측정 스크립트는 toolkit에 넣지 않고 README에 OpenpilotPrefix 메모만 (코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 206cha 계속에서 사용자가 (c) pytest-mock만 승인하고 (b')/(v)는 미결정으로 남겼는데, 이번 세션에서 사용자가 두 제안을 그대로 승인했다. 코드 변경이 없고 devnotes(toolkit README/CHANGELOG 포함)만 바뀌므로 5절의 "코드 변경이 없는 경우"로 devnotes 스크립트 1개로 처리한다.

@@ -1,5 +1,26 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-29 (208차) -- carrot-ms c771c4e -> 8472d35 신규 7건 판정: 전부 제외 (코드 변경 없음)
+
+- carrot-ms 마지막 검토 대상 체크포인트: c771c4e(201차) -> 8472d35(2026-09-29 carrot-ms HEAD, "Use standard DM for 20 seconds on first surrounding traffic"). c771c4e가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `c771c4e..HEAD` 범위를 잡음(blobless bare clone + git log, 변경 파일은 `git show --numstat`).
+- carrot-ryu HEAD: 058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044(변동 없음, 이번 세션 코드 변경 없음).
+- 신규 커밋 7건 중 WIP_SYNC.md에 기존 검토 기록이 있는 것은 0건. `soundd.py`(5e0060d), `augmented_road_view.py`(a24b3a5), `2beefa3`은 diff를 읽었고 나머지는 제목/커밋 본문/변경 파일 목록과 carrot-ryu 파일 존재 여부(`git cat-file -e`) 수준이며 라인 단위 대조는 하지 않음.
+
+**판정 (2절 7번: 종류만으로 제외하지 않고 개별 확인, 제외 사유 기록) -- 사용자 결정: 7건 전부 제외**
+
+1. `c36f6e7`(Detect steering touch by received CAN profile across Hyundai CAN-FD) -- 제외. Ioniq 5 PE 지문 게이트 제거, `steering_touch.py` STEER_TOUCH_2AF 프로파일을 CAN-FD 전 플랫폼에 적용. carrot-ryu에 `steering_touch.py`와 그 테스트가 없고(DM2 계열 의존) DH2015는 일반 CAN이라 무관.
+2. `a24b3a5`(Show passive onroad DM camera insets on C3 and C4) -- 제외. 온로드 DM 카메라 인셋 표시(신규 `dm_preview.py`, `onroad/driver_preview.py`, `augmented_road_view.py` 2개에서 `DriverStateRenderer` -> `DriverPreview`). 제어와 무관한 UI 변경이고 carrot-ryu에 `driver_preview.py`/`dm_preview.py`가 없어 UI 렌더 경로 신규 도입이 필요, C3 렌더 영향을 실기기 없이 판단하기 어려움(10절).
+3. `44d2707`(Apply driver monitoring mode changes live without resetting attention history) -- 제외. `dm2.py`/`dm2d.py`/`monitoring/config.py` 수정, carrot-ryu에 해당 파일 없음(201차 보류 `e7b9eb1` 위의 수정).
+4. `2a14472`(docs: preserve Ioniq 5 acceleration investigation) -- 제외. 문서 1개(`docs/ioniq5_acceleration_20260926.md` +192), 코드 변경 없음, 이 차량과 무관.
+5. `2beefa3`(fix) -- 제외. `dm2.py` 1개(+12/-3), experimental일 때 `_PHONE_THRESH` 0.98. carrot-ryu에 `dm2.py` 없음.
+6. `5e0060d`(Move C4 DM inset beside gear and protect DM warning volume) -- 제외. C4 인셋 배치(a24b3a5 의존)와 `soundd.py`의 `dm_warning_volume`(driverDistracted2/3, driverUnresponsive2/3 알림음의 최종 PCM 볼륨 하한/최대치, `update_alert(new_alert, alert_type)` 시그니처 확장). 볼륨 부분은 표준 DM 알림음을 바꾸는 안전 관련 변경이라 실차 검증 없이 들이지 않음. 소리만 별도 후보로 올리지 않고 제외로 확정.
+7. `8472d35`(Use standard DM for 20 seconds on first surrounding traffic) -- 제외. `dm2.py`/`dm2_context.py`와 테스트 수정. carrot-ryu에 DM2 파일 없음.
+
+**다음 점검**
+- 다음 점검은 `8472d35` 이후 신규 커밋부터.
+- 201차 보류 8건(DM2 계열)의 보류 상태는 이번에 변경하지 않음. 이번 DM2 후속 4건(c36f6e7, 44d2707, 2beefa3, 8472d35)은 제외로 정리. 재검토 조건: 사용자가 DM2 도입을 결정할 때(`e7b9eb1`부터 순서대로, 그때 이번 4건도 함께 재검토).
+- 보류 유지: `f992f9c`(194차), DM2 계열 8건(201차). 제외 유지: `fc7ee88`, `4770067`.
+
 ## 체크포인트: 2026-09-28 (201차) -- carrot-ms 4445c29 -> c771c4e 신규 23건 판정: 948b139 이식, 4770067 제외, DM2 계열 8건 보류, jetlink 12건 + 문서 1건 제외
 
 - carrot-ms 마지막 검토 대상 체크포인트: 4445c29(194차) -> c771c4e(2026-09-28). 4445c29가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `4445c29..c771c4e` 범위를 잡음(blobless bare clone + git log, 변경 파일은 `git show --numstat`). 세션 시점 carrot-ms HEAD는 `c36f6e7`이며 이 커밋은 이번 범위 밖(미판정, 아래 참고).
