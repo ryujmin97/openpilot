@@ -1,5 +1,32 @@
 # WIP
 
+## 214cha (완료) (Claude, Claude Sonnet 5.5) - HUD 테스트 스텁 정비: carrot-ryu a78d531(테스트 3개 파일만, 실행 코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 이전 대화 사본(213cha devnotes 스크립트와 시뮬레이션 로그)을 붙여넣었고, \"이어서 계속\" 뒤에 213cha devnotes push 완료를 알린 다음 \"HUD 테스트 스텁 정비\"(HANDOFF 미완료 20번)를 골랐다. 이 요청이 그 코드 세션의 승인이다.
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 읽고(601줄) `git ls-remote`를 병행했다(note d83210b, carrot-ryu 3ddf849, v1 6df4268, v2 3ddf849). 이 세션 첫 응답에서 4절 0단계의 \"지침 문서 확인함\" 보고를 하지 않았고, SHA 고정본 비교는 나중에 했다: d83210b와 3e98860 두 SHA 고정본이 모두 50,696바이트(sha256 5a119e7eb0cdc491...)로 세션 시작 때 읽은 사본과 `cmp` 바이트 동일했다(지침 변경 없음). 이어서 213cha devnotes push를 GitHub에서 재확인했다: note 3e98860, WIP/WIP_SYNC/HANDOFF blob이 스크립트 기대값(d3d11f2/a5647c7/2110e6c)과 일치, CR 0개, carrot-ryu 3ddf849 변동 없음.
+
+**1. 환경.** `toolkit/pytest_ci_setup.sh`(note 3e98860본, GIT_LFS_SKIP_SMUDGE=1, setsid nohup)를 다시 전체 실행해 통과했고, `pip install --break-system-packages comma-deps-raylib==6.0.0.1.post103`로 pyray를 설치했다. carrot-ryu 3ddf849 depth 1 clone 위에서 작업했다.
+
+**2. 실패 원인(213cha 4번 추정의 정정).** 213cha는 \"스텁에 `Image`만 넣으면 25 passed / 3 failed\"라고 적었는데, 실제 최소 원인은 `Image`가 아니라 실제 모듈이 스텁을 우회해 로드되는 것이었다.
+- test_carrot_hud_renderer.py: `hud_renderer.py`가 `screenshot_button` -> `screenshot_capture.py`(13행 `rl.Image`, 모듈 로드 시점)와 `record_button`을 import한다. `screenshot_button`과 `record_button`을 스텁 처리하면 `Image` 없이도 된다(`FakeRecordButton`에 `set_blink_phase` 필요). 스텁 처리 뒤 남은 3건은 각각 다른 원인이었다: (a) `test_initial_cruise_gap_preserves_legacy_fallback`은 `HudRenderer()` 생성 시 실제 `RecordButton`이 가짜 Widget의 없는 `set_click_callback`을 호출해 실패(record_button 스텁으로 해결), (b) 날짜 테스트는 코드(`_refresh_date_time_text`)가 이미 `%H:%M:%S`와 초 단위 키(6원소 튜플)로 바뀌었는데 기대값이 분 단위(`%H:%M`, 5원소)로 남아 있던 낡은 기대값, (c) `test_render_draws_each_hud_section_in_order`는 `_render`가 `_screenshot_button`/`_record_button`을 호출하도록 바뀌었는데 테스트가 만든 renderer에 그 속성이 없었다.
+- test_carrot_param_cache.py 5 errors: `FontWeight` ImportError는 이 테스트 자신의 스텁 문제가 아니라 `layouts/main.py`가 새로 import하는 `widgets/carrot_web_dialog.py` 5행(`from ...application import FontWeight, MousePos, ...`)이 스텁된 `application`에서 실패한 것이다.
+- test_cluster_hud_camera_suppression.py 1 failed: `augmented_road_view._render`가 렌더 호출을 `timing.call('model', self.model_renderer.render, ...)`처럼 함수를 인자로 넘기는 형태로 바뀌어, `render(...)` 호출 노드를 찾던 AST 검사가 아무것도 찾지 못했다(스텁 문제가 아님).
+
+**3. 수정(테스트 3개 파일, 실행 코드 변경 없음).** 스텁에 `Image`를 넣지 않고 실제 모듈을 스텁 처리하는 쪽을 택했다.
+- test_carrot_hud_renderer.py(+24/-8): `openpilot.selfdrive.ui.onroad.screenshot_button`/`record_button` 스텁(`FakeExpButton`, `FakeRecordButton`), 날짜 테스트 이름을 `..._second_key_changes`로 바꾸고 기대값을 초 단위로(입력 시각 4개 중 두 번째를 같은 초로 바꿔 캐시 적중도 확인), 렌더 순서 테스트에 screenshot/record 호출(`(\"blink\", True)`)과 `_blink_timer` 추가.
+- test_carrot_param_cache.py(+2/-0): `openpilot.selfdrive.ui.widgets.carrot_web_dialog` 스텁 추가.
+- test_cluster_hud_camera_suppression.py(+36/-12): `_timed_call`/`_timed_targets` 헬퍼를 추가하고 `test_external_hud_skips_camera_and_model_but_retains_device_hud`를 `timing.call(label, callable)` 구조에 맞게 다시 썼다(카메라 차단 시 검은 사각형+`camera` 호출이 else 쪽, 모델 호출은 `disconnected` 가드 안, 가드 밖에는 `_hud_renderer`/`alert_renderer`/`driver_state_renderer`만 있고 `model_renderer`는 없음). 기존 단언의 의도를 유지했다. 음성 대조: `if not self._suppress_camera_for_cluster:`(모델 렌더 가드)를 `if True:`로 바꾸면 이 테스트가 실제로 실패했고, 소스는 원복해 `git status`로 확인했다.
+- 날짜 테스트와 cluster 테스트는 \"현재 코드가 맞다\"는 판단으로 기대값을 코드에 맞춘 것이다(사용자 의도와 다르면 재검토).
+
+**4. 결과(샌드박스 값, `python3 -m pytest openpilot/selfdrive/ui/tests -n 0 -p no:randomly -q -W default --continue-on-collection-errors`).** 수정 전(3ddf849, git stash) 2 failed / 142 passed / 86 skipped / 31 errors(hud 26 + param_cache 5), 수정 후 1 failed / 174 passed / 86 skipped / 0 errors. 새 실패 없음. 남은 1건은 `test_raylib_ui.py::test_raylib_ui`로 수정 전에도 실패했고 원인은 읽지 않았다. `openpilot/selfdrive/ui/mici/tests/test_widget_leaks.py`는 수정 전후 모두 수집 에러(원인 읽지 않음). 개별: hud 28 passed, param_cache 14 passed, cluster 4 passed. ruff는 샌드박스에 없어 실행하지 못했다.
+
+**5. 코드 스크립트와 사전 검증.** `213cha_code_hud_test_stubs_v1.ps1`(PowerShell, 한글 주석 있어 BOM 포함 확인 `ef bb bf`). 9절 체크리스트: 파서 오류 0건과 후행 쉼표 대조군 1건, `git clone --config core.autocrlf=false`, `finally`에서 임시 폴더 삭제, 전달 .ps1에서 추출한 앵커 11곳 각 1회 매치와 결과가 검증한 작업본과 바이트 동일, 로컬 bare 저장소(대상 3파일 + .gitattributes `* text=auto`만 넣은 합성본) 일반/CRLF(재현 CR 641개) 전체 실행 numstat 24/8, 2/0, 36/12와 post blob 일치, 임시 폴더 잔존 0. Linux pwsh 7.6.6 기준이며 Windows PowerShell 5.1 실제 실행이 아니다.
+
+**6. push와 GitHub 재확인.** 사용자가 PC에서 실행했다고 알렸다(\"완료\"만 전달, push 로그는 받지 않음). 이 세션에서 GitHub를 직접 조회했다: `git ls-remote` carrot-ryu HEAD `a78d53106b6b76c913804019f3e959388369eb18`, 부모 3ddf849, author ryujmin97 <ryujmin@naver.com>, 커밋 메시지 `213cha: HUD test stubs and stale expectations aligned with current UI code (tests only, no runtime change)`, numstat 24/8, 2/0, 36/12(3파일), blob 5d396c7/ab517d9/bd3c6c5(스크립트 기대값과 일치), CR 0개, 첫 3바이트 69 6d 70(BOM 없음), 세 파일 py_compile 통과, SHA 고정 raw와 blob 추출본 바이트 동일. note는 3e98860 그대로(이 devnotes push 전). 커밋 메시지의 접두어가 `213cha:`인 것은 스크립트 파일명/메시지를 정한 시점의 회차 표기이며 회차 번호는 이 214cha가 맞다.
+
+**7. 하지 않은 것과 한계.** 실행 코드(`hud_renderer.py`, `augmented_road_view.py` 등) 변경 없음, toolkit 변경 없음(`pytest_ci_setup.sh`에 comma-deps-raylib를 넣을지는 미결정), carrot-ms 점검 없음, carrot-ryu 재생성 없음. 이 테스트들은 그리기 호출 횟수와 구조만 확인하고 HUD 좌표는 검증하지 않아 209~211cha 좌표 변경(DATE_TIME_X_SHIFT, TOP_RIGHT_*_Y, BRANCH_TEXT_GAP)의 회귀는 여전히 이 테스트로 잡을 수 없다(테스트가 돌아간다는 점만 달라졌다). push된 HEAD에서의 pytest 재실행은 하지 않았고, 샌드박스에서 검증한 작업본과 push된 blob이 같음으로 갈음했다. 실차 검증 미실시(12절).
+
 ## 213cha (완료) (Claude, Claude Sonnet 5.5) - 테스트 기준선 정리: pytest_ci_setup.sh 첫 전체 실행, carrot/server/tests 7건 원인, 넓은 회귀 수치, HUD 테스트 에러의 실제 원인 (코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 이전 세션의 대화 사본(212cha devnotes push `01833ef..d83210b` 로그, 그리고 "오프라인 작업할 수 있는 항목" 분류에서 "1번(carrot-ms 점검)은 나중에, 2번(테스트 기준선 정리)부터"를 고른 부분)을 붙여넣었다. 그 세션의 도구 실행 결과는 이 세션으로 넘어오지 않았고 샌드박스도 새로 시작돼, 2번(HANDOFF 미완료 5번, 6번)을 처음부터 다시 진행했다. 코드 변경은 하지 않았다.
