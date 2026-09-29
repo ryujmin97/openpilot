@@ -1,5 +1,13 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-29 (213차) -- carrot-ms 점검 없음, 테스트 기준선 정리 중 확인한 carrot-ryu/carrot-ms 차이 기록 (코드 변경 없음)
+
+- carrot-ms 신규 커밋 점검((d))은 하지 않았다(사용자가 나중으로 미룸). 마지막 검토 체크포인트는 그대로 8472d35(208차)다. 이 세션에서 `git ls-remote`로 본 carrot-ms HEAD는 771f118로 8472d35와 다르다(재생성 가능성). 다음 점검 때 `git cat-file -t 8472d35`로 체크포인트 존재부터 확인하고, 없으면 커밋 메시지 기준으로 범위를 잡는다.
+- 테스트 기준선 정리(WIP.md 213cha) 중 carrot-ms 원본(HEAD 771f118, raw)과 대조한 것: (1) `openpilot/selfdrive/carrot/carrot_man.py`에는 `Toss upload token is not configured`(910행)가 있고 carrot-ryu에는 없다. carrot-ryu의 `send_tmux_web`은 17차에 Google Drive zip 업로드로 교체한 자체 설계다. (2) `server/tests/test_web_upload.py`는 두 브랜치가 다르다(carrot-ms에는 import 차이와 `test_carrot_man_toss_is_exclusive_and_carrot_keeps_extra_targets`가 추가돼 있다). 그래서 carrot-ryu에서 `test_carrot_man_sends_diagnostics_to_selected_target_and_carrot_logs`가 실패한다. carrot-ryu의 의도된 차이로 기록하고 코드는 바꾸지 않았다. 이후 carrot-ms의 send_tmux_web/Toss 경로가 동기화 점검에 나타나면 이 차이를 먼저 확인할 것.
+- 이 대조는 위 두 파일에 한정했다(라인 단위 전체 대조 아님).
+
+**한계:** 코드 변경 없음, 실차 검증 미실시(12절).
+
 ## 체크포인트: 2026-09-29 (212차) -- carrot-ryu-v2 아카이브 브랜치 생성(carrot-ryu 3ddf849 스냅샷, carrot-ryu 재생성 없음, 코드 변경 없음)
 
 - 20절 2단계만 수행: carrot-ryu HEAD 3ddf849ea3f3392c16d363d9edea6a1bc8eab041를 가리키는 carrot-ryu-v2를 생성했다(사용자 실행 PowerShell, 이 세션에서 `git ls-remote`로 재확인). carrot-ryu는 변동 없음(HEAD 3ddf849). carrot-ryu-v1(6df4268eb31442be4d8abd92817111f7b26b1bf4)도 변동 없음.
