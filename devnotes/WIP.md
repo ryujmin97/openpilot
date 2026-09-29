@@ -1,5 +1,23 @@
 # WIP
 
+## 219cha (완료) (Claude, Claude Sonnet 5.5) - 브랜치 운영 방침 변경: carrot-ryu 누적 작업 + carrot-ryu-vN 아카이브 (지침 20절 개정, devnotes만, carrot-ryu 코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했다. 세션 첫 응답의 다음 작업 후보 5번(carrot-ryu 재생성, 20절)이 무슨 말인지 묻고 설명을 들은 뒤, 절차를 바꾸겠다고 지시했다: "항상 carrot-ryu로 작업하고 ms브랜치의 최신커밋을 분석하고 필요시 적용한다. 그리고 어느정도 진행되면 v2, v3, v4....등을 만들어 보존한다. 그리고 작업은 계속 carrot-ryu로 누적 작업한다."
+
+**0. 상태 확인.** 지침 문서 v2를 사용자가 준 브랜치 URL로 읽은 뒤 `git ls-remote`로 note HEAD `fdf7bf583cf18ee70b6db44c5b00b145ddc778ba`와 carrot-ryu `a78d53106b6b76c913804019f3e959388369eb18`을 얻어 SHA 고정본을 다시 받아 `cmp` 바이트 동일(50,696바이트, 변경 없음)을 확인했다. HANDOFF.md를 같은 SHA로 읽었다. 세션 첫 응답에서 "지침 문서 확인함(v2, 커밋 fdf7bf5)"을 보고했다. GitHub API가 rate limit에 걸려, 218cha devnotes push는 depth 2 bare clone으로 확인했다: note HEAD fdf7bf5의 부모가 41a0de7, numstat이 HANDOFF.md 18/8, WIP.md 20/0, WIP_SYNC.md 16/0(blob 해시는 대조하지 않았다). carrot-ryu HEAD a78d531이 HANDOFF base와 일치했고 브랜치는 carrot-ryu, carrot-ryu-note, carrot-ryu-v1, carrot-ryu-v2 네 개였다(16절).
+
+**1. 지침 개정(19절 절차).** 변경 이유(사용자 결정) -> 기존 규칙(옛 20절: 아카이브 생성 후 carrot-ryu를 carrot-ms 새 베이스 위에 재생성하고 아카이브를 이식 체크리스트로 삼아 항목별로 재적용) -> 변경안을 사용자에게 제시했고 사용자가 "승인, termux로"라고 답했다. 변경안: (a) 20절 전체 교체. 재생성(4항), 이식 체크리스트(5항), 이식 진행 기록(6항), 재생성본 배포 전 확인(7항)을 폐지하고, 아카이브 생성(옛 2항), 불변(옛 3항), 조회 자제(옛 8항)는 유지했다. 지침 20절의 "2절과 20절은 병행 가능한 도구" 문장도 재생성이 없어지며 함께 사라졌다. 새 20절은 "항상 carrot-ryu 누적 작업, 사용자가 정한 시점에 HEAD를 carrot-ryu-vN으로 보존, 생성 후 GitHub 재확인과 기록"을 담는다. (b) 1절 표의 carrot-ryu-vN 행 문구를 "재생성 직전 시점" -> "사용자가 정한 시점의 carrot-ryu HEAD"로 수정. (c) 18절의 "20절의 carrot-ryu 재생성을 사용자의 명시적 승인 없이 실행" 금지 항목 삭제(재생성 자체가 없어졌으므로). 절 번호는 그대로 유지했다(v2 안내의 번호 재배치 금지 원칙). 변경안 제시 때 15절도 정리 대상이라고 말했으나 15절에는 20절을 가리키는 문구가 없어(예시로 든 "삭제 후 재생성 같은 큰 구조 변경"은 일반 문장) 수정하지 않았다. 옛 20절 원문은 이 파일의 커밋 히스토리에 남는다. 20절 외 다른 절은 바꾸지 않았다.
+
+**2. 프로젝트 메모.** 세션 중에 위 방침을 프로젝트 메모(workflow)에도 기록했다.
+
+**3. 갱신한 문서(devnotes만).** PROJECT_INSTRUCTIONS_carrot-ryu.md(교체형, 19절), 이 WIP.md 회차, HANDOFF.md(Worker, Note Branch, Archive Branches, 작업 219cha, 완료 26번, 미완료 19번, 검증, 주의사항, 다음 작업). 기존 회차 기록과 FINDINGS.md, WIP_SYNC.md, toolkit은 변경하지 않았다.
+
+**4. 반영 스크립트와 사전 검증.** 사용자가 Termux를 지정해 `219cha_devnotes_branch_policy_v1.sh`(bash, python3 필요)를 전달했다. 코드 변경이 없는 세션이라 devnotes 스크립트 1개만 만들었다(5절). 스크립트는 clone 직후 note HEAD가 fdf7bf5인지와 대상 3개 파일의 blob 해시가 이 세션이 읽은 값과 같은지 확인한 뒤에만 고치고(모든 git 상태 조회는 `git -C`), 수정 앵커가 정확히 1회 매치되지 않으면 아무것도 쓰지 않고 중단한다. 쓴 뒤 blob 해시, BOM/CR 없음, 변경 파일 3개와 파일별 numstat을 확인하고 3개 경로만 add한다. 사전 검증은 Linux 샌드박스의 bash/python3/git 기준이며(전달 스크립트를 그대로 실행, 실제 note 저장소 복제 bare 저장소 대상 일반/CRLF 재현 체크아웃) 실제 Termux(Android) 실행이 아니다.
+
+**5. 이 push의 확인.** 이 회차의 devnotes push는 이 스크립트 자체라 이 회차 안에서는 GitHub 재확인을 할 수 없다. 다음 세션이 `git ls-remote`와 이 3개 파일로 확인한다(16절).
+
+**6. 하지 않은 것.** carrot-ryu 코드 변경 없음, carrot-ryu-v3 생성 없음(시점은 사용자가 정한다), carrot-ms 점검 없음, 지침의 20절 외 절 수정 없음. 실차 검증 미실시(12절, 해당 없음).
+
 ## 218cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 8472d35..d03c0ae 신규 8건 점검, 전부 제외 확정 (devnotes만, carrot-ryu 코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했고, 217cha 세션의 마무리 응답(다음 작업 후보: 1. carrot-ms 점검, 2. 실기기 확인 항목, 3. 이월 실차 검증)을 붙여넣은 뒤 "1번"을 골랐다. 판정안을 보고하자 "제외 확정"으로 답했고, 그에 따라 이 devnotes를 기록한다.
