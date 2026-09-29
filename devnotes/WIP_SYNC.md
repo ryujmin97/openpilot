@@ -1,5 +1,21 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-29 (218차) -- carrot-ms 8472d35 -> d03c0ae 신규 8건 판정: 전부 제외 (사용자 결정, 코드 변경 없음)
+
+- 점검 범위: 마지막 체크포인트 8472d35(208차)가 carrot-ms 현재 HEAD d03c0ae("Restore manager line buffering after PTY fork")의 조상임을 `git merge-base --is-ancestor`로 확인했다(재생성 없음). `8472d35..HEAD` 8건을 대상으로 했다(blobless bare clone + git log, 변경 파일은 `git show --numstat`). 213cha/216cha 세션에서 본 carrot-ms HEAD(771f118, d03c0ae)는 모두 이 범위 안이다.
+- 판정(8건 전부 제외, 사용자 "제외 확정", 218cha):
+  1. `18eee9e`, `b5a0b0f` (GV70 카메라 경고 조사): `docs/canfd_feedback_counters.md`만 수정하는 조사 문서. carrot-ryu에 그 문서가 없다. 제외.
+  2. `e83919d` (GV70 스톡 카메라 자동해제 팝업 억제): `hyundaicanfd.py`의 `create_lfahda_cluster`와 `carcontroller.py` 호출부, AGENTS.md, 문서, 테스트 추가. 억제 조건이 `CAR.GENESIS_GV70_1ST_GEN`과 `camera_scc` 한정이다. carrot-ryu `carcontroller.py`에 `GV70` 문자열이 0건이고 DH 2015는 CAN-FD 차량이 아니다. 제외.
+  3. `e57f1e5`, `d03c0ae` (manager stdout flush / line buffering): `openpilot/system/manager/helpers.py`의 `unblock_stdout`에 `sys.stdout.flush()`와 `reconfigure(line_buffering=True)`를 넣는다. 커밋 주석의 전제는 startup recovery가 stdout을 파이프로 캡처한다는 것인데 carrot-ryu에는 `startup_recovery` 문서/코드가 없고 4770067(부팅 실패 자동 Git 복구)도 제외 상태다. carrot-ryu `unblock_stdout`에는 두 줄 모두 없다. 지금 tmux 출력 동작에 실제 차이가 있는지는 확인하지 않았다. 제외.
+  4. `e9a0a6e`, `771f118` (Jetlink 상태 표시 / 지연 로깅): carrot-ryu에 `openpilot/selfdrive/modeld/jetlink/`, `openpilot/common/jetlink_status.py`, `tools/jetlink/`, 관련 문서가 없다. `771f118`이 바꾸는 `dmonitoringmodeld.py`와 `openpilot/common/runtime_diagnostics.py`는 carrot-ryu에 있지만, 패치가 전제하는 `jetlink.phase.Gate`/`phase_gate`가 carrot-ryu `dmonitoringmodeld.py`에 없어 그대로는 적용되지 않는다. 제외(기존 Jetlink 제외 이력과 동일).
+  5. `840cee8` (session-scoped driver monitoring controls): `docs/driver_monitoring_dm2.md`, 설정 JSON, params 키, 웹 UI, 테스트 등 30여 개 파일을 건드리는 DM2 기능 위의 변경이다. DM2 계열은 217차에 제외 확정했다. 제외.
+- 판정 근거의 깊이: 커밋 제목/본문, 변경 파일 목록, 핵심 diff(`e83919d`, `e57f1e5`, `d03c0ae`, `771f118`의 `dmonitoringmodeld.py`), carrot-ryu 파일 존재 여부(`git cat-file -e`)까지다. 라인 단위 전체 대조는 하지 않았다. `840cee8`은 `git show --numstat` 출력이 1500자에서 잘려 파일 목록 끝부분을 확인하지 못했다.
+- 새 체크포인트: 8472d35 -> d03c0ae. 다음 점검은 d03c0ae 이후 신규 커밋부터이며, 그때도 `git cat-file -t d03c0ae`로 존재부터 확인하고 없으면 커밋 메시지 기준으로 범위를 잡는다.
+- 이 결정과 무관하게 그대로인 것: DM2 8건 제외 확정(217차), `f992f9c` 보류 유지, `fc7ee88` 제외 유지, `4770067` 제외(재검토하면 `e57f1e5`/`d03c0ae`도 함께 볼 것, HANDOFF 미완료 12번).
+- 실차 검증: 미실시(12절, 해당 없음: 코드 변경 없음).
+
+**한계:** 코드 변경 없음, 실차 검증 미실시(12절).
+
 ## 체크포인트: 2026-09-29 (217차) -- DM2 계열 8건 보류 -> 제외 확정 (사용자 결정, 코드 변경 없음, carrot-ms 점검 없음)
 
 - 결정: 사용자가 "DM2는 반영하지 않음. 제외 확정. 현행 유지"라고 결정했다(217cha). 201차 3번에서 보류로 둔 DM2(실험적 운전자 모니터링) 계열 8건(`e7b9eb1`, `13eca74`, `6262570`, `7171d42`, `2326be2`, `7bd44b5`, `847d81f`, `c771c4e`)을 제외로 확정한다. 208차에 제외한 후속 4건(`c36f6e7`, `44d2707`, `2beefa3`, `8472d35`)과 같은 결정이다.

@@ -1,5 +1,25 @@
 # WIP
 
+## 218cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 8472d35..d03c0ae 신규 8건 점검, 전부 제외 확정 (devnotes만, carrot-ryu 코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했고, 217cha 세션의 마무리 응답(다음 작업 후보: 1. carrot-ms 점검, 2. 실기기 확인 항목, 3. 이월 실차 검증)을 붙여넣은 뒤 "1번"을 골랐다. 판정안을 보고하자 "제외 확정"으로 답했고, 그에 따라 이 devnotes를 기록한다.
+
+**0. 상태 확인.** 지침 문서 v2를 사용자가 준 브랜치 URL로 먼저 읽었고(이 첫 조회는 SHA 고정 전), 이어서 `git ls-remote`로 note HEAD `41a0de79d8e540028a02ee8598841f64305947f5`와 carrot-ryu `a78d53106b6b76c913804019f3e959388369eb18`을 얻어 SHA 고정본을 다시 받아 `cmp` 바이트 동일(50,696바이트, 601줄, 변경 없음)을 확인했다. 같은 SHA로 HANDOFF.md를 읽었다. 세션 첫 응답에는 4절 0단계 4번의 "지침 문서 확인함" 보고를 빠뜨렸고 두 번째 응답에서 뒤늦게 보고했다. 217cha devnotes push는 push 로그 없이 독립 확인했다: depth 2 bare clone으로 note HEAD 41a0de7의 부모가 f316697, numstat이 HANDOFF.md 11/4, WIP.md 16/0, WIP_SYNC.md 8/0이고 blob이 6e60e12/d401ea4/c29d07e로 HANDOFF에 적힌 값과 일치함을 봤다(16절). carrot-ryu HEAD a78d531이 HANDOFF base와 일치.
+
+**1. carrot-ms 점검.** carrot-ms(happymaj11r/openpilot carrot-ms) HEAD는 `d03c0ae7b732235cf8b475f9b954a9c12342af2c`였다. blobless bare clone에서 `git cat-file -t 8472d35`가 commit이었고 `git merge-base --is-ancestor 8472d35 HEAD`가 참이라 rebase는 없었다. `8472d35..HEAD`는 8건이다(모두 2026-09-29): `18eee9e`, `b5a0b0f`, `e83919d`, `e57f1e5`, `e9a0a6e`, `771f118`, `840cee8`, `d03c0ae`. 각 커밋의 본문과 `git show --numstat`으로 변경 파일을 보고, carrot-ryu a78d531의 blobless depth 1 bare clone에서 `git cat-file -e HEAD:<경로>`로 파일 존재를 확인했다. 없는 것: docs/canfd_feedback_counters.md, docs/startup_recovery.md, docs/jetlink_ff1_investigation_20260929.md, docs/driver_monitoring_dm2.md, monitoring/dm2.py, modeld/jetlink/daemon.py와 phase.py, common/jetlink_status.py, tools/jetlink/test_status.py와 test_daemon_timing.py, system/tests/test_manager_stdout.py, hyundai tests/test_canfd_cluster_popup.py. 있는 것: common/runtime_diagnostics.py, system/manager/helpers.py, modeld/dmonitoringmodeld.py, hyundaicanfd.py, carcontroller.py, controlsd.py, carrot_settings.json, params_keys.h, AGENTS.md. `e83919d`(hyundaicanfd.py/carcontroller.py), `e57f1e5`와 `d03c0ae`(helpers.py), `771f118`(dmonitoringmodeld.py)는 diff를 읽었다. carrot-ryu `carcontroller.py`의 `GV70` grep은 0건이었다(다른 파일은 grep하지 않았다).
+
+**2. 판정(전부 제외).** 상세는 WIP_SYNC.md 218차. 요약: GV70(CAN-FD) 전용 3건(`18eee9e`, `b5a0b0f`, `e83919d`), startup recovery 전제의 manager stdout 2건(`e57f1e5`, `d03c0ae`), Jetlink 2건(`e9a0a6e`, `771f118`, `phase_gate`/`Gate` 전제라 그대로 적용 불가), DM2 기능 위의 세션 제어 1건(`840cee8`, 217차에 제외 확정한 DM2 계열). `e57f1e5`/`d03c0ae`가 지금 tmux 출력에 실제 차이를 만드는지는 재현하지 않았다. `840cee8`은 파일 목록 끝부분을 보지 못했다. 라인 단위 전체 대조는 하지 않았다.
+
+**3. 결정(사용자).** "제외 확정": 위 8건을 모두 반영하지 않는다. 새 체크포인트는 8472d35 -> d03c0ae.
+
+**4. 갱신한 문서(devnotes만).** WIP_SYNC.md 218차 체크포인트(새 절), 이 WIP.md 회차, HANDOFF.md(Worker, Code Branch 줄, Note Branch, carrot-ms 체크포인트, 작업 218cha, 완료 25번, 미완료 11/12번, 다음 작업, 검증, 주의사항). 기존 회차 기록과 FINDINGS.md, toolkit은 변경하지 않았다.
+
+**5. 반영 스크립트와 사전 검증.** `218cha_devnotes_carrot_ms_8_excluded_v1.ps1`(PowerShell, 한글이 있어 UTF-8 BOM 포함). 코드 변경이 없는 세션이라 devnotes 스크립트 1개만 전달했다(5절). 스크립트는 clone 직후 note HEAD가 41a0de7인지와 대상 3개 파일의 blob 해시가 이 세션이 읽은 값과 같은지 확인한 뒤에만 쓰고(모든 git 상태 조회는 `git -C`), 쓴 결과의 blob 해시, BOM/CR 없음, 변경 파일 3개와 파일별 numstat을 확인하고, 3개 경로만 add한다. 사전 검증은 Linux pwsh 기준이며(파서 오류 확인, 전달 .ps1에서 추출한 앵커의 SHA 고정 원본 매치 확인, 실제 note 저장소(depth 2)를 복제한 로컬 bare 저장소로 일반/CRLF 재현/전역 autocrlf=true 전체 실행) Windows PowerShell 5.1 실제 실행이 아니다.
+
+**6. 이 push의 확인.** 이 회차의 devnotes push는 이 스크립트 자체라 이 회차 안에서는 GitHub 재확인을 할 수 없다. 다음 세션이 `git ls-remote`와 이 3개 파일로 확인한다(16절).
+
+**7. 하지 않은 것.** carrot-ryu 코드 변경 없음, carrot-ryu 재생성 없음, 8건의 라인 단위 대조 없음, manager stdout 동작 재현 없음. 실차 검증 미실시(12절, 해당 없음).
+
 ## 217cha (완료) (Claude, Claude Sonnet 5.5) - DM2 계열 8건 제외 확정 기록 (devnotes만, carrot-ryu 코드 변경 없음, 실차 미실시)
 
 **배경:** 같은 날 216cha 세션이 이어진 대화. 사용자가 216cha devnotes 반영("완료")을 알려 주었고, 이 세션이 push 로그 없이 GitHub를 직접 재확인했다(16절). 이어 사용자가 HANDOFF 다음 작업 후보의 "DM2 계열 보류 건"이 무엇인지 물었고, 설명을 들은 뒤 "DM2는 반영하지 않음. 제외 확정. 현행 유지"라고 결정했다. 이어서 "지금 devnotes 반영"을 요청했다.
