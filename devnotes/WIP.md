@@ -1,5 +1,29 @@
 # WIP
 
+## 210cha (완료) (Claude, Claude Sonnet 5.5) - 온로드 HUD 현재속도/CPU 온도를 우측 상단 TPMS 아래로 이동(carrot-ryu 4bd6732) + _hud_top_right 기본값 초기화 보강(carrot-ryu a9e6cb3) (실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 209cha에 이어 액정 좌측 손상 때문에 좌하단 패널의 현재속도 숫자와 CPU 온도가 가려져, 사용자가 두 텍스트를 우측 상단 TPMS 바로 아래로 옮겼다. 첫 코드 push(4bd6732)는 이 세션이 시작될 때 사용자가 push 로그로 전달했다. 이 커밋을 만든 코드 스크립트와 그 사전 검증은 이 세션에 없어 확인하지 못했고, 이 세션은 GitHub에 실제 반영된 결과를 독립 검증했다. 검증 뒤 내가 제안한 `_hud_top_right` 초기화 보강을 사용자가 코드 세션으로 처리하기로 해 a9e6cb3을 추가로 반영했다. 코드 변경이 있는 세션이라 5절 순차 전달(코드 -> GitHub 재확인 -> devnotes 1회)을 따랐다.
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 읽은 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `3cb6b83d22d2bb7c4e5d677708e3e3596666c659`(209cha devnotes)를 얻어 SHA 고정본을 다시 조회했고, 브랜치 URL 본과 바이트 동일(50,696바이트, 변경 없음)을 확인했다. note 로그에서 209cha devnotes 3cb6b83이 HANDOFF base(ae6fb6b) 바로 위에 있음을 확인했다. carrot-ryu HEAD 4bd6732는 HANDOFF의 코드 base 0788a49 바로 다음 커밋이었다.
+
+**1. 4bd6732 독립 검증(GitHub 직접 조회).** `git ls-remote` HEAD 일치, 부모 0788a49, 커밋 메시지 "onroad HUD: move current speed and CPU temp to top-right below TPMS (210cha)", `git show --numstat` `openpilot/selfdrive/ui/onroad/hud_renderer.py` 15/6 한 파일, blob 43c550f -> 404da4c, CR 0개, 첫 3바이트 `69 6d 70`(BOM 없음), py_compile 통과, SHA 고정 raw와 blob 추출본 바이트 동일. Author 이메일은 ryujmin@naver.com(205cha와 같은 기록, 기능 영향 없음).
+
+**2. 4bd6732의 변경 내용.** (a) 모듈 상수 `TOP_RIGHT_SPEED_Y = 350`, `TOP_RIGHT_CPU_Y = 420` 추가(rect.y 기준 글자 하단 y 오프셋, 주석에 "겹치거나 어긋나면 이 숫자만 조정"). (b) `_draw_carrot_speed_panel`의 현재속도 숫자(`cur_text`, 글자 크기 120)를 `(bx, by + 50)`에서 `(tr_x, tr_y + TOP_RIGHT_SPEED_Y)`로 이동. (c) `_draw_carrot_device_state`의 CPU 박스(둥근 박스 + "CPU" 라벨 + 온도)를 없애고 `CPU {온도}` 글자 40px 한 줄을 `(tr_x, tr_y + TOP_RIGHT_CPU_Y)`에 그린다. 80도 초과이고 `_blink_timer <= 8`이면 `COLORS.RED_SOLID`로 깜빡이는 조건은 기존 박스와 같고, 박스 채움 대신 글자 색이 바뀐다. (d) `_draw_set_speed_carrot`에서 `self._hud_top_right = (int(rect.x + rect.width - 125), int(rect.y))`를 매 프레임 설정한다. TPMS(`_draw_tpms`, 상단 표시는 `ShowTpms` 1/3)의 x 중심이 같은 `rect.x + rect.width - 125`이고 뒷바퀴 행이 `rect.y + 130 + 70`이라, 그 아래 y 350/420에 두는 방식이다.
+
+**3. 이번에 바꾸지 않은 것 / 남는 종속.** 좌하단 패널의 나머지(속도 배경 텍스처 `bx - 100, by - 60`, 설정속도 글자 등), MEM/DISK/VOLT 박스(`dx2 = bx - 35 + 150` 근처, 왼쪽 손상부에 가려지는지 미확인), 하단 TPMS(`ShowTpms` 2/3)는 그대로다. CPU 글자는 `_draw_carrot_device_state` 안에 있어 `_show_device_state <= 0`이면 함수가 바로 return해 CPU 글자도 사라진다(설정 종속 유지). mici UI와 carrot 웹 HUD는 확인하지도 바꾸지도 않았다.
+
+**4. 검증 중 발견한 위험.** `_hud_top_right`가 `__init__`에서 초기화되지 않았다. 정적 읽기로 확인한 결과 현재 호출 경로는 안전하다: 설정은 `_draw_set_speed_carrot`(1495행 부근)에서 하고, 이를 읽는 `_draw_carrot_speed_panel`과 `_draw_carrot_device_state`는 같은 함수의 그 아래(1499~1505행)에서만 호출된다. 기존 테스트 `test_carrot_hud_renderer.py`는 두 함수를 monkeypatch로 대체한 채 `_draw_set_speed_carrot`를 직접 호출한다(330/333/336행). 다만 두 함수를 단독 호출하는 새 코드나 테스트가 생기면 `AttributeError`가 난다. 이를 사용자에게 알렸고 초기화 보강을 코드 세션으로 처리하기로 했다.
+
+**5. 변경(carrot-ryu a9e6cb3, `hud_renderer.py` 1파일 +2/-0, blob 404da4c -> 94d88ea).** `HudRenderer.__init__`의 `self.v_ego_cluster_seen = False` 바로 아래에 주석 1줄과 `self._hud_top_right = (0, 0)`을 추가했다. 이 기본값은 안전망일 뿐 실제 값은 매 프레임 `_draw_set_speed_carrot`가 덮어쓰므로 화면 동작은 그대로다(단독 호출 시에만 좌상단 (0,0) 기준으로 그려진다).
+
+**6. 코드 스크립트와 사전 검증(Linux 샌드박스 기준, Windows PowerShell 5.1이나 Termux 실제 실행 아님).** 파일: `210cha_code_hud_top_right_init_termux_v1.sh`(미실행, 폐기), `210cha_code_hud_top_right_init_v1.ps1`(사용자가 "파워쉘로"라고 해 만든 것, 실행됨). 검증: PowerShell 7.6.6 파서 오류 0건(후행 쉼표 대조군은 1건 검출), `bash -n` 통과, .ps1 첫 3바이트 `EF BB BF`, `git clone`에 `--config core.autocrlf=false`, finally에서 임시 폴더 삭제. 로컬 bare 저장소(대상 파일은 4bd6732의 실제 blob 404da4c와 동일, `.gitattributes`는 `* text=auto`)에 일반 모드와 CRLF 재현 모드(`core.eol=crlf`)로 끝까지 실행: 앵커 1회 매치, numstat 2/0, 결과 blob 94d88ea, CR 0개, 추가된 줄은 2줄뿐. base HEAD 불일치와 앵커 0회 매치를 일부러 만들어 종료코드 1로 안전 중단되고 저장소가 그대로임을 확인했고, 임시 폴더는 성공/중단 모두 남지 않았다. 스크립트는 clone 뒤 HEAD와 대상 blob이 기대값과 같은지, 치환 후 blob이 기대값과 같은지, 스테이징 파일이 1개이고 numstat이 2/0인지를 확인한다. `py_compile`은 저장소 밖 cfile로 실행했다(샌드박스 Python 3.12.3). pytest는 이 세션에 pyray/pytest가 없어 `test_carrot_hud_renderer.py`를 실행하지 못했다.
+
+**7. 사전 검증 중 발견한 문제(수정 후 전달).** .ps1 초안이 `git`을 감싼 래퍼 함수를 `Git`이라는 이름으로 만들었는데, PowerShell은 명령 이름의 대소문자를 구분하지 않아 함수 안의 `& git`이 자기 자신을 다시 불러 무한 재귀("call depth overflow")로 스크립트가 중단됐다(bare 시뮬레이션에서 발견, push 전). 함수 이름을 `Invoke-G`로 바꿔 고쳤고, 일반/CRLF/중단 경로를 모두 다시 돌려 위 6번 결과를 얻었다. 교훈: 외부 명령을 감싸는 PowerShell 래퍼 함수 이름을 그 명령과 같게(대소문자만 달라도) 짓지 말 것. toolkit 템플릿(`replace_block_template.ps1`)에는 반영하지 않았다(필요하면 승인 후).
+
+**8. push 재확인(16절, 이 세션).** 사용자가 실행 로그(`4bd6732..a9e6cb3 carrot-ryu -> carrot-ryu`, `commit: a9e6cb37442f6513879bc744c1f0fe5284de25e6`, `DONE`)를 전달했다. 로그만으로 완료로 보지 않고 GitHub를 직접 확인했다: `git ls-remote` HEAD `a9e6cb37442f6513879bc744c1f0fe5284de25e6`, 부모 `4bd6732`, 커밋 메시지 "onroad HUD: initialize _hud_top_right default in HudRenderer.__init__ (210cha)", numstat `hud_renderer.py` 2/0 한 파일, blob 404da4c -> 94d88ea(스크립트 기대값과 일치), CR 0개, 첫 3바이트 `69 6d 70`(BOM 없음), py_compile 통과, SHA 고정 raw와 blob 추출본 바이트 동일, 추가된 줄 2줄뿐. 0788a49 대비 `hud_renderer.py` 1파일 +17/-6(4bd6732의 +15/-6과 a9e6cb3의 +2/-0의 합). Author 이메일은 ryujmin@naver.com.
+
+**9. 실차.** 실차 검증: 미실시(12절). 디바이스가 carrot-ryu a9e6cb3을 pull한 뒤 확인할 것: 현재속도 숫자와 `CPU 온도` 글자가 실제로 보이는지, 우측 상단 TPMS 숫자나 다른 HUD 요소와 겹치지 않는지, 80도 초과 때 CPU 글자가 빨갛게 깜빡이는지. 어긋나면 `TOP_RIGHT_SPEED_Y`(현재 350), `TOP_RIGHT_CPU_Y`(현재 420) 숫자만 조정하는 후속 코드 세션으로 처리한다. 두 값은 정밀 측정이 아니라 TPMS 좌표에서 정한 추정치다.
+
 ## 209cha (완료) (Claude, Claude Sonnet 5.5) - 온로드 HUD 시간/일자 텍스트를 우측으로 110px 이동(액정 좌측 손상 대응), carrot-ryu 0788a49 (실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 디바이스 액정 손상으로 UI 좌측 상단의 시간/일자 텍스트가 일부 가려진다며(사진 첨부: 시간 `03:03:37`의 앞 글자와 일자 `09-27(일)`의 앞 글자 일부가 잘려 보임) 시간/일자 텍스트 전체를 우측으로 옮겨 달라고 요청했다. 코드 변경이 있는 세션이라 5절 순차 전달(코드 스크립트 -> GitHub 재확인 -> devnotes 1회)을 따랐다. 코드 스크립트는 처음 PowerShell(.ps1)로 만들었으나 사용자가 "Termux로"라고 해서 bash(.sh)로 다시 만들어 전달했고, 사용자는 Termux 버전을 실행했다(.ps1은 실행되지 않음).
