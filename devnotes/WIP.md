@@ -1,5 +1,43 @@
 # WIP
 
+## 220cha (완료) (Claude, Claude Sonnet 5.5) - 고속도로 앞차 추종 중 원인 불명 급감속의 원인 규명과 코드 수정: SCC 앞차가 비전 거리 오차 때문에 비전 앞차로 전환되던 문제 (carrot-ryu 8cdb515, 실차 미실시)
+
+**배경.** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했다(지침 v2, note 35136a5 기준으로 읽었고 carrot-ryu HEAD a78d531이 HANDOFF base와 일치했다). 이어서 "고속도로에서 앞차 추종 주행 중 스샷의 가속도 그래프처럼 원인 모를 급감 발생. 해당 로그 분석 후 원인 규명 및 코드 수정. Termux로"를 요청했다. 스크린샷은 2026-09-29 17:18:12 KST(노랑 a_ego, 초록 a_target, 113km/h)이고 로그는 HYUNDAI_GENESIS 세그먼트 101/102/104(17:17~17:21 KST, 각 약 60초)다. 세션 도중 도구 한도로 한 번 끊겼고 샌드박스가 초기화되어, 재개 후 로그 파싱, 재생, 수정, 테스트를 처음부터 다시 수행했다.
+
+**1. 원인(로그 분석).**
+- 급감은 17:17:57(aTarget 최저 -1.44, 속도 112.4 -> 105.8km/h), 17:18:06(-1.63, 111.3 -> 104.2km/h), 17:20:41(-0.80, 104.5 -> 99.8km/h) 세 곳이다. aTarget이 -0.5 아래로 내려간 구간은 이 3개뿐이었고 3개 모두 직전 1초 안이나 구간 안에 비전 리드 프레임이 있었다.
+- 그 순간 radarState.leadOne이 프레임마다 SCC 앞차(radar=True, dRel 61~70m, vLead 약 31m/s)와 비전 앞차(radar=False) 사이를 오갔다. 비전 앞차는 dRel이 50~60m로 더 가깝게 잡히고 vLead가 10~37m/s로 크게 튀었다(예: 17:17:57.0 dRel 51.6, vLead 20.1). 플래너는 이 빠른 접근 앞차에 aTarget -1.4~-1.6으로 반응했다.
+- 3개 세그먼트에서 leadOne이 비전인 프레임은 77개였고 그중 44개는 앞뒤가 모두 레이더인 단일 프레임이었다(비전 구간 길이 분포: 1프레임 44회, 2프레임 6회, 3프레임 1회, 4프레임 2회, 10프레임 이상 1회).
+- 원인 코드는 `openpilot/selfdrive/carrot/radar_motion/controller.py`의 `_reject_farther_radar_match`다. 레이더 매칭이 비전보다 `RADAR_MATCH_MAX_FARTHER_THAN_VISION_M` = 8.0m를 넘게 멀면 레이더 매칭을 버리고 비전 앞차를 쓴다. 비전 프레임에서 (직전 레이더 dRel - 비전 dRel)은 중앙값 약 8.9m(범위 2.2~16.1)였고, 정상 레이더 프레임의 (레이더 dRel - (모델 x - 1.52))는 99퍼센타일이 7.5m다. 즉 오차가 8m 선 바로 위에 몰려 있었다. 이때 비전 xStd는 4~12m(중앙값 4.7)로 매우 불확실했다.
+- 비전 거리 오차를 넓혀 주는 기존 완화(`moving_front`, 연속 수락된 트랙 + 위치/속도 연속성 + `min(15, 0.15 x 비전거리, 1.5 x xStd)`)는 `point.source == "frontRadar"`에만 적용됐다. 이 차량은 앞 레이더가 없어 앞차가 SCC(track 0)이므로 한도가 8.0m로 고정됐다. 게다가 비전 거리 약 53m에서는 0.15 x 53 = 7.9m가 하한 8.0m보다 작아 frontRadar였더라도 완화가 거의 효과가 없었다.
+- 재생 기준: 로그의 liveTracks/modelV2/carState/livePose를 원본 DPathRadarController(carrot-ryu a78d531, production_live_tracks=True, 세그먼트별 새 컨트롤러)에 넣고 EnableRadarTracks 값을 바꿔 보았다. 값 0에서 비전 프레임이 77개로 로그와 같았다(세그먼트별 101: 16, 102: 10, 104: 51). 프레임 단위 대조는 하지 않았다. 기기의 실제 EnableRadarTracks 값은 읽지 않았고 0은 이 재생에서의 추정이다.
+
+**2. 수정(carrot-ryu 8cdb515, 부모 a78d531).**
+- `MOVING_FRONT_RANGE_SOURCES = frozenset(("frontRadar", "scc"))`를 추가해 기존 연속 트랙 완화(`moving_front`)를 SCC에도 적용했다. 연속성 조건(같은 source/track_id, 0.15초 이내, 위치 2.5m/횡 0.75m/속도 3m/s 이내)은 그대로라 새 트랙, ID 변경, 위치 점프, 끊김, 정지 앞차는 기존처럼 즉시 비전으로 전환된다.
+- SCC 전용 상수 `MOVING_SCC_RANGE_XSTD_SIGMA = 2.5`, `MOVING_SCC_RANGE_MAX_DISTANCE_FRACTION = 0.25`를 추가했다. frontRadar의 1.5/0.15는 바꾸지 않았다. 상한 `VISION_RADAR_MAX_DISTANCE_ERROR_M` 15m도 그대로다.
+- 시행착오: 처음에 레이더 매칭을 0.25초 유지하는 별도 hold 타이머를 만들었으나 기존 레이더 테스트 33건이 실패했고(기존 설계가 "연속 수락 트랙만 완화, 나머지는 즉시 비전"이라서), 기존 연속성 완화를 SCC로 확장하는 쪽으로 바꿨다(사용자 "진행" 승인). source만 넓히면 비전 프레임이 77 -> 73개로 거의 줄지 않아 한도 계산이 병목임을 확인하고 스윕했다.
+- 스윕(3개 세그먼트 재생, 비전 프레임 수): 비율 0.25 + 시그마 1.5 = 56, 2.0 = 39, 2.5 = 20, 3.0 = 7. 시그마 3.0이 더 줄이지만 안전장치를 더 약화시키므로 2.5를 골랐다(원인 재현 프레임 대부분을 덮으면서 한도를 덜 넓힌다는 판단, 사용자 승인 사항이 아니라 이 세션의 선택).
+- 새 테스트 `openpilot/selfdrive/carrot/tests/test_scc_vision_range_hold.py`(8건, +78): 연속 트랙 SCC 완화 유지, xStd 허용 초과 거부, 첫 프레임/새 track_id/위치 점프/시간 간격 거부, 정지 SCC 미완화, 큰 불일치 거부.
+
+**3. 검증(샌드박스 Ubuntu 24, Python 3.12, conftest 없이 `--noconftest`).**
+- 기존 레이더 테스트(test_radard_dpath, test_radar_motion_predictor, test_stationary_front_evidence, test_lead_accel_tau)와 새 테스트를 함께 581건 통과(기존 573 + 새 8). 원본 controller.py에서 새 테스트를 돌리면 8건 중 1건(`test_scc_mismatch_beyond_old_limit_is_kept_when_tracked`)이 실패한다. 나머지 7건은 원본에서도 통과하는 안전장치 회귀 테스트다.
+- 로그 재생(EnableRadarTracks 0, 3개 세그먼트, leadOne이 비전인 프레임 수): 원본 77 -> 수정본 20(101: 1, 102: 0, 104: 19). 급감 3구간(17:17:56.4~59.0, 17:18:06.0~08.5, 17:20:40.0~43.5)의 비전 프레임은 11/7/6 -> 1/0/2다.
+- 새 클론(a78d531)에 패치 `git apply --check`/적용, `py_compile` 통과. 넓힌 테스트 실행(carrot/tests 전체)은 이 샌드박스에서 일부 파일이 import 에러로 수집되지 못해(기존 환경 문제, 이 변경과 무관해 보이나 원인은 확인하지 않음) 신뢰할 수 있는 수치가 아니다.
+- 플래너(longitudinal_planner)까지 재생해 aTarget이 실제로 어떻게 바뀌는지는 확인하지 않았다. 재생은 leadOne 전환이 줄었다는 것만 보인다.
+
+**4. 전달과 push.** Termux용 `apply_scc_range_fix.sh`를 만들었으나 사용자가 "파워쉘"을 요청해 `apply_scc_range_fix.ps1`(BOM, 패치 내장, base 가드 a78d531)로 다시 전달했다. 사용자가 처음에 `C:\WINDOWS\system32`에서 실행해 파일을 못 찾았고, Downloads로 이동해 다시 실행했다. 사용자 로그: `a78d5310..8cdb5151  carrot-ryu -> carrot-ryu`, local = remote = 8cdb51511526d85f3e788bdba7b4c2f18cb6b137.
+
+**5. push 독립 재확인(이 세션, GitHub 직접 조회).** `git ls-remote` carrot-ryu = 8cdb515, depth 2 blobless bare clone으로 부모 a78d531, numstat controller.py 19/3, test_scc_vision_range_hold.py 78/0, blob controller.py 4a3c28e -> 샌드박스 수정본과 일치, 테스트 파일 b46db26 -> 일치, CR 0개. 커밋 Author는 `ryujm97 <ryujm97@example.com>`으로 기록됐다. 사용자 PC의 git user.name/email이 이 저장소 기존 기록(ryujmin97@gmail.com)과 다르게 잡혀 있는 것으로 보인다(확인 필요, 커밋 자체는 내용상 문제없음).
+
+**6. 한계와 하지 않은 것.**
+- 실차 검증: 미실시(12절). 위 수치는 로그 재생과 단위 테스트다.
+- 더 가까운 차가 기존 SCC 트랙과 연속성을 유지한 채 천천히 끼어드는 경우 전환이 한도 증가분만큼 늦어질 수 있다.
+- 수정본 재생에서도 비전 프레임 20개가 남는다(세그먼트 104에 19개). 17:17:58.5의 1프레임은 불일치가 2.2m뿐이라 이 수정의 대상이 아니다. 나머지의 원인은 분석하지 않았다.
+- 이 세션의 코드 스크립트(`apply_scc_range_fix.ps1`)는 지침 9절 전달 전 자가검증 체크리스트를 다 거치지 않았다(pwsh 구문 파서, bare 저장소 일반/CRLF 시뮬레이션, 검증 출력 제시가 없었고, Windows PowerShell 5.1 실제 실행만 사용자 PC에서 이뤄졌다). 결과는 성공했지만 절차상 누락이다. 이 devnotes 스크립트는 체크리스트를 적용했다.
+- carrot-ryu-v3 생성 없음, carrot-ms 점검 없음.
+
+**7. 갱신한 문서(devnotes만).** 이 WIP.md 회차, HANDOFF.md, FINDINGS.md 핵심 발견 69. WIP_SYNC.md와 toolkit은 변경하지 않았다. 반영 스크립트는 PowerShell `220cha_devnotes_scc_range_v1.ps1` 1개다.
+
 ## 219cha (완료) (Claude, Claude Sonnet 5.5) - 브랜치 운영 방침 변경: carrot-ryu 누적 작업 + carrot-ryu-vN 아카이브 (지침 20절 개정, devnotes만, carrot-ryu 코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했다. 세션 첫 응답의 다음 작업 후보 5번(carrot-ryu 재생성, 20절)이 무슨 말인지 묻고 설명을 들은 뒤, 절차를 바꾸겠다고 지시했다: "항상 carrot-ryu로 작업하고 ms브랜치의 최신커밋을 분석하고 필요시 적용한다. 그리고 어느정도 진행되면 v2, v3, v4....등을 만들어 보존한다. 그리고 작업은 계속 carrot-ryu로 누적 작업한다."
