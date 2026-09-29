@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-09-29 (216차)
+- pytest_ci_setup.sh: 5c단계(`msgq.visionipc.visionipc_pyx` 컴파일, msgq_repo/SConscript 소스 목록 기준, 5b와 같은 setuptools 방식)와 끝 자가검증 `import msgq.visionipc.visionipc_pyx` 추가(+26/-1, README 216차 추가 참고). `test_raylib_ui.py`가 ui 프로세스 조기 종료로 실패하던 것을 빌드 후 통과로 확인했고, selfdrive/ui/tests는 1 failed / 174 passed에서 175 passed / 86 skipped / 0 failed로 바뀌었다(216cha 샌드박스). mici/tests/test_widget_leaks.py는 이 변경으로 해결되지 않는 업스트림 불일치(BigConfirmationDialogV2)라 기록만 했다. 다른 단계와 다른 toolkit 파일은 변경 없음.
+
 ## 2026-09-29 (215차)
 - pytest_ci_setup.sh: 3/6 단계에 `comma-deps-raylib==6.0.0.1.post103` 별도 pip install 추가(+주석 4줄), 끝 자가검증에 `import pyray` 추가(README 215차 추가 참고). selfdrive/ui/tests의 HUD 테스트가 pyray 없이는 수집 단계에서 에러였던 것을, 세션마다 수동 설치하던 방식에서 스크립트에 포함시킨 것. 215cha 샌드박스에서 수정본 전체 실행 통과와 HUD 테스트 3개 파일 46 passed 확인. 다른 단계와 다른 toolkit 파일은 변경 없음.
 

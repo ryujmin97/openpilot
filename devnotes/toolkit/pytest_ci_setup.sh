@@ -101,6 +101,30 @@ setup(name="msgq_build", packages=[],
 PYEOF
 python3 /tmp/build_msgq.py
 
+echo "=== [5c/6] msgq.visionipc.visionipc_pyx 컴파일 (ui 코드가 import) ==="
+# selfdrive/ui 의 driver_camera_dialog.py 등이 `from msgq.visionipc import VisionStreamType` 를 한다.
+# 위 5b 는 msgq.ipc_pyx 만 빌드하므로 이걸 빠뜨리면 ui 프로세스를 띄우는 test_raylib_ui.py 가
+# ModuleNotFoundError(msgq.visionipc.visionipc_pyx)로 실패하고, mici/tests/test_widget_leaks.py 도
+# 수집 단계에서 같은 에러가 난다(216cha 확인: 빌드 후 test_raylib_ui 1 passed).
+# 소스 목록은 msgq_repo/SConscript 를 따른다(/dev/ion 이 없는 PC 이므로 visionbuf.cc).
+cat > /tmp/build_vipc.py << 'PYEOF'
+from setuptools import setup, Extension
+from Cython.Build import cythonize
+V = "msgq_repo/msgq/visionipc/"
+M = "msgq_repo/msgq/"
+ext = Extension(
+    "msgq.visionipc.visionipc_pyx",
+    sources=[V+"visionipc_pyx.pyx", V+"visionipc.cc", V+"visionipc_server.cc", V+"visionipc_client.cc", V+"visionbuf.cc",
+             M+"ipc.cc", M+"event.cc", M+"impl_msgq.cc", M+"impl_fake.cc", M+"msgq.cc"],
+    language="c++", include_dirs=["msgq_repo", "msgq_repo/msgq"], libraries=["pthread"],
+    extra_compile_args=["-std=c++17"],
+)
+setup(name="vipc_build", packages=[],
+      ext_modules=cythonize([ext], language_level=3),
+      script_args=["build_ext", "--inplace"])
+PYEOF
+python3 /tmp/build_vipc.py
+
 echo "=== [6/6] long_mpc.py용 acados OCP solver 코드생성 + 컴파일 ==="
 LMPC_DIR="$ROOT/openpilot/selfdrive/controls/lib/longitudinal_mpc_lib"
 ACADOS_DIR=/usr/local/lib/python3.12/dist-packages/acados/install
@@ -152,6 +176,7 @@ from opendbc.car.interfaces import ACCEL_MIN
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import LongitudinalMpc
 LongitudinalMpc()
 import pyray
-print('OK: params_pyx / msgq / acados long_mpc / pyray 전부 정상 import+instantiate')
+import msgq.visionipc.visionipc_pyx
+print('OK: params_pyx / msgq / acados long_mpc / pyray / visionipc 전부 정상 import+instantiate')
 "
 echo "=== 완료: cd $ROOT && export PYTHONPATH=$ROOT:$ROOT/opendbc_repo && python3 -m pytest <경로...> ==="

@@ -181,3 +181,13 @@ with OpenpilotPrefix():
 주의: PyPI의 별도 패키지 `raylib`도 같은 `pyray` 디렉터리를 쓴다. 섞였으면 `pip uninstall --break-system-packages raylib` 뒤 `pip install --break-system-packages --force-reinstall --no-deps comma-deps-raylib==6.0.0.1.post103`. 이 줄이 실패하면 스크립트의 `set -e` 때문에 전체가 중단된다(wheel 파일명이 `manylinux_2_28_x86_64`라 다른 플랫폼에서는 실패할 수 있다. 이 스크립트의 대상은 Claude 샌드박스 Ubuntu 24다).
 
 215cha 샌드박스 실측: 수정본 전체 실행 1~6단계 통과와 자가검증 OK, HUD 테스트 3개 파일(`-n 0 -p no:randomly -q -W default`) 46 passed(수동 pip install 없이). 이 구성만으로 `test_raylib_ui.py::test_raylib_ui` 1건과 `mici/tests/test_widget_leaks.py` 수집 에러가 어떻게 되는지는 확인하지 않았다(원인 미조사).
+
+### 216차 추가 (pytest_ci_setup.sh에 msgq.visionipc.visionipc_pyx 빌드 추가)
+
+`pytest_ci_setup.sh`에 5c단계를 추가했다(5b의 `msgq.ipc_pyx` 빌드 바로 뒤, 6/6 앞). `msgq_repo/SConscript`의 visionipc 소스 목록(`visionipc.cc`, `visionipc_server.cc`, `visionipc_client.cc`, /dev/ion이 없는 PC이므로 `visionbuf.cc`)과 msgq 소스 5개를 5b와 같은 setuptools 방식으로 컴파일해 `msgq.visionipc.visionipc_pyx`를 만든다. 끝의 자가검증에는 `import msgq.visionipc.visionipc_pyx`를 넣고 성공 메시지에 visionipc를 추가했다(다른 단계는 변경 없음, +26/-1). 산출 `.so`는 `msgq_repo/msgq/visionipc/` 안에 생기며 git이 무시한다(`git status` 변화 없음 확인).
+
+이유: `selfdrive/ui`의 `onroad/driver_camera_dialog.py` 등이 `from msgq.visionipc import VisionStreamType`를 하는데, 5b는 `msgq.ipc_pyx`만 빌드해서 `ModuleNotFoundError: No module named 'msgq.visionipc.visionipc_pyx'`가 났다. 이 때문에 `ui` 프로세스를 띄우는 `test_raylib_ui.py::test_raylib_ui`가 프로세스 조기 종료 단언(`selfdrive/test/helpers.py` 92행)으로 실패했고, `mici/tests/test_widget_leaks.py`는 수집 단계에서 같은 에러였다.
+
+216cha 샌드박스 실측(수정본 전체 실행 1~6단계 통과, 자가검증 OK): `selfdrive/ui/tests` 175 passed / 86 skipped / 0 failed(수정 전 214cha 기록은 1 failed / 174 passed / 0 errors), `test_raylib_ui.py` 1 passed(약 5초), `mici/tests`는 `test_widget_leaks.py`를 뺀 21 passed.
+
+한계: `mici/tests/test_widget_leaks.py`는 이 빌드로 해결되지 않는다. 13행이 `mici/widgets/dialog.py`에 없는 `BigConfirmationDialogV2`를 import해 여전히 수집 에러이며, carrot-ms(d03c0ae)의 같은 두 파일과 바이트 동일한 업스트림 상태다(WIP.md 216cha 2번). 그 테스트 함수는 원래 `@pytest.mark.skip(reason="segfaults")`라 이름을 고쳐도 실행되지 않는다. `mici/tests`를 돌릴 때는 `--ignore=openpilot/selfdrive/ui/mici/tests/test_widget_leaks.py`를 주거나 `--continue-on-collection-errors`를 쓴다. 이 스크립트의 대상은 Claude 샌드박스 Ubuntu 24이며, /dev/ion이 있는 기기에서는 SConscript가 `visionbuf_ion.cc`를 쓰므로 소스 목록이 다르다.

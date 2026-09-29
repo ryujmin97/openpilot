@@ -1,5 +1,38 @@
 # WIP
 
+## 216cha (완료) (Claude, Claude Sonnet 5.5) - test_raylib_ui.py 1건/test_widget_leaks.py 수집 에러 원인 조사, toolkit pytest_ci_setup.sh에 visionipc_pyx 빌드 추가 (carrot-ryu 코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 지침 문서 읽기를 요청하며 215cha devnotes push 로그(`60adea9..631d1e6`)를 붙여넣었고, 내가 다음 작업 선택지를 제시하자 "`test_raylib_ui.py` 1건과 `mici/tests/test_widget_leaks.py` 수집 에러 원인 조사"(HANDOFF 미완료 21번, 읽기만이면 승인 불필요)를 골랐다. 조사 결과와 제안 (A)/(B)/(C)를 보고하자 사용자가 "너의 제안대로"로 세 가지를 모두 승인했다(toolkit 변경 승인 포함, 14절).
+
+**0. 상태 확인.** 지침 문서 v2를 처음에는 사용자가 지정한 브랜치 URL로 읽었고(이 첫 도구 호출은 SHA 고정 전이었다), 이어서 `git ls-remote`로 note HEAD `631d1e627d3a98a45d4c4e0229e9866820c5a189`를 얻어 SHA 고정본으로 다시 받아 sha256 앞 12자리 `5a119e7eb0cd`가 브랜치 URL본과 같고(212cha 기록의 `5a119e7eb0cdc491...`과도 일치, 601줄) 변경 없음을 확인했다. 같은 SHA로 HANDOFF.md를 읽었다. 세션 첫 응답에서 "지침 문서 확인함(v2, 커밋 631d1e6)"을 보고했다. 붙여넣어진 push 로그의 원격 HEAD가 `git ls-remote`와 일치했고, 독립 fetch(depth 2)로 부모 60adea9, numstat(HANDOFF.md 18/8, WIP.md 25/0, toolkit/CHANGELOG.md 3/0, toolkit/README.md 8/0, toolkit/pytest_ci_setup.sh 8/1), CR 0, BOM 없음, pytest_ci_setup.sh의 raylib 줄(51~55행)과 자가검증 `import pyray`(154행)를 확인해 215cha devnotes 반영을 확인했다. carrot-ryu HEAD a78d531이 HANDOFF base와 일치, carrot-ryu-v1 6df4268/carrot-ryu-v2 3ddf849 변동 없음.
+
+**1. `test_raylib_ui.py::test_raylib_ui` 원인(코드 변경 없음, 읽기 전용 조사).** 이 테스트는 `@with_processes(["ui"])`로 `ui` 프로세스를 띄우고 `time.sleep(1)` 뒤에도 프로세스가 살아 있는지(`selfdrive/test/helpers.py` 92행 단언)만 본다. 수정 전 pytest_ci_setup.sh로 구성한 환경(carrot-ryu a78d531)에서 1 failed(1.08초)였고, ui 프로세스의 트레이스백은 `ui.py` 9행 -> `layouts/main.py` 7행 -> `layouts/settings/settings.py` 6행 -> `layouts/settings/device.py` 8행 -> `onroad/driver_camera_dialog.py` 3행(`from msgq.visionipc import VisionStreamType`) -> `msgq/visionipc/__init__.py` 1행에서 `ModuleNotFoundError: No module named 'msgq.visionipc.visionipc_pyx'`였다. pytest_ci_setup.sh 5b단계가 `msgq.ipc_pyx`만 빌드하고 `visionipc_pyx`는 빌드하지 않아서다. carrot-ryu 코드나 209~214cha 변경과 무관하다. `msgq_repo/SConscript`의 visionipc 소스(`visionipc.cc`, `visionipc_server.cc`, `visionipc_client.cc`, /dev/ion이 없으면 `visionbuf.cc`)와 msgq 소스 5개를 5b와 같은 setuptools 방식으로 임시 빌드하니(빌드 exit 0, 산출 `.so`는 git 무시, `git status` 변화 없음) test_raylib_ui.py가 1 passed(5.12초)였다.
+
+**2. `mici/tests/test_widget_leaks.py` 수집 에러 원인(두 겹).**
+- (a) 수정 전 환경의 수집 에러: `mici/layouts/onboarding.py` 19행 -> `mici/onroad/driver_camera_dialog.py` 3행 -> 같은 `msgq.visionipc` import 에러(위 1번과 같은 원인).
+- (b) visionipc_pyx를 빌드하면 에러가 13행으로 바뀐다: `from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialog, BigConfirmationDialogV2, BigInputDialog`가 `ImportError: cannot import name 'BigConfirmationDialogV2'`. `mici/widgets/dialog.py`에는 `BigDialogBase`, `BigDialog`, `BigConfirmationDialog`, `BigInputDialog`, `BigDialogButton`, `BigConfirmationCircleButton`만 있고, 저장소의 다른 코드(wifi_ui.py, usbgpu.py, settings/device.py, dialog.py 237행)는 `BigConfirmationDialog`를 쓰며 `V2`는 test_widget_leaks.py 13/47/75행에만 나온다.
+- carrot-ms(HEAD d03c0ae) raw와 `cmp`: `mici/tests/test_widget_leaks.py`와 `mici/widgets/dialog.py`(240줄) 모두 carrot-ryu와 바이트 동일하다. 즉 carrot-ms 원본에도 있는 업스트림 불일치다.
+- `V2`를 `BigConfirmationDialog`로 바꾼 untracked 임시 사본(test_zz_scratch_leaks.py)은 1 skipped였다: 63행이 `@pytest.mark.skip(reason="segfaults")`이고 파일의 테스트 함수는 `test_dialogs_do_not_leak` 하나다. 이름을 고쳐도 실행되는 테스트가 없다. 임시 사본은 삭제했고 `git status`는 깨끗했다(HEAD a78d531).
+- CI(tests.yaml)는 이 두 테스트를 돌리지 않는다. 확인하지 않은 것: carrot-wip 원본에 `V2`가 있는지.
+
+**3. 사용자 결정(제안 A/B/C 승인).** (A) pytest_ci_setup.sh에 visionipc_pyx 빌드 추가(toolkit 변경). (B) test_widget_leaks.py는 코드를 고치지 않고 "carrot-ms와 동일한 알려진 업스트림 불일치"로 기록만 한다(재검토 조건: carrot-ms가 test_widget_leaks.py나 mici/widgets/dialog.py를 바꿔 동기화 점검에 나타날 때, 또는 mici UI 위젯 누수 검증을 carrot-ryu에서 실제로 켜기로 할 때). (C) 조사 결과를 devnotes에 기록한다.
+
+**4. 변경 내용(`toolkit/pytest_ci_setup.sh`, +26/-1).** 5b의 `python3 /tmp/build_msgq.py` 뒤, 6/6 앞에 `[5c/6]` 단계를 추가했다: 주석 5줄과 `/tmp/build_vipc.py`(5b와 같은 setuptools+cythonize 방식, Extension `msgq.visionipc.visionipc_pyx`, 소스 `visionipc_pyx.pyx`/`visionipc.cc`/`visionipc_server.cc`/`visionipc_client.cc`/`visionbuf.cc`와 msgq 소스 5개, `-std=c++17`)를 만들어 실행한다. 끝의 자가검증에 `import msgq.visionipc.visionipc_pyx`를 넣고 성공 메시지에 visionipc를 추가했다. 다른 단계와 다른 toolkit 파일은 변경 없음. carrot-ryu 코드 변경 없음.
+
+**5. 검증(샌드박스 Ubuntu 24, Python 3.12, root, carrot-ryu a78d531 depth 1 clone).**
+- 수정 전 환경에서 재현: test_widget_leaks.py 수집 에러(visionipc_pyx 없음)와 test_raylib_ui 1 failed(1.08초). visionipc_pyx 임시 빌드 후 test_raylib_ui 1 passed(5.12초), test_widget_leaks는 13행 V2 ImportError로 바뀜.
+- 수정본 pytest_ci_setup.sh 전체 실행(GIT_LFS_SKIP_SMUDGE=1, setsid nohup): 1~6단계 통과, 자가검증 `OK: params_pyx / msgq / acados long_mpc / pyray / visionipc 전부 정상 import+instantiate`.
+- 그 환경에서 `-n 0 -p no:randomly -q -W default`: `selfdrive/ui/tests` 175 passed / 86 skipped / 0 failed(12.80초), `mici/tests`(test_widget_leaks.py 제외) 21 passed(0.33초). 두 경로를 함께 `--continue-on-collection-errors`로 돌리면 196 passed / 86 skipped / 1 error(test_widget_leaks.py, V2 ImportError). 86 skipped의 사유는 읽지 않았다.
+- 넓은 회귀와 carrot-ryu 코드 자체는 이번에 다시 돌리지 않았다.
+
+**6. 문서 갱신.** `toolkit/pytest_ci_setup.sh`(+26/-1), `toolkit/README.md` 216차 추가 절, `toolkit/CHANGELOG.md` 216차 항목, 이 WIP.md 회차, HANDOFF.md 갱신(문서 줄 수는 반영 스크립트의 numstat 검증이 확인). WIP_SYNC.md, FINDINGS.md는 변경하지 않았다.
+
+**7. 반영 스크립트와 사전 검증.** `216cha_devnotes_toolkit_visionipc_v1.ps1`(PowerShell, 한글이 있어 UTF-8 BOM 포함). 코드 변경이 없는 세션이라 devnotes 스크립트 1개만 전달했다(5절). 스크립트는 clone 직후 note HEAD가 631d1e6인지와 대상 5개 파일의 blob 해시가 이 세션이 읽은 값과 같은지 확인한 뒤에만 쓰고(모든 git 상태 조회는 `git -C`), 쓴 결과의 blob 해시, BOM/CR 없음, 변경 파일 5개와 파일별 numstat을 확인하고, 5개 경로만 add한다. 사전 검증은 Linux pwsh 7.6.6 기준이며(파서 오류 확인, 전달 .ps1에서 추출한 앵커의 원본 매치 확인, 실제 note 저장소를 복제한 로컬 bare 저장소로 일반/CRLF 재현 전체 실행) Windows PowerShell 5.1 실제 실행이 아니다.
+
+**8. 이 push의 확인.** 이 회차의 devnotes push는 이 스크립트 자체라 이 회차 안에서는 GitHub 재확인을 할 수 없다. 다음 세션이 `git ls-remote`와 이 5개 파일로 확인한다(16절).
+
+**9. 하지 않은 것과 한계.** carrot-ryu 코드 변경 없음(test_widget_leaks.py 포함), carrot-ms 점검 없음(체크포인트 8472d35 그대로, carrot-ms HEAD d03c0ae는 두 파일 raw 대조에만 사용), carrot-ryu 재생성 없음. `--ignore` 조합 자체는 실행하지 않았고 `--continue-on-collection-errors` 조합만 실행했다. 86 skipped의 사유, carrot-wip 원본의 V2 여부는 확인하지 않았다. 실차 검증 미실시(12절).
+
 ## 215cha (완료) (Claude, Claude Sonnet 5.5) - toolkit pytest_ci_setup.sh에 comma-deps-raylib 설치 추가 (carrot-ryu 코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 지침 문서 읽기를 요청하며 214cha devnotes push 로그(`3e98860..60adea9`)를 붙여넣었고, 내가 다음 작업 선택지를 제시하자 "(p) `pytest_ci_setup.sh`에 comma-deps-raylib 설치 추가"를 골랐다. 이 선택이 toolkit 변경 승인이다(HANDOFF 미완료 21번, 14절).
