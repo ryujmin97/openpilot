@@ -25,6 +25,9 @@ CRUISE_SPEED_ANIMATION_STEP = 12
 CRUISE_SPEED_ANIMATION_START_SIZE = 300
 HUD_PARAM_REFRESH_INTERVAL = 1.0
 WEEKDAYS_KO = ("일", "월", "화", "수", "목", "금", "토")
+# [209차] 좌측 상단 시간/일자 텍스트를 우측으로 옮기는 픽셀 수(액정 좌측 손상부에 가려지는 부분 보정).
+# 값을 키우면 더 오른쪽, 줄이면 원래 위치에 가까워진다.
+DATE_TIME_X_SHIFT = 110
 
 
 @dataclass(frozen=True)
@@ -1040,7 +1043,7 @@ class HudRenderer(Widget):
 
     self._refresh_date_time_text(time.localtime())
 
-    x = int(rect.x + 170)
+    x = int(rect.x + 170) + DATE_TIME_X_SHIFT
     y = int(rect.y + 120)
 
     if show_datetime in (1, 2):
@@ -1049,7 +1052,7 @@ class HudRenderer(Widget):
       # 글자(시 10의 자리)가 잘리는 문제가 있어, 텍스트 실측 폭 기준으로
       # 왼쪽 여백(UI_CONFIG.border_size)을 보장하도록 x를 보정한다.
       time_size = measure_text_cached(self._font_display, self._date_time_text, 100)
-      min_x = int(rect.x + UI_CONFIG.border_size + time_size.x * 0.5)
+      min_x = int(rect.x + UI_CONFIG.border_size + time_size.x * 0.5) + DATE_TIME_X_SHIFT
       x = max(x, min_x)
       draw_text_ui_style(
         self._date_time_text, x, y, 100, rl.WHITE,
