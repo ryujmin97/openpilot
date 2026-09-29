@@ -1,5 +1,30 @@
 # WIP
 
+## 215cha (완료) (Claude, Claude Sonnet 5.5) - toolkit pytest_ci_setup.sh에 comma-deps-raylib 설치 추가 (carrot-ryu 코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 지침 문서 읽기를 요청하며 214cha devnotes push 로그(`3e98860..60adea9`)를 붙여넣었고, 내가 다음 작업 선택지를 제시하자 "(p) `pytest_ci_setup.sh`에 comma-deps-raylib 설치 추가"를 골랐다. 이 선택이 toolkit 변경 승인이다(HANDOFF 미완료 21번, 14절).
+
+**0. 상태 확인.** 지침 문서 v2를 처음에는 브랜치 URL로 읽었고(이 첫 도구 호출은 SHA 고정 전이었다), 이어서 `git ls-remote`로 note HEAD `60adea9e8477e4b931afcdc8cab10df132fdb18e`를 얻어 SHA 고정본으로 다시 받아 `cmp` 바이트 동일(50,696바이트, 변경 없음)을 확인했다. 세션 첫 응답에서 "지침 문서 확인함(v2, 커밋 60adea9)"을 보고했다. 붙여넣어진 push 로그의 원격 HEAD가 `git ls-remote`와 일치했고, 그 SHA의 HANDOFF.md와 WIP.md 최상단이 214cha 기록이라 214cha devnotes 반영을 확인했다. carrot-ryu HEAD a78d531이 HANDOFF base와 일치했다.
+
+**1. 변경 내용(`toolkit/pytest_ci_setup.sh`, +8/-1).**
+- 3/6 단계의 기존 pip 목록 설치 뒤에 `pip install --break-system-packages -q comma-deps-raylib==6.0.0.1.post103` 한 줄과 주석 4줄을 추가했다. 기존 목록에 합치지 않고 별도 줄로 둔 것은 213cha/214cha에서 실제로 통과한 설치 방식(별도 pip install)을 그대로 쓰기 위해서다(한 줄로 합쳤을 때 의존성 해석이 달라지는지는 실험하지 않았다).
+- 끝의 자가검증(`python3 -c`)에 `import pyray`를 추가하고 성공 메시지를 `OK: params_pyx / msgq / acados long_mpc / pyray 전부 정상 import+instantiate`로 바꿨다.
+- 다른 단계, 다른 toolkit 파일(`replace_block_template.ps1` 등)은 변경 없음.
+
+**2. 검증(샌드박스 Ubuntu 24, Python 3.12, root).**
+- `bash -n` 통과. `pip download --no-deps comma-deps-raylib==6.0.0.1.post103`으로 wheel(`manylinux_2_28_x86_64`)이 PyPI에 있음을 확인했다.
+- 수정본 전체 실행(GIT_LFS_SKIP_SMUDGE=1, setsid nohup, carrot-ryu a78d531 clone): 1~6단계 통과, 자가검증에서 위 OK 메시지 출력. `pip list`에 comma-deps-raylib 6.0.0.1.post103과 pytest-mock 3.16.0이 있고 `raylib` 패키지는 없었다(섞임 없음).
+- 그 환경에서 수동 pip install 없이 HUD 테스트 3개 파일(test_carrot_hud_renderer.py 28, test_carrot_param_cache.py 14, test_cluster_hud_camera_suppression.py 4)을 `-n 0 -p no:randomly -q -W default`로 실행: 46 passed(0.43초).
+- `selfdrive/ui/tests` 전체와 넓은 회귀는 이번에 다시 돌리지 않았다. `test_raylib_ui.py::test_raylib_ui` 1건과 `mici/tests/test_widget_leaks.py` 수집 에러의 원인은 여전히 읽지 않았다(HANDOFF 미완료 21번에 남김).
+
+**3. 문서 갱신.** `toolkit/README.md` 215차 추가 절(+8/-0), `toolkit/CHANGELOG.md` 215차 항목(+3/-0), 이 WIP.md 회차, HANDOFF.md 갱신(+18/-8). WIP_SYNC.md, FINDINGS.md는 변경하지 않았다.
+
+**4. 반영 스크립트와 사전 검증.** `215cha_devnotes_toolkit_raylib_v1.ps1`(PowerShell, 한글이 있어 UTF-8 BOM 포함). 코드 변경이 없는 세션이라 devnotes 스크립트 1개만 전달했다(5절). 스크립트는 clone 직후 note HEAD가 60adea9인지, 대상 5개 파일이 이 세션이 읽은 내용(LF 정규화 SHA-256)과 같은지 확인한 뒤에만 쓰고, 쓴 결과의 SHA-256/blob 해시와 BOM/CR 없음을 확인하고, 5개 경로만 add한다. 사전 검증은 Linux pwsh 7.6.6 기준이며(파서 오류 확인, 실제 note 저장소를 복제한 로컬 bare 저장소로 일반/CRLF 재현 전체 실행) Windows PowerShell 5.1 실제 실행이 아니다.
+
+**5. 이 push의 확인.** 이 회차의 devnotes push는 이 스크립트 자체라 이 회차 안에서는 GitHub 재확인을 할 수 없다. 다음 세션이 `git ls-remote`와 이 5개 파일로 확인한다(16절).
+
+**6. 하지 않은 것과 한계.** carrot-ryu 코드 변경 없음, carrot-ms 점검 없음(체크포인트 8472d35 그대로), carrot-ryu 재생성 없음. 이 구성 변경이 `test_raylib_ui.py` 등 남은 실패에 미치는 영향은 확인하지 않았다. 실차 검증 미실시(12절).
+
 ## 214cha (완료) (Claude, Claude Sonnet 5.5) - HUD 테스트 스텁 정비: carrot-ryu a78d531(테스트 3개 파일만, 실행 코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 이전 대화 사본(213cha devnotes 스크립트와 시뮬레이션 로그)을 붙여넣었고, \"이어서 계속\" 뒤에 213cha devnotes push 완료를 알린 다음 \"HUD 테스트 스텁 정비\"(HANDOFF 미완료 20번)를 골랐다. 이 요청이 그 코드 세션의 승인이다.

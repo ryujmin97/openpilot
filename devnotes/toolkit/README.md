@@ -173,3 +173,11 @@ with OpenpilotPrefix():
 197cha 측정 기록: 감싸지 않으면 기본 Params 경로(`Path.home()/.comma/params/d`, 디바이스는 `/data/params/d`)에 실제로 쓰고, msgq 경로도 격리되지 않아 `IpcError: Messaging failure with radarState`가 났다. 이 두 증상은 197cha 세션 기록이며 207cha에서는 재현하지 않았다(코드로 확인한 것은 위 68~73행, `conftest.py` 51행, `prefix.py`의 존재까지).
 
 매 스텝 기록이 필요하면 `openpilot/selfdrive/controls/tests/test_following_distance.py` 25행의 `RecordingPlant`(Plant 서브클래스를 만들어 33행에서 `maneuver_module.Plant`를 대체하는 방식)를 참고한다. 197cha 측정 스크립트 자체는 저장소에 없는 스크래치라 재현할 수 없어 toolkit에 넣지 않기로 했다(207cha 사용자 결정, WIP.md 207cha 2번).
+
+### 215차 추가 (pytest_ci_setup.sh에 comma-deps-raylib 설치 추가)
+
+`pytest_ci_setup.sh`의 3/6 단계에서 기존 pip 목록 설치 뒤에 `comma-deps-raylib==6.0.0.1.post103`을 별도 `pip install` 한 줄로 추가하고 이유를 주석 4줄로 남겼다. 끝의 자가검증(`python3 -c`)에는 `import pyray`를 넣고 성공 메시지에 pyray를 추가했다(다른 단계는 변경 없음). `openpilot/selfdrive/ui/tests`의 HUD 테스트(`test_carrot_hud_renderer.py`, `test_carrot_param_cache.py` 등)는 pyray를 import하는데, 이전에는 세션마다 수동으로 `pip install`을 해야 했다(213cha/214cha).
+
+주의: PyPI의 별도 패키지 `raylib`도 같은 `pyray` 디렉터리를 쓴다. 섞였으면 `pip uninstall --break-system-packages raylib` 뒤 `pip install --break-system-packages --force-reinstall --no-deps comma-deps-raylib==6.0.0.1.post103`. 이 줄이 실패하면 스크립트의 `set -e` 때문에 전체가 중단된다(wheel 파일명이 `manylinux_2_28_x86_64`라 다른 플랫폼에서는 실패할 수 있다. 이 스크립트의 대상은 Claude 샌드박스 Ubuntu 24다).
+
+215cha 샌드박스 실측: 수정본 전체 실행 1~6단계 통과와 자가검증 OK, HUD 테스트 3개 파일(`-n 0 -p no:randomly -q -W default`) 46 passed(수동 pip install 없이). 이 구성만으로 `test_raylib_ui.py::test_raylib_ui` 1건과 `mici/tests/test_widget_leaks.py` 수집 에러가 어떻게 되는지는 확인하지 않았다(원인 미조사).

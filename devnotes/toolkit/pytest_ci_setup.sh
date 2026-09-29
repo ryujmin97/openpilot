@@ -48,6 +48,12 @@ pip install --break-system-packages -q \
   libusb1 pyusb \
   pytest pytest-randomly pytest-xdist pytest-timeout pytest-asyncio pytest-cpp pytest-mock
 
+# comma-deps-raylib: selfdrive/ui/tests 의 HUD 테스트(test_carrot_hud_renderer.py, test_carrot_param_cache.py 등)가
+# pyray 를 import 한다. 없으면 수집 단계에서 ModuleNotFoundError 로 에러가 난다(213cha/214cha 확인).
+# 별도 패키지 `raylib` 도 같은 pyray 디렉터리를 쓰므로 함께 설치하지 말 것(섞였으면 `pip uninstall --break-system-packages raylib`
+# 뒤 `pip install --break-system-packages --force-reinstall --no-deps comma-deps-raylib==6.0.0.1.post103`).
+pip install --break-system-packages -q comma-deps-raylib==6.0.0.1.post103
+
 echo "=== [4/6] cereal capnp C++ 헤더 생성 (SConscript와 동일 커맨드) ==="
 mkdir -p openpilot/cereal/gen/cpp
 (cd openpilot/cereal && capnpc \
@@ -145,6 +151,7 @@ assert p.get_int('LongitudinalPersonality') == 2
 from opendbc.car.interfaces import ACCEL_MIN
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import LongitudinalMpc
 LongitudinalMpc()
-print('OK: params_pyx / msgq / acados long_mpc 전부 정상 import+instantiate')
+import pyray
+print('OK: params_pyx / msgq / acados long_mpc / pyray 전부 정상 import+instantiate')
 "
 echo "=== 완료: cd $ROOT && export PYTHONPATH=$ROOT:$ROOT/opendbc_repo && python3 -m pytest <경로...> ==="
