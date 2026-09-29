@@ -8,7 +8,7 @@ from openpilot.selfdrive.ui.carrot_param_cache import BorderParamSnapshot, Timed
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
-from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
+from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer, TOP_RIGHT_CPU_Y
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.render_diagnostics import RenderDiagnostics
 from openpilot.selfdrive.ui.onroad.cameraview import CameraView
@@ -32,6 +32,9 @@ BORDER_COLORS = {
 WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
+
+# [211차] 하단 좌측 문구(브랜치/모델)를 CPU 온도 글자 아래로 옮길 때 CPU 글자와 띄우는 간격(px)
+BRANCH_TEXT_GAP = 14.0
 
 
 class AugmentedRoadView(CameraView):
@@ -485,8 +488,9 @@ class AugmentedRoadView(CameraView):
 
     draw_text_ui_style(bottom, x + w / 2.0, bottom_text_y, font_size, rl.WHITE,
                        align="center_top", y_offset=0.0)
-    draw_text_ui_style(bottom_left, x + text_margin, bottom_text_y, font_size, rl.WHITE,
-                       align="left_top", y_offset=0.0)
+    # [211차] 브랜치/모델 문구: 하단 좌측 -> 우측 상단 CPU 온도 글자 바로 아래, 우측 끝 맞춤
+    draw_text_ui_style(bottom_left, x + w - text_margin, y + thickness + TOP_RIGHT_CPU_Y + BRANCH_TEXT_GAP, font_size, rl.WHITE,
+                       align="right_top", y_offset=0.0)
     draw_text_ui_style(bottom_right, x + w - text_margin, bottom_text_y, font_size, rl.WHITE,
                        align="right_top", y_offset=0.0)
 
