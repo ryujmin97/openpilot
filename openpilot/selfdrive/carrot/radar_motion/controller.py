@@ -90,6 +90,14 @@ SCC_PRIMARY_DUPLICATE_MAX_DREL_DELTA_M = 5.0
 RADAR_VISION_FALLBACK_MAX_ABS_DPATH_M = 1.0
 RADAR_VISION_FALLBACK_MIN_PROBABILITY = 0.40
 RADAR_MATCH_MAX_FARTHER_THAN_VISION_M = 8.0
+MOVING_FRONT_RANGE_SOURCES = frozenset(("frontRadar", "scc"))
+# The SCC track is the only moving lead on radar-unavailable-front cars (e.g.
+# Genesis DH). Vision range at 50-70 m is noisy (xStd 4-12 m) and sits
+# 8-11 m nearer than the continuously tracked SCC lead on single frames, which
+# switched leadOne to a vision lead with a noisy speed and made the planner
+# brake. SCC therefore gets a wider (still continuity-gated) allowance.
+MOVING_SCC_RANGE_XSTD_SIGMA = 2.5
+MOVING_SCC_RANGE_MAX_DISTANCE_FRACTION = 0.25
 MOVING_FRONT_RANGE_XSTD_SIGMA = 1.5
 MOVING_FRONT_RANGE_MAX_DISTANCE_FRACTION = 0.15
 MOVING_FRONT_RANGE_MAX_GAP_S = 0.15
@@ -564,7 +572,7 @@ class DPathRadarController:
     point = match.point if match is not None else None
     moving_front = bool(
       point is not None
-      and point.source == "frontRadar"
+      and point.source in MOVING_FRONT_RANGE_SOURCES
       and point.measured
       and point.v_lead > STATIONARY_MAX_ABS_VLEAD_MPS
       and _central_vision_fallback_allowed(vision, path)
@@ -592,8 +600,16 @@ class DPathRadarController:
           range_limit,
           min(
             VISION_RADAR_MAX_DISTANCE_ERROR_M,
-            MOVING_FRONT_RANGE_MAX_DISTANCE_FRACTION * vision.d_rel,
-            MOVING_FRONT_RANGE_XSTD_SIGMA * vision.x_std,
+            (
+              MOVING_SCC_RANGE_MAX_DISTANCE_FRACTION
+              if point.source == "scc"
+              else MOVING_FRONT_RANGE_MAX_DISTANCE_FRACTION
+            ) * vision.d_rel,
+            (
+              MOVING_SCC_RANGE_XSTD_SIGMA
+              if point.source == "scc"
+              else MOVING_FRONT_RANGE_XSTD_SIGMA
+            ) * vision.x_std,
           ),
         )
     stationary_limit, stationary_anchor_time_s = self._stationary_front_range_limit(match, vision, time_s)
