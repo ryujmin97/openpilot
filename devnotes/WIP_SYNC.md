@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 체크포인트: 2026-09-29 (212차) -- carrot-ryu-v2 아카이브 브랜치 생성(carrot-ryu 3ddf849 스냅샷, carrot-ryu 재생성 없음, 코드 변경 없음)
+
+- 20절 2단계만 수행: carrot-ryu HEAD 3ddf849ea3f3392c16d363d9edea6a1bc8eab041를 가리키는 carrot-ryu-v2를 생성했다(사용자 실행 PowerShell, 이 세션에서 `git ls-remote`로 재확인). carrot-ryu는 변동 없음(HEAD 3ddf849). carrot-ryu-v1(6df4268eb31442be4d8abd92817111f7b26b1bf4)도 변동 없음.
+- v2 스냅샷이 담은 상태: 209~211cha 온로드 HUD 이동(시간/일자, 현재속도/CPU 온도, 브랜치/모델 문구), 202/204/205cha 종방향 수정(forceDecel, comfortBrake 2.5), 201cha 948b139 이식(held_stopping_front). 즉 HANDOFF 211cha의 코드 base와 같다.
+- 20절 4~7단계(carrot-ryu 재생성, 이식 체크리스트 기반 재적용, 디바이스 배포 전 재확인)는 시작하지 않았다. 재생성 여부와 시점은 사용자가 정하며, 실행 직전 명시 승인이 필요하다. 이식 체크리스트는 아직 작성하지 않았다.
+- carrot-ms 마지막 검토 체크포인트는 그대로 8472d35(208차). 이번 세션에는 carrot-ms 신규 커밋 점검을 하지 않았다.
+
+**한계:** 코드 변경 없음, 실차 검증 미실시(12절).
+
 ## 체크포인트: 2026-09-29 (208차) -- carrot-ms c771c4e -> 8472d35 신규 7건 판정: 전부 제외 (코드 변경 없음)
 
 - carrot-ms 마지막 검토 대상 체크포인트: c771c4e(201차) -> 8472d35(2026-09-29 carrot-ms HEAD, "Use standard DM for 20 seconds on first surrounding traffic"). c771c4e가 현재 carrot-ms 히스토리에 존재함을 확인한 뒤 `c771c4e..HEAD` 범위를 잡음(blobless bare clone + git log, 변경 파일은 `git show --numstat`).

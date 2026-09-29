@@ -1,5 +1,23 @@
 # WIP
 
+## 212cha (완료) (Claude, Claude Sonnet 5.5) - 아카이브 브랜치 carrot-ryu-v2 생성(carrot-ryu 3ddf849 스냅샷, 20절 2단계만, carrot-ryu는 그대로) (코드 변경 없음, 실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 211cha devnotes push 로그(`db049e1..01833ef`)를 함께 붙여넣었고, 이어서 "이 시점에 carrot-ryu-v2를 만들어 저장해놓고, carrot-ryu는 계속 작업하자"고 요청했다. 20절 절차 중 2단계(현재 carrot-ryu HEAD를 가리키는 아카이브 브랜치 생성)만 수행했다. 4단계(carrot-ms 베이스로 carrot-ryu 재생성)와 5~7단계(이식/배포 확인)는 요청되지 않아 하지 않았다. carrot-ryu 코드 변경은 없고, 브랜치를 새로 만드는 스크립트 1개(사용자 실행)와 그 결과를 확인한 뒤 devnotes를 1회 push하는 순서(5절)를 따랐다.
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 읽은 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `01833ef9272853dbd894b60aa3a13fdab3aaadf9`(211cha devnotes)를 얻어 SHA 고정본을 다시 조회했고, `cmp`로 두 본이 바이트 동일(50,696바이트, sha256 `5a119e7eb0cdc491a04b97f38a03c3f3d51f9e264b5d3c634dd96495473ff4ec`, 211cha 기록과 같음, 변경 없음)임을 확인했다. HANDOFF.md를 같은 SHA로 조회했고 carrot-ryu HEAD 3ddf849가 HANDOFF의 코드 base와 일치했다. 사용자가 붙여넣은 push 로그는 GitHub 실제 상태로 재확인했다(note HEAD 01833ef 일치, WIP.md 최상단이 211cha 회차).
+
+**1. 범위와 결정(20절).** 생성 전 `git ls-remote`: carrot-ryu 3ddf849, carrot-ryu-note 01833ef, carrot-ryu-v1 6df4268(이미 있어 이번은 N=2), carrot-ryu-v2 없음. 아카이브는 carrot-ryu HEAD를 그대로 가리키는 새 참조일 뿐이라 히스토리 파괴나 force가 없고, carrot-ryu의 이름과 HEAD도 바뀌지 않는다. carrot-ryu-v1은 이 세션에서 조회하거나 수정하지 않았고 ls-remote 목록에서 SHA만 관찰했다.
+
+**2. 스크립트와 사전 검증.** `212cha_branch_archive_carrot_ryu_v2_v1.ps1`(PowerShell, 비ASCII 문자 0개라 BOM 불필요). 동작: (1) carrot-ryu HEAD가 3ddf849인지와 carrot-ryu-v2가 없는지 확인하고 아니면 아무것도 바꾸지 않고 중단, (2) 임시 blobless bare clone(`core.autocrlf=false`)에서 HEAD 재확인, (3) `git push --no-verify <url> 3ddf849...:refs/heads/carrot-ryu-v2`(force 없음, 새 참조만 만들고 새 객체가 없어 LFS pre-push 훅을 건너뜀), (4) 원격 재조회, (5) finally에서 임시 폴더 삭제. 사전 검증(Linux pwsh 7.6.6): 파서 오류 0건과 후행 쉼표 대조군 오류 1건, 합성 bare 저장소를 원격으로 삼아 끝까지 실행(일반 모드, `core.eol=crlf` 재현 + file:// URL 모드 모두 통과), 잘못된 SHA와 "이미 존재" 중단 경로가 종료코드 1로 중단되고 원격이 바뀌지 않음을 확인, 시뮬레이션 사본은 배포본과 `$RepoUrl`/`$ExpectSha` 두 줄만 다름(diff 확인). 한계: Windows PowerShell 5.1 실제 실행은 아니다(실제 실행은 사용자 PC). 샌드박스에서 실제 저장소(carrot-ryu)를 원격으로 삼은 시뮬레이션은 300초 제한에 걸려 중단됐고(원인 미확인) 합성 저장소로 대체했다. 이 스크립트는 파일을 체크아웃하지 않는 bare clone이라 CRLF 재현 모드는 사실상 의미가 작다.
+
+**3. 사용자 실행 결과와 GitHub 재확인.** 사용자가 PC에서 실행한 로그: 1~4단계 모두 통과, `* [new branch] 3ddf849ea3f3392c16d363d9edea6a1bc8eab041 -> carrot-ryu-v2`, 원격 재조회에서 carrot-ryu-v2와 carrot-ryu가 모두 3ddf849, `temp clone removed`. 이 세션에서 로그와 별개로 `git ls-remote https://github.com/ryujmin97/openpilot.git`를 다시 실행해 확인했다: HEAD/carrot-ryu 3ddf849(변동 없음), carrot-ryu-note 01833ef(이 devnotes push 전), carrot-ryu-v1 6df4268(변동 없음), carrot-ryu-v2 3ddf849.
+
+**4. 앞으로의 규칙(20절 3항).** carrot-ryu-v2는 생성 이후 수정하지 않는 불변 기록이다(v1과 같은 취급). 새 작업은 carrot-ryu에서만 진행한다. 이제 ryujmin97/openpilot의 브랜치는 carrot-ryu, carrot-ryu-note, carrot-ryu-v1, carrot-ryu-v2이다(1절과 일치).
+
+**5. 이번에 하지 않은 것.** carrot-ryu 재생성(20절 4단계), 이식 체크리스트 작성과 이식(5~6단계), 디바이스 배포 확인(7단계). 재생성은 사용자가 시점을 정하고 실행 직전에 명시적으로 승인한 뒤에만 한다(18절). carrot-ms 신규 커밋 점검은 이번 세션에 하지 않았다(체크포인트 8472d35 그대로).
+
+**6. 한계와 메모.** 코드 변경 없음, 실차 검증 미실시(12절). 샌드박스에서 `pkill -f "git clone"`이 자기 셸 명령줄에도 일치해 셸이 함께 종료됐다(사용하지 말 것). 이번 devnotes 스크립트 사전 검증도 Linux pwsh 기준이며 Windows PowerShell 5.1 실제 실행이 아니다.
+
 ## 211cha (완료) (Claude, Claude Sonnet 5.5) - 온로드 하단 좌측 브랜치/모델 문구(`carrot-ryu (POPv2)`)를 우측 상단 CPU 온도 아래 우측 정렬로 이동(carrot-ryu 3ddf849) (실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 디바이스 화면 캡처와 실물 사진 2장(정차 P단, 속도 0)을 올렸고, 210cha 미완료 16/17번(시간/일자, 현재속도/CPU 온도 이동)을 사진으로 살펴봤다. 이어 사용자가 "하단 `carrot-ryu (POPv2)`를 아예 CPU 온도 아래줄로 이동하되 우측끝맞춤으로 정렬"을 요청했다. 코드 변경이 있는 세션이라 5절 순차 전달(코드 스크립트 -> GitHub 재확인 -> devnotes 1회)을 따랐고, 코드 스크립트는 PowerShell(.ps1)로 전달해 사용자가 실행했다. 사용자가 디바이스 확인 전에 devnotes를 지금 기록하도록 선택해("devnotes(WIP.md 211cha, HANDOFF.md)를 기록"), 디바이스 확인 결과는 이 회차에 없고 다음 세션 항목이다.
