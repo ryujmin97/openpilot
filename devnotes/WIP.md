@@ -1,5 +1,27 @@
 # WIP
 
+## 209cha (완료) (Claude, Claude Sonnet 5.5) - 온로드 HUD 시간/일자 텍스트를 우측으로 110px 이동(액정 좌측 손상 대응), carrot-ryu 0788a49 (실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 디바이스 액정 손상으로 UI 좌측 상단의 시간/일자 텍스트가 일부 가려진다며(사진 첨부: 시간 `03:03:37`의 앞 글자와 일자 `09-27(일)`의 앞 글자 일부가 잘려 보임) 시간/일자 텍스트 전체를 우측으로 옮겨 달라고 요청했다. 코드 변경이 있는 세션이라 5절 순차 전달(코드 스크립트 -> GitHub 재확인 -> devnotes 1회)을 따랐다. 코드 스크립트는 처음 PowerShell(.ps1)로 만들었으나 사용자가 "Termux로"라고 해서 bash(.sh)로 다시 만들어 전달했고, 사용자는 Termux 버전을 실행했다(.ps1은 실행되지 않음).
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 조회한 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `ae6fb6ba2098e91329b7d721a4a6cfa5a2dd16b5`(208cha devnotes)를 얻어 SHA 고정본을 다시 조회했고 브랜치 URL 본과 바이트 동일(변경 없음)을 확인했다. carrot-ryu HEAD `058391e6a3b4a1d3ac5b2eee0e4d9a4bb2f7d044`는 HANDOFF의 코드 base와 일치했다.
+
+**1. 위치 확인.** carrot-ryu 058391e를 sparse checkout(`openpilot/selfdrive/ui`, `openpilot/selfdrive/carrot`)해 시간/일자 문자열 형식(`%H:%M:%S`, `%m-%d(요일)`)으로 검색했다. `openpilot/selfdrive/ui/onroad/hud_renderer.py`의 `_draw_date_time`(1036행 부근)이 그리는 것을 확인했고, 사진의 `03:03:37`/`09-27(일)` 형식과 일치한다. 이 함수는 `ShowDateTime` 값 1/2이면 시간, 1/3이면 일자를 그리며, 기준 x는 `rect.x + 170`, 시간은 폭이 넓어 왼쪽 여백을 보장하는 `min_x`(13차 보정)로 다시 밀린다. 일자는 시간과 같은 x를 쓴다(가운데 정렬).
+
+**2. 변경(carrot-ryu 0788a49, `hud_renderer.py` 1파일 +5/-2, blob 2ce8802 -> 43c550f).** (a) 모듈 상수 `DATE_TIME_X_SHIFT = 110`(픽셀) 추가(`WEEKDAYS_KO` 바로 아래, 주석 2줄 포함). (b) `x = int(rect.x + 170) + DATE_TIME_X_SHIFT`. (c) `min_x = int(rect.x + UI_CONFIG.border_size + time_size.x * 0.5) + DATE_TIME_X_SHIFT`. (c)를 함께 바꾸지 않으면 시간이 여전히 옛 최소 x로 되밀려 이동하지 않는다. 값을 키우면 더 오른쪽, 줄이면 원래 위치에 가깝다. 시간과 일자는 같은 x를 공유하므로 함께 이동한다.
+
+**3. 110px의 근거와 한계.** 사진 육안 추정이다(시간 앞 글자 약 1.5자, 일자 첫 글자 절반 정도가 가려짐). 화면 실제 해상도와 사진 배율의 정밀 환산은 하지 않았다. 가려진 부분이 남거나 과하게 밀리면 `DATE_TIME_X_SHIFT` 숫자만 바꿔 다시 반영하면 된다. 일자 오른쪽 끝이 화면 중앙의 주황색 가속도 선(`a_ego/a_target`) 시작점에 닿을 수 있다고 안내했다(실제 겹침 여부 미확인).
+
+**4. 이번에 바꾸지 않은 것.** `openpilot/selfdrive/ui/mici/onroad/hud_renderer.py`(mici UI, 481~511행에 별도의 시간/일자 그리기 코드가 있음)와 carrot 웹 HUD(`carrot/web/src`)의 시간/일자 위치는 확인하지도 바꾸지도 않았다. 사용자의 사진은 `ui/onroad/hud_renderer.py` 경로의 화면이다.
+
+**5. 코드 스크립트와 사전 검증(Linux 샌드박스 기준, Termux 실제 실행 아님).** 파일: `209cha_code_datetime_shift_v1.ps1`(미실행, 폐기), `209cha_code_datetime_shift_termux_v1.sh`(실행됨). 검증: PowerShell 7.6.6 파서 오류 0건(후행 쉼표 대조군은 1건 검출), `bash -n` 통과, BOM 없음(sh 첫 바이트 `#!/`), 모든 `git clone`에 `--config core.autocrlf=false`, 종료 시 임시 폴더 정리. 로컬 bare 저장소(대상 파일은 058391e의 실제 blob 2ce8802와 동일)에 일반 모드와 CRLF 재현 모드(`core.eol=crlf`)로 끝까지 실행: 앵커 3개 모두 1회 매치, numstat 5/2, 결과 blob 43c550f, CR 0줄, `.pyc` 미포함. base SHA 불일치 시 종료코드 1로 중단하는 것도 확인했다. `pytest`는 샌드박스에 `pyray`/`pytest`가 없어 `test_carrot_hud_renderer.py`를 실행하지 못했다(이 테스트는 `_draw_date_time`의 그리기 호출 횟수만 확인하고 x 좌표는 확인하지 않음).
+
+**6. 사전 검증 중 발견한 문제(수정 후 전달).** 스크립트 v1 초안이 `python -m py_compile <대상 파일>`을 clone 안에서 실행해, `openpilot/selfdrive/ui/onroad/__pycache__/hud_renderer.cpython-312.pyc`가 `git add -A`에 딸려 들어가 커밋에 포함됐다(bare 저장소 시뮬레이션에서 numstat에 바이너리 1개가 잡혀 발견). 전달본은 `py_compile.compile(..., cfile=<저장소 밖 임시 경로>)`로 바꾸고, 커밋 전에 스테이징된 파일이 대상 1개인지 검사하도록 했다. 재실행에서 `.pyc` 0개, numstat 1파일 5/2를 확인했다. toolkit 템플릿(`replace_block_template.ps1`)에는 이 패턴이 없다(반영하지 않음, 필요하면 승인 후).
+
+**7. push 재확인(16절, 이 세션).** 사용자가 Termux 실행 로그(`058391e6..0788a496 carrot-ryu -> carrot-ryu`, `DONE: pushed to carrot-ryu`)를 전달했다. 로그만으로 완료로 보지 않고 GitHub를 직접 확인했다: `git ls-remote` carrot-ryu HEAD `0788a49637e7c14d6c445179ad2b0d4669c6b6e7`, 부모 `058391e`, 커밋 메시지 "carrot ui: shift onroad date/time HUD right by 110px (damaged screen left edge)", `git show --numstat` `hud_renderer.py` 5/2 한 파일, blob 43c550f(스크립트 기대값과 일치), CR 0개, 첫 3바이트 `69 6d 70`(BOM 없음), `py_compile` 통과, 058391e 대비 diff가 위 2번의 세 군데뿐, SHA 고정 raw와 blob 추출본이 바이트 동일.
+
+**8. 실차.** 실차 검증: 미실시(12절). 가려진 부분이 실제로 보이는지, 일자/시간이 다른 HUD 요소와 겹치는지는 사용자가 디바이스 화면에서 확인하고 필요하면 `DATE_TIME_X_SHIFT`를 조정하는 후속 코드 세션으로 처리한다. 디바이스가 carrot-ryu를 pull해야 반영된다.
+
 ## 208cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms c771c4e -> 8472d35 신규 7건 판정: 전부 제외 (코드 변경 없음, 실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 사용자가 다음 작업 중 (d) carrot-ms 점검 계속을 선택했다. 코드 변경이 없고 devnotes(WIP_SYNC.md 포함)만 바뀌므로 5절의 "코드 변경이 없는 경우"로 devnotes 스크립트 1개로 처리한다(사용자가 이번 세션은 Termux로 진행한다고 명시했으므로 bash `.sh`).
