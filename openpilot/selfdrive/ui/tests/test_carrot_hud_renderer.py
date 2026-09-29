@@ -60,6 +60,10 @@ def hud_module(monkeypatch):
     def render(self, rect):
       pass
 
+  class FakeRecordButton(FakeExpButton):
+    def set_blink_phase(self, phase):
+      pass
+
   class Widget:
     def __init__(self):
       pass
@@ -88,6 +92,9 @@ def hud_module(monkeypatch):
       CV=SimpleNamespace(MS_TO_KPH=3.6, MS_TO_MPH=2.2369362920544),
     ),
     "openpilot.selfdrive.ui.onroad.exp_button": SimpleNamespace(ExpButton=FakeExpButton),
+    # screenshot_button -> screenshot_capture.py evaluates `rl.Image` at import time, which this fake pyray lacks.
+    "openpilot.selfdrive.ui.onroad.screenshot_button": SimpleNamespace(ScreenshotButton=FakeExpButton),
+    "openpilot.selfdrive.ui.onroad.record_button": SimpleNamespace(RecordButton=FakeRecordButton),
     "openpilot.system.hardware.usbgpu": SimpleNamespace(
       usbgpu_badge_state=lambda compiled, loading, active, failed, compile_pending=False: (
         "error" if failed else "loading" if loading else "compile_pending" if compile_pending
@@ -535,7 +542,7 @@ def test_tpms_position_follows_show_tpms(hud_module, monkeypatch, show_tpms, exp
   assert all(call[3] == (31.0, 32.0, 33.0, 34.0) for call in calls)
 
 
-def test_date_text_formats_only_when_minute_key_changes(hud_module, monkeypatch):
+def test_date_text_formats_only_when_second_key_changes(hud_module, monkeypatch):
   module, _ = hud_module
   renderer = object.__new__(module.HudRenderer)
   renderer._show_date_time = 1
@@ -545,8 +552,8 @@ def test_date_text_formats_only_when_minute_key_changes(hud_module, monkeypatch)
   renderer._font_display = object()
   moments = iter((
     stdlib_time.struct_time((2026, 7, 16, 12, 1, 1, 3, 197, 0)),
-    stdlib_time.struct_time((2026, 7, 16, 12, 1, 59, 3, 197, 0)),
-    stdlib_time.struct_time((2026, 7, 16, 12, 2, 0, 3, 197, 0)),
+    stdlib_time.struct_time((2026, 7, 16, 12, 1, 1, 3, 197, 0)),
+    stdlib_time.struct_time((2026, 7, 16, 12, 1, 2, 3, 197, 0)),
     stdlib_time.struct_time((2026, 7, 16, 13, 2, 0, 3, 197, 0)),
   ))
   localtime_calls = []
@@ -558,7 +565,7 @@ def test_date_text_formats_only_when_minute_key_changes(hud_module, monkeypatch)
     return next(moments)
 
   def fake_strftime(fmt, now):
-    strftime_calls.append((fmt, now.tm_hour, now.tm_min))
+    strftime_calls.append((fmt, now.tm_hour, now.tm_min, now.tm_sec))
     return f"{fmt}:{now.tm_hour:02d}:{now.tm_min:02d}"
 
   monkeypatch.setattr(module.time, "localtime", fake_localtime)
@@ -572,12 +579,12 @@ def test_date_text_formats_only_when_minute_key_changes(hud_module, monkeypatch)
   assert len(localtime_calls) == 4
   assert len(strftime_calls) == 6
   assert strftime_calls == [
-    ("%H:%M", 12, 1), ("%m-%d", 12, 1),
-    ("%H:%M", 12, 2), ("%m-%d", 12, 2),
-    ("%H:%M", 13, 2), ("%m-%d", 13, 2),
+    ("%H:%M:%S", 12, 1, 1), ("%m-%d", 12, 1, 1),
+    ("%H:%M:%S", 12, 1, 2), ("%m-%d", 12, 1, 2),
+    ("%H:%M:%S", 13, 2, 0), ("%m-%d", 13, 2, 0),
   ]
   assert len(draw_calls) == 8
-  assert renderer._date_time_minute_key == (2026, 197, 13, 2, 0)
+  assert renderer._date_time_minute_key == (2026, 197, 13, 2, 0, 0)
   assert renderer._date_text.endswith(f"({module.WEEKDAYS_KO[4]})")
 
   renderer._show_date_time = 0
@@ -594,7 +601,13 @@ def test_render_draws_each_hud_section_in_order(hud_module, monkeypatch):
   renderer._font_display = object()
   calls = []
 
+  renderer._blink_timer = 0
   renderer._exp_button = SimpleNamespace(render=lambda rect: calls.append("button"))
+  renderer._screenshot_button = SimpleNamespace(render=lambda rect: calls.append("screenshot"))
+  renderer._record_button = SimpleNamespace(
+    set_blink_phase=lambda phase: calls.append(("blink", phase)),
+    render=lambda rect: calls.append("record"),
+  )
   renderer._plot_renderer = SimpleNamespace(
     draw=lambda rect, font, mode: calls.append(("plot", mode)),
   )
@@ -612,6 +625,9 @@ def test_render_draws_each_hud_section_in_order(hud_module, monkeypatch):
     ("params", 12.5),
     "header",
     "button",
+    "screenshot",
+    ("blink", True),
+    "record",
     ("plot", 6),
     "date",
     "tpms",

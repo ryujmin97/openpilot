@@ -40,6 +40,25 @@ def _calls(node: ast.AST, attr: str) -> bool:
   )
 
 
+def _timed_call(node: ast.AST) -> tuple[str, ast.expr] | None:
+  """Return (label, callable) if node is `timing.call("label", callable, ...)`, else None."""
+  if (
+    isinstance(node, ast.Call)
+    and isinstance(node.func, ast.Attribute)
+    and node.func.attr == "call"
+    and len(node.args) >= 2
+    and isinstance(node.args[0], ast.Constant)
+    and isinstance(node.args[0].value, str)
+  ):
+    return node.args[0].value, node.args[1]
+  return None
+
+
+def _timed_targets(node: ast.AST) -> dict[str, ast.expr]:
+  """Map label -> callable for every timing.call(...) under node."""
+  return dict(found for child in ast.walk(node) if (found := _timed_call(child)) is not None)
+
+
 def _call(node: ast.AST, attr: str) -> ast.Call:
   return next(
     child for child in ast.walk(node)
@@ -126,25 +145,30 @@ def test_external_hud_skips_camera_and_model_but_retains_device_hud():
     if isinstance(node, ast.If) and _is_cluster_camera_suppressed(node.test, negated=True)
   ]
 
-  assert any(_calls(node, "draw_rectangle_rec") and _calls(ast.Module(body=node.orelse), "_render")
+  # Connected: a black rectangle replaces the camera view (the camera render only runs in the else branch).
+  assert any(_calls(node, "draw_rectangle_rec") and "camera" in _timed_targets(ast.Module(body=node.orelse, type_ignores=[]))
              for node in connected)
+  # Disconnected: stream switching, calibration and the model overlay run only when the camera is shown.
   assert any(_calls(node, "_switch_stream_if_needed") and _calls(node, "_update_calibration")
              for node in disconnected)
-  assert any(_calls(node, "render") for node in disconnected)
+  assert any("model" in _timed_targets(node) for node in disconnected)
 
+  # Everything else stays outside the cluster guards; render targets are passed to timing.call(), not called inline.
   guarded_nodes = {id(child) for guard in connected + disconnected for child in ast.walk(guard)}
   retained_renderers = []
   for node in ast.walk(render):
-    if not (
-      isinstance(node, ast.Call)
-      and isinstance(node.func, ast.Attribute)
-      and node.func.attr == "render"
-      and isinstance(node.func.value, ast.Attribute)
-      and isinstance(node.func.value.value, ast.Name)
-      and node.func.value.value.id == "self"
-    ):
+    timed = _timed_call(node)
+    if timed is None or id(node) in guarded_nodes:
       continue
-    if id(node) not in guarded_nodes:
-      retained_renderers.append(node.func.value.attr)
+    target = timed[1]
+    if (
+      isinstance(target, ast.Attribute)
+      and target.attr == "render"
+      and isinstance(target.value, ast.Attribute)
+      and isinstance(target.value.value, ast.Name)
+      and target.value.value.id == "self"
+    ):
+      retained_renderers.append(target.value.attr)
 
   assert {"_hud_renderer", "alert_renderer", "driver_state_renderer"} <= set(retained_renderers)
+  assert "model_renderer" not in retained_renderers
