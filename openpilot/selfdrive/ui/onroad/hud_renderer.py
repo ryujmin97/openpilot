@@ -163,6 +163,8 @@ class HudRenderer(Widget):
     self.set_speed = SET_SPEED_NA
     self.speed = 0.0
     self.v_ego_cluster_seen = False
+    # [210차] 우측 상단 현재속도/CPU 기준점 기본값. 실제 값은 _draw_set_speed_carrot에서 매 프레임 갱신한다.
+    self._hud_top_right = (0, 0)
 
     self._font_semi_bold = gui_app.font(FontWeight.SEMI_BOLD)
     self._font_bold = gui_app.font(FontWeight.BOLD)
