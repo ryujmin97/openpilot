@@ -1,5 +1,27 @@
 # WIP
 
+## 211cha (완료) (Claude, Claude Sonnet 5.5) - 온로드 하단 좌측 브랜치/모델 문구(`carrot-ryu (POPv2)`)를 우측 상단 CPU 온도 아래 우측 정렬로 이동(carrot-ryu 3ddf849) (실차 미실시)
+
+**배경:** 새 세션 시작(4절 0단계). 사용자가 디바이스 화면 캡처와 실물 사진 2장(정차 P단, 속도 0)을 올렸고, 210cha 미완료 16/17번(시간/일자, 현재속도/CPU 온도 이동)을 사진으로 살펴봤다. 이어 사용자가 "하단 `carrot-ryu (POPv2)`를 아예 CPU 온도 아래줄로 이동하되 우측끝맞춤으로 정렬"을 요청했다. 코드 변경이 있는 세션이라 5절 순차 전달(코드 스크립트 -> GitHub 재확인 -> devnotes 1회)을 따랐고, 코드 스크립트는 PowerShell(.ps1)로 전달해 사용자가 실행했다. 사용자가 디바이스 확인 전에 devnotes를 지금 기록하도록 선택해("devnotes(WIP.md 211cha, HANDOFF.md)를 기록"), 디바이스 확인 결과는 이 회차에 없고 다음 세션 항목이다.
+
+**0. 상태 확인.** 지침 문서 v2를 브랜치 URL로 읽은 뒤 4절 0단계대로 `git ls-remote`로 note HEAD `db049e14439e4c01d134ece2e2cbece63a7ed183`(210cha devnotes, 부모 3cb6b83)을 얻어 SHA 고정본을 다시 조회했고, 두 본의 sha256이 같음(`5a119e7eb0cdc491a04b97f38a03c3f3d51f9e264b5d3c634dd96495473ff4ec`, 변경 없음)을 확인했다. HANDOFF.md를 같은 SHA로 조회했고 carrot-ryu HEAD a9e6cb3가 HANDOFF의 코드 base와 일치했다.
+
+**1. 사진 확인(사용자 제공 2장, 정차 중 육안, 실주행 아님).** 화면 캡처와 실물 사진 모두 우측 상단 로고 아래에 현재속도 `0`과 `CPU 68°C`(사진은 66°C)가 글자로 보이고 CPU 박스는 없다. 4bd6732 이후 모습으로 보이나, 디바이스가 어느 커밋을 pull했는지는 로그로 확인하지 않았다. 우측 상단 TPMS는 두 사진 어디에도 보이지 않아 TPMS와의 겹침은 확인하지 못했다. 시간(`10:54:27`)과 일자는 실물 사진에서 끝까지 보이지만 화면 왼쪽 가장자리에 거의 붙어 여유가 거의 없다. 일자 오른쪽 끝이 화면 중앙의 주황색 가속도 선 시작점에 거의 닿아 있다(값 `0.00`을 가리지는 않음, 209cha 미완료 16번 관련). 왼쪽이 검은 벨크로에 가려져 차량명 앞부분 `HYUNDAI`, 하단 `carrot-ryu (PO` 앞부분, 제한속도 옆 `일반` 라벨이 사진에서 보이지 않고 `LIMIT 30` 박스 왼쪽 끝이 약간 잘려 보인다. MEM/VOLT 박스는 전부 보인다. 세 자리 속도의 폭과 80도 초과 CPU 글자 깜빡임은 확인하지 못했다.
+
+**2. 문구 위치 조사.** `carrot-ryu (POPv2)`는 `hud_renderer.py`가 아니라 `openpilot/selfdrive/ui/onroad/augmented_road_view.py`의 `_draw_border_carrot`(480~490행 부근)에서 `border_params.bottom_left`를 그린다. 값은 `carrot_param_cache.py`의 `read_border_params`가 `f"{git_branch} ({driving_model_name})"`(GitBranch, DrivingModelName 파라미터)로 만든다. 같은 함수가 하단 우측 IP(`bottom_right`)도 그린다. 이 텍스트는 scissor를 끝낸 뒤 테두리 rect(화면 전체) 기준으로 그려 카메라 영상 위 어디든 놓을 수 있다. `HudRenderer`가 받는 `content_rect`는 테두리 rect에서 `UI_BORDER_SIZE`(30)만큼 안쪽이라, CPU 글자 하단 y는 테두리 rect 기준 `UI_BORDER_SIZE + TOP_RIGHT_CPU_Y`(450)다.
+
+**3. 변경(carrot-ryu 3ddf849, `augmented_road_view.py` 1파일 +7/-3, blob 64b9edc -> 4e33372).** (a) `from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer, TOP_RIGHT_CPU_Y`. (b) 모듈 상수 `BRANCH_TEXT_GAP = 14.0`(`INF_POINT` 아래, 주석 1줄). (c) `bottom_left` 그리기를 `(x + text_margin, bottom_text_y, align="left_top")`에서 `(x + w - text_margin, y + thickness + TOP_RIGHT_CPU_Y + BRANCH_TEXT_GAP, align="right_top")`으로 변경(폰트 30 그대로, 주석 1줄). 우측 끝은 하단 우측 IP와 같은 여백(`text_margin` 30)이다. `TOP_RIGHT_CPU_Y`를 바꾸면 이 문구도 함께 움직인다. 14px 간격은 CPU 글자 그림자/자간을 정밀 측정하지 않은 추정치다.
+
+**4. 이번에 바꾸지 않은 것.** 하단 우측 IP와 상단 텍스트, `carrot_param_cache.py`(`bottom_left` 필드와 값은 그대로), mici UI, carrot 웹 HUD. 이 문구가 카메라 영상이나 다른 HUD 요소와 겹치는지는 확인하지 못했다(우측 열이 비교적 비어 있다는 것은 사진 1장 기준 추정).
+
+**5. 화면 모형.** 사용자가 변경 후 UI를 그려 달라고 해 인라인 SVG 모형을 그렸다. 화면 해상도를 2160x1080으로 가정하고 코드 좌표를 축소한 것이다(캡처 960x480과의 비율, CPU 글자 위치로 역산한 추정이며 코드에서 해상도를 확인하지 않았다). 폰트 폭과 실제 겹침은 실물과 다를 수 있다.
+
+**6. 코드 스크립트와 사전 검증(Linux 샌드박스 기준, Windows PowerShell 5.1 실제 실행 아님).** 파일: `211cha_code_branch_text_under_cpu_v1.ps1`(실행됨). 검증: 첫 3바이트 `ef bb bf`, `git clone`에 `--config core.autocrlf=false`, PowerShell 7.6.6 파서 오류 0건(후행 쉼표 대조군 1건 검출), 앵커 3곳을 전달할 .ps1에서 추출해 a9e6cb3의 SHA 고정 raw에 적용하면 각 1회 매치에 결과 blob 4e33372 일치, `py_compile` 통과, 로컬 bare 저장소 대상 일반/CRLF 재현(CR 506개 확인) 두 모드 전체 실행에서 numstat 7/3, 1파일, push blob 4e33372, blob 안 CR 0개, 임시 폴더 잔여 0. 이 bare 저장소는 대상 파일과 `.gitattributes`만 넣은 합성본이라 기준 커밋 해시는 시뮬레이션 값으로 바꿔 실행했다. pytest는 실행하지 못했다(샌드박스에 pyray 없음). 관련 테스트 3개(`test_cluster_hud_camera_suppression.py`, `test_ui_debug_hud_schema.py`, `test_carrot_param_cache.py`)는 이 파일을 AST로 읽어 `_render` 호출 구조와 Params 읽기 호출을 검사하고, `test_carrot_param_cache.py`는 `snapshot.bottom_left` 값도 단언한다. 이번 변경은 `_render`와 Params 호출, `bottom_left` 값을 건드리지 않아 영향은 낮다고 정적으로 읽었을 뿐 실행 확인은 없다. 앞서 사용자에게 "이 테스트들은 bottom_left를 단언하지 않는다"고 안내했으나 `test_carrot_param_cache.py`(200/220행)는 값을 단언하는 것으로 정정한다(값은 그대로라 영향 없음).
+
+**7. push 재확인(16절, 이 세션).** 사용자가 실행 로그(`a9e6cb37..3ddf849e carrot-ryu -> carrot-ryu`, `pushed HEAD = 3ddf849ea3f3392c16d363d9edea6a1bc8eab041`, `DONE`)를 전달했다. 로그만으로 완료로 보지 않고 GitHub를 직접 확인했다: `git ls-remote` HEAD `3ddf849ea3f3392c16d363d9edea6a1bc8eab041`, 부모 `a9e6cb3`, 커밋 메시지 "carrot-ryu: move bottom-left branch/model text under CPU temp, right-aligned (211cha)", `git show --numstat` `augmented_road_view.py` 7/3 한 파일, blob 64b9edc -> 4e33372(스크립트 기대값과 일치), CR 0개, 첫 3바이트 69 6d 70(BOM 없음), py_compile 통과, SHA 고정 raw와 blob 추출본 바이트 동일, a9e6cb3 대비 diff는 위 3곳뿐, 커밋 파일 1개. author는 `ryujmin97 <ryujmin@naver.com>`(205cha와 같은 값, 기능 영향 없음).
+
+**8. 실차.** 실차 검증: 미실시(12절). 디바이스가 carrot-ryu 3ddf849를 pull한 뒤 확인할 것: `carrot-ryu (POPv2)`가 CPU 글자 바로 아래에 우측 정렬로 보이는지, 오른쪽 끝이 하단 IP와 맞는지, 카메라 영상이나 다른 HUD 요소(TPMS 등)와 겹치지 않는지. 어긋나면 `BRANCH_TEXT_GAP`(현재 14) 숫자만 조정하는 후속 코드 세션으로 처리한다.
+
 ## 210cha (완료) (Claude, Claude Sonnet 5.5) - 온로드 HUD 현재속도/CPU 온도를 우측 상단 TPMS 아래로 이동(carrot-ryu 4bd6732) + _hud_top_right 기본값 초기화 보강(carrot-ryu a9e6cb3) (실차 미실시)
 
 **배경:** 새 세션 시작(4절 0단계). 209cha에 이어 액정 좌측 손상 때문에 좌하단 패널의 현재속도 숫자와 CPU 온도가 가려져, 사용자가 두 텍스트를 우측 상단 TPMS 바로 아래로 옮겼다. 첫 코드 push(4bd6732)는 이 세션이 시작될 때 사용자가 push 로그로 전달했다. 이 커밋을 만든 코드 스크립트와 그 사전 검증은 이 세션에 없어 확인하지 못했고, 이 세션은 GitHub에 실제 반영된 결과를 독립 검증했다. 검증 뒤 내가 제안한 `_hud_top_right` 초기화 보강을 사용자가 코드 세션으로 처리하기로 해 a9e6cb3을 추가로 반영했다. 코드 변경이 있는 세션이라 5절 순차 전달(코드 -> GitHub 재확인 -> devnotes 1회)을 따랐다.
