@@ -185,6 +185,34 @@ def route_lookahead_distance(nav_type, x_turn_info, x_dist_to_turn):
         return ROUTE_LOOKAHEAD_OFF_RAMP_M
     return ROUTE_LOOKAHEAD_M
 
+
+# 224차: 진출 램프 안내 지점을 지나면 시야가 곧바로 300m로 줄어 600m에서 보이던 급커브가 창 밖으로
+# 빠지고(route 속도 상한 재상승), 더 가면 다시 창에 들어와 급락하던 문제를 막는다. 600m가 끝난 뒤
+# 이 거리만큼은 더 달리는 동안 600m를 유지한 다음 300m로 복귀한다(223차 시뮬레이션 기준).
+ROUTE_LOOKAHEAD_HOLD_M = 300
+
+
+class RouteLookaheadHold:
+    def __init__(self):
+        self.remaining_m = 0.0
+        self.last_t = None
+
+    def reset(self):
+        self.remaining_m = 0.0
+        self.last_t = None
+
+    def update(self, base_m, v_ego, now):
+        dt = 0.0 if self.last_t is None else min(max(now - self.last_t, 0.0), 0.2)
+        self.last_t = now
+        if base_m >= ROUTE_LOOKAHEAD_OFF_RAMP_M:
+            self.remaining_m = float(ROUTE_LOOKAHEAD_HOLD_M)
+            return base_m
+        if self.remaining_m > 0.0:
+            self.remaining_m = max(0.0, self.remaining_m - max(v_ego, 0.0) * dt)
+            if self.remaining_m > 0.0:
+                return ROUTE_LOOKAHEAD_OFF_RAMP_M
+        return base_m
+
 # Haversine formula to calculate distance between two GPS coordinates
 #haversine_cache = {}
 def haversine(lon1, lat1, lon2, lat2):
@@ -372,6 +400,7 @@ class CarrotMan:
     self.navi_points_start_index = 0
     self.navi_route_speed_filt = None
     self.route_insufficient_cycles = 0
+    self.route_lookahead_hold = RouteLookaheadHold()
     self.navi_points_active = False
     self.navd_active = False
     self.carrot_navi_route_session_id = ""
@@ -596,6 +625,7 @@ class CarrotMan:
         self.navi_points = []
         self.navi_points_active = False
         self.route_insufficient_cycles = 0
+        self.route_lookahead_hold.reset()
         if self.active_carrot_last > 1:
           #self.params.remove("NavDestination")
           pass
@@ -607,10 +637,14 @@ class CarrotMan:
 
     distance_interval = 10.0
     out_speed = 300
-    lookahead_m = route_lookahead_distance(
-      getattr(self.carrot_serv, "navType", None),
-      getattr(self.carrot_serv, "xTurnInfo", -1),
-      getattr(self.carrot_serv, "xDistToTurn", 0),
+    lookahead_m = self.route_lookahead_hold.update(
+      route_lookahead_distance(
+        getattr(self.carrot_serv, "navType", None),
+        getattr(self.carrot_serv, "xTurnInfo", -1),
+        getattr(self.carrot_serv, "xDistToTurn", 0),
+      ),
+      self.sm['carState'].vEgo,
+      time.monotonic(),
     )
     path, self.navi_points_start_index, start_point = get_path_after_distance(self.navi_points_start_index, self.navi_points, current_position, lookahead_m)
     # 핵심 발견 59(161차): 원본 폴리라인 점이 ROUTE_PATH_MIN_POINTS개 미만이면(경로 소진) 아래에서
