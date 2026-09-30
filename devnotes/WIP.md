@@ -1,5 +1,15 @@
 # WIP
 
+## 225cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms d03c0ae..419263c 신규 25건 점검, 전부 제외 (코드 변경 없음)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청한 뒤 "carrot-ms 최신커밋 분석"을 지시했다. 4절 0단계로 note 3e41dc3(224cha 계속 devnotes), carrot-ryu a9a37fa를 확인했고 a9a37fa가 HANDOFF base와 일치했다. 지침 문서는 브랜치 URL 본과 SHA 고정본이 `cmp` 동일(49,277바이트)이었다.
+
+**1. 점검 범위.** 체크포인트 d03c0ae는 carrot-ms HEAD 419263c의 조상이었다(재생성 없음). `d03c0ae..419263c` 25건(2026-09-29~09-30)을 커밋별 `git show --numstat`과 carrot-ryu a9a37fa 파일 존재 여부(`git cat-file -e`)로 분류했다. 상세 판정과 사유는 WIP_SYNC.md 225차.
+
+**2. 분류 결과와 사용자 결정.** 제외 제안 19건(조향각 핸드오버 4, Ioniq 5/CAN-FD 7, VW MEB 3, Jetson 4, DM2 백업 1)과 선택 후보 6건(`b57d8ad` 준비 완료 효과음, `5eaed8d` 충격 감지 후 Dashcam 재부팅, `846d661` 재부팅 전 알림음, `3211ef4`/`ed1ca73`/`c9f281a` 웹 UI)을 제시했고, 사용자가 "전부제외"로 25건 전부 제외를 확정했다. `419263c`는 `steer_ratio.py`가 carrot-ryu와 blob `e679268`로 이미 동일하다.
+
+**3. 한계.** 판정은 커밋 본문, 변경 파일 목록, 일부 diff, carrot-ryu 파일 존재 여부 수준이다. `b57d8ad`와 `5eaed8d`는 문서만 읽었고 `3211ef4`의 `application.py` diff는 읽지 못했다. 라인 단위 대조는 하지 않았다. 코드 변경 없음, 실차 검증: 미실시(12절, 해당 없음).
+
 ## 224cha 계속 (완료) (Claude, Claude Sonnet 5.5) - CPU 80도 초과 때 빨간 깜박임 사용자 육안 확인 (코드 변경 없음)
 
 **배경.** 224cha devnotes(note 8232056) 반영을 GitHub에서 확인한 뒤, 사용자가 우측 상단 HUD 사진 1장(`1000022784.jpg`, 정차 중, 10:59:49, 09-30(수))을 올리고 "Cpu온도 빨간색 깜박임"이라고 했다. Claude가 코드에서 표시 위치를 먼저 찾으려 하자 사용자가 이것이 실차 검증 미결 항목이 아니냐고 짚었고, HANDOFF.md 미완료 17번(210cha 변경 확인 중 "80도 초과 때 CPU 글자가 빨갛게 깜빡이는지")이 맞음을 확인했다. 코드는 읽지 않았다.

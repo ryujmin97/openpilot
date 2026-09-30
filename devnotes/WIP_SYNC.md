@@ -1,5 +1,25 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-01 (225차) -- carrot-ms d03c0ae -> 419263c 신규 25건 판정: 전부 제외 (사용자 결정, 코드 변경 없음)
+
+- 점검 범위: 마지막 체크포인트 d03c0ae(218차)가 carrot-ms 현재 HEAD 419263c("Apply manual steering ratio and live scaling to Volkswagen MEB")의 조상임을 `git merge-base --is-ancestor`로 확인했다(재생성 없음). `d03c0ae..HEAD` 25건(2026-09-29~09-30)을 대상으로 했다(blobless bare clone + git log, 변경 파일은 커밋별 `git show --numstat`). carrot-ryu는 a9a37fa 기준 blobless depth 1 clone의 `git cat-file -e`로 파일 존재를 확인했다.
+- 판정(25건 전부 제외, 사용자 "전부제외", 225cha):
+  1. 조향각 핸드오버 4건 `76810ec`, `6ad5a46`, `0a72619`, `821b692`: `SteerHandoverMode`(0~3)와 `steering_handover.py`로 Hyundai/Kia/Genesis `ANGLE_CONTROL` 차량의 운전자 개입 후 조향 권한 복구 방식을 고른다. 문서가 angle-control 전용이라고 명시하고 carrot-ryu에 `steering_handover.py`가 없으며, DH 2015는 토크 제어(LKAS11)라 이 경로를 쓰지 않는다. 제외.
+  2. Ioniq 5 / CAN-FD 7건 `0963a6e`(CAN-FD 클러스터 수신 전달, `safety_hyundai_canfd*.h`와 안전 테스트), `52d4724`, `d5ef311`, `0d38f33`, `a34139c`, `2216f6b`, `2bc3d86`(Ioniq 5 PE 클러스터 경고 조사 문서). DH 2015는 CAN-FD 차량이 아니다. 제외.
+  3. VW MEB 3건 `51a045f`(MEB 종방향 Ki), `c3d7c59`(ID4 조향 비교 문서), `419263c`(MEB 수동 조향비). 다른 차종이다. `419263c`의 `steer_ratio.py`는 carrot-ryu와 blob `e679268`이 같고 `controlsd.py`의 호출도 같은 3인자 형태라 코드는 이미 동일하다. 차이는 `test_steer_ratio.py`(carrot-ryu 91f3c32, carrot-ms cffe4c8)와 문서뿐이며 테스트는 가져오지 않는다. 제외.
+  4. Jetson 4건 `ce57f85`, `919df1a`, `4aeace2`, `aa71379`: SD/NVMe 오프라인 패치, 설치 가이드, SSH 키 문서. carrot-ryu에 jetlink가 없다(기존 Jetlink 제외 이력과 동일). 제외.
+  5. `cc7238c`(DriverMonitoringEnabled를 설정 백업/복원에서 제외): DM2 설정이 대상이고 DM2는 217차에 제외 확정했다. 제외.
+  6. `b57d8ad`(온로드 준비 완료 효과음): engagement 가능 상태가 0.5초 이어지면 기존 prompt.wav를 selfdrived 수명당 1회 재생한다. 제어에는 영향이 없으나 `selfdrived.py`, `events.py`, `soundd.py`와 cereal `log.capnp`/`car.capnp` 이벤트 스키마를 바꾼다. carrot-ryu에 관련 테스트 파일이 없어 새로 들이는 기능이다. 사용자가 제외로 확정했다. 코드 diff는 읽지 않았고 문서 기준이다. 재검토는 사용자가 원할 때.
+  7. `846d661`(재부팅 전 알림음): `common/reboot.py` 신규, `Tici.reboot`(tici/hardware.py)와 carrot 서버 재부팅 경로를 바꾼다. `startup_recovery.py` 부분은 carrot-ryu에 파일이 없어 그대로 적용할 수 없다. 기기 재부팅 경로 변경 대비 이득이 작아 제외.
+  8. `5eaed8d`(충격 감지 후 Dashcam 재부팅): IMU 1.5g 충격을 감지하면 10초 터치 취소 창을 주고, 취소가 없으면 `OpenpilotEnabledToggle` OFF를 저장한 뒤 재부팅한다. 문서가 스스로 실험적이며 충돌 분류기가 아니라고 하고, 거치대 흔들림 등 오탐 시 주행 중 재부팅 위험이 있다. 19개 파일(cereal, params_keys, controlsd, card, selfdrived, ui.py 포함)이라 10절 최소 변경 원칙과도 어긋난다. 코드 diff는 읽지 않았고 문서 기준이다. 제외.
+  9. 웹 UI 3건 `3211ef4`(웹 소리 on/볼륨을 기기에 저장하는 `web_sound_enabled`/`web_sound_volume`, Record 버튼 이동), `ed1ca73`(설정 화면 CSS), `c9f281a`(선택지 이름 배치 CSS/`setting.js`와 `carrot_settings.json`의 SteerHandoverMode 설명 문구). 표시 개선이고 반영하려면 웹 번들 재생성이 필요하다(지침 9절). `c9f281a`의 json 부분은 carrot-ryu에 없는 핸드오버 항목(1번)의 문구 수정이다. `3211ef4`의 `application.py`(+5/-1) diff는 읽지 못했다. 제외.
+- 판정 근거의 깊이: 커밋 제목/본문, 커밋별 변경 파일 목록, 일부 diff(`419263c`, `76810ec` carcontroller.py, `cc7238c`, `846d661`, `3211ef4` web_settings.py/web_sound.js 일부, `c9f281a`), carrot-ryu 파일 존재 여부까지다. `b57d8ad`와 `5eaed8d`는 문서만 읽었다. 라인 단위 전체 대조는 하지 않았다.
+- 새 체크포인트: d03c0ae -> 419263c. 다음 점검은 419263c 이후 신규 커밋부터이며, 그때도 `git cat-file -t 419263c`로 존재부터 확인하고 없으면 커밋 메시지 기준으로 범위를 잡는다.
+- 이 결정과 무관하게 그대로인 것: DM2 제외 확정(217차), `f992f9c` 보류 유지, `fc7ee88` 제외 유지, `4770067` 제외(재검토하면 `e57f1e5`/`d03c0ae`도 함께 볼 것).
+- 실차 검증: 미실시(12절, 해당 없음: 코드 변경 없음).
+
+**한계:** 코드 변경 없음, 실차 검증 미실시(12절).
+
 ## 체크포인트: 2026-09-29 (218차) -- carrot-ms 8472d35 -> d03c0ae 신규 8건 판정: 전부 제외 (사용자 결정, 코드 변경 없음)
 
 - 점검 범위: 마지막 체크포인트 8472d35(208차)가 carrot-ms 현재 HEAD d03c0ae("Restore manager line buffering after PTY fork")의 조상임을 `git merge-base --is-ancestor`로 확인했다(재생성 없음). `8472d35..HEAD` 8건을 대상으로 했다(blobless bare clone + git log, 변경 파일은 `git show --numstat`). 213cha/216cha 세션에서 본 carrot-ms HEAD(771f118, d03c0ae)는 모두 이 범위 안이다.
