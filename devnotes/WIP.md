@@ -1,5 +1,22 @@
 # WIP
 
+## 224cha (완료) (Claude, Claude Sonnet 5.5) - 진출 램프 안내 지점 통과 후 300 m 동안 route 전방 600 m 유지 (carrot-ryu a9a37fa)
+
+**배경.** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했다(지침 v2, note 1229c3d SHA 고정본). 첫 응답에서 \"지침 문서 확인함(v2, 커밋 1229c3d)\"을 보고했다. 사용자가 223cha 세션의 시뮬레이션 결과(진출 램프 600 m가 안내 지점 통과 뒤 300 m로 돌아갈 때 route 속도 상한이 재상승하는 경우가 있음, \"통과 후 300 m 유지\"안은 재상승이 없었음, 이 시뮬레이션 스크립트는 이 세션에 없고 결과는 사용자가 붙여넣은 요약)를 붙여 넣고 \"통과 후 300 m 유지\" 코드 세션을 초보용으로 설명해 달라고 했다. 설명 뒤 사용자가 \"진행, termux\"라고 답해 코드 세션을 승인했다.
+
+**설계.** `RouteLookaheadHold` 클래스와 상수 `ROUTE_LOOKAHEAD_HOLD_M = 300`을 추가했다. `route_lookahead_distance()`가 600을 돌려주는 동안 남은 유지 거리를 300 m로 채우고, 그 조건이 끝나면(예: 안내 지점을 지나 navType/xTurnInfo가 바뀜) 차속 vEgo를 시간으로 적분해 300 m를 더 달릴 때까지 600 m를 유지한 뒤 300 m로 복귀한다. 진출 램프 조건이 한 번도 성립하지 않았으면 유지는 시작되지 않는다. 정차 중에는 남은 거리가 줄지 않고, 사이클 간 시간 차는 0.2초까지만 반영한다. 경로가 끊겨 `carrot_navi_route()`가 초기화 분기로 가면 유지 상태도 `reset()`한다. 시간은 `time.monotonic()`, 속도는 `self.sm['carState'].vEgo`(같은 함수 안 기존 사용처와 동일)이다.
+
+**변경(carrot_man.py +38/-4, tests/test_carrot_route_lookahead.py +43, 부모 0b6bbeb).** 호출부가 `route_lookahead_distance(...)` 결과를 `self.route_lookahead_hold.update(base_m, vEgo, now)`로 감싼다. 새 테스트 3개: 300 m 유지 후 복귀(25 m/s 기준 10초 뒤에도 600, 3초 더 뒤 300), 진출 램프 없이는 유지가 시작되지 않고 reset이 유지를 지운다, 정차 중에는 줄지 않고 5초 시간 공백도 0.2초만 반영.
+
+**검증(샌드박스, Linux, pytest_ci_setup.sh 환경, carrot-ryu 0b6bbeb 위).**
+- test_carrot_route_lookahead.py 5 passed(기존 2 + 신규 3). 유지 로직을 끈 변이에서 신규 테스트 2건 실패, 원래 carrot_man.py에서는 새 상수 import 오류(음성 대조).
+- carrot 내비/route 관련 기존 테스트 파일 13개 합쳐 249 passed, 실패 0. 넓은 회귀는 돌리지 않았다.
+- 반영 스크립트 `224cha_code_offramp_lookahead_hold_v1.sh`(Termux)를 로컬 bare 저장소에 끝까지 실행: 일반 체크아웃과 CRLF 체크아웃 재현(`core.eol=crlf`) 모두 numstat 38/4·43/0, blob 44caa51/c540e7e 일치, CR 0. 첫 시도에서 두 문제를 발견해 고쳤다: (1) git 사용자 정보가 없으면 commit이 실패(없을 때만 clone 안에 대체값), (2) CRLF 체크아웃에서 앵커가 0회 매치해 안전 중단(읽을 때 CRLF를 LF로 정규화). 이 검증은 Termux 실제 실행이 아니다.
+
+**반영 확인.** 사용자가 \"완료\"라고 알렸고(push 로그는 전달받지 않음) GitHub에서 직접 확인했다: carrot-ryu a9a37fa1932cbf9274f025cca01ba6075dac7d9c, 부모 0b6bbeb, 커밋 메시지 \"carrot: hold 600m route lookahead for 300m after off-ramp guidance point\", numstat 38/4·43/0, blob 44caa51db345bd14a62abef5b5a542d1d193b7c6(carrot_man.py)·c540e7e2d661ad17385775d9e43e61417d35742c(테스트)로 샌드박스 검증본과 일치, CR 0, BOM 없음, .pyc 없음. carrot-ryu-note는 1229c3d(223cha devnotes)로 변동 없었다.
+
+**한계.** 실차 검증: 미실시. 이 세션에서 시뮬레이션을 다시 돌리지 않았고(223cha 결과 요약을 근거로 함), mapTurnSpeedFactor 적용 전 값 기준이라는 223cha 한계가 그대로다. 효과는 코드의 곡률 0.02 미만 바닥 처리 때문에 R≲50 m 급커브가 있는 진출 램프에만 나타난다. 진입 램프는 여전히 미해결이다.
+
 ## 223cha (완료) (Claude, Claude Sonnet 5.5) - 진출 램프 안내 중에만 route 전방 탐색거리 300 m -> 600 m (carrot-ryu 0b6bbeb)
 
 **배경.** 새 세션. 사용자가 프로젝트 지침 문서를 먼저 읽고 진행하라고 요청했고(지침 v2, note b05d249 기준, 브랜치 URL 본과 SHA 고정본 cmp 동일), 업로드된 222cha devnotes 스크립트의 Termux 실행 명령을 받아 실행했다(그 push로 note HEAD가 20c47cc가 됨을 확인). 이어서 사용자가 "라우트 로직에서 고속도로 진출입램프에서 300m 전방 게이트는 짧은듯. 이 구간만 600m로 바꿀 수 있어? 다른 구간은 그대로"라고 요청했다.
