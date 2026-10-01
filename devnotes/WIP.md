@@ -1,5 +1,32 @@
 # WIP
 
+## 227cha (완료) (Claude, Claude Sonnet 5.5) - 실차 로그 확인(a9a37fa, 세그먼트 1~10, 549초): 미결 항목 대부분 검증 불가, UI 프레임 저하 관찰 (코드 변경 없음)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청하고 "미결항목 실차로그"와 함께 로그 zip `HYUNDAI_GENESIS_541384155f4f8ca5_20261001_133604.zip`(route `00000478--e4015e0f5b`, 세그먼트 1~10, rlog.zst + qcamera.ts)을 올렸다. 4절 0단계로 `git ls-remote`에서 note f08799a(226cha devnotes, 부모 7f83d02)와 carrot-ryu a9a37fa를 얻었고, 지침 문서(49,277바이트)는 브랜치 URL 본과 SHA 고정본이 `cmp` 동일이었다. HANDOFF.md는 226cha 내용이었고 carrot-ryu HEAD a9a37fa가 HANDOFF base와 일치했다. 226cha devnotes push는 depth 2 fetch로 확인했다(f08799a, 부모 7f83d02).
+
+**1. 로그 개요.** initData.gitCommit은 a9a37fa(branch carrot-ryu, dirty False)이고 EnableRadarTracks 0, MapTurnSpeedFactor 135, LongitudinalPersonality 3이다. 스키마는 a9a37fa의 cereal/car.capnp로 파싱했다. 길이 549.0초, 최고 66.7 km/h, 평균 32.7 km/h, 정차(vEgo<0.5 m/s) 비율 6%. selfdriveState는 enabled 67%, overriding 9%, disabled 24%, longActive 74%. longitudinalPlan 출처는 cruise 10,414 / e2e 546 / lead0 20프레임(20Hz). 지방도 위주 주행으로 보이며(도로 제한 30/40/60), 고속도로 구간은 없었다.
+
+**2. 확인된 것.**
+- 기기가 최신 a9a37fa로 돌았다(dirty False).
+- aTarget<-0.5가 0.5초 넘게 이어진 감속 구간 19건은 전부 desiredSource가 route/vturn/cam/bump/road였다(앞차 때문에 생긴 급감 없음). 가장 센 감속은 aTarget -1.39(t=336초 부근).
+- swaglog에 ERROR는 athenad.ws_send/ws_recv exception 각 1건(t 약 155초)뿐이고 그 외 level 40 이상은 없었다. BOOT_TS 문구는 없었다. lead_gate 로그 29건.
+
+**3. 검증하지 못한 것(이 로그로는 판정 불가).**
+- 미완료 22·23·24·26번(8cdb515, SCC<->비전 전환, 고속 추종 출렁임): 앞차 status True 프레임이 279개(2.5%)뿐이고 전부 radar=False(비전)였다. 63~100 m에서 켜졌다 꺼지는 짧은 이벤트 20개로 지속 추종 구간이 없다. A/B 분류와 기준선 비교는 하지 않았다.
+- 미완료 27·28번(진출 램프 600 m): xTurnInfo 4 구간이 1건(t 207.1~233.0초, xDist 321 -> -8, TBT `감포,전촌리`)뿐이다. xTurnInfo 4는 off ramp(slight right)와 fork(right) 모두에 해당하고 navType은 로그에 없어 600 m가 적용됐는지 알 수 없다. 이 구간에서 route 속도는 135~236 km/h로 제약이 되지 않았고 통과 후 재상승/급락 모양은 눈에 띄지 않았지만 검증이 아니다. 진입 램프(27 (a))용 신호도 없다.
+- 미완료 3·4·10번(정상상태 추종 거리, v=0 gap, held_stopping_front): 앞차가 정지한 장면은 끝부분(t 528~549초)뿐이고 그때 selfdriveState가 disabled(t 500초 이후 끝까지)였다. 제어 검증이 아니다.
+- 미완료 13번(DM alert 3 / softDisabling): 해당 경고 없음.
+- 미완료 7번: 102ms wide-camera WARN, BOOT_TS, xTurn=6 로그는 없었다. 이벤트가 안 일어난 것이라 종결 근거가 아니다.
+
+**4. 기타 관찰(원인 미확정).**
+- 신호 정지: t 313~326초 e2e로 정차하고 정차 중 accel 명령 -0.5가 유지됐다가(aEgo 0) t 327초 trafficSignGreen 알림 뒤 출발했다. trafficStopping 13회, trafficSignGreen 3회 알림.
+- t 262.3초에 selfdriveState가 disabled로 바뀌고 약 3초간 aEgo -1.3까지 감속했다(원인 미확인, 같은 시점 `pedalPressed/userDisable` 알림이 로그에 21프레임 있다는 것만 확인). t 500초 이후는 끝까지 disabled.
+- UI 프레임: runtimeTiming 진단의 `ui` 컴포넌트는 평균 15.2 fps(최소 10.8), work_ms 평균 48.7/최대 152.7이다. 1분 구간별 평균 fps 18.3(60~120초대) -> 15.8 -> 14.3 -> 14.0 근처로 내려갔고, 같은 구간 deviceState CPU 온도 평균은 69.4 -> 72.3 -> 74.8 -> 78.4°C로 올랐다(전체 평균 75.9, 최대 80.1°C, thermalStatus 전부 0). application.py의 `FPS dropped below 20: 17` 경고가 100건(level 30). CPU 80°C 초과는 t 약 520초에 한 번. 기준이 되는 이전 커밋 로그가 없어 HUD 변경(209~211cha)과의 관련, 온도와의 인과는 확인하지 않았다.
+
+**5. 한계.** 이 분석은 컨테이너 로컬 1회성 스크립트(toolkit 미등록, route_extract.py와 같은 병합 방식)이고 시간축은 첫 이벤트 기준이라 보고한 시각에 수 초 오차가 있을 수 있다. 플래너 재생, 폐루프, qcamera 영상 대조는 하지 않았다. 코드 변경 없음. 실차 검증: 로그 확인 수준이며 미완료 항목의 실차 검증은 미실시(12절).
+
+**6. 다음에 필요한 로그.** 고속도로 앞차 추종 + 내비를 켠 채 진출/진입 램프를 지나는 재주행 로그(미완료 22~28번, 4번 간격 확인을 한 번에).
+
 ## 226cha (완료) (Claude, Claude Sonnet 5.5) - 미완료 16·17·18번 종결, 1·2·4·5번 처리 방침 확정 (코드 변경 없음)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했다. 4절 0단계로 `git ls-remote`에서 note 7f83d02(225cha devnotes, 부모 3e41dc3)와 carrot-ryu a9a37fa를 얻었고, 지침 문서(49,277바이트)는 브랜치 URL 본과 SHA 고정본이 `cmp` 동일이었다. HANDOFF.md는 225cha 내용이었고 carrot-ryu HEAD a9a37fa가 HANDOFF base와 일치했다. 225cha devnotes push는 depth 2 blobless fetch로 확인했다(부모 3e41dc3, numstat HANDOFF 17/7, WIP 10/0, WIP_SYNC 20/0).
