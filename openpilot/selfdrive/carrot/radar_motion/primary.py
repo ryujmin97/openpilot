@@ -39,6 +39,7 @@ VISION_ONLY_CORROBORATION_MAX_VLEAD_DELTA_MPS = 20.0
 VISION_CORROBORATED_MIN_OBSERVED_S = 0.25
 VISION_CORROBORATED_MAX_OBSERVATION_GAP_S = 0.15
 VISION_ONLY_RADAR_TRACK_MODE = -2
+UNCONDITIONAL_SCC_RADAR_TRACK_MODE = -1
 PRIMARY_RADAR_SOURCES = frozenset(("frontRadar", "scc"))
 LOW_SPEED_SCC_MAX_VLEAD_MPS = 5.0
 STATIONARY_VISION_MIN_PROB = VISION_LEAD_MIN_PROB
@@ -746,8 +747,10 @@ def select_dpath_fallback_radar_points(
 def vision_only_lead_allowed(
   enable_radar_tracks: int,
 ) -> bool:
-  """Allow blue leadOne only when radar tracks are disabled."""
-  return enable_radar_tracks <= VISION_ONLY_RADAR_TRACK_MODE
+  """Allow blue leadOne when radar tracks are disabled (-2), and in the
+  unconditional SCC mode (-1) when SCC has no measured object. Mode 0 and
+  above keep the central-path gate."""
+  return enable_radar_tracks <= UNCONDITIONAL_SCC_RADAR_TRACK_MODE
 
 
 def unconditional_scc_match(

@@ -6139,6 +6139,33 @@ def test_unconditional_scc_mode_uses_scc_without_vision_match() -> None:
   assert output.lead_one["dPath"] == pytest.approx(0.0)
 
 
+def _off_path_vision_output(enable_radar_tracks: int):
+  return DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=enable_radar_tracks,
+  ).update(
+    time_s=1.0,
+    v_ego=10.0,
+    radar_points=(),
+    model=model_with_lead(
+      30.0, 4.0, 12.0, probability=0.9,
+    ),
+  )
+
+
+def test_unconditional_scc_mode_keeps_vision_when_scc_absent() -> None:
+  output = _off_path_vision_output(-1)
+
+  assert output.lead_one is not None
+  assert not output.lead_one["radar"]
+  assert output.lead_one["dRel"] == pytest.approx(30.0)
+
+
+@pytest.mark.parametrize("mode", (0, 1, 2, 3))
+def test_other_scc_modes_keep_central_vision_fallback_gate(mode: int) -> None:
+  assert _off_path_vision_output(mode).lead_one is None
+
+
 def test_stock_scc_mode_uses_vision_while_scc_object_conflicts() -> None:
   output = DPathRadarController(
     prefer_corner_radar=True,
