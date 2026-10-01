@@ -1,5 +1,17 @@
 # WIP
 
+## 228cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ryu b3e16c5 SCC 모드 -1 비전 앞차 허용 반영 GitHub 재확인 (코드 변경은 사용자가 별도 스크립트로 실행, 이 세션은 확인과 devnotes만)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했고(4절 0단계), 이어서 `228cha_code_scc_mode_m1_vision_fallback_v1.sh`(Termux)의 실행 로그를 붙여 넣었다. 그 코드 스크립트와 사전 검증, 이 변경을 정하게 된 승인 맥락은 이 세션에 없었다(210cha의 4bd6732와 같은 경우). 사용자가 로그 전달 뒤 "진행"이라고 답해 devnotes 기록을 요청했다.
+
+1. 4절 0단계: 지침 문서 v2를 사용자가 준 브랜치 URL로 읽은 뒤 `git ls-remote`로 note HEAD 4557651903207e864cfb27304ec26fd066b3b70f, carrot-ryu b3e16c52e1130fceee6a2ca617eaa7f358ad490d를 얻어 SHA 고정본과 `cmp` 바이트 동일(변경 없음, 49,277바이트)을 확인했다. HANDOFF.md를 같은 SHA로 읽었다. 첫 응답에서 "지침 문서 확인함(v2, 커밋 4557651)"을 보고했다. note HEAD 4557651은 227cha 계속2 devnotes(부모 6a9f3b1, numstat HANDOFF 8/3, WIP 22/0)다.
+2. 사용자 로그: 임시 blobless depth 1 sparse clone의 HEAD a9a37fa, pre-image 가드 통과, 블록 치환 1회 일치, post-image primary.py 451e535와 테스트 파일 53be844가 기대값과 일치, BOM 없음, py_compile OK, 스테이징 numstat 5/2와 27/0, commit b3e16c5, push `a9a37fa..b3e16c5 carrot-ryu -> carrot-ryu`(force 없음), 원격 carrot-ryu = b3e16c5.
+3. GitHub 독립 확인(`git fetch --depth 2 --filter=blob:none origin b3e16c5`): 커밋 b3e16c52e1130fceee6a2ca617eaa7f358ad490d, 부모 a9a37fa, 메시지 `carrot: use vision lead in SCC mode -1 when SCC is absent (carrot-ms 620724d, -1 only)`, 작성자 ryujmin97 <ryujmin97@users.noreply.github.com>, numstat `openpilot/selfdrive/carrot/radar_motion/primary.py` 5/2와 `openpilot/selfdrive/carrot/tests/test_radar_motion_predictor.py` 27/0, blob primary.py 241acd2 -> 451e535, 테스트 4e6e6ac -> 53be844(둘 다 로그의 기대값과 일치), 두 파일 CR 0개와 첫 3바이트 BOM 아님, 두 파일 py_compile 통과.
+4. 변경 내용(primary.py diff를 직접 읽음): 상수 `UNCONDITIONAL_SCC_RADAR_TRACK_MODE = -1`을 추가하고, `vision_only_lead_allowed(enable_radar_tracks)`의 반환 조건을 `<= VISION_ONLY_RADAR_TRACK_MODE`(-2)에서 `<= UNCONDITIONAL_SCC_RADAR_TRACK_MODE`(-1)로 바꾸고 docstring을 갱신했다. 즉 EnableRadarTracks가 -2일 때뿐 아니라 무조건 SCC 모드(-1)에서도 SCC가 측정한 객체가 없으면 비전 앞차(blue leadOne)를 허용한다. 모드 0 이상은 기존 중앙 경로 조건을 유지한다. 테스트 파일 +27줄은 내용을 읽지 않았다.
+5. 영향 범위: 227cha 실차 로그에서 이 기기의 EnableRadarTracks는 0이었다. 값이 0인 채로는 이 변경으로 동작이 바뀌지 않는다. 사용자가 이 값을 -1로 쓸 계획인지는 이 세션에서 확인하지 못했다.
+6. 확인하지 못한 것: 코드 스크립트와 사전 검증 출력, 이 변경의 승인 맥락, carrot-ms 620724d의 원본 diff(커밋 메시지의 `-1 only` 표기만 근거로 -1 부분만 반영한 것으로 본다), 새 테스트의 내용과 통과 여부(사용자 로그에는 pytest 단계가 없고 py_compile만 있으며 이 세션에서도 pytest를 실행하지 않았다). WIP_SYNC.md에는 620724d 기록이 없다(grep 0건). 이 변경이 carrot-ms 점검 결과의 반영인지 별개 요청인지 모르므로 WIP_SYNC.md는 건드리지 않았다.
+7. 코드 변경은 사용자 스크립트로 이미 push됐고 이 세션에서 carrot-ryu 코드는 바꾸지 않았다. 실차 검증: 미실시(12절).
+
 ## 227cha 계속2 (완료) (Claude, Claude Sonnet 5.5) - UI 프레임 저하(미완료 29번) 이전 로그 비교, 온도·속도 구간, 프로세스 CPU, xiaoge_data 설명 (코드 변경 없음)
 
 **배경.** 227cha 계속 devnotes push를 GitHub에서 직접 확인했다(note 6a9f3b1, 부모 c844587, numstat HANDOFF 6/3, WIP 12/0, BOM/CR 없음, carrot-ryu a9a37fa 그대로). 이어서 사용자가 이전 로그 zip 6개(route 5개)를 올리며 "이전 로그 들 전송. 파워쉘 명령어로"라고 했다(로그 비교 요청으로 해석했고, 스크립트가 필요하면 PowerShell). 이후 "온도나 정차/주행 구간별로 더"라고 했고, Claude가 제안한 "UI 프로세스의 실제 부하 원인을 더 보려면 별도 로그(프로세스별 CPU)나 코드 읽기가 필요"를 그대로 보내 진행을 요청했으며(진행 요청으로 해석), 마지막에 "3번으로. xiaoge_data 이것이 어떤 내용인가"라고 해 devnotes 기록과 xiaoge_data 설명을 요청했다.
