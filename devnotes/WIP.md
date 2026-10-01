@@ -1,5 +1,27 @@
 # WIP
 
+## 227cha 계속2 (완료) (Claude, Claude Sonnet 5.5) - UI 프레임 저하(미완료 29번) 이전 로그 비교, 온도·속도 구간, 프로세스 CPU, xiaoge_data 설명 (코드 변경 없음)
+
+**배경.** 227cha 계속 devnotes push를 GitHub에서 직접 확인했다(note 6a9f3b1, 부모 c844587, numstat HANDOFF 6/3, WIP 12/0, BOM/CR 없음, carrot-ryu a9a37fa 그대로). 이어서 사용자가 이전 로그 zip 6개(route 5개)를 올리며 "이전 로그 들 전송. 파워쉘 명령어로"라고 했다(로그 비교 요청으로 해석했고, 스크립트가 필요하면 PowerShell). 이후 "온도나 정차/주행 구간별로 더"라고 했고, Claude가 제안한 "UI 프로세스의 실제 부하 원인을 더 보려면 별도 로그(프로세스별 CPU)나 코드 읽기가 필요"를 그대로 보내 진행을 요청했으며(진행 요청으로 해석), 마지막에 "3번으로. xiaoge_data 이것이 어떤 내용인가"라고 해 devnotes 기록과 xiaoge_data 설명을 요청했다.
+
+**1. 이전 로그와 기록 커밋.** rlog의 `FPS dropped below 20` 로그 ctx commit 앞 7자리 기준: route 443(9/23, 8e8b0d1, 세그먼트 2개), 449(9/24, f23d05f), 44a(9/24, f23d05f), 44d(9/25, 1e3bbb5), 478(10/1, a9a37fa). 앞 4개는 HUD 변경(209~211cha, 9/29 커밋) 이전이고 478만 이후다.
+
+**2. FPS 경고 값 비교.** 경고 값은 20 fps 미만일 때만 찍히므로 실제 평균 fps가 아니라 저하 구간만의 값이다. route별 경고 수, 평균, 최소~최대: 443 24건 14.5(13~15), 449 442건 13.7(11~17), 44a 487건 14.0(5~17), 44d 119건 13.5(11~16), 478 100건 14.6(12~17). HUD 변경 이전(13.5~14.5)과 이후(14.6)가 거의 같다. 경고 수는 세그먼트(1분)당 최대 12건에서 멈춰 비교용이 아니다(멈추는 이유는 확인하지 않았다).
+
+**3. 온도와 속도 구간.** pycapnp(a9a37fa 스키마 하나로 전 route 파싱)로 각 경고 시각에 가장 가까운 carState vEgo와 deviceState를 붙였다. 온도: fps와 CPU 온도 상관 0.08(65~70°C 평균 13.8 fps, 75~80°C 14.0 fps), thermalStatus는 전 route 0이다. 478의 "초반 약 17 fps에서 3분 이후 약 14 fps"는 재확인됐지만(0분 16.9) 같은 기간 온도가 69 -> 78°C로 오른 것과의 인과는 근거가 약하다(449는 온도 변화 없이 13~15 fps를 유지했고 30분 이후 15~17로 올라갔다). 속도: 경고 시점 평균 fps가 정차(1 m/s 미만) 14.7~16.0, 저속(1~10) 13.8~14.9, 중속(10~20) 13.0~14.3, 고속(20 이상) 13.1~13.8로 4개 route에서 속도가 높을수록 낮은 같은 방향이다. fps와 vEgo 상관 -0.46, fps와 CPU 사용률 상관 -0.35. 478은 20 m/s 이상 표본이 없다.
+
+**4. 프로세스별 CPU(procLog).** rlog의 procLog(샘플 간격 약 1.75~2초, 5 route 합 약 3,000 샘플)에서 프로세스별 CPU를 계산했다. cpuUser/cpuSystem은 누적 초 단위다(처음에 /100으로 잘못 계산했다가 원시값으로 단위를 확인해 고쳤고, 사용자에게 보낸 설명의 "1초 간격"도 약 1.75~2초가 맞다). 평균 CPU%(100% = 코어 1개): xiaoge_data 160, ui 57, card 45, locationd 37, pandad 35, carrot_man 35, modeld_runner 27, controlsd 23, selfdrived 22, plannerd 18, loggerd 18, sensord 12(나열된 프로세스 합 571%/800%). 코어별 busy는 478에서 [90, 98, 100, 88, 47, 88, 28, 27]%로 5개 코어가 85% 이상이다. ui는 route별 56.6~57.5%, 속도 구간별 57.0~57.8%로 일정하다(vEgo 상관 -0.07). 그래서 속도 구간별 fps 차이는 ui 자체 부하 변화가 아니라 다른 프로세스와의 코어 경쟁 변화일 가능성이 있다(미확인).
+
+**5. xiaoge_data 설명(코드 읽기, carrot-ryu a9a37fa).**
+- 파일: `openpilot/selfdrive/carrot/xiaoge_data.py`(259줄)와 `openpilot/selfdrive/carrot/xiaoge/`(v_asm_server.py 718줄, xiaoge_vision.py, lane_inference.py, v_asm_inference.py, nv12.py, assets, README.md). README는 "Xiaoge Vision = CarrotPilot의 로컬 비전 확장"이라고 설명한다.
+- 실행 조건: `process_config.py`의 `enable_xiaoge_data`가 `ShareData` 파라미터(기본 0)일 때만 켠다. 설정 화면 이름은 "ONNX 차선·BSD 인식"(carrot_settings.json, risk high). 5개 route 모두에서 실행 중이었으므로 이 기기는 켜져 있었던 것으로 본다(파라미터 값을 직접 확인한 것은 아니다).
+- 하는 일: (1) TCP 7711로 carState/modelV2/selfdriveState를 20 Hz JSON으로 연결된 외부 클라이언트에 보낸다(Tesla일 때만 DAS_road CAN도 읽는다). (2) 비전 서버(HTTP 8082) 안의 카메라 스레드 2개가 돈다. 차선 종류 인식은 전방 도로 카메라, lane.onnx(YOLOv8-Seg, 416x416 회색), 기본 400 ms 간격으로 속도와 무관하게 상시 동작한다. V-ASM 사각지대 인식은 광각 카메라, v_asm_model.onnx로 30~120 km/h, 차선변경 방향 지정, 대상 차로폭 3 m 이상일 때만 추론하고 기본 250 ms(후속 150 ms)이다. 두 스레드 모두 VisionIPC를 `recv(timeout_ms=0)` 후 5 ms 쉬는 폴링으로 읽는다. (3) 결과를 customReservedRawData0(xiaogeVision JSON)으로 publish하고 `card.py`가 받아 carState에 병합한다(차선 종류는 모델이 인식한 쪽만 덮어쓰고, 사각지대는 차량 OEM BSD와 OR로 합쳐 OEM을 지우지 않는다). 그 값을 UI와 차선변경 로직이 쓴다.
+- 끄면: 비전 서비스와 TCP 7711이 멈추고 ONNX 차선 종류/비전 BSD가 없어지며 차량 OEM BSD는 유지된다(설정 설명 기준). 도입 시점과 경위는 확인하지 못했다.
+
+**6. 결론과 한계.** 미완료 29번: 이전 커밋 로그와 비교하면 HUD 변경(209~211cha)과 CPU 온도는 fps 저하를 설명하지 못하고 이 기기의 원래 수준(약 14 fps)일 가능성이 크다. 프로세스 CPU에서 xiaoge_data(160%)가 가장 큰 소비자이고 코어 5개가 포화라 코어 경쟁이 후보지만 미검증이다. xiaoge_data 안에서 어느 스레드(차선 추론, 폴링, TCP)가 CPU를 쓰는지는 측정하지 않았고 "줄이면 fps가 오른다"도 검증하지 않았다. 경고는 20 fps 미만일 때만 찍히고 세그먼트당 12건 제한이라 실제 평균 fps와 저하 시간 비율은 알 수 없다. 코드 변경 없음, 실차 검증: 미실시(12절, 해당 없음).
+
+**7. 사용자 결정과 다음 선택지.** 사용자가 선택지 3(지금까지 결론을 devnotes에 기록)을 골랐다. 남은 선택지: (1) `ShareData`를 끄고 같은 구간을 달려 같은 방식으로 로그를 비교한다(코드 변경 없음, 단 ONNX 차선 종류/비전 BSD 기능이 꺼진다). (2) 코드 변경(차선 추론 간격이나 폴링 방식, 승인 필요, 1번 결과를 보고 결정하는 편이 안전). 미완료 29번은 유지한다.
+
 ## 227cha 계속 (완료) (Claude, Claude Sonnet 5.5) - UI 프레임 저하(미완료 29번) 설명과 기록 (코드 변경 없음)
 
 **배경.** 227cha devnotes push를 GitHub에서 직접 확인했다(note c844587, 부모 f08799a, numstat HANDOFF 12/3, WIP 27/0, blob이 시뮬레이션과 일치, BOM/CR 없음, carrot-ryu a9a37fa 그대로). 이어서 사용자가 "UI 프레임 저하는 무슨내용인가"라고 물어 Claude가 설명했고, 사용자가 "기록"이라고 했다.
