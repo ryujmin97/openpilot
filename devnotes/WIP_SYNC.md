@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-02 (228cha 계속) -- carrot-ms 620724d 부분 이식(-1만, carrot-ryu b3e16c5) 기록, 모드 0 이하 미이식 (코드 변경 없음)
+
+- 점검 범위: carrot-ms 현재 HEAD 128d58d(blobless depth 80 fetch)에서 체크포인트 419263c가 HEAD의 조상임을 `git merge-base --is-ancestor`로 확인했다(재생성 없음). `419263c..HEAD`는 5건(모두 2026-10-01): `620724d`, `0a006ef`, `6dcad91`, `8a2f7b6`, `128d58d`. 이 기록은 `620724d` 하나만 다룬다. 나머지 4건은 이 세션에서 판정하지 않았고 미검토다.
+- 620724d: 제목 `Use SCC longitudinal leads without unreliable lateral gating`, 작성자 ajouatom, cherry picked from b3354534acebe83179730d1f3675dd047a2fe83e, 17파일 +310/-48. 문서 `docs/scc_longitudinal_lead_20261001.md` 앞부분의 근거: Casper EV 세그먼트(EnableRadarTracks=0)에서 측정된 SCC 점이 전부 SCC 소스이고 SCC yRel이 전부 0이었으며, 모드 0 production 컨트롤러 replay가 1,199프레임 중 30프레임에서 leadOne을 잃었다(그 프레임은 모두 측정된 SCC 객체와 비전 확률 0.40 이상이 있었음). 코드 diff(앞 약 16,000자, 컨트롤러·primary.py·대부분의 테스트까지 읽음, 신규 `test_scc_lead_policy.py` 후반과 `carrot_settings.json`, `tools/carrot_route_vault/tests/test_radar.py` diff는 읽지 못함)의 변경:
+  1. `radar_motion/controller.py`: `enable_radar_tracks == -1`을 `in (-1, 0)`로 바꿔 모드 0과 -1 모두 `unconditional_scc_match`(비전 매치와 SCC 횡/경로 게이트 없이 측정된 SCC 종방향 객체 사용)를 쓴다.
+  2. `radar_motion/primary.py`: `vision_only_lead_allowed`를 `<= 0`으로(상수 `VISION_ONLY_RADAR_TRACK_MODE` 제거). SCC 비전 연관에서 SCC 횡 성분을 무시(lateral_error를 0으로, 점수의 y 항을 1로, y_rel 게이트 제외, d_path를 0으로), 정지 후보에서 SCC 제외, `lead_from_radar_point`의 SCC yRel/dPath/vLat을 0으로.
+  3. replay 도구 `recorded_radar_track_mode`(`radar_validation_replay.py`, `radar_web_export.py`), 테스트 갱신, 신규 `test_scc_lead_policy.py`(87줄), `test_radard_dpath.py`(+29), 문서/설정 설명/워크플로 갱신.
+- carrot-ryu 반영 상태(b3e16c5 blobless depth 1 fetch로 확인): 위 2번 중 `vision_only_lead_allowed` 조건만 `<= -1`로 반영하고 상수 `UNCONDITIONAL_SCC_RADAR_TRACK_MODE = -1`을 추가했다(커밋 메시지 `-1 only`). `controller.py` 861행은 아직 `== -1`이다. primary.py에는 SCC 횡 성분 무시 변경(`lateral_error = 0.0 if point.source == "scc"` 등)이 없고, `tests/test_scc_lead_policy.py`가 없다. carrot-ryu의 `EnableRadarTracks` 설정 설명은 모드 0을 "SCC 비전매치, 실패하면 비전"으로 적고 있다. replay 도구 변경(3)은 대조하지 않았다.
+- 판정: 부분 이식(-1만). 모드 0 이하 변경은 미이식. 이 기기는 사용자가 EnableRadarTracks 0으로 계속 쓸 예정이라고 했으므로 b3e16c5(모드 -1 전용)와 620724d의 나머지 모두 현재 설정에서는 동작에 반영되지 않는다. 620724d의 핵심은 모드 0이며, 모드 0 쪽(컨트롤러 `in (-1, 0)`과 SCC 횡 성분 무시)을 이식할지는 사용자 결정 전이고 이 세션에서 결정하지 않았다. 왜 -1만 이식했는지는 이 세션에서 확인하지 못했다(코드 스크립트와 승인 맥락이 이 세션에 없음).
+- 확인하지 못한 것: 이 기기(제네시스 DH 2015) 로그에서 SCC yRel이 0인지, 모드 0에서 leadOne이 끊기는 구간이 있는지(upstream 근거는 Casper EV 로그다), upstream이 주장한 테스트 통과(1,519개 등), 위 읽지 못한 diff 부분, 나머지 4건의 내용.
+
 ## 체크포인트: 2026-10-01 (225차) -- carrot-ms d03c0ae -> 419263c 신규 25건 판정: 전부 제외 (사용자 결정, 코드 변경 없음)
 
 - 점검 범위: 마지막 체크포인트 d03c0ae(218차)가 carrot-ms 현재 HEAD 419263c("Apply manual steering ratio and live scaling to Volkswagen MEB")의 조상임을 `git merge-base --is-ancestor`로 확인했다(재생성 없음). `d03c0ae..HEAD` 25건(2026-09-29~09-30)을 대상으로 했다(blobless bare clone + git log, 변경 파일은 커밋별 `git show --numstat`). carrot-ryu는 a9a37fa 기준 blobless depth 1 clone의 `git cat-file -e`로 파일 존재를 확인했다.

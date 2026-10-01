@@ -1,5 +1,16 @@
 # WIP
 
+## 228cha 계속 (완료) (Claude, Claude Sonnet 5.5) - 228cha devnotes push 확인, carrot-ms 620724d 원본 diff 대조와 WIP_SYNC.md 기록 (코드 변경 없음)
+
+**배경.** 같은 대화에서 사용자가 228cha devnotes 스크립트 실행 완료와 "EnableRadarTracks 0으로 계속 사용 예정"을 알렸고(로그 전달 없음), 이어서 "620724d를 WIP_SYNC.md에 기록(미완료 30번 (b))"을 요청했다.
+
+1. 228cha devnotes push를 GitHub에서 직접 확인했다: `git ls-remote` note a513abca9e3f5b2ca1dfd4b899bddd44addeca4a, carrot-ryu b3e16c5 그대로. depth 2 blobless fetch로 부모 4557651, numstat HANDOFF 17/5와 WIP 12/0, blob WIP 6fbf16f와 HANDOFF 5808147(샌드박스 시뮬레이션 값과 일치), CR 0개, BOM 없음, WIP.md 최상단이 228cha 회차임을 확인했다.
+2. carrot-ms 조회: happymaj11r/openpilot carrot-ms HEAD 128d58d. 419263c가 조상임을 확인했고 `419263c..HEAD` 5건(620724d, 0a006ef, 6dcad91, 8a2f7b6, 128d58d)을 확인했다. 요청 범위인 620724d만 다뤘고 나머지 4건은 판정하지 않았다.
+3. 620724d 원본을 읽었다(커밋 메시지·파일 목록과 코드 diff 앞 약 16,000자, 문서 `docs/scc_longitudinal_lead_20261001.md` 앞 약 40줄). 핵심은 모드 0과 -1에서 측정된 SCC 종방향 객체를 비전 매치·SCC 횡/경로 게이트 없이 쓰는 것이다(컨트롤러 `in (-1, 0)`, SCC 횡 성분 무시, `vision_only_lead_allowed <= 0`). 근거는 Casper EV 로그(모드 0, SCC yRel 전부 0, 30프레임 leadOne 손실)다. 상세는 WIP_SYNC.md 228cha 계속.
+4. carrot-ryu b3e16c5와 대조(blobless depth 1 fetch, `git show`/grep): `vision_only_lead_allowed`만 `<= -1`로 이식됐다. `controller.py` 861행은 `== -1` 그대로, SCC 횡 성분 무시 변경과 `test_scc_lead_policy.py`는 없다. 따라서 이 기기가 쓰는 모드 0에서는 620724d의 효과가 하나도 반영돼 있지 않다.
+5. 결과: WIP_SYNC.md에 부분 이식(-1만, 모드 0 이하 미이식)으로 기록했다. 모드 0 쪽을 이식할지는 사용자 결정 전이고 이 세션에서 정하지 않았다. 코드 변경 없음. 실차 검증: 미실시(12절, 해당 없음).
+6. 확인하지 못한 것: 왜 -1만 이식했는지(승인 맥락), 이 기기 로그에서 SCC yRel이 0인지와 모드 0 leadOne 손실 여부, 읽지 못한 diff 일부, 나머지 4건, upstream의 테스트 통과 주장.
+
 ## 228cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ryu b3e16c5 SCC 모드 -1 비전 앞차 허용 반영 GitHub 재확인 (코드 변경은 사용자가 별도 스크립트로 실행, 이 세션은 확인과 devnotes만)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했고(4절 0단계), 이어서 `228cha_code_scc_mode_m1_vision_fallback_v1.sh`(Termux)의 실행 로그를 붙여 넣었다. 그 코드 스크립트와 사전 검증, 이 변경을 정하게 된 승인 맥락은 이 세션에 없었다(210cha의 4bd6732와 같은 경우). 사용자가 로그 전달 뒤 "진행"이라고 답해 devnotes 기록을 요청했다.
