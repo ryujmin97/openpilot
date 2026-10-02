@@ -1,5 +1,19 @@
 # WIP
 
+## 229cha (완료) (Claude, Claude Sonnet 5.5) - 실차 로그 47c(세그먼트 27~32, EnableRadarTracks -1) 확인 (코드 변경 없음)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청하며 로그 zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20261002_102638.zip`)을 올렸다. 4절 0단계를 수행했다(`git ls-remote` note 54dc239, 지침 v2의 브랜치 URL 본과 SHA 고정본이 바이트 동일). 사용자 메시지에 "route 47b 세그먼트 2, 60초, EnableRadarTracks 0"이라고 적힌 분석 요약이 붙어 있었으나 실제 zip은 그것과 다른 로그라서 요약은 사용하지 않고 zip을 직접 분석했다. 사용자가 "기록"을 요청했고 Termux를 알렸다(이 기록은 47c 분석 결과 기준이며, 사용자가 이 결과로 기록해도 되는지 확인 질문에 "기록"으로 답했다).
+
+**로그 개요.** route `0000047c--9c0fa1254b`, 세그먼트 27~32(각 60초, 360초), 기록 커밋 b3e16c5(dirty False, 브랜치 carrot-ryu). 세그먼트 27 initData: EnableRadarTracks **-1**, ShareData 0. 속도 46.1~95.3 km/h(평균 69.1), 정차 없음. radarState leadOne 7,201프레임 중 앞차 있음 6,407(레이더 5,423, 비전 984). liveTracks 측정 점의 출처는 전부 scc(5,422프레임).
+
+1. **30번 (a) -1 동작 확인(로그 수준).** SCC 점이 있는 5,422프레임 중 5,421프레임에서 leadOne이 레이더 출처였고 radarState dRel이 최근접 SCC 점 거리와 2 m 이내로 일치했다(1프레임은 비전). SCC 점의 횡위치가 1.5 m 넘은 1,215프레임과 2.5 m 넘은 485프레임도 전부 leadOne이 SCC였다. SCC 횡위치를 무시하는 -1 규칙과 맞는다.
+2. **SCC 점이 없는 1,779프레임:** leadOne 비전 983, 없음 794, 레이더 잔상 2. 비전 983프레임의 leadOne dPath: 1.0 m 이하 669, 1.0 m 초과 314, 2.0 m 초과 59, 4.0 m 초과 8. 코드 읽기(controller.py 중앙 게이트 `abs(dPath)<=1.0` 및 `vision_only_lead_allowed`) 기준으로 1.0 m 초과 314프레임은 모드 0이면 중앙 게이트에 막혔을 장면이다(모드 0 재생은 하지 않았다). leadOne이 없던 794프레임에서 modelV2 앞차 확률 0.40 이상은 0프레임(0.10 이상 105프레임).
+3. **관찰했으나 해석하지 않은 것:** (a) 비전 leadOne 중 radarState.modelProb가 0.40 미만인 프레임이 15개(최소 0.36)였다. 다른 필드(modelV2 앞차 prob)와의 차이 가능성이 있어 원인은 보지 않았다. (b) 비전 leadOne 중 dPath 2 m 초과 59프레임(4 m 초과 8프레임)은 옆 차선 차를 잡았을 가능성이 있으나 그 구간에서 실제 감속(aTarget/accelCmd)이 있었는지는 확인하지 않았다. (c) leadOne 상태 전이 57회, SCC<->비전 직접 전환 24회(100초당 6.7). 도로와 구간이 달라 222cha 기준선(100초당 35.8)과 직접 비교하지 않았다.
+4. **29번 UI 프레임(참고 데이터):** `FPS dropped below 20` 72건(값 평균 14.2, 최소 12, 최대 15), 이전 로그와 같은 수준이다. 이번에는 ShareData 0이었고 procLog에 이름에 xiaoge가 든 프로세스가 없었다. deviceState CPU 온도 60.7~65.0 °C(80 °C 초과 샘플 0/677), thermalStatus 전부 0. 따라서 ShareData(xiaoge_data)와 CPU 온도는 이 FPS 저하에 꼭 필요한 조건이 아니라는 데이터이다. 원인은 여전히 미확정이다. ui 프로세스의 CPU는 이름 필터가 맞지 않아 이번에 뽑지 못했다(미측정).
+5. **이 로그로 검증하지 못한 것:** 미완료 22~28번(진출/진입 램프 600 m, 이 로그에 램프 구간이 있는지 확인하지 않음), 4번(정지 앞차 간격, 정차 없음), 10번, 13번(DM 경고 확인하지 않음), 7번. carrotMan xTurnInfo 분포는 4가 2,545프레임, 6이 1,319, 3이 283, -1이 3,054이다. 각 값의 의미와 램프 해당 여부는 확인하지 않았다(카메라/과속방지턱 등 다른 구간일 수 있음). `Time diff too small`(timed) 로그 33건은 의미 확인 못 함.
+6. **방법.** 컨테이너에서 pycapnp로 기록 커밋 b3e16c5의 스키마로 rlog.zst를 읽었다(initData, radarState, liveTracks, modelV2, carState, longitudinalPlan, carrotMan, logMessage, deviceState, procLog). 분석 스크립트는 컨테이너 로컬이고 toolkit에 등록하지 않았다. 로그 zip은 커밋하지 않았다(13절).
+7. carrot-ryu 코드 변경 없음(b3e16c5 그대로). **실차 검증: 미실시. 로그 확인 수준이며, 플래너 재생/폐루프/영상 대조는 하지 않았다.**
+
 ## 228cha 계속2 (완료) (Claude, Claude Sonnet 5.5) - b3e16c5 -1 테스트 실행, carrot-ms 5건 판정 확정(모드 0 이식 안 함) (코드 변경 없음)
 
 **배경.** 같은 대화에서 사용자가 "왜 -1만 이식했는지는 위 글을 보면 알 수 있지"라며 이전 설명 글(-1만 이식한 이유)을 붙여넣었고, 이어서 "이제 뭐 하면 되누"에 대한 선택지 3가지(새 테스트 실행, 나머지 carrot-ms 4건 판정, 모드 0 이식 여부)에 "1번 진행, 2번 그대로 확정, 3번 모드 0 이식 안 함"으로 답하고 실행 환경을 Termux로 알렸다. 세션 시작 시 4절 0단계를 수행했다(`git ls-remote` note 352156a, 지침 문서 브랜치 URL 본과 SHA 고정본의 sha256 동일).
