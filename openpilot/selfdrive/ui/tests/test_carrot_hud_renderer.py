@@ -655,3 +655,100 @@ def test_vehicle_navigation_profile_does_not_force_speed_with_cruise_off(hud_mod
   assert override.label == "MAX"
   assert override.speed_color_mode == 0
   assert not override.force_persist
+
+
+def test_hud_sections_are_timed_under_ui_hud_component(hud_module, monkeypatch):
+  module, _ = hud_module
+  events = []
+
+  class RecordingTiming:
+    def __init__(self, component):
+      events.append(("component", component))
+
+    def start(self):
+      events.append("start")
+
+    def call(self, name, callback, *args):
+      events.append(name)
+      return callback(*args)
+
+    def finish(self):
+      events.append("finish")
+
+  monkeypatch.setattr(module, "RenderDiagnostics", RecordingTiming)
+  renderer = object.__new__(module.HudRenderer)
+  renderer.is_cruise_available = False
+  renderer._show_plot_mode = 0
+  renderer._font_display = object()
+  renderer._blink_timer = 0
+  renderer._exp_button = SimpleNamespace(render=lambda rect: None)
+  renderer._screenshot_button = SimpleNamespace(render=lambda rect: None)
+  renderer._record_button = SimpleNamespace(set_blink_phase=lambda phase: None, render=lambda rect: None)
+  renderer._plot_renderer = SimpleNamespace(draw=lambda rect, font, mode: None)
+  monkeypatch.setattr(renderer, "_refresh_hud_params", lambda now: None)
+  monkeypatch.setattr(renderer, "_draw_date_time", lambda rect: None)
+  monkeypatch.setattr(renderer, "_draw_tpms", lambda rect: events.append("tpms_body"))
+  monkeypatch.setattr(renderer, "_draw_egpu_badge", lambda rect: events.append("egpu_body"))
+  monkeypatch.setattr(renderer, "_draw_cruise_speed_animation", lambda rect: None)
+  monkeypatch.setattr(module.rl, "draw_rectangle_gradient_v", lambda *args: None)
+
+  renderer._render(module.rl.Rectangle(0, 0, 1000, 600))
+
+  assert events == [
+    ("component", "uiHud"),
+    "start",
+    "params",
+    "header",
+    "exp_button",
+    "screenshot_button",
+    "record_button",
+    "plot",
+    "date_time",
+    "tpms",
+    "tpms_body",
+    "egpu_body",
+    "cruise_anim",
+    "finish",
+  ]
+
+
+def test_set_speed_sections_are_timed_in_draw_order(hud_module, monkeypatch):
+  module, _ = hud_module
+  events = []
+
+  class RecordingTiming:
+    def __init__(self, component):
+      pass
+
+    def call(self, name, callback, *args):
+      events.append(name)
+      return callback(*args)
+
+  monkeypatch.setattr(module, "RenderDiagnostics", RecordingTiming)
+  renderer = object.__new__(module.HudRenderer)
+  renderer._blink_timer = 0
+  renderer._disp_timer = 0
+  snapshot = (80, 2, 90)
+  seen = []
+  monkeypatch.setattr(renderer, "_get_speed_limit_info", lambda: snapshot)
+  monkeypatch.setattr(renderer, "_draw_carrot_main_background", lambda bx, by, info: seen.append(info))
+  monkeypatch.setattr(renderer, "_draw_carrot_traffic_light", lambda bx, by: None)
+  monkeypatch.setattr(renderer, "_draw_carrot_speed_panel", lambda bx, by: None)
+  monkeypatch.setattr(renderer, "_draw_carrot_lower_status", lambda bx, by: None)
+  monkeypatch.setattr(renderer, "_draw_carrot_speed_limit_box", lambda bx, by, info: seen.append(info))
+  monkeypatch.setattr(renderer, "_draw_carrot_device_state", lambda bx, by: None)
+  monkeypatch.setattr(renderer, "_draw_turn_info_hud", lambda rect: None)
+
+  renderer._draw_set_speed_carrot(module.rl.Rectangle(10, 20, 1000, 600))
+
+  assert events == [
+    "speed_limit_info",
+    "main_bg",
+    "traffic_light",
+    "speed_panel",
+    "lower_status",
+    "speed_limit_box",
+    "device_state",
+    "turn_info",
+  ]
+  assert seen == [snapshot, snapshot]

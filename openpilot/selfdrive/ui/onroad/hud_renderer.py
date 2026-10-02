@@ -7,6 +7,7 @@ from openpilot.selfdrive.carrot.deceleration_source import deceleration_source_p
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.onroad.screenshot_button import ScreenshotButton
 from openpilot.selfdrive.ui.onroad.record_button import RecordButton
+from openpilot.selfdrive.ui.render_diagnostics import RenderDiagnostics
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.hardware.usbgpu import usbgpu_badge_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
@@ -224,6 +225,14 @@ class HudRenderer(Widget):
     self._date_time_text = ""
     self._date_text = ""
 
+  def _hud_timing(self) -> RenderDiagnostics:
+    # [230차 진단] HUD 안의 구간별 경과/스레드 CPU 시간을 runtimeTiming(component='uiHud')으로 남긴다.
+    # 그리기 동작과 순서는 바꾸지 않는다. HUD 테스트가 __init__ 없이 인스턴스를 만들므로 처음 쓸 때 만든다.
+    timing = getattr(self, '_hud_render_diagnostics', None)
+    if timing is None:
+      timing = self._hud_render_diagnostics = RenderDiagnostics('uiHud')
+    return timing
+
   def _refresh_hud_params(self, now: float) -> None:
     if now < self._hud_params_next_refresh_time:
       return
@@ -290,10 +299,14 @@ class HudRenderer(Widget):
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
-    self._refresh_hud_params(time.monotonic())
+    timing = self._hud_timing()
+    timing.start()
+    timing.call('params', self._refresh_hud_params, time.monotonic())
 
     # Draw the header background
-    rl.draw_rectangle_gradient_v(
+    timing.call(
+      'header',
+      rl.draw_rectangle_gradient_v,
       int(rect.x),
       int(rect.y),
       int(rect.width),
@@ -303,13 +316,13 @@ class HudRenderer(Widget):
     )
 
     if self.is_cruise_available:
-      self._draw_set_speed_carrot(rect)
+      timing.call('set_speed', self._draw_set_speed_carrot, rect)
 
     #self._draw_current_speed(rect)
 
     button_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
     button_y = rect.y + UI_CONFIG.border_size
-    self._exp_button.render(rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
+    timing.call('exp_button', self._exp_button.render, rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
 
     shot_size = UI_CONFIG.screenshot_button_size
     # 49차: 사용자 요청으로 스크린샷(카메라) 버튼을 화면 중앙(anchor_x, 예전
@@ -319,22 +332,23 @@ class HudRenderer(Widget):
     anchor_x = rect.x + rect.width / 2 - shot_size / 2
     shot_x = anchor_x - (shot_size + UI_CONFIG.record_button_gap)
     shot_y = rect.y + rect.height - UI_CONFIG.border_size - shot_size
-    self._screenshot_button.render(rl.Rectangle(shot_x, shot_y, shot_size, shot_size))
+    timing.call('screenshot_button', self._screenshot_button.render, rl.Rectangle(shot_x, shot_y, shot_size, shot_size))
 
     record_size = UI_CONFIG.record_button_size
     record_x = anchor_x + shot_size + UI_CONFIG.record_button_gap
     record_y = shot_y + (shot_size - record_size) / 2
     self._record_button.set_blink_phase(self._blink_timer <= 8)
-    self._record_button.render(rl.Rectangle(record_x, record_y, record_size, record_size))
+    timing.call('record_button', self._record_button.render, rl.Rectangle(record_x, record_y, record_size, record_size))
 
     if self._plot_renderer is None:
       self._plot_renderer = PlotRenderer()
-    self._plot_renderer.draw(rect, self._font_display, self._show_plot_mode)
+    timing.call('plot', self._plot_renderer.draw, rect, self._font_display, self._show_plot_mode)
 
-    self._draw_date_time(rect)
-    self._draw_tpms(rect)
+    timing.call('date_time', self._draw_date_time, rect)
+    timing.call('tpms', self._draw_tpms, rect)
     self._draw_egpu_badge(rect)
-    self._draw_cruise_speed_animation(rect)
+    timing.call('cruise_anim', self._draw_cruise_speed_animation, rect)
+    timing.finish()
 
   def user_interacting(self) -> bool:
     return self._exp_button.is_pressed or self._screenshot_button.is_pressed or self._record_button.is_pressed
@@ -1497,16 +1511,17 @@ class HudRenderer(Widget):
     # [210차] 우측 상단 TPMS 아래에 그리는 현재속도/CPU 온도의 기준점(TPMS와 같은 x 중심)
     self._hud_top_right = (int(rect.x + rect.width - 125), int(rect.y))
 
-    speed_limit_info = self._get_speed_limit_info()
-    self._draw_carrot_main_background(bx, by, speed_limit_info)
-    self._draw_carrot_traffic_light(bx, by)
-    self._draw_carrot_speed_panel(bx, by)
+    timing = self._hud_timing()
+    speed_limit_info = timing.call('speed_limit_info', self._get_speed_limit_info)
+    timing.call('main_bg', self._draw_carrot_main_background, bx, by, speed_limit_info)
+    timing.call('traffic_light', self._draw_carrot_traffic_light, bx, by)
+    timing.call('speed_panel', self._draw_carrot_speed_panel, bx, by)
 
-    self._draw_carrot_lower_status(bx, by)
-    self._draw_carrot_speed_limit_box(bx, by, speed_limit_info)
-    self._draw_carrot_device_state(bx, by)
+    timing.call('lower_status', self._draw_carrot_lower_status, bx, by)
+    timing.call('speed_limit_box', self._draw_carrot_speed_limit_box, bx, by, speed_limit_info)
+    timing.call('device_state', self._draw_carrot_device_state, bx, by)
 
-    self._draw_turn_info_hud(rect)
+    timing.call('turn_info', self._draw_turn_info_hud, rect)
 
 
 
