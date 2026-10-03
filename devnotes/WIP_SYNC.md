@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-03 (235차) -- carrot-ms UI 렌더링 최적화 후보 4건(45496f4, 8cb96d7, 63f4ce4, 53d88ef)의 UI 부분집합이 carrot-ryu 0f08f08로 반영됨 (사용자 실행, 이 세션은 GitHub로 독립 확인만, 코드 변경 없음, carrot-ms 점검 없음)
+
+- 점검 범위: 없음. carrot-ms 체크포인트는 53d88ef 그대로이고 이 세션에서 carrot-ms를 조회하지 않았다(다음 점검은 53d88ef 이후 신규 커밋부터이고, 그때도 `git cat-file -t 53d88ef`로 체크포인트 존재부터 확인할 것).
+- 상태 변경: 233차가 후보 유지(반영 미결정)로 둔 4건이 carrot-ryu 0f08f08(부모 76b182a, 16 files +932/-186, 수정 10 + 신규 6, 메시지 `carrot: port carrot-ms UI render optimizations (45496f4, 8cb96d7, 63f4ce4, 53d88ef), UI-only subset`)에 UI 부분집합으로 들어갔다. 234차가 정리한 선택지 중 무엇을 어떻게 정했는지의 결정 기록과 반영 스크립트는 이 세션에 없다. 커밋 내용은 4건 모두다(그리기 배치 45496f4+8cb96d7, 기하 63f4ce4, 텍스트 캐시·셰이더 uniform·녹화 타깃 해제 53d88ef).
+- 반영하지 않은 것(커밋 파일 목록에 없음): `proclogd.py`, `system/proclog_smaps.py`, `cereal/log.capnp`(memPssMonoTime), CI 워크플로, `tools/`.
+- carrot-ryu 0f08f08의 blob(다음 점검에서 carrot-ms의 같은 경로와 대조할 기준값): `SConstruct` 778b9e9, `openpilot/selfdrive/ui/mici/onroad/augmented_road_view.py` 5370e98, `openpilot/selfdrive/ui/mici/onroad/model_renderer.py` 545efca, `openpilot/selfdrive/ui/onroad/model_renderer.py` db6cf62, `openpilot/selfdrive/ui/onroad/path_geometry.py` 0f1f096, `openpilot/selfdrive/ui/road_markings.py` 90e6f1c, `openpilot/selfdrive/ui/tests/test_ui_render_costs.py` d777726, `openpilot/system/ui/lib/_draw_native.pyx` 70ac9a7, `openpilot/system/ui/lib/application.py` 6d5a04f, `openpilot/system/ui/lib/native/SConscript` 2e770e5, `openpilot/system/ui/lib/native_draw.py` 8e1a17a, `openpilot/system/ui/lib/native_geometry.py` 17544b5, `openpilot/system/ui/lib/native_text.py` e81322e, `openpilot/system/ui/lib/shader_polygon.py` 327dee9, `openpilot/system/ui/lib/text_draw.py` 745d3b0, `openpilot/system/ui/lib/text_measure.py` 8f62c50.
+- 수동 병합 지점(234차 기록과 일치함을 diff로 확인): `SConstruct` 1줄(290행), mici `augmented_road_view.py`, `application.py`(`_release_unused_render_texture()` 호출 884행이 `_temp_capture_*` 블록 889행 앞), 테스트 fixture 3속성(`test_ui_render_costs.py` 46행).
+- 다음 점검 때: carrot-ms가 `model_renderer.py`(C3/mici), `shader_polygon.py`, `text_draw.py`, `text_measure.py`, `path_geometry.py`, `road_markings.py`, `application.py`, mici `augmented_road_view.py`를 또 바꾸면 위 blob과 먼저 대조한다. `application.py`는 carrot-ryu 고유의 54cha 일회성 캡처가 있어, upstream 변경이 프레임 시작 부분을 건드리면 순서(해제 -> 캡처용 텍스처 생성 -> begin_texture_mode)부터 확인한다.
+- 한계: 반영본과 carrot-ms 53d88ef의 같은 경로 blob 비교는 하지 않았다. 콤마 C3 SCons 빌드(`_draw_native*.so` 생성), pytest(0f08f08), 픽셀 비교, fps 효과는 확인되지 않았다(WIP.md 235cha 7번).
+- 재검토 조건: 기기에서 `_draw_native` 빌드가 실패하거나 UI 화면/fps가 나빠지면 `git revert 0f08f08`(새 커밋, force 아님) 여부를 사용자가 결정한다. 0f08f08 뒤 커밋이 같은 파일을 건드렸다면 충돌할 수 있다.
+
 ## 체크포인트: 2026-10-03 (234차) -- UI 렌더링 최적화 후보 4건(45496f4, 8cb96d7, 63f4ce4, 53d88ef)을 carrot-ryu 76b182a 위에 샌드박스 임시 사본으로 병합 시뮬레이션하고 pytest 실행 (사용자 승인 없는 시뮬레이션, 코드 반영 미결정, carrot-ryu 코드 변경 없음)
 
 - 점검 범위: 233차 체크포인트와 같다(carrot-ms 128d58d..53d88ef, 체크포인트는 53d88ef 그대로). 이번엔 후보로 남긴 4건의 UI 쪽 diff(`system/ui`, `selfdrive/ui`, `SConstruct`)를 끝까지 읽고 carrot-ryu 76b182a 사본에 수동 병합해 pytest를 돌렸다. CI 워크플로, `proclogd.py`, `proclog_smaps.py`, `cereal/log.capnp`는 UI와 무관해 제외했다. 45496f4의 문서 3개는 읽지 않았다.
