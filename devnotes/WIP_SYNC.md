@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-03 (234차) -- UI 렌더링 최적화 후보 4건(45496f4, 8cb96d7, 63f4ce4, 53d88ef)을 carrot-ryu 76b182a 위에 샌드박스 임시 사본으로 병합 시뮬레이션하고 pytest 실행 (사용자 승인 없는 시뮬레이션, 코드 반영 미결정, carrot-ryu 코드 변경 없음)
+
+- 점검 범위: 233차 체크포인트와 같다(carrot-ms 128d58d..53d88ef, 체크포인트는 53d88ef 그대로). 이번엔 후보로 남긴 4건의 UI 쪽 diff(`system/ui`, `selfdrive/ui`, `SConstruct`)를 끝까지 읽고 carrot-ryu 76b182a 사본에 수동 병합해 pytest를 돌렸다. CI 워크플로, `proclogd.py`, `proclog_smaps.py`, `cereal/log.capnp`는 UI와 무관해 제외했다. 45496f4의 문서 3개는 읽지 않았다.
+- 결과: 4건은 그대로 얹을 수 없다. 수동 병합이 필요한 곳은 `SConstruct`(등록 줄 위치), mici `augmented_road_view.py`(import 줄 컨텍스트와 `timing.finish()` 호출), `application.py`다.
+- `application.py` 충돌: carrot-ryu의 54cha 일회성 캡처(`_temp_capture_*`)와 53d88ef의 `_release_unused_render_texture()`의 순서 문제다. upstream 위치(프레임 시작)에 그대로 두면 캡처용 텍스처를 곧바로 해제하므로, 해제 호출을 캡처 블록 앞으로 옮겨야 한다(음성 대조: 순서가 틀리면 캡처 콜백 0회, `pending` 영구 True). 53d88ef의 새 테스트 `test_ui_render_costs.py`의 녹화 fixture는 `_temp_capture_*` 속성 3개가 없어 4건 실패하므로 fixture에 3줄을 더해야 한다(코드 결함은 아님).
+- carrot-ryu에는 `tools/` 폴더가 없어 `tools/native_cpu`와 빌드 스크립트를 가져올 수 없다. 반영해도 upstream의 CI 검증 경로는 따라오지 않는다.
+- pytest(Linux x86, Python 3.13 샌드박스): 베이스라인 `selfdrive/ui/tests` 209 passed / 86 skipped, 병합본 223 passed(Python 경로와 `_draw_native` 빌드 후 모두), 폴백 강제(`CARROT_UI_NATIVE=0 CARROT_UI_TEXT_NATIVE=0`, `tools/native_cpu` 포함) 304 passed, upstream `tools/native_cpu` 81 passed, `system/ui/lib/tests` 베이스라인·병합본 61 passed / 1 xfailed.
+- 한계: 콤마 C3(ARM)의 SCons 빌드와 실행, 실제 화면 픽셀 비교, 문서의 36,304개 폴리곤 일치, 실차 검증은 하지 않았다. 샌드박스에는 scons가 없어 Cython 확장을 setuptools로 따로 빌드했다. C3 주행 fps 개선은 입증되지 않았다(233차의 `c5ed0b9`·`ui_text_optimization` 근거 그대로).
+- 반영 여부: 결정하지 않았다. 선택지는 4건 모두 반영(코드 반영 스크립트), 또는 45496f4+8cb96d7·63f4ce4만 먼저 반영하고 53d88ef(`application.py` 병합과 텍스트 캐시)는 미루기이며, 어느 쪽이든 기기에서 `_draw_native.so`의 SCons 빌드 확인이 먼저다. 반영하려면 사용자 승인 뒤 코드 세션(5절).
+- 재검토 조건: 233차와 같다. 반영하기로 하면 이후 점검에서 `model_renderer.py`·`shader_polygon.py`·`text_draw.py`·`application.py`의 blob부터 carrot-ms와 비교한다.
+
 ## 체크포인트: 2026-10-03 (233차) -- carrot-ms 128d58d..53d88ef 신규 14건 판정: 10건 제외, UI 렌더링 최적화 4건(45496f4, 8cb96d7, 63f4ce4, 53d88ef) 후보 유지 (사용자 승인, 코드 변경 없음)
 
 - 점검 범위: 직전 체크포인트(228차 계속2)의 128d58d부터 carrot-ms HEAD 53d88ef99ad5eb65ba6a4c51571a592540190bd1까지 14건. blobless depth 120 fetch에서 `git cat-file -t 128d58d`(commit)와 `git merge-base --is-ancestor 128d58d HEAD`(참)를 확인해 재생성(rebase)은 없었다. 오래된 순으로 3020aea, 833808b, 3168e10, c61b553, bbab4ca, 35b934b, d55d305, dab4f89(2026-10-02), 21d6135, 45496f4, 8cb96d7, c5ed0b9, 63f4ce4, 53d88ef(2026-10-03). 다음 점검은 53d88ef 이후 신규 커밋부터이고, 그때도 `git cat-file -t 53d88ef`로 체크포인트 존재부터 확인할 것.
