@@ -1,5 +1,15 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-03 (237차) -- carrot-ms d0a4038..a7fa8fb 신규 2건 점검 (둘 다 제외 제안, 코드 변경 없음, 사용자는 "기록"을 택함)
+
+- 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD a7fa8fbcb24f78f4db676c287b23100586fc2895, 체크포인트 d0a4038은 존재하고 HEAD의 조상(rebase 없음), `d0a4038..HEAD` 2건: `1d5f431`, `a7fa8fb`(작성자 ajouatom, 2026-10-03, 모두 cherry-pick 표기).
+- `1d5f431`(C3 UI가 core7을 낮은 우선순위로 공유, 8 files +69/-18): C3(tici/tizi) 온로드 UI 친화도를 cores 0,1,2,3,6,7로 확장하고 `DisplayScheduler`에 `extra_onroad_cores`를 추가한다. carrot-ryu에 선행 파일 `display_scheduling.py`와 `docs/camera_core5_trial.md`가 없고, carrot-ryu `ui.py`는 `cores = {5}`와 `carrot_ui_sched` 방식이며 core7 UI 재배치를 금지하는 기존 주석과 테스트 취지가 있다(이 커밋은 해당 테스트를 삭제). 커밋 메시지가 기기 FPS와 모델/DM 영향 미검증이라고 밝힌다. 판정안: 제외 제안. UI fps 저하 조사(HANDOFF 미완료 29번)를 다시 열 때 참고만 한다.
+- `a7fa8fb`(현대 CAN-FD 클러스터 메시지 직접 TX 옵션, 13 files +264/-15): `HyundaiCanfdClusterDirectTx`(기본 OFF) 설정이 켜진 CAN-FD CAMERA_SCC 차량에서만 동작하고 panda safety 헤더를 바꾼다. 내 차(제네시스 DH 2015, carrot-ryu `HYUNDAI_GENESIS` = 비 CAN-FD 플랫폼)에는 해당 없고 전제 문서 `canfd_cluster_rx_forwarding.md`도 carrot-ryu에 없다. 판정안: 제외 제안.
+- 체크포인트: d0a4038 -> a7fa8fb. 다음 점검은 a7fa8fb 이후 신규 커밋부터이고, 그때도 `git cat-file -t a7fa8fb`로 체크포인트 존재부터 확인할 것.
+- 이 판정안은 Claude가 제시했고 사용자는 확정 문구 없이 "기록"을 택했다. 반영 여부는 정하지 않았다.
+- 참고(WIP_SYNC 범위 밖 관찰): 236차가 후보로 남긴 UI 배치 3건(eba4e37, 3456706, ef4ae2d)의 UI 부분집합(3 files +63/-0)이 carrot-ryu 11d7e89(2026-10-03 19:32 +0900, 부모 0f08f08)로 반영돼 있다. 승인 맥락과 검증은 이 세션에 없다(WIP.md 237cha 2번).
+- 한계: 읽은 것은 메시지, 변경 파일 목록, `1d5f431`의 `display_scheduling.py`/`ui.py`/`test_carrot_ui_sched.py` diff, `a7fa8fb`의 interface.py/values.py/params_keys.h/safety 헤더 변경 줄과 문서 앞 25줄이다. 테스트 본문과 나머지 문서/설정은 읽지 않았다(WIP.md 237cha 4·5·7번).
+
 ## 체크포인트: 2026-10-03 (236차) -- carrot-ms 53d88ef..d0a4038 신규 5건 점검 (UI 배치 3건 후보 유지, 5a78d6f 후보 유지, d0a4038 제외, 코드 변경 없음, 사용자는 "1번"(기록)을 택함)
 
 - 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD d0a40384076cfe931c759db0cf5018d13c8bbc9c, 체크포인트 53d88ef는 존재하고 HEAD의 조상(rebase 없음), `53d88ef..HEAD` 5건: `eba4e37`, `5a78d6f`, `3456706`, `ef4ae2d`, `d0a4038`(작성자 ajouatom, 2026-10-03, 모두 cherry-pick 표기).
