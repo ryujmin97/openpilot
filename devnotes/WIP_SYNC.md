@@ -1,5 +1,15 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-03 (236차) -- carrot-ms 53d88ef..d0a4038 신규 5건 점검 (UI 배치 3건 후보 유지, 5a78d6f 후보 유지, d0a4038 제외, 코드 변경 없음, 사용자는 "1번"(기록)을 택함)
+
+- 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD d0a40384076cfe931c759db0cf5018d13c8bbc9c, 체크포인트 53d88ef는 존재하고 HEAD의 조상(rebase 없음), `53d88ef..HEAD` 5건: `eba4e37`, `5a78d6f`, `3456706`, `ef4ae2d`, `d0a4038`(작성자 ajouatom, 2026-10-03, 모두 cherry-pick 표기).
+- UI 3건(`eba4e37` 라벨 캐시와 C3/C4 기하 배치, `3456706` 캐시 우회, `ef4ae2d` 캐시 제거와 네이티브 배치 유지): 순 효과는 5 files +84/-1(`path_geometry.py` +2, `native_geometry.py` +3, `_draw_native.pyx` +58, `tools/native_cpu/test_ui_geometry.py` +19, native-cpu.yaml). 새 Cython 함수 `project_path_batch`/`project_ribbon_batch`와 그 분기다. 캐시 파일(`geometry_cache.py`, `text_texture.py`)은 최종 트리에 없다. carrot-ryu 0f08f08의 `path_geometry.py` 0f1f096, `native_geometry.py` 17544b5, `_draw_native.pyx` 70ac9a7이 carrot-ms 53d88ef와 blob이 같아 이 부분은 그대로 얹힐 수 있는 상태로 보인다(적용해 pytest를 돌리지는 않았다). `application.py`(carrot-ryu 6d5a04f 대 carrot-ms 55c14fd), mici `augmented_road_view.py`(5370e98 대 82b5109)는 수동 병합 때문에 다르고, carrot-ms 쪽은 53d88ef와 d0a4038 사이에 바뀌지 않았다. 판정안: 후보 1건으로 유지, 반영 미결정(HANDOFF.md 미완료 39번). 기기 `_draw_native` 빌드 확인(미완료 38번) 뒤에 보는 것을 권한다.
+- `5a78d6f`(레인 MPC 가드): `lane_model_speed.py` 신규와 `lateral_planner.py` 교체(+8/-9), 테스트 2개, 설정 설명문, Tucson 문서. 모델 속도 궤적이 차속 대비 70% 미만으로 붕괴하면 레인리스로 전환하고 1초 정상 확인 뒤 복귀한다. carrot-ryu `lateral_planner.py` 8f800a4는 carrot-ms 53d88ef판 42d7d3f와 `deque` import 한 줄만 달라 그대로 적용될 상태로 보인다. 이 가드는 레인 모드를 쓸 때만 의미가 있는데 사용자의 params_backup-1.json(백업 날짜 모름)에서 `UseLaneLineSpeed`는 '0'이다. 값 0이면 코드상 레인 모드를 쓰지 않아 효과가 없어 보이나 `useLaneLineSpeedApply`의 출처는 읽지 않았다. 근거는 Tucson 로그 1건과 같은 입력 재생이며 이 차량(DH 2015)에서 같은 현상이 있었는지는 모른다. 판정안: 후보 유지(반영 미결정, 승인 필요한 코드 세션).
+- `d0a4038`(DM publication burst 수정, `dm2_cadence.py`/`dm2d.py`): DM2 계열이라 제외(217차 DM2 제외 확정, carrot-ryu에 dm2d.py 없다는 208·218차 기록). 본문 diff는 읽지 않았다.
+- 체크포인트: 53d88ef -> d0a4038. 다음 점검은 d0a4038 이후 신규 커밋부터이고, 그때도 `git cat-file -t d0a4038`로 체크포인트 존재부터 확인할 것.
+- 이 판정안은 Claude가 제시했고 사용자는 "1번"(결과를 devnotes에 기록하고 체크포인트를 올림)을 택했다. 반영 여부는 정하지 않았다.
+- 한계: 읽은 것은 메시지와 변경 파일 목록, UI 순 diff 5개 파일, `5a78d6f` 코드 diff(`AGENTS.md`, `carrot_settings.json`, `lane_model_speed.py`, `lateral_planner.py`)다. 문서와 테스트 본문, `d0a4038` diff는 읽지 않았다(WIP.md 236cha 8번).
+
 ## 체크포인트: 2026-10-03 (235차) -- carrot-ms UI 렌더링 최적화 후보 4건(45496f4, 8cb96d7, 63f4ce4, 53d88ef)의 UI 부분집합이 carrot-ryu 0f08f08로 반영됨 (사용자 실행, 이 세션은 GitHub로 독립 확인만, 코드 변경 없음, carrot-ms 점검 없음)
 
 - 점검 범위: 없음. carrot-ms 체크포인트는 53d88ef 그대로이고 이 세션에서 carrot-ms를 조회하지 않았다(다음 점검은 53d88ef 이후 신규 커밋부터이고, 그때도 `git cat-file -t 53d88ef`로 체크포인트 존재부터 확인할 것).
