@@ -1,5 +1,25 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-03 (233차) -- carrot-ms 128d58d..53d88ef 신규 14건 판정: 10건 제외, UI 렌더링 최적화 4건(45496f4, 8cb96d7, 63f4ce4, 53d88ef) 후보 유지 (사용자 승인, 코드 변경 없음)
+
+- 점검 범위: 직전 체크포인트(228차 계속2)의 128d58d부터 carrot-ms HEAD 53d88ef99ad5eb65ba6a4c51571a592540190bd1까지 14건. blobless depth 120 fetch에서 `git cat-file -t 128d58d`(commit)와 `git merge-base --is-ancestor 128d58d HEAD`(참)를 확인해 재생성(rebase)은 없었다. 오래된 순으로 3020aea, 833808b, 3168e10, c61b553, bbab4ca, 35b934b, d55d305, dab4f89(2026-10-02), 21d6135, 45496f4, 8cb96d7, c5ed0b9, 63f4ce4, 53d88ef(2026-10-03). 다음 점검은 53d88ef 이후 신규 커밋부터이고, 그때도 `git cat-file -t 53d88ef`로 체크포인트 존재부터 확인할 것.
+- 사용자 결정(233cha): "14건 전체" 분류 요청 뒤 판정안(제외 10건, 후보 4건)을 "승인. Termux"로 확정했다. 후보 4건은 반영하기로 결정한 것이 아니라 후보로 남긴 것이다.
+- 방법과 한계: 커밋별 `git show --numstat`로 변경 파일을 보고, carrot-ryu 76b182a(blobless depth 1)의 `git cat-file -e`/`git rev-parse FETCH_HEAD:<경로>`로 파일 존재와 carrot-ms 128d58d 대비 blob 일치를 확인했다. diff는 dab4f89, 21d6135, 833808b(파이썬 부분), 45496f4(빌드·폴백·proclogd 앞부분)만 읽었고 효과 문서는 일부만 읽었다(WIP.md 233cha 7번). 라인 단위 전체 대조는 하지 않았다.
+- 3020aea 제외: Ioniq 5 PE 시작과 조향 핸드오버 공백 조사 문서 1개뿐이다.
+- 833808b 제외: 레이더·CAN 네이티브 CPU 커널 실험(Cython 확장, `opendbc/can` 파서·패커와 `radar_motion` 예측기·궤적 컷인에 네이티브 경로 추가, CI·빌더 포함). 가져오면 CAN 디코딩과 레이더 앞차 선택(종방향 표적)에 닿는데, 문서의 효과 수치는 EV9 PC 재생 기준(레이더 컨트롤러 3.685 -> 2.447 ms 등)이고 DH 2015·C3 실측이 없다. carrot-ryu는 `card.py`(diff 111줄), `predictor.py`(78줄), `trajectory_cutin.py`(15줄)가 갈라져 있고 `native.py`류와 SConscript가 없다. 안전 관련 동작이라 이득이 불확실한 상태로는 가져오지 않는다. 사용자가 DH 2015 측정 근거를 가져오거나 CPU 여유가 실제 문제로 확인되면 다시 본다.
+- 3168e10 제외: 네이티브 커널의 SCons 타깃·Python 폴백 검증용 CI와 `tools/native_cpu` 테스트. 833808b 없이는 의미가 없다.
+- c61b553 제외: 네이티브 커널의 carrot-wip 승격 문서와 워크플로 정리(`AGENTS.md`, `native-cpu.yaml`, `carrot-route-vault-publish.yaml`).
+- bbab4ca와 d55d305 제외: 둘 다 `openpilot/common/display_scheduling.py` 1/1 줄이고 제목상 d55d305가 bbab4ca("core tune (#531)")의 되돌림이다. 내용은 읽지 않았다. 이 파일은 carrot-ryu에 없다(213cha 이전부터 기록된 차이).
+- 35b934b 제외: 시작 오류 화면 유지와 오프라인 SCons 정리·재부팅 복구(`startup_recovery`). carrot-ryu에 `common/startup_recovery.py`와 `system/ui/startup_recovery.py`가 없고 같은 계열 4770067이 제외(보류) 상태(WIP_SYNC.md 201차)다. 4770067을 재검토할 때 함께 본다.
+- dab4f89 제외: eGPU 시작 구간에서 레이더 집계 무효를 모델 준비 중으로 분류하고 `radarFault`·`locationdTemporaryError` 판정을 바꾸는 `selfdrived.py` 변경(+30/-4)과 테스트. 커밋 본문이 기기 복구 미검증이라 적고 있고, carrot-ryu의 `selfdrived.py`는 blob이 달라 수동 병합이 필요하며 이 기기에서 그 상황이 있었다는 근거가 없다. carrot-ryu에는 `_big_model_settling`이 이미 있다(172행). 이 기기에서 시작 직후 radarFault/commIssue가 반복 보고되면 다시 본다.
+- 21d6135 제외: Hyundai 각도 조향 핸드오버를 모드 3으로 고정하고 `SteerHandoverMode` 설정을 제거하는 변경. carrot-ryu `carcontroller.py`에는 `steer_handover`·`SteeringHandover`가 0건이고 `steering_handover.py`가 없다. 225차의 "조향각 핸드오버 4건 제외"와 같은 기준이다.
+- c5ed0b9 제외(가져올 코드 없음): Casper C3 UI 후속 분석 문서. 같은 C3에서 네이티브 그리기가 켜진 상태에서도 주행 중 UI가 약 13.8 Hz이고 PSS 간격 조정은 proclogd CPU 피크를 낮췄지만 UI 스케줄 경합을 해결하지 못했다고 결론낸다. 이 결론은 후보 4건의 기대 효과를 판단할 때 근거로 쓴다.
+- 후보 45496f4+8cb96d7: 공유 C3/C4 그리기 호출을 네이티브 배치로 처리(`_draw_native.pyx`의 outline/ribbon, `native_draw.py`, `shader_polygon.py`, `model_renderer.py` C3·mici)하고 PSS 샘플링을 분산하는 변경. UI와 무관한 부분(`proclogd.py` 재작성과 `proclog_smaps.py`, `log.capnp`의 `memPssMonoTime` 필드, CI·tools)은 가져오지 않는 분리안이 필요하다. 8cb96d7은 `.pyx`에 C++ 생성 선언 1줄을 더하는 보완이라 45496f4와 함께 다룬다.
+- 후보 63f4ce4: 경로·타이어 기하 계산(원근 나눗셈, 화면 클리핑, 언덕 필터, 정점 패킹)을 네이티브 루프로 옮기고 C3·mici가 `native_geometry.project_ribbon`을 공유하게 한다. 문서는 실로그 36,304개 폴리곤이 원본과 정확히 일치했다고 하며 이 세션에서 재현하지 않았다. `path_geometry.py`·`road_markings.py`·`model_renderer.py`는 carrot-ryu와 carrot-ms 128d58d의 blob이 같아 그대로 얹힌다.
+- 후보 53d88ef: 텍스트 레이아웃 캐시(`native_text.py`), 셰이더 uniform 재사용, 녹화 전용 렌더 타깃 해제, 폭 측정 LRU와 새 테스트(`test_ui_render_costs.py`). `application.py`는 carrot-ryu와 blob이 달라(a18b923 대 ae603d1) 수동 병합이 필요하다. 문서의 정차 C4 OFF/ON/OFF 비교는 렌더 CPU 약 21% 감소, UI rate 변화 없음이고 C3 주행 fps 개선은 입증되지 않았다고 문서가 적는다.
+- 후보 4건의 공통 전제: 기기에서 `_draw_native.so`가 SCons로 빌드돼야 효과가 있고(carrot-ryu SConstruct에는 `envCython`이 있으나 `native/SConscript`와 SConscript 등록 줄이 없다) 빌드되지 않으면 Python 경로로 폴백한다. 이 빌드는 확인하지 못했다. 14건의 파일 목록에 `hud_renderer.py`가 없어 232cha의 plot 경량화(76b182a)와 겹치지 않는다. 반영 여부는 사용자가 정하지 않았고, 정하면 코드 세션(승인 필요)에서 diff 전체 읽기와 `selfdrive/ui/tests` 실행 뒤 진행한다(HANDOFF.md 미완료 36번).
+- 재검토 조건: 833808b는 DH 2015 실측 근거가 생기거나 CPU 여유가 실제 문제로 확인될 때, dab4f89는 시작 직후 radarFault/commIssue가 반복될 때, 35b934b는 4770067을 재검토할 때.
+
 ## 체크포인트: 2026-10-02 (228cha 계속2) -- carrot-ms 419263c..128d58d 5건 판정 확정: 620724d 부분 이식(-1만) 유지와 모드 0 이식 안 함, 0a006ef 문서 전용(가져올 것 없음), 6dcad91·8a2f7b6·128d58d 제외 (사용자 결정, 코드 변경 없음)
 
 - 점검 범위: 직전 체크포인트(228cha 계속)와 같다. `419263c..128d58d` 5건(모두 2026-10-01, 작성자 ajouatom): `620724d`, `0a006ef`, `6dcad91`, `8a2f7b6`, `128d58d`. 이 세션에서 carrot-ms를 blobless depth 80 bare clone으로 다시 받아 5건의 `git log`와 커밋별 `git show --numstat`을 확인했고, `0a006ef`의 diff 전체와 `6dcad91`의 `carcontroller.py`·`hyundaican.py`·`dm_alerts.py` diff를 읽었다.
