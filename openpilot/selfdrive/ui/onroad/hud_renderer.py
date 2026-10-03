@@ -1527,10 +1527,14 @@ class HudRenderer(Widget):
 
 class PlotRenderer:
   PLOT_MAX = 400
+  # 선마다 N개 샘플 중 1개만 이어 그린다(1이면 모든 샘플). 그릴 샘플은 누적 샘플 번호로 고정되어
+  # 선이 스크롤돼도 같은 샘플이 계속 그려지고, 최신 샘플은 항상 그려진다.
+  PLOT_DRAW_STRIDE = 2
 
   def __init__(self):
     self._plot_size = 0
     self._plot_index = 0
+    self._plot_total = 0
     self._plot_queue = [[0.0] * self.PLOT_MAX for _ in range(3)]
     self._plot_min = 0.0
     self._plot_max = 0.0
@@ -1546,6 +1550,7 @@ class PlotRenderer:
     self._plot_index = 0
     self._plot_min = 0.0
     self._plot_max = 0.0
+    self._plot_total = 0
     self._plot_queue = [[0.0] * self.PLOT_MAX for _ in range(3)]
 
   def _make_plot_data(self, sm, show_plot_mode: int):
@@ -1669,6 +1674,7 @@ class PlotRenderer:
 
   def _update_plot_queue(self, plot_data):
     self._plot_index = (self._plot_index + 1) % self.PLOT_MAX
+    self._plot_total += 1
 
     for i in range(3):
       self._plot_queue[i][self._plot_index] = float(plot_data[i])
@@ -1705,8 +1711,18 @@ class PlotRenderer:
     latest_y = None
     latest_value = 0.0
 
-    for i in range(self._plot_size):
-      data = self._plot_queue[index][(self._plot_index - i + self.PLOT_MAX) % self.PLOT_MAX]
+    size = self._plot_size
+    queue = self._plot_queue[index]
+    idx = self._plot_index
+    # 최신 -> 오래된 순으로 링 버퍼를 슬라이싱으로 펼친다(샘플마다 나머지 연산을 하지 않는다).
+    ordered = (queue[idx::-1] + queue[:idx:-1])[:size]
+    stride = max(1, int(self.PLOT_DRAW_STRIDE))
+    # 누적 샘플 번호가 stride의 배수인 샘플만 그린다. 최신 샘플(나이 0)은 항상 그린다.
+    offset = (self._plot_total - 1) % stride
+    ages = [0] + list(range(offset, size, stride)) if offset else range(0, size, stride)
+
+    for i in ages:
+      data = ordered[i]
       plot_y = y_base + self._plot_height - (data - self._plot_min) * plot_ratio
       plot_x = x_base + (self._plot_size - i) * self._plot_dx
 

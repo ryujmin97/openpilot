@@ -752,3 +752,163 @@ def test_set_speed_sections_are_timed_in_draw_order(hud_module, monkeypatch):
     "turn_info",
   ]
   assert seen == [snapshot, snapshot]
+
+
+# --- PlotRenderer: 그리기 간격(PLOT_DRAW_STRIDE) 경량화 ---------------------------------
+
+
+def _plot_capture(module, monkeypatch):
+  """_draw_plotting이 그린 선분 끝점(x, y)과 숫자 텍스트를 기록한다."""
+  lines = []
+  texts = []
+  monkeypatch.setattr(module.rl, "draw_line_ex", lambda a, b, thickness, color: lines.append(((a.x, a.y), (b.x, b.y))))
+  monkeypatch.setattr(module, "draw_text_ui_style", lambda text, *args, **kwargs: texts.append(text))
+  return lines, texts
+
+
+def _plot_feed(renderer, values):
+  for v in values:
+    renderer._update_plot_queue([v, v + 0.25, v - 0.25])
+
+
+def _plot_points(lines):
+  """선분 목록을 그린 순서대로의 점 목록으로 되돌린다(첫 점 + 각 선분의 끝점)."""
+  if not lines:
+    return []
+  return [lines[0][0]] + [end for _, end in lines]
+
+
+def _plot_reference_points(renderer, index):
+  """변경 전 구현(모든 샘플, 샘플마다 나머지 연산)을 그대로 옮긴 기준값."""
+  plot_range = renderer._plot_max - renderer._plot_min
+  ratio = renderer._plot_height if plot_range < 1.0 else renderer._plot_height / plot_range
+  pts = []
+  for i in range(renderer._plot_size):
+    data = renderer._plot_queue[index][(renderer._plot_index - i + renderer.PLOT_MAX) % renderer.PLOT_MAX]
+    y = 0.0 + renderer._plot_height - (data - renderer._plot_min) * ratio
+    x = 0.0 + (renderer._plot_size - i) * renderer._plot_dx
+    pts.append((x, y))
+  return pts
+
+
+def test_plot_draw_stride_default_is_two(hud_module):
+  module, _ = hud_module
+  assert module.PlotRenderer.PLOT_DRAW_STRIDE == 2
+
+
+@pytest.mark.parametrize("count", [1, 2, 3, 37, 399, 400, 401, 799, 1234])
+def test_plot_stride_one_matches_previous_implementation(hud_module, monkeypatch, count):
+  module, _ = hud_module
+  monkeypatch.setattr(module.PlotRenderer, "PLOT_DRAW_STRIDE", 1)
+  renderer = module.PlotRenderer()
+  lines, texts = _plot_capture(module, monkeypatch)
+  _plot_feed(renderer, [((n * 7) % 23) * 0.1 - 1.0 for n in range(count)])
+
+  for index in range(3):
+    lines.clear()
+    texts.clear()
+    renderer._draw_plotting(index, 0.0, 0.0, module.rl.WHITE, None)
+    expected = _plot_reference_points(renderer, index)
+    if len(expected) > 1:
+      assert _plot_points(lines) == expected
+    else:
+      assert not lines
+    assert len(texts) == 1
+
+
+@pytest.mark.parametrize("stride", [2, 3])
+@pytest.mark.parametrize("count", [1, 2, 5, 40, 399, 400, 401, 777])
+def test_plot_stride_draws_only_sample_numbers_on_the_stride_plus_latest(hud_module, monkeypatch, stride, count):
+  module, _ = hud_module
+  monkeypatch.setattr(module.PlotRenderer, "PLOT_DRAW_STRIDE", stride)
+  renderer = module.PlotRenderer()
+  lines, texts = _plot_capture(module, monkeypatch)
+  # 값이 곧 누적 샘플 번호가 되게 한다(y에서 번호를 되찾기 위해 범위를 고정한다).
+  _plot_feed(renderer, [float(n) for n in range(count)])
+  renderer._plot_min, renderer._plot_max = 0.0, float(renderer._plot_height)  # ratio == 1
+  renderer._draw_plotting(0, 0.0, 0.0, module.rl.WHITE, None)
+
+  size = renderer._plot_size
+  drawn = []
+  for x, y in _plot_points(lines):
+    age = size - round(x / renderer._plot_dx)
+    drawn.append(count - 1 - age)  # 누적 샘플 번호
+  drawn_set = set(drawn)
+
+  oldest = count - size
+  expected = {n for n in range(oldest, count) if n % stride == 0} | {count - 1}
+  if size == 1:
+    assert not lines
+  else:
+    assert drawn_set == expected
+    assert drawn == sorted(drawn, reverse=True)  # 최신부터 오래된 순
+    assert drawn[0] == count - 1  # 최신 점은 항상 그린다
+  assert texts == [f"{float(count - 1):.2f}"]
+
+
+@pytest.mark.parametrize("stride", [2, 3])
+def test_plot_stride_keeps_same_samples_while_scrolling(hud_module, monkeypatch, stride):
+  module, _ = hud_module
+  monkeypatch.setattr(module.PlotRenderer, "PLOT_DRAW_STRIDE", stride)
+  renderer = module.PlotRenderer()
+  lines, _ = _plot_capture(module, monkeypatch)
+  _plot_feed(renderer, [float(n) for n in range(450)])
+  renderer._plot_min, renderer._plot_max = 0.0, float(renderer._plot_height)
+
+  def anchors():
+    lines.clear()
+    renderer._draw_plotting(0, 0.0, 0.0, module.rl.WHITE, None)
+    pts = _plot_points(lines)
+    size = renderer._plot_size
+    # 가장 최근 점은 매번 새로 생기므로 앵커(누적 번호가 stride 배수)만 비교한다.
+    nums = [renderer._plot_total - 1 - (size - round(x / renderer._plot_dx)) for x, _ in pts]
+    return {n for n in nums if n % stride == 0}
+
+  before = anchors()
+  for _ in range(stride * 5):
+    _plot_feed(renderer, [float(renderer._plot_total)])
+    renderer._plot_min, renderer._plot_max = 0.0, float(renderer._plot_height)
+    after = anchors()
+    # 이전 프레임에서 그려진 앵커 중 버퍼 밖으로 밀려난 것을 뺀 나머지는 계속 그려진다.
+    still_inside = {n for n in before if n >= renderer._plot_total - renderer._plot_size}
+    assert still_inside <= after
+    before = after
+
+
+def test_plot_stride_value_text_is_latest_sample(hud_module, monkeypatch):
+  module, _ = hud_module
+  renderer = module.PlotRenderer()
+  lines, texts = _plot_capture(module, monkeypatch)
+  _plot_feed(renderer, [1.0, 2.0, 3.0, 4.5])
+  renderer._draw_plotting(1, 0.0, 0.0, module.rl.WHITE, None)
+  assert texts == ["4.75"]  # 두 번째 선은 최신 값 + 0.25
+
+
+def test_plot_stride_empty_and_single_sample(hud_module, monkeypatch):
+  module, _ = hud_module
+  renderer = module.PlotRenderer()
+  lines, texts = _plot_capture(module, monkeypatch)
+  renderer._draw_plotting(0, 0.0, 0.0, module.rl.WHITE, None)
+  assert not lines and not texts
+  _plot_feed(renderer, [2.0])
+  renderer._draw_plotting(0, 0.0, 0.0, module.rl.WHITE, None)
+  assert not lines and texts == ["2.00"]
+
+
+def test_plot_clear_resets_sample_counter(hud_module):
+  module, _ = hud_module
+  renderer = module.PlotRenderer()
+  _plot_feed(renderer, [1.0, 2.0, 3.0])
+  assert renderer._plot_total == 3
+  renderer._clear()
+  assert renderer._plot_total == 0 and renderer._plot_size == 0
+
+
+def test_plot_stride_draws_fewer_lines_than_every_sample(hud_module, monkeypatch):
+  module, _ = hud_module
+  renderer = module.PlotRenderer()
+  lines, _ = _plot_capture(module, monkeypatch)
+  _plot_feed(renderer, [float(n % 11) for n in range(600)])
+  renderer._draw_plotting(0, 0.0, 0.0, module.rl.WHITE, None)
+  # 400샘플을 2개마다 -> 약 200점, 선분은 약 200개(전부 그리면 399개)
+  assert 190 <= len(lines) <= 201
