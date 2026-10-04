@@ -1,5 +1,13 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-04 (244차) -- carrot-ms a7fa8fb..a2139b7 신규 1건 점검 (제외 제안, 코드 변경 없음, 사용자는 "기록"을 택함)
+
+- 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD a2139b7742df1e79e4f97491d6b12e892d096c27, 체크포인트 a7fa8fb는 존재하고 HEAD의 조상(rebase 없음), `a7fa8fb..HEAD` 1건: `a2139b7`(작성자 ajouatom, 2026-10-04 11:40:23 +0900, cherry-pick 표기 a32a570).
+- `a2139b7`(Recover CAN-FD camera TX templates after startup receive gaps, 3 files +222/-9): 시동 직후 CAN 수신 공백으로 CAN-FD 카메라 TX 템플릿(LFA, LFA_ALT, LFAHDA_CLUSTER, ADRV_0x161/0x200/0x1ea/0x160, CCNC_0x162) 등록이 ControlsReady 121/122 한 번에 실패하면 그 세션 내내 빠지던 문제를 `carstate.py`의 새 탐색 함수로 계속 재탐색하게 고친다. 호출은 `canfd and self.CP.flags & HyundaiFlags.CANFD` 조건 안에만 있고 대상도 CAN-FD 전용이다. 내 차(제네시스 DH 2015, carrot-ryu `HYUNDAI_GENESIS` = 비 CAN-FD 플랫폼)에는 해당 없다. 237차 a7fa8fb(CAN-FD 클러스터 직접 TX 옵션)의 후속 보정이다. 판정안: 제외 제안.
+- 체크포인트: a7fa8fb -> a2139b7. 다음 점검은 a2139b7 이후 신규 커밋부터이고, 그때도 `git cat-file -t a2139b7`로 체크포인트 존재부터 확인할 것.
+- 이 판정안은 Claude가 제시했고 사용자는 "기록"을 택했다. 제외로 기록하며 carrot-ryu에는 반영하지 않는다.
+- 한계: 읽은 것은 메시지, 변경 파일 목록, 문서와 carstate.py diff 전체, 테스트 파일 앞 30줄 정도다. 테스트 나머지는 읽지 않았고 carrot-ryu의 carstate.py와 대조하지 않았다(WIP.md 244cha 3~5번).
+
 ## 체크포인트: 2026-10-03 (237차) -- carrot-ms d0a4038..a7fa8fb 신규 2건 점검 (둘 다 제외 제안, 코드 변경 없음, 사용자는 "기록"을 택함)
 
 - 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD a7fa8fbcb24f78f4db676c287b23100586fc2895, 체크포인트 d0a4038은 존재하고 HEAD의 조상(rebase 없음), `d0a4038..HEAD` 2건: `1d5f431`, `a7fa8fb`(작성자 ajouatom, 2026-10-03, 모두 cherry-pick 표기).
