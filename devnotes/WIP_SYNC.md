@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-04 (246차) -- carrot-ms 06639e5 변형 반영: carrot-ryu `J_EGO_COST` 5.0 -> 12.0 (20이 아님, 새 점검 없음, 체크포인트는 06639e5 그대로)
+
+- 반영 대상: `06639e5`(Raise ACC MPC jerk cost to 20 for a driving trial). upstream 값 20을 그대로 가져오지 않고 사용자가 고른 12.0으로 carrot-ryu `long_mpc.py` 43행 한 줄만 바꿨다(carrot-ryu `e85b318fd99df5dbc710d43b85b4abd6ec51052f`, 부모 `11d7e8904eb227bbde3875cc7df61c260c603183`, 1 file +1/-1). carrot-ms와 같은 값이 아니므로 이후 carrot-ms 동기화 때 이 줄은 upstream과 다름이 정상이다.
+- 사유: 이전 대화에서 J=20은 `test_longitudinal.py`에 서브테스트 실패 1건을 더하고(7 failed -> 8 failed, "Crashed") 앞차 급정지 시뮬레이션에서 aggressive/standard 최소 간격이 0.15/0.14 m로 충돌했다는 결과가 있었다(이 세션에서 재측정하지 않음). 이 세션에서 J=12를 같은 pytest로 비교했고 변경 전후 실패 목록이 같았다(test_longitudinal.py 7 failed, 관련 종방향 11개 파일 1 failed / 426 passed 둘 다 동일).
+- 같이 가져오지 않은 것: `06639e5`의 테스트 2개 수정(하드코딩 5를 운영 소스에서 읽게 함)과 문서 `docs/longitudinal_jerk_cost_trial_20261004.md`. carrot-ryu 두 테스트의 `J_EGO_COST` 5 하드코딩(31행, 33행)은 그대로다(HANDOFF.md 미완료 43번).
+- 사용자가 선택한 것: 값 12("12정도면 좋을듯한데")와 제안(pytest 비교 후 코드 스크립트, Termux). 245차 판정안의 "후보 유지"는 이 반영으로 "변형값 12로 반영"이 됐다. 실행 후 GitHub 직접 확인으로 반영을 확인했다(WIP.md 246cha 6번).
+- 체크포인트: 변경 없음(06639e5). 다음 점검은 06639e5 이후 신규 커밋부터이고, 그때도 `git cat-file -t 06639e5`로 체크포인트 존재부터 확인할 것.
+- 한계: 샌드박스 pytest이며 실차 검증 미실시. 성격별 유효 가중치(jerk_factor, jerk_cost_factor)는 읽지 않았다(WIP.md 246cha 7번).
+
 ## 체크포인트: 2026-10-04 (245차) -- carrot-ms a2139b7..06639e5 신규 6건 점검 (제외 5건, 06639e5 후보 유지, 코드 변경 없음, 사용자는 "너의 제안대로 진행"을 택함)
 
 - 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD 06639e5939bf14f82e0b439a7aedc9c247224c99, 체크포인트 a2139b7는 존재하고 HEAD의 조상(rebase 없음), `a2139b7..HEAD` 6건(오래된 순, 모두 2026-10-04): `83ba935`, `f458f6b`, `b16e0b7`, `c43ecf1`, `92f3076`(작성자 Hermes Agent, 나머지는 ajouatom, 모두 cherry-pick 표기이나 92f3076은 없음), `06639e5`.
