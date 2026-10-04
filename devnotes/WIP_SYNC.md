@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-04 (245차) -- carrot-ms a2139b7..06639e5 신규 6건 점검 (제외 5건, 06639e5 후보 유지, 코드 변경 없음, 사용자는 "너의 제안대로 진행"을 택함)
+
+- 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD 06639e5939bf14f82e0b439a7aedc9c247224c99, 체크포인트 a2139b7는 존재하고 HEAD의 조상(rebase 없음), `a2139b7..HEAD` 6건(오래된 순, 모두 2026-10-04): `83ba935`, `f458f6b`, `b16e0b7`, `c43ecf1`, `92f3076`(작성자 Hermes Agent, 나머지는 ajouatom, 모두 cherry-pick 표기이나 92f3076은 없음), `06639e5`.
+- `06639e5`(ACC MPC `J_EGO_COST` 5.0 -> 20.0 여러 날 주행 시험, 4 files +38/-5): 공유 ACC MPC 변경이다. carrot-ryu `long_mpc.py` 43행도 5.0이고 `set_weights` 구조가 같아 상수 한 줄로 적용 가능하지만 파일 blob이 달라(f4f81e2 대 a3706e3, carrot-ryu 고유 리드 감속 게이팅) 통째 교체는 안 된다. 두 테스트(test_longitudinal_gap_recovery.py 31행, test_cutout_mpc_integration.py 33행)는 carrot-ryu에서 `J_EGO_COST` 5를 하드코딩해 상수만 바꾸면 어긋난다. upstream 근거는 오프라인 재구성이고 초기 최대 감속은 낮아지나 일부 구간 해제 지연과 정지 판정 지연이 문서에 적혀 있다. 이 기기 실차 근거 없음. 판정안: 후보 유지(반영 미결정, 승인 필요한 코드 세션, HANDOFF.md 미완료 42번). 되돌리기는 5.0 복원.
+- `f458f6b`(panda H7 안전모드 전환 때 CAN 컨트롤러 재초기화 생략, 8 files +411/-21): 보존 조건이 ELM327에서 `SAFETY_HYUNDAI_CANFD`로의 전환뿐이라 내 차(비 CAN-FD)는 그 분기를 타지 않는다. 다만 `can_set_mode()` 래퍼, 모든 모드의 `safety_can_transition` 시리얼 출력, H7 공통 `can_init`·슬립 종료 대기 상한이 함께 들어가고 panda 펌웨어 빌드·설치가 필요하다. 237차 `a7fa8fb`, 244차 `a2139b7`과 같은 CAN-FD 계열이다. 판정안: 제외 제안.
+- `b16e0b7`(외부 HUD와 웹 카메라 동시 사용 허용, 16 files +131/-42): carrot-ryu에 `CarrotVisionEnabled` 설정이 없고 `enable_webrtc`가 `DisableDM == 2` 조건이라 diff가 붙지 않으며 181차에 사용자가 클러스터 HUD 미사용을 확인했다. 판정안: 제외 제안.
+- eGPU 3건 `83ba935`(진단 첨부, 7 files +337/-0), `c43ecf1`(런타임 전달 복구, 18 files +438/-94), `92f3076`(modeld 미러 baseline 2줄): 111차에 사용자가 eGPU 미보유를 확인했고 233차 `dab4f89`도 같은 이유로 제외했다. 판정안: 제외 제안.
+- 체크포인트: a2139b7 -> 06639e5. 다음 점검은 06639e5 이후 신규 커밋부터이고, 그때도 `git cat-file -t 06639e5`로 체크포인트 존재부터 확인할 것.
+- 이 판정안은 Claude가 제시했고 사용자는 "너의 제안대로 진행"을 택했다(응답 끝의 반영/기록 두 선택지 중 어느 쪽인지는 명시하지 않아 기록으로 해석). 제외 5건은 제외로 기록하고 06639e5는 후보로 유지하며 carrot-ryu에는 반영하지 않는다.
+- 한계: 읽은 것은 메시지, 변경 파일 목록, `06639e5` diff 전체, `f458f6b`의 panda 6개 파일과 문서 diff, `b16e0b7`의 `process_config.py`·`stream.py`·`carrot_settings.json`·문서 diff다. eGPU 3건은 diff를 읽지 않았고 테스트 파일, JS·번역 변경, 적용 시뮬레이션, pytest는 하지 않았다(WIP.md 245cha 8번).
+
 ## 체크포인트: 2026-10-04 (244차) -- carrot-ms a7fa8fb..a2139b7 신규 1건 점검 (제외 제안, 코드 변경 없음, 사용자는 "기록"을 택함)
 
 - 점검 범위: carrot-ms(happymaj11r/openpilot) HEAD a2139b7742df1e79e4f97491d6b12e892d096c27, 체크포인트 a7fa8fb는 존재하고 HEAD의 조상(rebase 없음), `a7fa8fb..HEAD` 1건: `a2139b7`(작성자 ajouatom, 2026-10-04 11:40:23 +0900, cherry-pick 표기 a32a570).
