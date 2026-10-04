@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-05 (247차) -- carrot-ms 06639e5 테스트 부분 변형 반영: carrot-ryu 0a1ad62 (새 점검 없음, 체크포인트는 06639e5 그대로)
+
+- 반영 대상: `06639e5`(Raise ACC MPC jerk cost to 20 for a driving trial) 중 테스트 2개 수정 부분. upstream처럼 하드코딩 `J_EGO_COST` 5를 지우고 운영 소스 `long_mpc.py`의 `J_EGO_COST`를 AST로 읽게 했다(carrot-ryu `0a1ad62c44cf9aa7d5587fb5921abeb0710805b9`, 부모 `e85b318`, 2 files 각 +4/-2: `selfdrive/carrot/tests/test_cutout_mpc_integration.py`, `selfdrive/controls/tests/test_longitudinal_gap_recovery.py`). carrot-ryu에는 `GATE_` 대입이 더 있어 upstream 줄 단위 patch가 아니라 같은 방식의 문자열 치환으로 만들었다고 이전 대화 글에 적혀 있다. 운영 코드는 건드리지 않았다.
+- 이미 반영된 것: 246차의 `J_EGO_COST` 5.0 -> 12.0(운영 상수, upstream 20과 다름). 이번 보정으로 테스트가 12를 따라간다.
+- 가져오지 않은 것: 문서 `docs/longitudinal_jerk_cost_trial_20261004.md`(여전히 미반입). upstream과 다른 점은 운영 상수 12(upstream 20)뿐이다.
+- 사용자가 고른 것: 이전 대화에서 요청과 승인이 있었고(이 세션에는 그 맥락이 없다), 이 세션에서 사용자는 "푸시완료"와 "진행"이라고 했다.
+- 체크포인트: 변경 없음(06639e5). 다음 점검은 06639e5 이후 신규 커밋부터이고, 그때도 `git cat-file -t 06639e5`로 체크포인트 존재부터 확인할 것.
+- 한계: 이 세션은 push를 GitHub 조회로 확인했을 뿐 pytest를 다시 돌리지 않았다(이전 대화 글: 대상 2개 파일 98 passed 전후 동일). 실차 검증 미실시(테스트만 변경).
+
 ## 체크포인트: 2026-10-04 (246차) -- carrot-ms 06639e5 변형 반영: carrot-ryu `J_EGO_COST` 5.0 -> 12.0 (20이 아님, 새 점검 없음, 체크포인트는 06639e5 그대로)
 
 - 반영 대상: `06639e5`(Raise ACC MPC jerk cost to 20 for a driving trial). upstream 값 20을 그대로 가져오지 않고 사용자가 고른 12.0으로 carrot-ryu `long_mpc.py` 43행 한 줄만 바꿨다(carrot-ryu `e85b318fd99df5dbc710d43b85b4abd6ec51052f`, 부모 `11d7e8904eb227bbde3875cc7df61c260c603183`, 1 file +1/-1). carrot-ms와 같은 값이 아니므로 이후 carrot-ms 동기화 때 이 줄은 upstream과 다름이 정상이다.
