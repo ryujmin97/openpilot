@@ -1,5 +1,17 @@
 # WIP
 
+## 241cha (완료) (Claude, Claude Sonnet 5.5) - 기기 터미널 캡처로 `_draw_native.so`의 `project_path_batch`/`project_ribbon_batch` 존재 확인 (이 세션 코드 변경 없음, 읽기 전용, 실차 검증 미실시)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했고, 같은 메시지에 240cha devnotes push 확인 결과 글(`bee5091`)이 붙어 있었다. 사용자가 "기기명령은 어떤걸 해야하지"라고 물어 WIP.md 240cha 7번의 명령 3개를 안내했고, 기기에서 실행한 터미널 화면 캡처 1장(`1000022971.jpg`)을 올린 뒤 "기록"이라고 했다.
+
+1. **4절 0단계.** 첫 도구 호출은 사용자가 준 브랜치 URL로 지침 문서를 읽은 것이고(지침의 ls-remote 먼저 순서와 다름), 이어서 `git ls-remote`로 note HEAD bee5091a9c7dee87961570a7b0cad139527ccf2b를 얻어 SHA 고정본으로 HANDOFF.md, WIP.md를 읽었다. 지침 문서는 브랜치 URL 본과 SHA 고정본이 `cmp` 바이트 동일(변경 없음, 49,277바이트)이다. 이 세션의 note clone에서 WIP.md 최상단 240cha, HANDOFF.md 1행 Worker 240cha, CR 0, BOM 없음을 확인했다(240cha push의 numstat은 보지 않았다). `git ls-remote` 전체: carrot-ryu 11d7e89 그대로, carrot-ryu-v1 6df4268, carrot-ryu-v2 3ddf849.
+2. **기기 명령 3개와 캡처에 보인 출력(미완료 41번 (d), 38번 (a)).** 기기 터미널(/data/openpilot, 웹 터미널 화면 캡처)에서 `git log -1 --format=...`은 `11d7e8904 2026-10-03 19:32:53 +0900`을 출력했다. `find . -name '_draw_native*' -exec ls -l --time-style=full-iso {} \;`은 4개를 출력했다: 확장자가 `.o`인 파일 2,103,560바이트 2026-10-04 05:12:06.971…, `.so` 1,529,168바이트 `-rwxr-xr-x` 2026-10-04 05:12:07.621…, `.pyx` 19,702바이트 2026-10-04 05:10:29.433…, `.cpp` 1,912,633바이트 2026-07-29 00:05:29.839…. `python3 -c "from openpilot.system.ui.lib import _draw_native as m; print(hasattr(m,'project_path_batch'), hasattr(m,'project_ribbon_batch'))"`은 `True True`를 출력했다.
+3. **해석.** 기기 HEAD가 11d7e89이고, `.so`가 `.pyx`보다 약 1분 38초 뒤에 만들어졌으며(05:10:29 -> 05:12:07), 그 `.so`를 import하면 두 batch 함수가 모두 있다. 따라서 기기는 구버전 `.so`가 아니라 11d7e89의 새 batch 함수가 들어간 `.so`를 쓸 수 있는 상태다. `.pyx` 크기 19,702바이트는 이 세션에서 `git cat-file -s`로 본 11d7e89의 `openpilot/system/ui/lib/_draw_native.pyx` blob 크기(19,702바이트)와 같다(크기 일치이며 해시 비교는 아니다). 호출부의 `hasattr` 가드(`path_geometry.py` 18~19행, `native_geometry.py` 37행, 240cha 7번)가 True를 보면 batch 경로를 쓰는 것으로 읽히나, 이 세션에서 실행 중 UI가 실제로 그 경로를 탔는지는 로그로 확인하지 못했다.
+4. **캡처에서 읽지 못한 것과 한계.** 터미널 줄이 화면 오른쪽에서 잘려 시각의 소수점 이하 뒤와 시간대 표시(`+0900` 여부), 각 파일의 전체 경로가 보이지 않았다(경로 끝 `_native.o`, `_native.so`, `ative.pyx`, `_native.cpp`만 보임). 시간대가 KST든 UTC든 05:12는 커밋 시각(10-03 19:32 KST)보다 뒤다. 이 `.so`가 route 488 로그가 기록된 시점의 `.so`와 같은지는 모른다. scons 빌드 로그 자체는 보지 못했고 `.so` 생성 시각과 함수 존재만 확인했다.
+5. **설명하지 못한 점.** `.cpp`(1,912,633바이트)의 수정 시각이 2026-07-29로 `.pyx`(10-04)보다 오래됐다. 11d7e89의 `native/SConscript`는 `../_draw_native.so`를 `../_draw_native.pyx`에서 만드는 `Program` 한 줄이고, 이 세션에서 11d7e89 트리에 `_draw_native.cpp`는 추적되지 않음을 확인했다. 이 `.cpp`가 이번 빌드의 중간 산출물인지, 7월에 만들어진 별개 파일인지, 어느 경로의 파일인지 알 수 없다(경로가 잘림). 새 batch 함수가 있는 `.so`가 실제로 나왔으므로 확인 결과를 뒤집지는 않지만, 이 `.cpp`의 정체는 미확인이다. 앞선 응답에서 "무관한 잔여 파일로 보인다"고 한 것은 근거가 부족한 추정이었다.
+6. **정하지 않은 것.** 네이티브 효과(미완료 41번 (b)), 다른 카메라 구간의 vCluRatio, 카메라 정책 변경 여부는 이번에 다루지 않았다. 실행 환경 지정이 없어 직전 세션들과 같은 Termux(bash) 스크립트(`241cha_devnotes_so_batch_check_v1.sh`)로 만들었다(PowerShell이 필요하면 다시 만든다). 이 세션에서 코드와 다른 devnotes는 바꾸지 않았다. 실차 검증: 미실시(12절).
+
+
 ## 240cha (완료) (Claude, Claude Sonnet 5.5) - 239cha가 남긴 선택지 1·2·3 진행: 카메라 접근 후 속도가 제한 아래로 내려간 원인을 코드와 route 488 로그로 확인, plot 모드 표시값 해석, 기기 `_draw_native`의 batch 함수 확인 방법 정리 (이 세션 코드 변경 없음, 읽기 전용, 실차 검증 미실시)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했고, 같은 메시지에 239cha devnotes push 로그(`be1d450..69c947c  carrot-ryu-note -> carrot-ryu-note`, force 없음)가 붙어 있었다. 사용자가 239cha가 남긴 선택지 중 "1,2,3번 진행"(1 카메라 감속 후 언더슈트 원인을 코드에서 읽기, 2 plot 고정 로그로 네이티브 효과 비교, 3 기기 `_draw_native`의 `project_*_batch` 확인)을 요청했고, 이어서 route 488 로그 zip 3개를 올린 뒤 "기록"이라고 했다.
