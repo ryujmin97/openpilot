@@ -339,7 +339,8 @@
                 "LongTuningKpV",
                 "LongTuningKiV",
                 "LongTuningKf",
-                "LongActuatorDelay"
+                "LongActuatorDelay",
+                "JerkCostEgo"
               ]
             },
             {
@@ -1265,6 +1266,23 @@
       "max": 200,
       "default": 10,
       "unit": 10
+    },
+    {
+      "group": "주행튜닝",
+      "name": "JerkCostEgo",
+      "title": "JerkCostEgo(12)",
+      "descr": "가감속 변화(저크) 비용 기준값. 클수록 부드럽고 반응이 느림, 5~20",
+      "egroup": "LONG",
+      "etitle": "JerkCostEgo(12)",
+      "edescr": "Longitudinal jerk cost base. Higher = smoother but slower response, 5-20",
+      "cgroup": "纵向控制",
+      "ctitle": "加减速变化代价(12)",
+      "cdescr": "纵向加加速度代价基准值。越大越平顺，但响应越慢，5~20",
+      "min": 5,
+      "max": 20,
+      "default": 12,
+      "unit": 1,
+      "risk": "medium"
     },
     {
       "group": "주행튜닝",

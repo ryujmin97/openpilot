@@ -326,14 +326,16 @@ class LongitudinalMpc:
                   jerk_factor=1.0,
                   a_change_cost_starting=A_CHANGE_COST_STARTING,
                   a_change_cost_factor=1.0,
-                  jerk_cost_factor=1.0):
+                  jerk_cost_factor=1.0,
+                  j_ego_cost=J_EGO_COST):
     if self.mode == 'acc':
       a_change_cost = get_a_change_cost(
         prev_accel_constraint, a_change_cost_starting, a_change_cost_factor,
       )
       applied_jerk_cost_factor = float(np.clip(jerk_cost_factor, 0.0, 1.0))
+      applied_j_ego_cost = float(np.clip(j_ego_cost, 5.0, 20.0))
       cost_weights = [X_EGO_OBSTACLE_COST, X_EGO_COST, V_EGO_COST, A_EGO_COST,
-                      a_change_cost, jerk_factor * applied_jerk_cost_factor * J_EGO_COST]
+                      a_change_cost, jerk_factor * applied_jerk_cost_factor * applied_j_ego_cost]
       constraint_cost_weights = [LIMIT_COST, LIMIT_COST, LIMIT_COST, DANGER_ZONE_COST]
     elif self.mode == 'blended':
       a_change_cost = 40.0 if prev_accel_constraint else 0
@@ -449,6 +451,7 @@ class LongitudinalMpc:
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
     t_follow = carrot.get_T_FOLLOW(personality, v_ego, a_ego)
     jerk_factor = carrot.jerk_factor
+    j_ego_cost = getattr(carrot, 'jerkCostEgo', J_EGO_COST)
 
     comfort_brake = carrot.comfort_brake
     stop_distance = carrot.stop_distance
@@ -588,6 +591,7 @@ class LongitudinalMpc:
       a_change_cost_starting=a_change_cost_starting,
       a_change_cost_factor=response_request.a_change_cost_factor,
       jerk_cost_factor=response_request.jerk_cost_factor,
+      j_ego_cost=j_ego_cost,
     )
 
     # Extra TF is a comfort preference, not a change to physical lead obstacles,

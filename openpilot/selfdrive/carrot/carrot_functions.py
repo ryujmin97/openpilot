@@ -56,6 +56,12 @@ class TrafficState(Enum):
 
 A_CRUISE_MAX_BP_CARROT = [0., 10 * CV.KPH_TO_MS, 40 * CV.KPH_TO_MS, 60 * CV.KPH_TO_MS, 80 * CV.KPH_TO_MS, 110 * CV.KPH_TO_MS, 140 * CV.KPH_TO_MS]
 
+def jerk_cost_ego_from_param(value, default=12.0):
+  # JerkCostEgo: 5~20. An unset key reads as 0 -> use the default instead of the minimum.
+  value = int(value)
+  return float(default) if value <= 0 else float(np.clip(value, 5, 20))
+
+
 class CarrotPlanner:
   def __init__(self):
     self.params = Params()
@@ -139,6 +145,7 @@ class CarrotPlanner:
     self.cruiseMaxVals6 = 0.6
 
     self.aChangeCostStarting = 10.0
+    self.jerkCostEgo = 12.0  # JerkCostEgo default (= long_mpc.J_EGO_COST)
 
     self.trafficLightDetectMode = 2 # 0: None, 1:Stop, 2:Stop&Go
     self.trafficState_carrot = 0
@@ -204,6 +211,7 @@ class CarrotPlanner:
       self.eco_over_speed = self.params.get_int("CruiseEcoControl")
       self.autoNaviSpeedDecelRate = float(self.params.get_int("AutoNaviSpeedDecelRate")) * 0.01
       self.aChangeCostStarting = self.params.get_float("AChangeCostStarting")
+      self.jerkCostEgo = jerk_cost_ego_from_param(self.params.get_int("JerkCostEgo"))
       self.trafficStopDistanceAdjust = self.params.get_float("TrafficStopDistanceAdjust") / 100.
     elif self.params_count >= 100:
 
