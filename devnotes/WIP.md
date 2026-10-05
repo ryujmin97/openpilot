@@ -1,5 +1,18 @@
 # WIP
 
+## 250cha 계속 (완료) (Claude, Claude Sonnet 5.5) - carrot-ryu 670f72c 관련 종방향 12개 파일 회귀 pytest(1 failed / 485 passed)와 test_longitudinal.py 재실행 기록(carrot-ryu 코드 변경 없음, 실차 검증 미실시)
+
+**배경.** 같은 대화에서 사용자가 250cha devnotes 반영을 "완료"라고만 알려 이 세션이 GitHub에서 직접 확인했고, "670f72c에서 종방향 회귀 pytest 실행"을 요청해 pytest를 돌렸으며, 사용자가 "기록"이라고 해 이 devnotes를 만든다. 실행 환경 지정이 없어 직전 세션들과 같은 Termux(bash) 스크립트로 만들었다.
+
+1. **push 독립 확인.** 사용자가 로그 없이 "완료"라고만 알려 `git ls-remote`와 `git clone --filter=blob:none --depth 2`로 확인했다: note HEAD dce397c85c3daaad13d3af3f75c07310a1a40d53(부모 7a288b3, 작성자 ryujmin97, 2026-10-05 14:18:43 +0900), numstat HANDOFF 18/5·WIP 14/0·WIP_SYNC 9/0, blob HANDOFF 86cfa9f·WIP 3b4ac5a·WIP_SYNC 2738862(스크립트 시뮬레이션의 Post 값과 일치), 세 파일 CR 0·BOM 없음, WIP.md 3행이 250cha 헤더, HANDOFF.md 1행이 Worker 250cha임을 확인했다. carrot-ryu 670f72c, v1 6df4268, v2 3ddf849는 그대로다.
+2. **pytest 환경.** note dce397c의 `devnotes/toolkit/pytest_ci_setup.sh`를 `bash pytest_ci_setup.sh carrot-ryu`로 실행했다(백그라운드, 약 4분). 끝의 자가검증 `OK: params_pyx / msgq / acados long_mpc / pyray / visionipc`가 출력됐고 casadi 3.6.7 경고가 나왔다. clone HEAD는 670f72c54422395838e725c9297e0283097601e2이다. 샌드박스(Linux, Python 3.12)이며 콤마 디바이스나 실차가 아니다. 모든 pytest는 `PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo`에서 `-n 0 -p no:randomly -q -W default -o addopts=""`로 실행했다.
+3. **관련 종방향 12개 파일.** `controls/tests`의 test_long_mpc_a_change_cost, test_longitudinal_fast_radar, test_longitudinal_gap_recovery, test_longitudinal_preview, test_longitudinal_preview_release, test_longitudinal_stopping_lead, test_following_distance, test_lead_gate_margin, test_leads, test_front_radar_cutin, test_long_mpc_jerk_cost_ego, `carrot/tests/test_cutout_mpc_integration.py`: **1 failed, 485 passed (47.20 s)**. 실패는 `test_leads.py::TestLeads::test_radar_fault` 1건이고 `process_replay/migration.py` 306행 `HyundaiSafetyFlags.CANFD_LKA_STEER_MSG` AttributeError(출력 끝에서 직접 확인)로 248cha 계속에 기록한 것과 같다. 249cha 계속의 f9ffbc2 기준(같은 12개 파일 1 failed / 447 passed)에서 통과가 38개 늘었고 실패 목록은 같다. 늘어난 38개가 `test_longitudinal_gap_recovery.py`에서 온 것인지 파일별 개수는 비교하지 않았다(그 파일이 670f72c에서 162/14 바뀐 것과 일치하는 방향일 뿐이다).
+4. **test_longitudinal.py.** `selfdrive/test/longitudinal_maneuvers/test_longitudinal.py`: **7 failed, 1 passed, 54 subtests passed (45.57 s)**. 246cha 이후 기준선(7 failed / 1 passed / 54 subtests passed)과 같은 수치다. 이번에 실패 이름을 전부 비교하지는 않았고, 출력 끝에서 본 SUBFAILED `allow_throttle=False pitch +0.1`(e2e=False)과 `resume from a stop`(e2e=False)은 기존 알려진 실패 항목이다.
+5. **작업 트리.** 실행 뒤 `git rev-parse HEAD`는 670f72c 그대로이고 `git status --short`에 `openpilot/cereal/gen/` 외 변경이 없었다.
+6. **한계.** 샌드박스 pytest이며 실제 MPC로 앞차 추종 거동을 본 것이 아니다. 670f72c의 새 거리 대역(기준 거리의 1.2~1.5배)을 실제 주행 입력으로 확인한 것은 없고, upstream 47d35da 대비 줄 단위 비교(`long_mpc.py` hunk 제외)도 아직 하지 않았다. 음성 대조(670f72c 변경을 되돌리고 같은 테스트를 돌려 실패를 확인)는 하지 않았다.
+7. **실차 검증: 미실시(12절).** 필요한 것은 HANDOFF.md 미완료 46번 (a)와 같다(기기에 670f72c pull, 앞차 간격이 벌어진 뒤 따라붙는 거동을 이전과 비교하는 새 로그 zip).
+8. **이 세션의 devnotes 스크립트.** Termux(bash, python3 필요) `250cha_gyesok_devnotes_pytest_670f72c_v1.sh` 1개(WIP.md, HANDOFF.md. WIP_SYNC.md는 변경 없음). 샌드박스에서 note dce397c의 같은 blob으로 만든 로컬 bare 저장소로 일반/CRLF 체크아웃 두 모드와 base 불일치 안전 중단을 시뮬레이션했다(Termux 실기기 실행은 아님). 이 push는 이 세션 밖에서 사용자가 실행하므로 이 항목은 push 결과를 담지 않는다. 다음 세션이 `git ls-remote`로 반영 여부부터 확인할 것.
+
 ## 250cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 47d35da 간격 헤드룸 유지 거리 대역 반영(carrot-ryu 670f72c) 독립 확인과 기록(이 세션 코드 변경 없음, pytest 미실행, 실차 검증 미실시)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했고, 메시지에 이전 대화의 `670f72c` 반영 확인 결과 글(HEAD, numstat, blob, 인코딩, 제외 항목, 다음 단계)이 붙어 있었다. 그 글의 도구 출력, 코드 스크립트, 승인 맥락은 이 세션에 없었다. 사용자가 devnotes 기록을 제안한 글 끝에 "기록"이라고 답해, 이 세션이 GitHub에서 같은 값을 다시 얻어 기록한다. 실행 환경 지정이 없어 직전 세션들과 같은 Termux(bash) 스크립트로 만들었다(PowerShell이 필요하면 알려 주면 다시 만든다).
