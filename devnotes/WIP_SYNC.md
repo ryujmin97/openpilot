@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-05 (251차) -- carrot-ms 47d35da..95d07bc 신규 3건 점검, 모두 제외 제안 (carrot-ryu 반영 없음, 체크포인트 47d35da -> 95d07bc)
+
+- 점검 범위: `47d35da..95d07bc` 신규 3건(모두 ajouatom, 2026-10-05). 체크포인트 47d35da의 존재를 `git cat-file -t`로 확인했고 부모 사슬 47d35da -> 37f39fc -> c185343 -> 95d07bc라 rebase는 없었다.
+- `37f39fc` Fix offline device clock floor before startup builds (6 files +178/-1): 제외 제안. 부팅 시 시계를 HEAD 커밋 시각 이상으로 올리는 `build_time.py`와 `launch_chffrplus.sh` 호출이다. carrot-ryu `launch_chffrplus.sh`에는 `run_startup_command`/`show_startup_failure`가 없고 `test_launch_order.py` 앵커도 달라 줄 패치로 들어가지 않는다. sudo로 시계를 바꾸는 부팅 경로 변경이라 위험 대비 이득이 불분명하고, upstream 문서도 AGNOS 실기기 검증은 하지 않았다고 적었다. 필요해지면 carrot-ryu 구조에 맞춰 따로 포팅한다.
+- `c185343` Show single JotPluggler logs from zero seconds (1 file +21): 제외. PC 로그 뷰어 변경이다.
+- `95d07bc` Corroborate stopped leads without trusting inconsistent corner motion (4 files +612/-2): 제외 제안. 앞/코너 레이더 쌍 판정 변경이라 코너 레이더가 있는 차량에서만 의미가 있다(`corner_radar_enabled`는 hyundai, `enable_corner_radar > 0`, `extFlags & CORNER_RADAR_FLAGS` 필요). 내 차는 비 CAN-FD라 해당 없을 가능성이 높고, carrot-ryu `primary.py`에는 `preferred_identity` 앵커도 없다.
+- 사용자가 고른 것: 판정안은 Claude가 제시했고 사용자는 "기록"을 택해 제외로 기록했다. carrot-ryu 반영은 하지 않았다.
+- 체크포인트: 47d35da -> 95d07bc. 다음 점검은 95d07bc 이후 신규 커밋부터이고, 그때도 `git cat-file -t 95d07bc`로 체크포인트 존재부터 확인할 것.
+- 한계: 정적 분석(diff 읽기, carrot-ryu 670f72c 파일/앵커 grep)이다. `primary.py` 전체 줄 단위 비교, 기기의 코너 레이더 설정값 확인, pytest는 하지 않았다. 실차 검증 미실시.
+
+
 ## 체크포인트: 2026-10-05 (250차) -- carrot-ms 47d35da 부분 반영: carrot-ryu 670f72c (체크포인트 06639e5 -> 47d35da)
 
 - 점검 범위: `06639e5..47d35da`는 `47d35da`(ajouatom, 2026-10-05 10:06:50 +0900, Limit extra following headroom hold to a smooth distance band, cherry-pick of be1a944, 10 files +316/-61) 1건이다. 부모가 06639e5라 rebase는 없었다.

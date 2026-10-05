@@ -1,5 +1,21 @@
 # WIP
 
+## 251cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 47d35da 이후 신규 3건 점검(37f39fc, c185343, 95d07bc 모두 제외 제안, 체크포인트 47d35da -> 95d07bc, carrot-ryu 코드 변경 없음, 정적 분석, 실차 검증 미실시)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기와 함께 업로드한 250cha 계속2 devnotes 스크립트의 Termux 푸시 명령을 요청했고, 이어서 "완료", "Carrot-ms 최신커밋분석", "기록"이라고 했다. 이 세션이 push를 GitHub에서 확인하고 carrot-ms 신규 커밋을 점검했으며, 판정안(3건 모두 제외)에 사용자가 "기록"을 택해 이 devnotes를 만든다. 실행 환경 지정이 없어 직전 세션들과 같은 Termux(bash) 스크립트로 만들었다.
+
+1. **250cha 계속2 push 독립 확인.** 사용자가 "완료"라고만 알려 `git ls-remote`와 `git fetch --depth 2 --filter=blob:none`으로 확인했다: note HEAD 3ebfb8649743faf82ec229f08beb73a773a9b516(부모 b575141, 작성자 ryujmin97, 2026-10-05 15:20:06 +0900, numstat HANDOFF 16/5·WIP 17/0). carrot-ryu는 670f72c 그대로다.
+2. **점검 범위.** WIP_SYNC.md 250차의 체크포인트 47d35da가 carrot-ms에 존재함을 `git cat-file -t`로 확인했다(commit). carrot-ms 현재 HEAD는 95d07bc이고 `47d35da..95d07bc`는 신규 3건이다. 부모 사슬이 47d35da -> 37f39fc -> c185343 -> 95d07bc라 rebase는 없었다. 세 건 모두 2026-10-05, 작성자 ajouatom.
+3. **37f39fc (Fix offline device clock floor before startup builds, 6 files +178/-1).** 오프라인 기기 시계가 HEAD 커밋 시각보다 이르면 부팅 시 `sudo -n date -u -s`로 시계를 올리는 `openpilot/common/build_time.py`(신규 52줄)와 `launch_chffrplus.sh` 호출 5줄, 테스트, 문서, AGENTS.md. 제외 제안 사유: carrot-ryu 670f72c의 `launch_chffrplus.sh`에는 upstream 패치가 쓰는 `run_startup_command`/`show_startup_failure` 함수가 없고(grep 0건) `bootstrap_runtime_dependencies`를 직접 호출하는 구조라 줄 패치가 그대로 들어가지 않으며, `test_launch_order.py`의 순서 앵커(`run_startup_command bootstrap_runtime_dependencies`)도 다르다. 시계를 바꾸는 부팅 경로 변경이라 위험 대비 이득이 불분명하고, 이 기기에서 시계가 늦어 빌드가 실패한 기록은 이 세션이 아는 범위에 없다. upstream 문서도 AGNOS 실기기 시계 권한, 오프라인 재부팅, 네이티브 빌드는 검증하지 않았다고 적고 있다. 필요해지면 carrot-ryu 구조에 맞춰 따로 포팅한다.
+4. **c185343 (Show single JotPluggler logs from zero seconds, 1 file +21).** PC용 로그 뷰어(`openpilot/tools/jotpluggler/sketch_layout.cc`)의 시간축 보정이라 기기에서 실행되는 코드가 아니다. 제외.
+5. **95d07bc (Corroborate stopped leads without trusting inconsistent corner motion, 4 files +612/-2).** `radar_motion/primary.py`(+111)에서 앞/코너 레이더 쌍이 서로 맞을 때만 시각 거리 오차 허용을 넓히고 코너 이동 이력 일관성을 검사한다. 테스트 `test_radar_corroboration.py`(+129), 조사 문서(+372), CI 워크플로 2줄이 함께 있다. 제외 제안 사유: 바뀌는 쌍 판정은 코너 레이더 포인트가 있어야 의미가 있는데, carrot-ryu `radard_dpath.py`의 `corner_radar_enabled`는 brand가 hyundai이고 `enable_corner_radar > 0`이며 `CP.extFlags & CORNER_RADAR_FLAGS`일 때만 참이다. upstream이 다룬 로그는 Ioniq5 103d이고 carrot-ryu의 코너 레이더 관련 디버그 도구는 CAN-FD 코너 레이더(bus 1)를 대상으로 한다. 내 차(제네시스 DH 2015, 비 CAN-FD)에는 코너 레이더가 없을 가능성이 높다. 또 carrot-ryu `primary.py`에는 `preferred_identity` 앵커가 0건이라 upstream 패치가 그대로 적용되지 않는다.
+6. **판정 근거의 한계.** 위 판정은 diff 읽기와 carrot-ryu 670f72c 파일 존재/앵커 grep에 기반한 정적 분석이다. `primary.py` 전체의 줄 단위 비교는 하지 않았다. 이 기기의 `EnableCornerRadar` 설정값과 `CP.extFlags`는 확인하지 않았다(AutoTurnControl 등 다른 설정은 기존 기록). pytest는 돌리지 않았다. 판정안은 Claude가 제시했고 사용자는 "기록"을 택했다.
+7. **체크포인트.** 47d35da -> 95d07bc. 다음 점검은 95d07bc 이후 신규 커밋부터이고, 그때도 `git cat-file -t 95d07bc`로 체크포인트 존재부터 확인할 것(carrot-ms는 재생성될 수 있다).
+8. **실차 검증: 미실시(12절).** carrot-ryu 코드 변경이 없고 검증도 정적 분석이다.
+9. **이 세션의 devnotes 스크립트.** Termux(bash, python3 필요) `251cha_devnotes_ms_95d07bc_review_v1.sh` 1개(WIP.md, WIP_SYNC.md, HANDOFF.md). 샌드박스에서 note 3ebfb86의 같은 blob으로 만든 로컬 bare 저장소로 일반/CRLF 체크아웃 두 모드와 base 불일치 안전 중단을 시뮬레이션했다(Termux 실기기 실행은 아님).
+
+
+
 ## 250cha 계속2 (완료) (Claude, Claude Sonnet 5.5) - 실차 로그 zip(route 0000048e--bc1f95f545 세그먼트 21~30, 600초, 기록 커밋 670f72c) 확인과 거리 대역 코드 재생 기록(carrot-ryu 코드 변경 없음, 로그 확인 수준, 실차 검증 미실시)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기와 함께 "푸시완료, 업로드 실차로그 검증해줘"를 요청하고 로그 zip 1개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261005_143115.zip`, 세그먼트 10개)를 올렸다. 이 세션이 확인해 "기록"이라는 답을 받아 이 devnotes를 만든다. 실행 환경 지정이 없어 직전 세션들과 같은 Termux(bash) 스크립트로 만들었다.
