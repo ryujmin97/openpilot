@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-05 (250차) -- carrot-ms 47d35da 부분 반영: carrot-ryu 670f72c (체크포인트 06639e5 -> 47d35da)
+
+- 점검 범위: `06639e5..47d35da`는 `47d35da`(ajouatom, 2026-10-05 10:06:50 +0900, Limit extra following headroom hold to a smooth distance band, cherry-pick of be1a944, 10 files +316/-61) 1건이다. 부모가 06639e5라 rebase는 없었다.
+- 반영한 것: 코드 3개 파일(carrot-ryu `670f72c54422395838e725c9297e0283097601e2`, 부모 `f9ffbc2`, 3 files: `longitudinal_gap_recovery.py` 38/20, `long_mpc.py` 3/2, `test_longitudinal_gap_recovery.py` 162/14). 내용은 간격 헤드룸 유지를 기준 거리(속도 x TF + 정지 간격)의 1.2배까지 유지하고 1.5배까지 부드럽게 푸는 거리 대역과 `stop_distance` 전달이다. `J_EGO_COST`는 12.0 그대로.
+- 가져오지 않은 것: `carrot_settings.json` 설정 문구(이전 대화 글 기준 10곳), 문서 5개(`docs/longitudinal_gap_hold_band_20261005.md`, `docs/user/{en,ko}/{cruise-gap,settings}.md`), `AGENTS.md`. 커밋 메시지는 `settings text and docs not ported`. 개별 사유는 이 세션에 없다. 이 중 `carrot_settings.json`은 동작 코드가 아니라 설정 설명이다.
+- 사용자가 고른 것: 이전 대화에서 요청과 승인이 있었고(이 세션에는 그 맥락이 없다), 이 세션에서 사용자는 devnotes 기록을 택했다.
+- 체크포인트: 06639e5 -> 47d35da. 이 세션이 본 carrot-ms HEAD는 c1853434c7634b4e154c244b8832a4153508721a이고 47d35da 이후 신규 2건 `37f39fc`(Fix offline device clock floor before startup builds), `c185343`(Show single JotPluggler logs from zero seconds)은 제목만 봤고 점검하지 않았다. 다음 점검은 47d35da 이후 신규 커밋부터이고, 그때도 `git cat-file -t 47d35da`로 체크포인트 존재부터 확인할 것.
+- 한계: 이 세션은 pytest를 돌리지 않았다(이전 대화 글: 같은 blob에서 116 passed, 20 passed). upstream 대비 줄 단위 비교는 `long_mpc.py` hunk만 했다. 실차 검증 미실시.
+
 ## 체크포인트: 2026-10-05 (247차) -- carrot-ms 06639e5 테스트 부분 변형 반영: carrot-ryu 0a1ad62 (새 점검 없음, 체크포인트는 06639e5 그대로)
 
 - 반영 대상: `06639e5`(Raise ACC MPC jerk cost to 20 for a driving trial) 중 테스트 2개 수정 부분. upstream처럼 하드코딩 `J_EGO_COST` 5를 지우고 운영 소스 `long_mpc.py`의 `J_EGO_COST`를 AST로 읽게 했다(carrot-ryu `0a1ad62c44cf9aa7d5587fb5921abeb0710805b9`, 부모 `e85b318`, 2 files 각 +4/-2: `selfdrive/carrot/tests/test_cutout_mpc_integration.py`, `selfdrive/controls/tests/test_longitudinal_gap_recovery.py`). carrot-ryu에는 `GATE_` 대입이 더 있어 upstream 줄 단위 patch가 아니라 같은 방식의 문자열 치환으로 만들었다고 이전 대화 글에 적혀 있다. 운영 코드는 건드리지 않았다.
