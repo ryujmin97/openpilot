@@ -1,5 +1,33 @@
 # WIP
 
+## 254cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 95d07bc..0a67f68 신규 7건 점검, 모두 제외 확정 (carrot-ryu 반영 없음, 체크포인트 95d07bc -> 0a67f68, 코드 변경 없음, 실차 검증 미실시)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서를 먼저 읽고 이어서 진행하라고 요청했다. 253cha HANDOFF가 "95d07bc 이후 신규 7건은 제목만 봤고 점검하지 않았다"로 남겨 둔 항목(미완료 46번 (e))을 이 세션이 처음부터 점검했다. 사용자는 이어서 "이어서 계속", "제외 확정 기록"이라고 했다.
+
+이 세션 앞부분 메시지에는 이전 대화의 응답 글(7건 판정표, 점검 도구 출력, gen.py 작성 경과)이 붙어 있었으나 그 도구 출력과 산출물은 이 세션에 없고 샌드박스도 새로 시작돼 있었다. 그래서 그 글의 판정표와 수치는 근거로 쓰지 않았고, 아래 내용은 이 세션에서 직접 확인한 것만 적었다. 그 글과 이 세션의 변경량 수치가 일부 달랐다(64311be, 7fb0f19, e4b35cc). 여기에는 이 세션에서 `git show --numstat`로 다시 계산한 값을 썼다.
+
+1. **4절 0단계: 지침 문서 v2를 사용자가 준 브랜치 URL(`curl`)로 받아 588줄 전체를 읽었다. 같은 명령에서 `git ls-remote`로 note HEAD c03663a21f38995eaf6e6e35a68d6dbe649fd204와 carrot-ryu 670f72c54422395838e725c9297e0283097601e2를 얻었다(ls-remote를 먼저 하고 SHA 고정 URL로 읽는 순서는 지키지 못했고 브랜치 URL본과 SHA 고정본의 `cmp`도 하지 않았다). HANDOFF.md는 SHA 고정 raw로 읽었다. carrot-ms HEAD 0a67f6852884f0936f99711b51018acf12ba4f04도 `git ls-remote`로 얻었다. 첫 응답에서 "지침 문서 확인함(v2, 커밋 c03663a)"을 보고했다.**
+
+2. **점검 범위와 방법.** 체크포인트 95d07bc는 carrot-ms blobless `--no-checkout` 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인했다. `95d07bc..HEAD`는 7건이고 모두 2026-10-06이다(8ad0440, 64311be, 20ff21f, 7fb0f19, 311c58a, e4b35cc, 0a67f68 순). 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 670f72c의 blobless `--no-checkout` 클론에서 `git ls-tree -r --name-only HEAD`로 파일 5,449개와 이름 일치 여부를 확인했고, 필요한 파일은 `git show HEAD:<경로>`로 읽었다.
+
+3. **판정표(이 세션 확인분).**
+
+| 커밋 | 작성자 | 내용 | 변경량 | 판정과 근거 |
+|---|---|---|---|---|
+| `8ad0440` | ajouatom | Reduce Jetlink hotplug blocking and display memory overhead | 6 files +364/-9 | **제외.** 변경 파일이 `modeld/jetlink/{daemon,link,model}.py`, `tools/jetlink/{hud_protocol,test_hotplug_resources}.py`, 문서 1개다. carrot-ryu 670f72c의 5,449개 파일 중 경로에 jetlink/jetson이 들어간 것은 0개다. |
+| `64311be` | ajouatom | Run Jetson-attached HUD independently and show thermal warnings | 11 files +303/-23 | **제외.** `tools/jetlink/*` 중심이다(파일명만 확인). 그 밖에 `carrot_settings.json`과 `docs/user/{en,ko}/settings.md`, 문서 1개가 있으나 이 세션은 그 diff를 읽지 않았다. |
+| `20ff21f` | ajouatom | Pin signed Jetson HUD temperature release | 2 files +15/-5 | **제외.** `modeld/jetlink/host_release.json`과 문서 1개다. |
+| `7fb0f19` | ajouatom | Bound eGPU startup retries and preserve timeout diagnostics | 24 files +436/-51 | **제외.** `modeld.py` diff를 읽었다: `if USBGPU:` 분기 안에서 precompiled 모델의 초기화 시도를 6회에서 2회로 줄이는 변경이다. 신규 `egpu_diagnostics.py`, `egpu_worker_progress.py`, `generic_model_runtime.py`, `local_gpu_warp.py`는 carrot-ryu에 없다(경로 일치 0개, `precompiled_runner`는 2개 있음, 구버전 스택). 제외 근거는 파일 부재가 아니라 eGPU 미보유다(WIP_SYNC.md 111차 "사용자가 eGPU 미보유 확인", 233차 `dab4f89` 제외). |
+| `311c58a` | Hermes Agent | Refresh the modeld mirror baseline for bounded precompiled eGPU retries | 1 file +9/-4 | **제외.** 7fb0f19를 가져오지 않으므로 필요 없다(제목과 변경량만 확인, diff는 읽지 않음). |
+| `e4b35cc` | jominki354 | web work (#533) | 18 files +711/-122 | **제외 제안.** 변경 파일이 화면 녹화 서버(`screenrecord/catalog.py`, `routes.py`), 웹 JS·CSS, 번역 3종이다(생성 번들 제외 13개 파일명 확인, diff는 읽지 않음). 주행 제어 경로가 아니다. 가져오려면 수동 병합과 `node build.mjs` 번들 재생성(9절)이 필요하다. |
+| `0a67f68` | ajouatom | Keep CCNC cluster TX counter independent of RX snapshots | 3 files +94/-1 | **제외.** 코드 변경은 `hyundaicanfd.py`의 `create_ccnc_messages` 안 CCNC_0x162 한 곳이다(RX에서 COUNTER를 한 번 빼 `rx_counter`로 전달). carrot-ryu `hyundaicanfd.py` 884행에 같은 구버전 블록이 있다. 호출부는 `opendbc_repo/opendbc/car/hyundai/carcontroller.py` 526행이고 들여쓰기로 496행 `if self.CP.flags & HyundaiFlags.CANFD:` 블록 안임을 확인했다. 제네시스 DH 2015(`HYUNDAI_GENESIS`, `values.py` 239~246행)의 플래그는 `CHECKSUM_6B | LEGACY`라 이 경로가 실행되지 않는다. |
+
+4. **사용자 결정.** 사용자가 판정안(제외 7건, 반영 후보 0건)을 보고 "제외 확정 기록"을 택했다. e4b35cc를 후보로 남기자는 선택은 하지 않았다. 따라서 carrot-ryu 반영은 하지 않고 체크포인트를 95d07bc -> 0a67f68로 올린다.
+
+5. **한계.** 정적 확인이다. 파일 목록과 일부 diff만 읽었다: 8ad0440, 64311be, 20ff21f는 파일명과 carrot-ryu 경로 존재 여부만 봤고 Jetlink 코드 본문과 `carrot_settings.json` diff는 읽지 않았다. 7fb0f19는 `modeld.py` diff만 읽었고 나머지 코드·테스트·워크플로·문서는 읽지 않았다. 311c58a와 e4b35cc는 제목, 변경량, 파일명만 봤다. 0a67f68은 `hyundaicanfd.py` hunk만 읽었고 테스트 파일은 읽지 않았다. DH 2015가 비 CAN-FD라는 판단은 `values.py` 정의 기준이며 기기 로그로 확인한 것이 아니다. pytest, py_compile, 빌드는 하지 않았다. 실차 검증 미실시. carrot-ryu 코드 변경 없음.
+
+6. **이 세션의 devnotes 스크립트.** PowerShell `254cha_devnotes_ms_0a67f68_review_v1.ps1` 1개(WIP.md, WIP_SYNC.md, HANDOFF.md 갱신). 사전 검증은 이 세션 샌드박스(Linux)에 설치한 pwsh 7.6.6의 구문 파서와 note c03663a와 같은 트리의 로컬 bare 저장소 실행이며 Windows PowerShell 5.1 실제 실행이 아니다. 이 push는 이 세션 밖에서 사용자가 실행하므로 이 파일은 push 결과를 담지 않는다. 다음 세션이 `git ls-remote`로 반영 여부부터 확인할 것.
+
 ## 253cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 47d35da 대비 carrot-ryu 670f72c의 `longitudinal_gap_recovery.py`, `long_mpc.py` hunk, `test_longitudinal_gap_recovery.py` 줄 단위 비교(미완료 46번 (c) 해소: gap_recovery 바이트 동일, long_mpc 47d35da hunk 동일, 테스트 8줄 차이는 전부 carrot-ryu 고유 차이로 670f72c가 새로 만든 불일치 없음, 코드 변경 없음, 실차 검증 미실시)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했다. 메시지에는 이전 대화의 응답 글(`JerkCostEgo` 20을 의도한 값으로 보겠다는 문장, 미완료 45번 종결 문장, 실차 검증용 장면 표, 선택지 3개)이 붙어 있었으나 그 대화의 도구 출력과 산출물은 이 세션에 없었고, 그 글의 `JerkCostEgo` 의도 확인은 이 세션에서 사용자 진술로 확인한 것이 아니다(미완료 45번은 바꾸지 않는다). 사용자가 선택지 "2번 진행"(upstream 47d35da 대비 줄 단위 비교, 읽기 전용)을 택했고, 이어서 "1번"(비교 결과를 devnotes에 기록)을 택했다.

@@ -1,5 +1,23 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-06 (254차) -- carrot-ms 95d07bc..0a67f68 신규 7건 점검, 모두 제외 확정 (carrot-ryu 반영 없음, 체크포인트 95d07bc -> 0a67f68)
+
+- 점검 범위: `95d07bc..0a67f68` 신규 7건(모두 2026-10-06). 체크포인트 95d07bc는 carrot-ms blobless `--no-checkout` 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인했다. `95d07bc..HEAD`는 7건이고 모두 2026-10-06이다(8ad0440, 64311be, 20ff21f, 7fb0f19, 311c58a, e4b35cc, 0a67f68 순). 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 670f72c의 blobless `--no-checkout` 클론에서 `git ls-tree -r --name-only HEAD`로 파일 5,449개와 이름 일치 여부를 확인했고, 필요한 파일은 `git show HEAD:<경로>`로 읽었다.
+- 사용자가 고른 것: 사용자가 판정안(제외 7건, 반영 후보 0건)을 보고 "제외 확정 기록"을 택했다. e4b35cc를 후보로 남기자는 선택은 하지 않았다. 따라서 carrot-ryu 반영은 하지 않고 체크포인트를 95d07bc -> 0a67f68로 올린다.
+
+| 커밋 | 작성자 | 내용 | 변경량 | 판정과 근거 |
+|---|---|---|---|---|
+| `8ad0440` | ajouatom | Reduce Jetlink hotplug blocking and display memory overhead | 6 files +364/-9 | **제외.** 변경 파일이 `modeld/jetlink/{daemon,link,model}.py`, `tools/jetlink/{hud_protocol,test_hotplug_resources}.py`, 문서 1개다. carrot-ryu 670f72c의 5,449개 파일 중 경로에 jetlink/jetson이 들어간 것은 0개다. |
+| `64311be` | ajouatom | Run Jetson-attached HUD independently and show thermal warnings | 11 files +303/-23 | **제외.** `tools/jetlink/*` 중심이다(파일명만 확인). 그 밖에 `carrot_settings.json`과 `docs/user/{en,ko}/settings.md`, 문서 1개가 있으나 이 세션은 그 diff를 읽지 않았다. |
+| `20ff21f` | ajouatom | Pin signed Jetson HUD temperature release | 2 files +15/-5 | **제외.** `modeld/jetlink/host_release.json`과 문서 1개다. |
+| `7fb0f19` | ajouatom | Bound eGPU startup retries and preserve timeout diagnostics | 24 files +436/-51 | **제외.** `modeld.py` diff를 읽었다: `if USBGPU:` 분기 안에서 precompiled 모델의 초기화 시도를 6회에서 2회로 줄이는 변경이다. 신규 `egpu_diagnostics.py`, `egpu_worker_progress.py`, `generic_model_runtime.py`, `local_gpu_warp.py`는 carrot-ryu에 없다(경로 일치 0개, `precompiled_runner`는 2개 있음, 구버전 스택). 제외 근거는 파일 부재가 아니라 eGPU 미보유다(WIP_SYNC.md 111차 "사용자가 eGPU 미보유 확인", 233차 `dab4f89` 제외). |
+| `311c58a` | Hermes Agent | Refresh the modeld mirror baseline for bounded precompiled eGPU retries | 1 file +9/-4 | **제외.** 7fb0f19를 가져오지 않으므로 필요 없다(제목과 변경량만 확인, diff는 읽지 않음). |
+| `e4b35cc` | jominki354 | web work (#533) | 18 files +711/-122 | **제외 제안.** 변경 파일이 화면 녹화 서버(`screenrecord/catalog.py`, `routes.py`), 웹 JS·CSS, 번역 3종이다(생성 번들 제외 13개 파일명 확인, diff는 읽지 않음). 주행 제어 경로가 아니다. 가져오려면 수동 병합과 `node build.mjs` 번들 재생성(9절)이 필요하다. |
+| `0a67f68` | ajouatom | Keep CCNC cluster TX counter independent of RX snapshots | 3 files +94/-1 | **제외.** 코드 변경은 `hyundaicanfd.py`의 `create_ccnc_messages` 안 CCNC_0x162 한 곳이다(RX에서 COUNTER를 한 번 빼 `rx_counter`로 전달). carrot-ryu `hyundaicanfd.py` 884행에 같은 구버전 블록이 있다. 호출부는 `opendbc_repo/opendbc/car/hyundai/carcontroller.py` 526행이고 들여쓰기로 496행 `if self.CP.flags & HyundaiFlags.CANFD:` 블록 안임을 확인했다. 제네시스 DH 2015(`HYUNDAI_GENESIS`, `values.py` 239~246행)의 플래그는 `CHECKSUM_6B | LEGACY`라 이 경로가 실행되지 않는다. |
+
+- 체크포인트: 95d07bc -> 0a67f68. 다음 점검은 0a67f68 이후 신규 커밋부터이고, 그때도 `git cat-file -t 0a67f68`로 체크포인트 존재부터 확인할 것(carrot-ms는 재생성될 수 있다).
+- 한계: 정적 확인이다. 파일 목록과 일부 diff만 읽었다: 8ad0440, 64311be, 20ff21f는 파일명과 carrot-ryu 경로 존재 여부만 봤고 Jetlink 코드 본문과 `carrot_settings.json` diff는 읽지 않았다. 7fb0f19는 `modeld.py` diff만 읽었고 나머지 코드·테스트·워크플로·문서는 읽지 않았다. 311c58a와 e4b35cc는 제목, 변경량, 파일명만 봤다. 0a67f68은 `hyundaicanfd.py` hunk만 읽었고 테스트 파일은 읽지 않았다. DH 2015가 비 CAN-FD라는 판단은 `values.py` 정의 기준이며 기기 로그로 확인한 것이 아니다. pytest, py_compile, 빌드는 하지 않았다. 실차 검증 미실시. carrot-ryu 코드 변경 없음.
+
 ## 체크포인트: 2026-10-05 (251차) -- carrot-ms 47d35da..95d07bc 신규 3건 점검, 모두 제외 제안 (carrot-ryu 반영 없음, 체크포인트 47d35da -> 95d07bc)
 
 - 점검 범위: `47d35da..95d07bc` 신규 3건(모두 ajouatom, 2026-10-05). 체크포인트 47d35da의 존재를 `git cat-file -t`로 확인했고 부모 사슬 47d35da -> 37f39fc -> c185343 -> 95d07bc라 rebase는 없었다.
