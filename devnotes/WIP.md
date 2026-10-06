@@ -1,5 +1,33 @@
 # WIP
 
+## 253cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 47d35da 대비 carrot-ryu 670f72c의 `longitudinal_gap_recovery.py`, `long_mpc.py` hunk, `test_longitudinal_gap_recovery.py` 줄 단위 비교(미완료 46번 (c) 해소: gap_recovery 바이트 동일, long_mpc 47d35da hunk 동일, 테스트 8줄 차이는 전부 carrot-ryu 고유 차이로 670f72c가 새로 만든 불일치 없음, 코드 변경 없음, 실차 검증 미실시)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청했다. 메시지에는 이전 대화의 응답 글(`JerkCostEgo` 20을 의도한 값으로 보겠다는 문장, 미완료 45번 종결 문장, 실차 검증용 장면 표, 선택지 3개)이 붙어 있었으나 그 대화의 도구 출력과 산출물은 이 세션에 없었고, 그 글의 `JerkCostEgo` 의도 확인은 이 세션에서 사용자 진술로 확인한 것이 아니다(미완료 45번은 바꾸지 않는다). 사용자가 선택지 "2번 진행"(upstream 47d35da 대비 줄 단위 비교, 읽기 전용)을 택했고, 이어서 "1번"(비교 결과를 devnotes에 기록)을 택했다.
+
+1. **4절 0단계.** 지침 문서 v2를 사용자가 준 브랜치 URL로 먼저 읽었고(`head -400`으로 받아 13절에서 출력이 끊겼다) `git ls-remote`로 note HEAD 4ae7b62e38ca3cc6f03d15c1247ba462ac7cf497을 얻어 SHA 고정본(588줄)으로 전체를 다시 읽었다(ls-remote 먼저 순서는 지키지 못했고 브랜치 URL본과 SHA 고정본의 `cmp`는 하지 않았다). HANDOFF.md를 같은 SHA로 읽었다. 같은 조회로 carrot-ryu 670f72c54422395838e725c9297e0283097601e2(HANDOFF base와 일치), carrot-ms 0a67f6852884f0936f99711b51018acf12ba4f04를 얻었다. 첫 응답에서 "지침 문서 확인함(v2, 커밋 4ae7b62)"을 보고했다.
+
+2. **252cha push 확인.** note 4ae7b62를 `git clone --filter=blob:none --depth 3 --branch carrot-ryu-note --single-branch`로 확인했다: 작성자 ryujmin97, 2026-10-06 12:10:24 +0900, 부모 3b04d61, 메시지가 252cha 기록, numstat HANDOFF 17/5·WIP 42/0·toolkit/CHANGELOG 3/0·toolkit/README 11/0·toolkit/gap_replay/gap_replay.py 105/0. 이 브랜치에는 `.gitattributes`가 없고 WIP.md는 CR 0이다. HANDOFF.md의 note base(3b04d61)가 한 커밋 뒤처져 있던 것은 이 기록에서 바로잡는다.
+
+3. **47d35da 확인.** carrot-ms(happymaj11r/openpilot) blobless `--no-checkout` 클론에서 `git cat-file -t 47d35da`가 commit이었다: ajouatom, 2026-10-05 10:06:50 +0900, 메시지 `Limit extra following headroom hold to a smooth distance band`, 부모 06639e5939bf14f82e0b439a7aedc9c247224c99, 현재 carrot-ms HEAD의 조상이다(`merge-base --is-ancestor`). numstat 10 files: AGENTS.md 12/0, docs/longitudinal_gap_hold_band_20261005.md 72/0, docs/user/en/cruise-gap.md 6/4, docs/user/en/settings.md 1/1, docs/user/ko/cruise-gap.md 6/4, docs/user/ko/settings.md 1/1, openpilot/selfdrive/carrot_settings.json 15/15, longitudinal_gap_recovery.py 38/20, long_mpc.py 3/2, test_longitudinal_gap_recovery.py 162/14. 코드 3개의 경로는 두 저장소 모두 `openpilot/selfdrive/controls/lib/longitudinal_gap_recovery.py`, `openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py`, `openpilot/selfdrive/controls/tests/test_longitudinal_gap_recovery.py`다(처음에 `openpilot/` 없이 조회해 실패했고 정정했다).
+
+4. **세 파일 비교(carrot-ms 47d35da 대 carrot-ryu 670f72c).** 각 저장소에서 `git show <rev>:<path>`로 뽑아 blob, 줄 수, sha256, `diff`로 비교했다.
+
+| 파일 | blob (ms / ryu) | 줄 수 (ms / ryu) | 결과 |
+|---|---|---|---|
+| `longitudinal_gap_recovery.py` | 25735ce / 25735ce | 173 / 173 | 바이트 동일(sha256 앞 12자 63148147330c) |
+| `long_mpc.py` | 3a0a6f4 / 2b9c975 | 655 / 708 | 47d35da가 바꾼 hunk는 동일, 나머지 차이는 carrot-ryu 고유(5번) |
+| `test_longitudinal_gap_recovery.py` | 6d4a9a5 / 2923aee | 598 / 602 | 8줄 차이(6번) |
+
+5. **long_mpc.py.** 47d35da의 hunk(`state.update(... base_tf=t_follow, stop_distance=stop_distance)`와 `state.margins(... desired_distances=desired_follow_distance(...), stop_distance=stop_distance)` 두 곳)와 670f72c의 hunk 내용이 같다(hunk 시작 행만 557 -> 610). 파일 전체의 차이 97줄은 부모 쌍(carrot-ms 06639e5 대 carrot-ryu f9ffbc2)의 차이 97줄과 변경 줄 집합이 같다(두 집합의 차이 0줄). 즉 670f72c가 이 파일에 새 불일치를 만들지 않았다. 97줄 각각의 원인은 보지 않았다.
+
+6. **테스트 8줄 차이.** 4곳이다. (a) `LongitudinalPersonality` 네임스페이스가 carrot-ryu는 `aggressive=0, standard=1, relaxed=2, moreRelaxed=3`이고 carrot-ms는 `standard=1, aggressive=0`뿐이다(이유는 확인하지 못했고 carrot-ryu가 상위집합이다). (b) carrot-ryu는 `import time`, `ns['time'] = time`, `ns['cloudlog'] = SimpleNamespace(debug/warning/error 스텁)` 3줄이 더 있다. carrot-ryu `long_mpc.py`의 `cloudlog` 사용은 9곳(carrot-ms 5곳), `time.` 사용은 6곳(carrot-ms 5곳)이나 어느 경로가 스텁을 필요로 하는지는 확인하지 않았다. (c) carrot-ryu는 `GATE_` 대입문을 exec 대상 앞에 붙이는 1줄이 더 있다. carrot-ryu `long_mpc.py` 70~73행에 `GATE_M_LO, GATE_M_HI`, `GATE_T_LO, GATE_T_HI`, `GATE_TAU_G`, `GATE_TAU_TARGET` 대입문이 있고 carrot-ms에는 0개다. (d) 픽스처의 `comfort_brake`가 carrot-ryu 2.5, carrot-ms 2.4다. 205cha 통일의 결과이며 `carrot_functions.py`의 `comfortBrake` 기본값이 carrot-ms 2.4(103행), carrot-ryu 2.5(109행)임을 확인했다. 부모 쌍(06639e5 대 f9ffbc2)의 테스트 차이도 8줄이었고 두 시점 차이의 차이는 (d) 줄의 표현뿐이다(47d35da가 같은 줄의 `stop_distance=6.`을 `stop_distance=stop_distance`로 바꿨다). 따라서 670f72c가 테스트에 새 불일치를 만들지 않았다.
+
+7. **47d35da 이후 상류.** carrot-ms 47d35da 이후 이 세 파일을 건드린 커밋은 없다(`git log 47d35da..origin/carrot-ms -- <세 파일>` 결과 없음). carrot-ms HEAD는 0a67f68이고 47d35da 뒤로 10건이다. 기록된 체크포인트 95d07bc는 HEAD의 조상이며(`merge-base --is-ancestor`), 그 이후 신규 7건은 모두 2026-10-06자다: 0a67f68(Keep CCNC cluster TX counter independent of RX snapshots), e4b35cc(web work (#533)), 311c58a(Refresh the modeld mirror baseline for bounded precompiled eGPU retries), 7fb0f19(Bound eGPU startup retries and preserve timeout diagnostics), 20ff21f(Pin signed Jetson HUD temperature release), 64311be(Run Jetson-attached HUD independently and show thermal warnings), 8ad0440(Reduce Jetlink hotplug blocking and display memory overhead). 제목만 봤고 점검하지 않았으며 제목으로 판정하지 않는다.
+
+8. **판정과 한계.** 미완료 46번 (c)는 해소됐다. 한계: blob, 바이트, diff 수준의 정적 비교다. pytest와 py_compile은 돌리지 않았다. `carrot_settings.json`, 문서 5개, `AGENTS.md`는 비교하지 않았고 미완료 46번 (d)는 그대로다. 코드 변경 없음, 실차 검증: 미실시(12절).
+
+9. **이 세션의 devnotes 스크립트.** PowerShell `253cha_devnotes_ms_47d35da_line_compare_v1.ps1` 1개(WIP.md, HANDOFF.md). WIP_SYNC.md와 toolkit은 변경하지 않는다(비교에 쓴 것은 `git show`/`diff`와 짧은 셸·python 조각이며 재사용 도구로 등록하지 않았다). 사전 검증은 샌드박스(Linux)의 pwsh 7.6.6으로 구문 파서 오류 0건을 확인하고, note 4ae7b62를 그대로 담은 로컬 bare 저장소로 일반/CRLF 체크아웃 두 모드에서 끝까지 실행하고 base 불일치·앵커 불일치 안전 중단 경로를 확인한 것이며 Windows PowerShell 5.1 실제 실행이 아니다. 이 브랜치에는 `.gitattributes`가 없어 CRLF 재현이 체크아웃 바이트를 바꾸지 않으므로 CRLF 방어의 근거로 쓰지 않는다. 이 push의 GitHub 재확인은 다음 세션 몫이다.
+
 ## 252cha (완료) (Claude, Claude Sonnet 5.5) - 670f72c 실차 로그(route 0000048e 세그먼트 144~161, 1,080초)로 longitudinal_gap_recovery.py 재생 재확인(미완료 46번 (a): 거리 대역 코드가 기기에서 의도대로 작동한 것으로 보임, 재생 마진이 로그 desiredDistance와 신 코드로 맞고 구 코드로는 안 맞음, toolkit gap_replay 등록, carrot-ryu 코드 변경 없음, 로그 확인 수준, 실차 검증 미실시)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청하고 실차 로그 zip 1개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261006_065119.zip`)를 올렸다. 메시지에는 이전 대화의 로그 확인 글과 "2번진행후 기록" 요청이 붙어 있었으나, 그 대화의 도구 출력과 산출물은 이 세션에 없었다(마지막 단계에서 무료 사용량 한도로 끊겼고 note 브랜치는 3b04d61 그대로였다). 이 세션이 2번(`longitudinal_gap_recovery.py`를 로그 입력으로 직접 재생해 미완료 46번 (a) 확인)을 처음부터 다시 수행하고, 이전 글의 수치와 일치하는지 대조했다. 사용자가 "파워쉘로 계속"이라고 해 PowerShell 스크립트로 만들었다.
