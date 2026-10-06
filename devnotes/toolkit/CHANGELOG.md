@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-06 (255차)
+- `gap_replay/ext2.py` 신규(사용자가 255cha에 올린 파일, README 255차 추가 참고): `gap_replay.py extract`보다 필드가 많은 병합 추출(accelCmd, aEgo, 레이더 yRel/modelProb, 계획 소스 등). 670f72c 기록 실차 로그(route 0000048e 세그먼트 144~161)로 실행해 pkl을 만들었다(255cha 샌드박스). 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-06 (252차)
 - `gap_replay/gap_replay.py` 신규(README 252차 추가 참고): `extract`(rlog.zst -> longitudinalPlan 20Hz 병합 pkl, initData 파라미터 포함)와 `replay`(`longitudinal_gap_recovery.py`의 `LeadGapState`를 로그 입력으로 재생해 로그 desiredDistance와 충실도·거리비별 마진 비교, 구/신 커밋 사본 비교 지원). 670f72c 기록 실차 로그(route 0000048e 세그먼트 144~161)로 실행해 재생 수치를 재현했다(252cha 샌드박스). 다른 toolkit 파일은 변경 없음.
 
