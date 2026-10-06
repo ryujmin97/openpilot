@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-06 (252차)
+- `gap_replay/gap_replay.py` 신규(README 252차 추가 참고): `extract`(rlog.zst -> longitudinalPlan 20Hz 병합 pkl, initData 파라미터 포함)와 `replay`(`longitudinal_gap_recovery.py`의 `LeadGapState`를 로그 입력으로 재생해 로그 desiredDistance와 충실도·거리비별 마진 비교, 구/신 커밋 사본 비교 지원). 670f72c 기록 실차 로그(route 0000048e 세그먼트 144~161)로 실행해 재생 수치를 재현했다(252cha 샌드박스). 다른 toolkit 파일은 변경 없음.
+
 ## 2026-09-29 (216차)
 - pytest_ci_setup.sh: 5c단계(`msgq.visionipc.visionipc_pyx` 컴파일, msgq_repo/SConscript 소스 목록 기준, 5b와 같은 setuptools 방식)와 끝 자가검증 `import msgq.visionipc.visionipc_pyx` 추가(+26/-1, README 216차 추가 참고). `test_raylib_ui.py`가 ui 프로세스 조기 종료로 실패하던 것을 빌드 후 통과로 확인했고, selfdrive/ui/tests는 1 failed / 174 passed에서 175 passed / 86 skipped / 0 failed로 바뀌었다(216cha 샌드박스). mici/tests/test_widget_leaks.py는 이 변경으로 해결되지 않는 업스트림 불일치(BigConfirmationDialogV2)라 기록만 했다. 다른 단계와 다른 toolkit 파일은 변경 없음.
 

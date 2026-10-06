@@ -1,5 +1,47 @@
 # WIP
 
+## 252cha (완료) (Claude, Claude Sonnet 5.5) - 670f72c 실차 로그(route 0000048e 세그먼트 144~161, 1,080초)로 longitudinal_gap_recovery.py 재생 재확인(미완료 46번 (a): 거리 대역 코드가 기기에서 의도대로 작동한 것으로 보임, 재생 마진이 로그 desiredDistance와 신 코드로 맞고 구 코드로는 안 맞음, toolkit gap_replay 등록, carrot-ryu 코드 변경 없음, 로그 확인 수준, 실차 검증 미실시)
+
+**배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기를 요청하고 실차 로그 zip 1개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261006_065119.zip`)를 올렸다. 메시지에는 이전 대화의 로그 확인 글과 "2번진행후 기록" 요청이 붙어 있었으나, 그 대화의 도구 출력과 산출물은 이 세션에 없었다(마지막 단계에서 무료 사용량 한도로 끊겼고 note 브랜치는 3b04d61 그대로였다). 이 세션이 2번(`longitudinal_gap_recovery.py`를 로그 입력으로 직접 재생해 미완료 46번 (a) 확인)을 처음부터 다시 수행하고, 이전 글의 수치와 일치하는지 대조했다. 사용자가 "파워쉘로 계속"이라고 해 PowerShell 스크립트로 만들었다.
+
+1. **4절 0단계.** 지침 문서 v2를 브랜치 URL과 SHA 고정본으로 받아 `cmp` 바이트 동일(49,277바이트)을 확인했다(`git ls-remote`: note 3b04d6190f857221ae00ecd812a40f2325132093, carrot-ryu 670f72c54422395838e725c9297e0283097601e2). HANDOFF.md(394,509바이트)를 같은 SHA로 읽었다. 251cha push(note 3b04d61)가 note HEAD이고 carrot-ryu HEAD 670f72c가 HANDOFF base와 일치한다. 첫 응답에서 "지침 문서 확인함(v2, 커밋 3b04d61)"을 보고했다.
+
+2. **로그와 기기 설정.** route 0000048e--bc1f95f545 세그먼트 144~161(18개, rlog.zst + qcamera.ts, 압축 해제 약 221 MB). 670f72c의 `log.capnp`(sparse checkout한 openpilot/cereal/*.capnp, cereal/include/, opendbc car.capnp를 한 폴더에 복사)로 pycapnp 파싱했다. initData 기록 커밋 670f72c dirty False. longitudinalPlan 21,600프레임(20 Hz, 0.05~1,080.0초, 첫 carState를 t0로)에 carState/selfdriveState/carControl/modelV2.meta/radarState.leadOne을 최신값으로 병합했다. 기기 initData: `LeadAccelResponse` 0, `LeadAccelResponseTF1~4` 전부 -1, `MyDrivingMode` 3, `LongitudinalPersonality` 3, `StopDistanceCarrot` 700, `JerkCostEgo` 20, `TFollowGap4` 160. 그래서 gap 상태의 level은 0, stop_distance는 7.0 m다. 로그의 experimentalMode는 21,600프레임 전부 False라 mode는 acc로 본다.
+
+3. **재생 방법.** 670f72c(신)와 f9ffbc2(구, SHA 고정 raw 155줄)의 `longitudinal_gap_recovery.py`를 그대로 import해 `LeadGapState.update`를 20 Hz(dt 0.05)로 호출했다. 활성 조건은 이 세션에서 `long_mpc.py` 603~616행(`eligible`)과 `longitudinal_planner.py`(`update_lead_tracks` 77~88행, `lead_gap_enabled` 218~221행)를 다시 읽어 맞췄다: eligible = (experimentalMode False) and longActive and not gasPressed and modelV2 laneChangeState == off(`carrot.lane_change_active`의 근사) and lead_track_frames >= 3(radarState.leadOne status/radar/radarTrackId로 planner 규칙 재계산) and leadOne.status and leadOne.radar. desired_distance는 `desired_follow_distance`와 같게 v^2/(2*2.5) + tFollow*v + 7.0 - vLead^2/(2*2.5)(v는 carState.vEgo, tFollow는 longitudinalPlan.tFollow)이고 재생 마진은 vEgo x extra_tf x entry_weight(strength)다. 재생 desiredDistance = base + margin이고 로그 desiredDistance는 base + margin + relief(컷아웃/차선변경 완화)다. eligible은 12,380프레임(전체의 57.3%)이다.
+
+4. **충실도(로그 desiredDistance 대비).** lead 프레임(status, desiredDistance > 0, vEgo > 1) 14,036개에서 신 코드 재생은 평균 오차 -0.019 m, 평균 절대 오차 0.440 m, 상관 0.9982, 오차 0.5 m 미만 71.4%이고 구 코드(f9ffbc2) 재생은 +0.415 m, 0.810 m, 0.9943, 63.7%다.
+
+5. **기준 거리 대비 거리비별 마진(eligible, vEgo > 2, 12,379프레임, 거리비 = dRel / (vEgo x tFollow + 7)).** 로그 마진은 desiredDistance - base다.
+
+| 거리비 | 프레임 | 로그 마진 평균 | 신 재생 | 구 재생 | 신 MAE | 구 MAE |
+|---|---|---|---|---|---|---|
+| 0~1.0 | 3,261 | 1.16 | 1.21 | 1.21 | 0.43 | 0.43 |
+| 1.0~1.1 | 3,554 | 2.66 | 2.60 | 2.61 | 0.44 | 0.44 |
+| 1.1~1.2 | 2,622 | 5.59 | 5.57 | 5.61 | 0.34 | 0.36 |
+| 1.2~1.3 | 905 | 4.60 | 4.79 | 5.31 | 0.45 | 0.92 |
+| 1.3~1.4 | 977 | 4.81 | 4.56 | 6.49 | 0.58 | 2.00 |
+| 1.4~1.5 | 498 | 6.96 | 7.03 | 11.48 | 0.40 | 4.59 |
+| 1.5~1.7 | 296 | 7.84 | 7.85 | 10.55 | 0.37 | 2.85 |
+| 1.7~2.0 | 192 | 12.10 | 12.21 | 15.10 | 0.54 | 3.12 |
+| 2.0 이상 | 74 | 5.31 | 6.06 | 6.59 | 0.82 | 1.34 |
+
+거리비 1.2 이하에서는 신/구가 같고(MAE 0.34~0.44), 1.2를 넘는 2,942프레임에서 로그 마진은 신 코드 재생과 맞는다(MAE 신 0.492 m, 구 2.246 m). 구 코드라면 1.4~1.5배 구간에서 로그보다 평균 약 4.5 m 큰 마진을 유지했을 것이다. 거리비 1.5 이상에서도 마진이 바로 0이 되지 않는 것은 신 코드 재생에서도 같다(1.5~1.7: 로그 7.84 m, 신 7.85 m). 마진이 2단 필터로 서서히 줄기 때문이며(level 0의 `RECOVERY_TAU` 5.0초), 이 로그에서는 이상 징후가 아니다(재생 일치 기준이며 설계 의도의 옳고 그름은 판단하지 않았다).
+
+6. **예시 장면.** 44.8~97.2초(52.4초, 운전자 브레이크 입력 없음, aTarget 최저 -0.20): 앞차 거리 104.7 m에서 68.0 m로 줄었다. 76.85초 거리비 1.34(앞차 벌어지는 중, vRel +1.1)에서 로그 마진 8.17 m / 신 7.57 m / 구 11.41 m, 80.85초 거리비 1.43에서 7.84 / 7.71 / 18.56 m, 84.84초 거리비 1.44에서 3.99 / 4.02 / 17.58 m였다. 1.2~1.5배 구간에서 구 코드라면 유지했을 마진이 기기에서는 풀리고 있었다는 뜻이다(재생 일치 기준).
+
+7. **가정 민감도(이 세션에서 재계산).** lead 프레임 MAE 신/구, 1.2배 초과 프레임 MAE 신/구: 기준(comfort_brake 2.5, stop_distance 7.0) 0.440/0.810, 0.492/2.246. comfort_brake 2.4: 0.586/0.931, 0.852/2.485. stop_distance 6.0: 0.967/1.131, 1.233/1.952. 차선변경 게이트 제거: 0.475/0.845, 0.620/2.345. 활성(longActive, gasPressed) 게이트 제거: 0.506/0.876, 0.490/2.234. 모든 변형에서 신 코드가 구 코드보다 오차가 작고 기준 가정이 가장 작다.
+
+8. **250cha 계속2 수치와의 차이.** 250cha 계속2는 다른 로그(route 48e 세그먼트 21~30)에서 lead0 3,654프레임, 앞차 연속 존재를 한 track으로 간주하는 가정으로 평균 절대 오차 0.33 m(구 0.76 m)를 얻었다. 이번에는 radarTrackId와 lead_track_frames, longActive/gasPressed/차선변경 게이트를 반영했고 로그와 프레임 집합이 달라 두 값을 직접 비교하지 않는다.
+
+9. **확인하지 못한 것.** (a) 구 코드로 주행한 같은 조건 로그가 없어 실주행 A/B가 아니다. (b) 폐루프가 아니다. (c) 정지 앞차 근처 풀림은 검증하지 못했다: vLead < 0.5 이고 vEgo > 0.5 인 프레임 123개는 재생에서 eligible이 0이었다. (d) reset_state, force_slow_decel, `carrot.lane_change_active`는 로그에 없어 근사했고(위 7번 민감도) v_ego는 MPC의 x0[1]이 아니라 carState.vEgo이며 relief는 무시했다. (e) JerkCostEgo 20과 거리 대역 효과를 분리하지 못했다(이 로그는 20뿐). (f) 영상 대조와 승차감은 보지 않았다. (g) 앞차 status가 True인데 desiredDistance가 0 이하인 프레임 16개는 `desiredDistance > 0` 조건으로 통계에서 제외했고 원인은 조사하지 않았다. (h) 이전 대화 글의 개입 집계와 미결 항목별 결과는 이 세션에서 재현하지 않았다.
+
+10. **판정.** 미완료 46번 (a)의 "새 거리 대역 코드가 기기에서 작동했는가"는 로그 확인 수준에서 확인했다. 앞차가 벌어진 뒤 따라붙는 장면(위 6번)에서 거리비 1.2~1.5배 구간의 마진이 구 코드보다 작게 풀렸다. 남은 것은 위 9번 (a)~(e)다. 코드 변경 없음, 실차 검증: 미실시(12절, 로그 확인 수준).
+
+11. **toolkit 등록(14절).** 이 세션에서 새로 작성한 재생 도구를 `devnotes/toolkit/gap_replay/gap_replay.py` 1개로 등록했다(`extract <schema_dir> <segs_dir> <out.pkl>`, `replay <plan.pkl> <new_gap.py> [<old_gap.py>] [--cb 2.5]`). 기존 toolkit에 같은 목적 도구는 없었다(README의 lead_decel/은 MPC 복제본 what-if, route_decel/은 route 감속). 이 도구로 위 4~5번 수치를 재현했다(extract 약 45초). README.md 252차 추가 절과 CHANGELOG.md 252차를 함께 갱신한다.
+
+12. **이 세션의 devnotes 스크립트.** PowerShell `252cha_devnotes_gap_replay_670f72c_v1.ps1` 1개(WIP.md, HANDOFF.md, toolkit/README.md, toolkit/CHANGELOG.md, 신규 toolkit/gap_replay/gap_replay.py). WIP_SYNC.md는 carrot-ms 점검이 없어 변경하지 않는다. 사전 검증은 샌드박스(Linux, pwsh 7.6.6)에서 note 3b04d61의 로컬 bare 저장소로 일반/CRLF 체크아웃 두 모드와 base 불일치·pre-image 불일치·앵커 불일치 안전 중단 경로를 실행한 것이며 Windows PowerShell 5.1 실제 실행이 아니다. 이 push는 이 세션 밖에서 사용자가 실행하므로 다음 세션이 `git ls-remote`로 반영 여부부터 확인할 것.
+
 ## 251cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 47d35da 이후 신규 3건 점검(37f39fc, c185343, 95d07bc 모두 제외 제안, 체크포인트 47d35da -> 95d07bc, carrot-ryu 코드 변경 없음, 정적 분석, 실차 검증 미실시)
 
 **배경.** 새 세션에서 사용자가 프로젝트 지침 문서 읽기와 함께 업로드한 250cha 계속2 devnotes 스크립트의 Termux 푸시 명령을 요청했고, 이어서 "완료", "Carrot-ms 최신커밋분석", "기록"이라고 했다. 이 세션이 push를 GitHub에서 확인하고 carrot-ms 신규 커밋을 점검했으며, 판정안(3건 모두 제외)에 사용자가 "기록"을 택해 이 devnotes를 만든다. 실행 환경 지정이 없어 직전 세션들과 같은 Termux(bash) 스크립트로 만들었다.
