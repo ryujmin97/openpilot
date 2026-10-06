@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-07 (256차)
+- `jerk_sim/sim_jerk.py` 신규(사용자가 256cha에 올린 파일, 수정 없음)와 `jerk_sim/run_final.py` 신규(256cha 작성): 정차 앞차 접근 장면의 `JerkCostEgo` 5/8/12/20 폐루프 비교(README 256차 추가 참고). 670f72c 기록 실차 로그(route 00000492 세그먼트 4)로 실행해 12행 표를 만들었다(256cha 샌드박스). 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-06 (255차)
 - `gap_replay/ext2.py` 신규(사용자가 255cha에 올린 파일, README 255차 추가 참고): `gap_replay.py extract`보다 필드가 많은 병합 추출(accelCmd, aEgo, 레이더 yRel/modelProb, 계획 소스 등). 670f72c 기록 실차 로그(route 0000048e 세그먼트 144~161)로 실행해 pkl을 만들었다(255cha 샌드박스). 다른 toolkit 파일은 변경 없음.
 
