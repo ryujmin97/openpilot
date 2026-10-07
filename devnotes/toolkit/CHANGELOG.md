@@ -1,5 +1,9 @@
 # Toolkit CHANGELOG
 
+## 2026-10-07 (260차)
+- `radar_gate/margin_scan.py` 신규(260cha 작성): 1326f21의 `_update_vision_central_gate`와 670f72c 규칙을 실제 코드로 rlog 여러 개에 재생해, 레이더 앞차가 없는 프레임 중 `cruiseState.enabled`인 프레임만 세그먼트별로 비전 후보 수, 670f72c/1326f21 present 수, 새 present 수, 차단 수와 최소 |dPath|를 집계한다(README 260차 추가 참고). route 478 세그먼트 1~10과 route 492 세그먼트 4로 실행해 478의 크루즈 작동 8,309프레임에서 새 present 0, 492-4에서 17을 얻었다(260cha 샌드박스).
+- `jerk_sim/run_gap.py`, `jerk_sim/calib_gap.py` 신규(260cha 작성): `sim_jerk.py`에 앞차 끊김 유지(G) 시나리오를 더해 채움(A)과 J 5/8/12/20으로 비교하고(`run_gap.py`), 구동 지연별로 실제 속도와의 RMSE를 보는 보정 검사(`calib_gap.py`)를 한다. route 492 세그먼트 4로 실행했고 A는 256cha 수치를 재현했다(260cha 샌드박스). `sim_jerk.py`, `run_final.py`는 변경 없음.
+
 ## 2026-10-07 (259차)
 - `radar_gate/release_replay.py` 신규(259cha 작성): carrot-ryu 1326f21의 `DPathRadarController._update_vision_central_gate`(비전 앞차 해제 대역 1.5 m + 3프레임 홀드)를 실제 코드 그대로 호출해 rlog의 비전 앞차 후보에 radarState 프레임마다 재생하고 670f72c 규칙(진입 1.0 m 단독)과 present/끊김/추가 프레임(dRel, prob, dPath, 비전 v, 자차 속도, 크루즈 상태)을 비교한다(README 259차 추가 참고). 670f72c로 기록된 실차 로그(route 00000492 세그먼트 4)로 실행해 레이더 앞차 없는 336프레임 670f72c 규칙 재생 일치 336/336, 앞차 끊김 10 -> 0, 추가 present 30프레임(크루즈 작동 중 17, 미작동 중 13)을 얻었다(259cha 샌드박스). `radar_gate/exact_gate.py`, `gate_replay.py`는 변경 없음.
 
