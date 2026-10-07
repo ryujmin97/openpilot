@@ -6166,6 +6166,103 @@ def test_other_scc_modes_keep_central_vision_fallback_gate(mode: int) -> None:
   assert _off_path_vision_output(mode).lead_one is None
 
 
+def _gate_update(
+  controller: DPathRadarController,
+  step: int,
+  y_rel: float,
+  probability: float = 0.9,
+):
+  return controller.update(
+    time_s=1.0 + 0.05 * step,
+    v_ego=10.0,
+    radar_points=(),
+    model=model_with_lead(30.0, y_rel, 12.0, probability=probability),
+  )
+
+
+def test_vision_gate_entry_stays_strict_without_prior_admission() -> None:
+  controller = DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=0,
+  )
+
+  assert _gate_update(controller, 0, 1.2).lead_one is None
+
+
+def test_vision_gate_keeps_admitted_lead_inside_release_band() -> None:
+  controller = DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=0,
+  )
+
+  assert _gate_update(controller, 0, 0.5).lead_one is not None
+  for step, y_rel in enumerate((1.02, 1.3, 1.49, 1.05), start=1):
+    output = _gate_update(controller, step, y_rel)
+    assert output.lead_one is not None, y_rel
+    assert not output.lead_one["radar"]
+
+
+def test_vision_gate_holds_three_frames_beyond_release_band() -> None:
+  controller = DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=0,
+  )
+
+  assert _gate_update(controller, 0, 0.5).lead_one is not None
+  for step in (1, 2, 3):
+    assert _gate_update(controller, step, 2.0).lead_one is not None
+  assert _gate_update(controller, 4, 2.0).lead_one is None
+  # Dropped for good: the release band alone no longer admits it.
+  assert _gate_update(controller, 5, 1.2).lead_one is None
+  # A fresh strict entry works again.
+  assert _gate_update(controller, 6, 0.5).lead_one is not None
+
+
+def test_vision_gate_hold_counter_resets_when_back_inside_band() -> None:
+  controller = DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=0,
+  )
+
+  assert _gate_update(controller, 0, 0.5).lead_one is not None
+  for step in (1, 2):
+    assert _gate_update(controller, step, 2.0).lead_one is not None
+  assert _gate_update(controller, 3, 1.2).lead_one is not None
+  for step in (4, 5, 6):
+    assert _gate_update(controller, step, 2.0).lead_one is not None
+  assert _gate_update(controller, 7, 2.0).lead_one is None
+
+
+def test_vision_gate_release_needs_minimum_probability() -> None:
+  controller = DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=0,
+  )
+
+  assert _gate_update(controller, 0, 0.5).lead_one is not None
+  assert _gate_update(controller, 1, 1.2, probability=0.30).lead_one is None
+  assert _gate_update(controller, 2, 1.2).lead_one is None
+
+
+def test_vision_gate_state_clears_when_a_radar_lead_takes_over() -> None:
+  controller = DPathRadarController(
+    prefer_corner_radar=True,
+    enable_radar_tracks=0,
+  )
+
+  assert _gate_update(controller, 0, 0.5).lead_one is not None
+  radar_output = controller.update(
+    time_s=1.05,
+    v_ego=10.0,
+    radar_points=(Point(0, 30.0, 0.0, v_rel=2.0, source="scc"),),
+    model=model_with_lead(30.0, 0.0, 12.0, probability=0.9),
+  )
+  assert radar_output.lead_one is not None
+  assert radar_output.lead_one["radar"]
+  # Radar is gone again: the old vision admission must not carry over.
+  assert _gate_update(controller, 2, 1.2).lead_one is None
+
+
 def test_stock_scc_mode_uses_vision_while_scc_object_conflicts() -> None:
   output = DPathRadarController(
     prefer_corner_radar=True,

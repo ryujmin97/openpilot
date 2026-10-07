@@ -89,6 +89,12 @@ SCC_CORNER_MATCH_MAX_YREL_DELTA_M = 1.25
 SCC_PRIMARY_DUPLICATE_MAX_DREL_DELTA_M = 5.0
 RADAR_VISION_FALLBACK_MAX_ABS_DPATH_M = 1.0
 RADAR_VISION_FALLBACK_MIN_PROBABILITY = 0.40
+# Once the central gate has admitted a vision lead, keep it through a slightly
+# wider |dPath| band and a short hold. Without this a car hovering around the
+# 1.0 m entry limit (a bus on a curving road) toggles leadOne on/off every few
+# frames. Entry still uses the strict 1.0 m gate above.
+RADAR_VISION_FALLBACK_RELEASE_MAX_ABS_DPATH_M = 1.5
+RADAR_VISION_FALLBACK_RELEASE_HOLD_FRAMES = 3
 RADAR_MATCH_MAX_FARTHER_THAN_VISION_M = 8.0
 MOVING_FRONT_RANGE_SOURCES = frozenset(("frontRadar", "scc"))
 # The SCC track is the only moving lead on radar-unavailable-front cars (e.g.
@@ -505,6 +511,50 @@ class DPathRadarController:
     self._stationary_range_last_point: RadarPointSnapshot | None = None
     self._stationary_range_last_time_s: float | None = None
     self._stationary_range_anchor_time_s: float | None = None
+    self._vision_central_gate_active = False
+    self._vision_central_gate_release_frames = 0
+
+  def _reset_vision_central_gate(self) -> None:
+    self._vision_central_gate_active = False
+    self._vision_central_gate_release_frames = 0
+
+  def _update_vision_central_gate(
+    self,
+    vision: Any,
+    path: tuple[tuple[float, float], ...],
+  ) -> bool:
+    """Central-lane gate for the vision-only lead, with exit hysteresis.
+
+    Entry is the strict gate. After a frame was admitted, the lead stays
+    admitted while probability holds and |dPath| stays within the release
+    band, and for a few frames beyond it. Never used by the other callers of
+    _central_vision_fallback_allowed.
+    """
+    if vision is None:
+      self._reset_vision_central_gate()
+      return False
+    if _central_vision_fallback_allowed(vision, path):
+      self._vision_central_gate_active = True
+      self._vision_central_gate_release_frames = 0
+      return True
+    if (
+      self._vision_central_gate_active
+      and vision.probability >= RADAR_VISION_FALLBACK_MIN_PROBABILITY
+    ):
+      d_path = abs(
+        project_to_model_path(path, vision.d_rel, vision.y_rel).d_path
+      )
+      if d_path <= RADAR_VISION_FALLBACK_RELEASE_MAX_ABS_DPATH_M:
+        self._vision_central_gate_release_frames = 0
+        return True
+      if (
+        self._vision_central_gate_release_frames
+        < RADAR_VISION_FALLBACK_RELEASE_HOLD_FRAMES
+      ):
+        self._vision_central_gate_release_frames += 1
+        return True
+    self._reset_vision_central_gate()
+    return False
 
   def _reset_stationary_range_history(self) -> None:
     self._stationary_range_last_point = None
@@ -834,6 +884,7 @@ class DPathRadarController:
       self._moving_range_last_point = None
       self._moving_range_last_time_s = None
       self._reset_stationary_range_history()
+      self._reset_vision_central_gate()
       return DPathRadarOutput(
         None, None, None, None, (), (), (), (), (), (), None,
       )
@@ -899,6 +950,10 @@ class DPathRadarController:
       )
     else:
       self.scc_primary_fallback_matcher.reset()
+    vision_central_gate_open = self._update_vision_central_gate(
+      vision if primary_match is None else None,
+      path,
+    )
     lead_one = None
     if primary_match is not None:
       lead_one = self._lead_from_radar_point(
@@ -912,7 +967,7 @@ class DPathRadarController:
         vision is not None
         and (
           vision_only_lead_allowed(self.enable_radar_tracks)
-          or _central_vision_fallback_allowed(vision, path)
+          or vision_central_gate_open
         )
       ):
         lead_one = lead_from_vision(
