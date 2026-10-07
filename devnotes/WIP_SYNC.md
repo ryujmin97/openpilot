@@ -1,5 +1,25 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-07 (262차) -- carrot-ms 0a67f68..9fe7fa5 신규 8건 점검, 모두 제외 확정 (carrot-ryu 반영 없음, 체크포인트 0a67f68 -> 9fe7fa5)
+
+- 점검 범위: `0a67f68..9fe7fa5` 신규 8건(모두 ajouatom, 2026-10-06~07). 체크포인트 0a67f68은 carrot-ms(happymaj11r/openpilot) blobless `--no-checkout` 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인해 rebase는 없었다. 오래된 것부터 8b65fb9, a85912d, b4b2ded, 679e633, b72237d, 30ee43d, 22af6b2, 9fe7fa5 순이다. 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 1326f21의 blobless 클론에서 `git ls-tree -r --name-only`로 파일 5,449개를 얻어 대조했고, 경로에 jetlink/jetson이 들어간 파일은 0개였다.
+- 사용자가 고른 것: 판정안(제외 8건, 반영 후보 0건)을 보고 "제외승인 기록"을 택했다. 따라서 carrot-ryu 반영은 하지 않고 체크포인트를 0a67f68 -> 9fe7fa5로 올린다.
+
+| 커밋 | 내용 | 변경량 | 판정과 근거 |
+|---|---|---|---|
+| `8b65fb9` | Support Jetlink protocol v3 while retaining deployed v2 Jetsons | 9 files +651/-13 | **제외.** 변경이 `modeld/jetlink/*`, `third_party/jetlink/*`, `tools/jetlink/*`, `common/jetlink_peer.py`, 문서 1개다. carrot-ryu에 해당 경로가 없다(파일명만 확인, 코드 본문은 읽지 않음). |
+| `a85912d` | Gate Jetson startup on verified updates and add legacy migration wait | 30 files +1128/-69 | **제외.** Jetson 부팅 업데이트 검증과 웹 도구 카드다. 비 Jetlink 파일의 diff를 읽었다: `hardwared.py`(offroad 조건 `not_jetson_update_wait`과 알림, carrot-ryu에 없는 `common/jetson_maintenance.py`를 import), `params_keys.h`(`JetsonLegacyUpdatePending`, `Offroad_JetsonLegacyUpdate` 키 추가), `alerts_offroad.json`(알림 1개), 양쪽 `hud_renderer.py`(Jetlink 배지의 비ASCII 글꼴/크기 분기), `jetlink_status.py`(`update_badge`). carrot-ryu에는 `jetlink_status.py`와 `jetson_maintenance.py`가 없다. 웹 생성 번들(`tools.js` 등)은 읽지 않았다. |
+| `b4b2ded` | Pin signed Jetson boot-update runtime release | 2 files +17/-5 | **제외.** `modeld/jetlink/host_release.json`과 문서 1개다(파일명만 확인). |
+| `679e633` | Fix Jetson update wait card width and explain legacy check timing | 9 files +69/-36 | **제외.** Jetson 업데이트 대기 카드의 웹 UI/CSS와 생성 번들이다(파일명만 확인). |
+| `b72237d` | Record parked Jetson migration activation and onroad return | 1 file +11/-0 | **제외.** 문서 1개다. |
+| `30ee43d` | Show elapsed time and clarify legacy Jetson update wait | 12 files +234/-77 | **제외.** `common/jetson_maintenance.py`, 웹 카드, 테스트다(파일명만 확인). |
+| `22af6b2` | Replace manual Jetson update wait with a Windows storage patch | 32 files +966/-659 | **제외.** a85912d의 수동 대기(hardwared 분기, `jetson_maintenance.py`, 웹 카드)를 제거하고 `tools/jetlink/*`와 Windows 인스톨러 기반 오프라인 부팅 패치로 바꾼다. `params_keys.h` diff는 읽었다: `JetsonLegacyUpdatePending`을 PERSISTENT에서 CLEAR_ON_MANAGER_START로 바꾸는 한 줄이다. |
+| `9fe7fa5` | Document the published Jetson automatic update patch download | 1 file +30/-1 | **제외.** 문서 1개다. |
+
+- 공통 근거: 8건 모두 Jetson 보조 장치(Jetlink)와 그 업데이트 경로다. 제외의 근거는 carrot-ryu에 Jetlink 관련 경로가 0개라는 점이다. 사용자가 Jetson 기기를 쓰는지는 이번 세션이 새로 확인하지 않았다.
+- 체크포인트: 0a67f68 -> 9fe7fa5. 다음 점검은 9fe7fa5 이후 신규 커밋부터이고, 그때도 `git cat-file -t 9fe7fa5`로 체크포인트 존재부터 확인할 것(carrot-ms는 재생성될 수 있다).
+- 한계: 정적 확인이다. 8건 전체의 변경 파일 목록(`--numstat`)은 읽었으나 diff는 위에 적은 비 Jetlink 파일만 읽었다. Jetlink/Jetson 코드 본문, 웹 JS, 테스트, 문서 본문은 읽지 않았다. pytest, py_compile, 빌드는 하지 않았다. 실차 검증 미실시. carrot-ryu 코드 변경 없음.
+
 ## 체크포인트: 2026-10-06 (254차) -- carrot-ms 95d07bc..0a67f68 신규 7건 점검, 모두 제외 확정 (carrot-ryu 반영 없음, 체크포인트 95d07bc -> 0a67f68)
 
 - 점검 범위: `95d07bc..0a67f68` 신규 7건(모두 2026-10-06). 체크포인트 95d07bc는 carrot-ms blobless `--no-checkout` 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인했다. `95d07bc..HEAD`는 7건이고 모두 2026-10-06이다(8ad0440, 64311be, 20ff21f, 7fb0f19, 311c58a, e4b35cc, 0a67f68 순). 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 670f72c의 blobless `--no-checkout` 클론에서 `git ls-tree -r --name-only HEAD`로 파일 5,449개와 이름 일치 여부를 확인했고, 필요한 파일은 `git show HEAD:<경로>`로 읽었다.

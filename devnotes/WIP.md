@@ -1,5 +1,17 @@
 # WIP
 
+## 262cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 0a67f68..9fe7fa5 신규 8건 점검, 모두 제외 확정(코드 변경 없음, devnotes만)
+
+**배경.** 새 세션 시작 지시(지침 문서를 먼저 읽고 4절 순서로 진행)와 함께 사용자가 "Carrot-ms 분석"을 요청했다. HANDOFF.md의 다음 작업 (5)번(carrot-ms 0a67f68 이후 신규 커밋 점검)으로 해석해 2절 절차로 진행했다. 사용자는 판정안(제외 8건, 반영 후보 0건)을 보고 "제외승인 기록. Termux"라고 답해, 제외 확정 기록과 Termux용 스크립트를 택했다.
+
+**한 일.**
+1. 4절 0단계: 지침 문서 v2를 읽고(49,277바이트) `git ls-remote`로 note 966319e, carrot-ryu 1326f21을 확인했으며 SHA 고정본과 브랜치 URL 사본이 바이트 동일함을 `cmp`로 확인했다. 이어서 HANDOFF.md를 SHA 고정으로 읽었다(261cha 슬림화 반영 상태).
+2. carrot-ms(happymaj11r/openpilot) HEAD 9fe7fa5. 체크포인트 0a67f68이 commit이고 HEAD의 조상임을 확인했다(rebase 없음). `0a67f68..HEAD` 8건 전부 ajouatom(2026-10-06~07)이고 Jetson/Jetlink 계열이다.
+3. 8건 전체의 `git show --numstat`를 읽었고, 비 Jetlink 파일(`hud_renderer.py` 2개, `hardwared.py`, `params_keys.h`, `alerts_offroad.json`, `jetlink_status.py`)의 diff를 읽었다. carrot-ryu 1326f21의 파일 5,449개 중 경로에 jetlink/jetson이 들어간 것은 0개였다.
+4. 판정: 8건 모두 제외, 반영 후보 0건, 사용자 확정. WIP_SYNC.md에 262차 체크포인트(0a67f68 -> 9fe7fa5)와 커밋별 표를 추가하고, HANDOFF.md의 체크포인트와 작업/완료/다음 작업 항목을 갱신했다. 반영은 devnotes 스크립트 1개(`262cha_ms_sync_record.sh`, Termux bash)다.
+
+**한계/주의.** 정적 확인이다. Jetlink/Jetson 코드 본문, 웹 JS, 테스트, 문서 본문은 읽지 않았다. 사용자가 Jetson 기기를 쓰는지는 새로 확인하지 않았고, 제외 근거는 carrot-ryu에 Jetlink 경로가 없다는 점이다. 코드 변경이 없어 pytest와 실차 검증은 해당 없다(실차 검증: 미실시). 이후 carrot-ms 점검은 9fe7fa5 이후 신규 커밋부터 하고 `git cat-file -t 9fe7fa5`로 존재부터 확인한다.
+
 ## 261cha (완료) (Claude, Claude Sonnet 5.5) - HANDOFF.md를 8절의 "최신 1개 버전" 형태로 슬림화(코드 변경 없음, devnotes만)
 
 **배경.** 사용자가 새 세션 시작 지시(지침 문서를 먼저 읽고 4절 순서로 진행)와 함께 "레포의 핸드오프 문서가 클 이유가 있나, 최신 내용만 확인하면 되는 것 아니냐"고 물었다. 지침 8절은 HANDOFF.md를 "항상 최신 1개 버전만 유지하고 통째로 교체하는" 파일로 규정하는데, 실제 파일(note HEAD f58764b)은 약 470KB(30만 자, 828줄), 헤더 없는 평문, 한 줄 최대 약 2.8만 자, 작업 블록 68개(201cha~260cha)였다. 최신 260cha 블록만 약 5.4만 자였고 과거 이력은 불변 WIP.md와 중복이었다. 260cha 기록에 "8절의 최신 1개 유지로 줄이지 않고 기존 이력 앞에 앵커 삽입"이라고 적혀 있어 이전 세션들이 이력을 계속 앞에 붙여 온 것으로 보인다(그 결정이 사용자 지시였는지는 기록으로 알 수 없다). 사용자는 슬림화 방안 설명을 듣고 "너의 판단대로"라고 답했다.

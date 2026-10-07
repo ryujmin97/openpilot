@@ -1,20 +1,20 @@
-Worker: Claude (261cha, Claude Sonnet 5.5). 코드 변경 없음, devnotes만 다룬 세션. 사용자가 HANDOFF.md가 왜 큰지 물었고(8절은 "항상 최신 1개 버전만 유지"인데 실제 파일은 약 470KB, 828줄, 작업 블록 68개(201cha~260cha)였다) "너의 판단대로"로 8절 원래 형태로 되돌리는 것을 맡겼다.
+Worker: Claude (262cha, Claude Sonnet 5.5). 코드 변경 없음, devnotes만 다룬 세션. 사용자가 "Carrot-ms 분석"을 요청해 2절 절차로 carrot-ms 0a67f68 이후 신규 8건을 점검했고, 판정안(제외 8건, 반영 후보 0건)을 "제외승인 기록"으로 확정했다.
 Date: 2026-10-07
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (base commit 1326f21149cf99a890c95adf5e599bbdf16177da = 259cha 시점 HEAD, 비전 앞차 해제 대역 1.5 m + 3프레임 홀드, 부모 670f72c, 이 세션이 `git ls-remote`로 HEAD가 그대로임을 확인했다. 이 세션은 코드를 바꾸지 않았다).
-Note Branch: carrot-ryu-note (base commit f58764bd94f0e7fdc5b0c9e9f2028a85726894fa = 260cha devnotes, 이 세션이 `git ls-remote`와 blobless clone으로 확인: 부모 398f794, 작성자 ryujmin97, 2026-10-07 16:11:52 +0900, 7 files 216 insertions/4 deletions).
+Note Branch: carrot-ryu-note (base commit 966319e5ddbd6a3a450f33497432762de2920839 = 261cha devnotes(HANDOFF 슬림화), 이 세션이 `git ls-remote`로 확인했다. 이 세션의 devnotes 1회 push(262cha)가 그 위에 올라간다).
 Archive Branches: carrot-ryu-v1 (6df4268eb31442be4d8abd92817111f7b26b1bf4, 불변), carrot-ryu-v2 (3ddf849ea3f3392c16d363d9edea6a1bc8eab041, 212cha 생성, 불변). 둘 다 이 세션의 `git ls-remote`로 SHA 일치를 확인했다. carrot-ryu-v3는 아직 없고 보존 시점은 사용자가 정한다(20절).
-carrot-ms 마지막 검토 체크포인트: 95d07bc -> 0a67f68 (254차: 신규 7건 8ad0440, 64311be, 20ff21f, 7fb0f19, 311c58a, e4b35cc, 0a67f68을 모두 제외로 확정, carrot-ryu 반영 없음, 사유는 WIP_SYNC.md 254차). 다음 점검은 0a67f68 이후 신규 커밋이 생겼을 때이며 `git cat-file -t 0a67f68`로 존재부터 확인한다(carrot-ms는 재생성되므로).
+carrot-ms 마지막 검토 체크포인트: 0a67f68 -> 9fe7fa5 (262차: 신규 8건 8b65fb9, a85912d, b4b2ded, 679e633, b72237d, 30ee43d, 22af6b2, 9fe7fa5를 모두 제외로 확정, carrot-ryu 반영 없음, 사유는 WIP_SYNC.md 262차). 다음 점검은 9fe7fa5 이후 신규 커밋이 생겼을 때이며 `git cat-file -t 9fe7fa5`로 존재부터 확인한다(carrot-ms는 재생성되므로).
 
 이 파일은 8절대로 "최신 1개 버전만" 유지한다. 201cha~260cha의 작업/완료/미완료/검증/주의사항/다음 작업 전체 이력은 커밋 f58764b의 같은 경로에 그대로 있다: `git show f58764bd94f0e7fdc5b0c9e9f2028a85726894fa:devnotes/HANDOFF.md` 또는 SHA 고정 raw URL(https://raw.githubusercontent.com/ryujmin97/openpilot/f58764bd94f0e7fdc5b0c9e9f2028a85726894fa/devnotes/HANDOFF.md). 회차별 상세는 원래 WIP.md(불변)가 갖고 있으므로 여기에 다시 쌓지 않는다. 아래 "미완료/주의사항"은 이전 HANDOFF에서 옮긴 것이며 이 세션이 내용을 재검증하지는 않았다(번호는 이전 HANDOFF의 미완료 번호로, 상세가 필요하면 위 커밋에서 해당 번호를 읽는다).
 
-작업(261cha, 이 구간):
-1. 4절 0단계: 지침 문서 v2를 브랜치 URL로 받아 588줄 전체를 읽고, `git ls-remote`(note f58764b, carrot-ryu 1326f21, v1 6df4268, v2 3ddf849)와 SHA 고정본 비교로 두 사본이 바이트 동일(49,277바이트)함을 확인했다.
-2. 이전 HANDOFF.md를 분석했다: 30만 자, 헤더 없는 평문, 한 줄이 최대 2.8만 자, 최신(260cha) 블록만 약 5.4만 자. 이력은 WIP.md와 중복이다.
-3. 미완료 1~48번과 주의사항을 아래로 정리했다. 종결/해소된 것은 "종결"에 한 줄로만 남겼다(근거는 이전 HANDOFF와 WIP.md).
-4. 이 파일과 WIP.md 261cha 항목을 한 번의 devnotes 스크립트(`261cha_handoff_slim.ps1`)로 반영한다(코드 변경 없음이라 5절의 devnotes 1회 push만).
+작업(262cha, 이 구간):
+1. 4절 0단계: 지침 문서 v2를 브랜치 URL로 받아 읽고 `git ls-remote`(note 966319e, carrot-ryu 1326f21)와 SHA 고정본 비교로 두 사본이 바이트 동일(49,277바이트)함을 확인했다. 이어서 HANDOFF.md를 SHA 고정으로 읽었다.
+2. carrot-ms(happymaj11r) HEAD 9fe7fa5. 체크포인트 0a67f68이 commit이고 HEAD의 조상임을 확인했다(rebase 없음). `0a67f68..HEAD` 8건 전부 ajouatom(2026-10-06~07), Jetson/Jetlink 계열이다. 8건 전체 `--numstat`과 비 Jetlink 파일 diff(`hud_renderer.py` 2개, `hardwared.py`, `params_keys.h`, `alerts_offroad.json`, `jetlink_status.py`)를 읽었고, carrot-ryu 1326f21의 파일 5,449개 중 jetlink/jetson 경로는 0개였다.
+3. 판정안(제외 8건, 반영 후보 0건)을 사용자가 "제외승인 기록"으로 확정했다. WIP_SYNC.md 262차와 WIP.md 262cha 항목을 추가하고 이 파일을 갱신하는 devnotes 스크립트 1개(`262cha_ms_sync_record.sh`, Termux bash)만 쓴다(코드 변경 없음, 5절 devnotes 1회 push).
 
 완료(최근 구간, 상세는 WIP.md):
+- 262cha: carrot-ms 0a67f68..9fe7fa5 신규 8건(Jetson/Jetlink 계열)을 모두 제외로 확정, carrot-ryu 반영 없음(정적 확인, 실차 검증 미실시). 261cha: HANDOFF.md를 8절의 최신 1개 버전으로 슬림화(코드 변경 없음).
 - 260cha: 1326f21 규칙이 크루즈 작동 중 새로 만드는 프레임 측정(route 478 세그먼트 1~10, 8,309프레임에서 새 present 0개)과 끊김 유지(G) 대 채움(A) 플래너 시뮬레이션(route 492-4). 재생/시뮬레이션만이며 실차 검증은 미실시.
 - 259cha: 1326f21 재검증(route 492 세그먼트 4에서 끊김 10 -> 0, pytest 447 passed).
 - 이전 구간의 반영 커밋 요약(carrot-ryu): 1326f21(비전 앞차 해제 대역 1.5 m + 3프레임 홀드), 670f72c(carrot-ms 47d35da 간격 헤드룸 유지 거리 대역), `J_EGO_COST` 12.0 반영(246cha, 두 테스트의 하드코딩 보정은 0a1ad62), f9ffbc2(`JerkCostEgo` 설정, 코드 기본 12, 상한 20), b3e16c5(SCC 모드 -1 비전 앞차 허용, 기기값 0이라 현재 비작동), 11d7e89/0f08f08/76b182a(UI 네이티브 배치와 plot 경량화), 8cdb515(SCC 앞차 비전 거리 완화), 99012c3(disabled+blended force_decel 미감속 수정).
@@ -50,5 +50,5 @@ carrot-ms 마지막 검토 체크포인트: 95d07bc -> 0a67f68 (254차: 신규 7
 - 코드 변경이 나오면 5절 순차 전달(코드 스크립트 먼저 -> GitHub 직접 확인 -> devnotes 1회).
 
 다음 작업:
-- 사용자가 고를 수 있는 것: (1) 1326f21의 옆 차선 오감속 판정용 로그 확보(크루즈 작동 중 비전 단독 앞차, 옆 차선에 차가 많은 도로)와 `radar_gate/release_replay.py`/`margin_scan.py` 재생(코드 변경 없음), (2) `JerkCostEgo` 20 유지/12/8 결정(CarrotWeb 설정, 코드 변경 없음), (3) 정지 앞차 접근과 내비를 켠 램프 주행 재주행 로그 확보, (4) `test_radar_fault` 처리 결정, (5) carrot-ms 0a67f68 이후 신규 커밋 점검, (6) carrot-ryu-v3 보존 시점 지정.
+- 사용자가 고를 수 있는 것: (1) 1326f21의 옆 차선 오감속 판정용 로그 확보(크루즈 작동 중 비전 단독 앞차, 옆 차선에 차가 많은 도로)와 `radar_gate/release_replay.py`/`margin_scan.py` 재생(코드 변경 없음), (2) `JerkCostEgo` 20 유지/12/8 결정(CarrotWeb 설정, 코드 변경 없음), (3) 정지 앞차 접근과 내비를 켠 램프 주행 재주행 로그 확보, (4) `test_radar_fault` 처리 결정, (5) carrot-ms 9fe7fa5 이후 신규 커밋 점검, (6) carrot-ryu-v3 보존 시점 지정.
 - 코드 변경이 나오면 사용자 승인 후 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes 1회)을 따른다.
