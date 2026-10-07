@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-07 (259차)
+- `radar_gate/release_replay.py` 신규(259cha 작성): carrot-ryu 1326f21의 `DPathRadarController._update_vision_central_gate`(비전 앞차 해제 대역 1.5 m + 3프레임 홀드)를 실제 코드 그대로 호출해 rlog의 비전 앞차 후보에 radarState 프레임마다 재생하고 670f72c 규칙(진입 1.0 m 단독)과 present/끊김/추가 프레임(dRel, prob, dPath, 비전 v, 자차 속도, 크루즈 상태)을 비교한다(README 259차 추가 참고). 670f72c로 기록된 실차 로그(route 00000492 세그먼트 4)로 실행해 레이더 앞차 없는 336프레임 670f72c 규칙 재생 일치 336/336, 앞차 끊김 10 -> 0, 추가 present 30프레임(크루즈 작동 중 17, 미작동 중 13)을 얻었다(259cha 샌드박스). `radar_gate/exact_gate.py`, `gate_replay.py`는 변경 없음.
+
 ## 2026-10-07 (258차)
 - `radar_gate/exact_gate.py` 신규(258cha 작성): 비전 앞차 중앙 경로 게이트를 실제 `project_to_model_path`로 재생하고 끄는 문턱/홀드 완화안을 비교(README 258차 추가 참고). 670f72c 기록 실차 로그(route 00000492 세그먼트 4)로 실행해 레이더 앞차 없는 336프레임 재생 일치 336/336, 앞차 끊김 10회가 전부 |dPath| 1.0 m 게이트와 맞음을 얻었다(258cha 샌드박스). `radar_gate/gate_replay.py`는 변경 없음(dPath 근사 한계는 README에 추가). 다른 toolkit 파일은 변경 없음.
 
