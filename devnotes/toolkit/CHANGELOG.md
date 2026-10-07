@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-07 (257차)
+- `radar_gate/gate_replay.py` 신규(257cha 작성): `EnableRadarTracks` 0 대 -1의 비전 앞차 중앙 경로 게이트 차이를 rlog 프레임 단위로 재생(README 257차 추가 참고). 670f72c 기록 실차 로그(route 00000492 세그먼트 4)로 실행해 8.0~10.85초 앞차 끊김 로그 4회/모드 0 재생 5회/모드 -1 재생 0회를 얻었다(257cha 샌드박스). 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-07 (256차)
 - `jerk_sim/sim_jerk.py` 신규(사용자가 256cha에 올린 파일, 수정 없음)와 `jerk_sim/run_final.py` 신규(256cha 작성): 정차 앞차 접근 장면의 `JerkCostEgo` 5/8/12/20 폐루프 비교(README 256차 추가 참고). 670f72c 기록 실차 로그(route 00000492 세그먼트 4)로 실행해 12행 표를 만들었다(256cha 샌드박스). 다른 toolkit 파일은 변경 없음.
 

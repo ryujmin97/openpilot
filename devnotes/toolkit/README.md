@@ -219,3 +219,11 @@ with OpenpilotPrefix():
 | `jerk_sim/run_final.py <plan.pkl> [out.pkl]` | `sim_jerk.py`를 지연 0.35 s / 시상수 0.15 s로 덮어써 A/A2/B x J 5/8/12/20 12회를 돌리고 10.83초 속도·필요 감속(v^2/2g)·최대 저크·최소 간격 표를 출력한다. 0.35 s는 J=20 시뮬레이션의 10.85초 속도를 실차 13.69 m/s에 맞춘 값이다(지연 0.30/0.35/0.40에서 13.39/13.57/13.76, 이전 구간 보정 출력). 256cha에 실제 실행해 12행 표를 확인했다(WIP.md 256cha 6번). |
 
 환경: `bash pytest_ci_setup.sh`(carrot-ryu clone + acados 코드생성까지, 약 4~5분)로 `/home/claude/repo`를 만든 뒤 `cd /home/claude/repo && export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo && python3 jerk_sim/run_final.py <plan.pkl>`. plan.pkl은 `gap_replay/ext2.py`(255차) 출력이고 열 `r_aLeadK`, `r_modelProb`, `r_status`, `r_dRel`, `r_vLead`, `vEgo`, `t`가 필요하다. 12회 실행은 약 100초이므로 한 명령 제한이 있는 환경에서는 `setsid nohup ... < /dev/null &`. 한계: 앞차 측정값을 로그에서 그대로 넣는 open-loop 인식이고, 구동 모델은 J=20 한 장면에 맞춘 것이라 J=5/8/12는 외삽이며, 실차에서 개입한 정지 경로(계획 소스 4)와 운전자 개입은 재현하지 않는다. 실차 검증 아님. 결과와 해석은 WIP.md 256cha.
+
+### 257차 추가 (radar_gate/: EnableRadarTracks 0 대 -1 비전 앞차 게이트 재생)
+
+| 도구 | 설명 |
+|---|---|
+| `radar_gate/gate_replay.py <schema_dir> <rlog.zst> [t_from t_to]` | rlog 1개에서 radarState.leadOne(status/radar/dRel/vLead), liveTracks 점 개수, modelV2.leadsV3[0](prob/x/v)와 modelV2.position 보간 dPath를 뽑아, 670f72c의 비전 앞차 규칙(`primary.py` `_update_vision_fallback` 채택 prob 0.40/유지 0.35 초과 10프레임, `controller.py` `_central_vision_fallback_allowed` prob 0.40 + |dPath| 1.0 m)을 프레임마다 재생한다. 모드 0(게이트 적용)과 모드 -1(게이트 면제)의 앞차 유무와 앞차 끊김 횟수를 구간별로 로그 값과 비교하고 로그에서 앞차가 끊긴 첫 프레임의 비전 prob/dPath를 출력한다. `<schema_dir>`는 `openpilot/cereal/*.capnp`, `cereal/include/c++.capnp`(include/ 아래), `opendbc_repo/opendbc/car/car.capnp`를 한 폴더에 모은 것이다. 실행 `python3 -I gate_replay.py <schema_dir> <rlog.zst> [8.0 10.85]`(zstandard, pycapnp, numpy 필요, 60초 세그먼트 약 수 초). |
+
+한계: open-loop 근사다. dPath는 실제 `project_to_model_path` 대신 `modelV2.position`을 비전 x에서 보간한 값이고(256cha 로그 8.0~10.85초 57프레임 중 4프레임이 로그와 다름), SCC 점이 있는 프레임(liveTracks 점 있음)은 처리하지 않아 SCC 점이 없는 장면에서만 의미가 있다. 자차 거동 변화 반영 없음. 실차 검증 아님. 결과와 해석은 WIP.md 257cha.
