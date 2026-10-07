@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-07 (258차)
+- `radar_gate/exact_gate.py` 신규(258cha 작성): 비전 앞차 중앙 경로 게이트를 실제 `project_to_model_path`로 재생하고 끄는 문턱/홀드 완화안을 비교(README 258차 추가 참고). 670f72c 기록 실차 로그(route 00000492 세그먼트 4)로 실행해 레이더 앞차 없는 336프레임 재생 일치 336/336, 앞차 끊김 10회가 전부 |dPath| 1.0 m 게이트와 맞음을 얻었다(258cha 샌드박스). `radar_gate/gate_replay.py`는 변경 없음(dPath 근사 한계는 README에 추가). 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-07 (257차)
 - `radar_gate/gate_replay.py` 신규(257cha 작성): `EnableRadarTracks` 0 대 -1의 비전 앞차 중앙 경로 게이트 차이를 rlog 프레임 단위로 재생(README 257차 추가 참고). 670f72c 기록 실차 로그(route 00000492 세그먼트 4)로 실행해 8.0~10.85초 앞차 끊김 로그 4회/모드 0 재생 5회/모드 -1 재생 0회를 얻었다(257cha 샌드박스). 다른 toolkit 파일은 변경 없음.
 

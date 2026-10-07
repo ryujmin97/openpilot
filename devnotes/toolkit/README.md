@@ -227,3 +227,11 @@ with OpenpilotPrefix():
 | `radar_gate/gate_replay.py <schema_dir> <rlog.zst> [t_from t_to]` | rlog 1개에서 radarState.leadOne(status/radar/dRel/vLead), liveTracks 점 개수, modelV2.leadsV3[0](prob/x/v)와 modelV2.position 보간 dPath를 뽑아, 670f72c의 비전 앞차 규칙(`primary.py` `_update_vision_fallback` 채택 prob 0.40/유지 0.35 초과 10프레임, `controller.py` `_central_vision_fallback_allowed` prob 0.40 + |dPath| 1.0 m)을 프레임마다 재생한다. 모드 0(게이트 적용)과 모드 -1(게이트 면제)의 앞차 유무와 앞차 끊김 횟수를 구간별로 로그 값과 비교하고 로그에서 앞차가 끊긴 첫 프레임의 비전 prob/dPath를 출력한다. `<schema_dir>`는 `openpilot/cereal/*.capnp`, `cereal/include/c++.capnp`(include/ 아래), `opendbc_repo/opendbc/car/car.capnp`를 한 폴더에 모은 것이다. 실행 `python3 -I gate_replay.py <schema_dir> <rlog.zst> [8.0 10.85]`(zstandard, pycapnp, numpy 필요, 60초 세그먼트 약 수 초). |
 
 한계: open-loop 근사다. dPath는 실제 `project_to_model_path` 대신 `modelV2.position`을 비전 x에서 보간한 값이고(256cha 로그 8.0~10.85초 57프레임 중 4프레임이 로그와 다름), SCC 점이 있는 프레임(liveTracks 점 있음)은 처리하지 않아 SCC 점이 없는 장면에서만 의미가 있다. 자차 거동 변화 반영 없음. 실차 검증 아님. 결과와 해석은 WIP.md 257cha.
+
+### 258차 추가 (radar_gate/exact_gate.py: 실제 코드 함수로 비전 앞차 게이트 재생과 완화안 비교)
+
+| 도구 | 설명 |
+|---|---|
+| `radar_gate/exact_gate.py <schema_dir> <repo_dir> <rlog.zst> [t_from:t_to ...]` | 670f72c의 `controller.py` `_central_vision_fallback_allowed`와 `primary.py` `vision_lead_from_model`/`_update_vision_fallback` 규칙을 재구현 없이 재생한다. 실제 `openpilot/selfdrive/carrot/radar_motion/predictor.py`의 `project_to_model_path`를 import하고(`<repo_dir>`는 로그 기록 커밋의 carrot-ryu 체크아웃 루트, 필요한 파일: `openpilot/selfdrive/carrot/radar_motion/*.py`와 `opendbc_repo`의 import 경로), 비전 후보는 `d_rel = x[0] - 1.52`, `y_rel = -y[0]`, radarState 직전의 최신 modelV2 값을 쓴다. 구간(기본 8.0:10.85, 40.9:45.1)별로 로그 present/모드 0 재생/모드 -1 재생/일치/끊김 횟수와 불일치 프레임, 레이더 앞차 없는 프레임 전체 일치율, 끊긴 첫 프레임의 prob/dPath/dRel, 끄는 문턱(1.2/1.5/1.8 m)과 홀드(3/6프레임) 완화안 비교표, 비전 후보 \|dPath\| 분포를 출력한다. 실행 `python3 -I exact_gate.py <schema_dir> <repo_dir> <rlog.zst> [8.0:10.85 40.9:45.1]`(zstandard, pycapnp, numpy 필요, 60초 세그먼트 약 수십 초). `<schema_dir>`는 gate_replay.py와 같다. |
+
+`gate_replay.py`(257차)는 dPath를 `modelV2.position` 보간으로 근사하고 `x - 1.52`와 `y` 부호를 쓰지 않아 실제 값과 다르다(258cha: 8.05초 0.89 대 실제 -1.02 등). 비전 게이트 재생에는 `exact_gate.py`를 쓴다. 한계: open-loop이고 레이더/SCC 앞차가 있는 프레임은 대상이 아니며, 완화안은 오감속과 제어 거동을 시뮬레이션하지 않는다. 670f72c 로그(route 00000492 세그먼트 4)에서 레이더 앞차 없는 336프레임이 로그와 336/336 일치했다. 실차 검증 아님. 결과와 해석은 WIP.md 258cha.
