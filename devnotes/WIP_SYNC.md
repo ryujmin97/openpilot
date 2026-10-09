@@ -1,5 +1,26 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-09 (263차) -- carrot-ms 9fe7fa5..a0698918 신규 31건 점검, 제외 30건 확정 · d14303d5 후보 유지 (carrot-ryu 반영 없음, 체크포인트 9fe7fa5 -> a0698918)
+
+- 점검 범위: `9fe7fa5..a0698918` 신규 31건(2026-10-07~10-09, 대부분 ajouatom, 그 밖에 Hermes Agent, jixiexiaoge). 체크포인트 9fe7fa5는 carrot-ms blobless 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인해 rebase는 없었다. 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 1326f21의 blobless 클론에서 앵커를 확인했다.
+- 사용자가 고른 것: 판정안 중 "1번"(제외 확정 기록 + 체크포인트 이동, carrot-ryu 반영 없음). 제외는 30건으로 확정하고 d14303d5만 후보로 남긴다. 제외 목록에는 승인 전 "검토 필요/승인 필요"로 분류했던 a0698918, 673d5e74, Xiaoge 4건도 포함된다. Xiaoge 사용 여부는 확인하지 않았으므로, 필요해지면 재점검 대상으로 다시 본다.
+
+| 분류 | 커밋 | 판정과 근거 |
+|---|---|---|
+| CAN-FD 전용 | `76deea3c`, `13ea21d5`, `44b5013f` | 변경이 `hyundaicanfd.py`, `safety_hyundai_canfd.h`와 CAN-FD 테스트다. 내 차(제네시스 DH 2015)는 비 CAN-FD 플랫폼이다. `13ea21d5`의 `stopping.py`는 carrot-ryu에 해당 경로가 없다. |
+| 클러스터 USB / C4 전용 | `1763e6d0`, `3848ff89` | USB 클러스터 워커 코어 이동과 C4 mici UI 전용이다. 클러스터 HUD는 내 차에서 쓰지 않는다(181차 확인). |
+| Jetlink / Jetson | `3a98ea32`, `ed38850b`, `6724c05f`, `e65cd8fa`, `f24c8328`, `cf6e6fc4`, `682ed680`, `767d3963`, `5c078bfa`, `cabb10a8`, `6f57ed3e`, `a1b6539c`, `dd2a045e` | Jetlink 어댑터, Jetson 업데이트, modeld mirror baseline 계열이다. carrot-ryu에 Jetlink 경로가 없다. |
+| eGPU | `534636c5`, `63c10e11`, `9f4858b7` | eGPU 모델 선택, USB 재시도, CI다. 내 차에 eGPU가 없다(111차 확인). `534636c5`의 launch_chffrplus.sh, helpers.py 공용 변경도 eGPU 분기 안에 있어 이 판정은 eGPU 미보유 근거로 한다. |
+| Tesla | `176c98fb`, `0448329a` | Tesla 전용이다. |
+| 공용 경로, 검토 후 제외 | `a0698918` | camerad poll 구조 변경(`camera_qcom2.cc`, `spectra.cc`), HUD teardown, 기어 no-entry 알림 억제를 담는다. 커밋 본문에 실물 재연결과 점화 사이클 검증이 미완으로 적혀 있다. 공용 카메라 코드라 위험 대비 근거가 약하다. carrot-ryu `camera_qcom2.cc`에 poll 앵커가 있어 적용 자체는 가능하다. |
+| 공용 경로, 검토 후 제외 | `673d5e74` | 운전자 카메라 사용 불가 배너 제거와 `dm_alerts.py` 삭제다. 안전 관련 알림 변경이라 사용자 승인 없이 반영하지 않는다. |
+| Xiaoge (사용 여부 미확인) | `12e01eb5`, `986b4979`, `1c9351b5`, `4a2115dc` | Xiaoge 시동 게이트, 실행 방식, telemetry, ONNX BSD 분류기다. 내 차량에서 Xiaoge를 쓰는지 확인하지 않았다. 쓰지 않는다면 제외가 맞다. 쓴다면 `manager.py`, `process_config.py`, `card.py` 공용 변경을 따로 본다. |
+| 기록 문서 | `a095cd59` | parked MDM2 복구 기록 문서다. 코드 변경이 없다. |
+
+- 후보 유지: `d14303d5`(온라인 초기화 대기 6초 -> 10초, `selfdrived.py` 1줄 + modeld 로그 계측). carrot-ryu 529행 `DT_CTRL > 6.` 앵커가 있음을 확인했다. 커밋 본문에 "Device timing unvalidated"(기기 시간 미검증)라고 적혀 있다. 반영 미결정, 승인 필요한 코드 세션(HANDOFF.md 미완료 항목으로 이관 필요).
+- 체크포인트: 9fe7fa5 -> a0698918. 다음 점검은 a0698918 이후 신규 커밋부터이고, 그때도 `git cat-file -t a0698918`로 체크포인트 존재부터 확인할 것.
+- 한계: 정적 확인이다. 31건 전체의 변경 파일 목록(numstat)과 공용 경로 diff(`d14303d5`, `a0698918`, `673d5e74`, `12e01eb5`의 manager/process_config, `534636c5`의 launch_chffrplus.sh와 helpers.py)을 읽었다. 나머지 대형 커밋(`767d3963`, `176c98fb`, `4a2115dc` 등)은 파일 목록으로만 분류했다. 테스트, 빌드, pytest는 하지 않았다. 실차 검증 미실시. carrot-ryu 코드 변경 없음.
+
 ## 체크포인트: 2026-10-07 (262차) -- carrot-ms 0a67f68..9fe7fa5 신규 8건 점검, 모두 제외 확정 (carrot-ryu 반영 없음, 체크포인트 0a67f68 -> 9fe7fa5)
 
 - 점검 범위: `0a67f68..9fe7fa5` 신규 8건(모두 ajouatom, 2026-10-06~07). 체크포인트 0a67f68은 carrot-ms(happymaj11r/openpilot) blobless `--no-checkout` 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인해 rebase는 없었다. 오래된 것부터 8b65fb9, a85912d, b4b2ded, 679e633, b72237d, 30ee43d, 22af6b2, 9fe7fa5 순이다. 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 1326f21의 blobless 클론에서 `git ls-tree -r --name-only`로 파일 5,449개를 얻어 대조했고, 경로에 jetlink/jetson이 들어간 파일은 0개였다.
