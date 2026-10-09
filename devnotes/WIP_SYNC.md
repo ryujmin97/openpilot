@@ -1,5 +1,13 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-09 (264차) -- carrot-ms 체크포인트 변화 없음(a0698918), 후보 d14303d5 반영 완료 (carrot-ryu 1326f21 -> d082d92)
+
+- carrot-ms 체크포인트: `a0698918` 그대로. 이번 세션은 신규 점검을 하지 않았다.
+- 263차에서 "후보 유지"로 둔 `d14303d5`를 carrot-ryu에 반영했다. 반영 범위는 `selfdrived.py` 529행 한 줄 교체(+2/-1)이고, modeld 계측, docs, 테스트는 제외했다. 커밋은 `d082d92`(ryujmin97)다.
+- 반영 근거: 사용자가 "d14303d5 코드 진행"으로 승인했다. 반영 전에 carrot-ryu 기준 앵커(529행, 앞 줄 문맥, 중복 적용 여부)를 확인했다.
+- 검증: GitHub에서 직접 재조회했다(내용, 변경 파일 1개, 트리 5,449개, 파일 모드 100755). 실차 검증은 미실시다.
+- 다음 점검: `a0698918` 이후 신규 커밋부터. 체크포인트 존재는 `git cat-file -t a0698918`로 먼저 확인할 것.
+
 ## 체크포인트: 2026-10-09 (263차) -- carrot-ms 9fe7fa5..a0698918 신규 31건 점검, 제외 30건 확정 · d14303d5 후보 유지 (carrot-ryu 반영 없음, 체크포인트 9fe7fa5 -> a0698918)
 
 - 점검 범위: `9fe7fa5..a0698918` 신규 31건(2026-10-07~10-09, 대부분 ajouatom, 그 밖에 Hermes Agent, jixiexiaoge). 체크포인트 9fe7fa5는 carrot-ms blobless 클론에서 `git cat-file -t`가 commit이었고 `merge-base --is-ancestor`로 HEAD의 조상임을 확인해 rebase는 없었다. 변경량은 `git show --numstat --format=`의 합계다. carrot-ryu는 1326f21의 blobless 클론에서 앵커를 확인했다.

@@ -1,5 +1,14 @@
 # WIP
 
+## 264cha (반영 완료) (Claude, Claude Sonnet 5.5) - carrot-ryu d14303d5 selfdrived 온라인 초기화 대기 6초 -> 10초 반영
+
+- 반영 전후: carrot-ryu `1326f21` -> `d082d92` (ryujmin97, 커밋 메시지: "selfdrived: 온라인 초기화 대기 시간 6초 -> 10초 (carrot-ms d14303d5의 selfdrived.py 부분만 이식, modeld 계측 제외)")
+- 반영 범위: `openpilot/selfdrive/selfdrived/selfdrived.py` 529행 `timed_out = self.sm.frame * DT_CTRL > 6.` 한 줄을 주석 1줄과 `> 10.`으로 교체. 변경량 +2/-1. carrot-ms d14303d5 중 selfdrived 부분만 이식했다. modeld 로그 계측, docs, `test_initialization_timeout.py`는 최소 변경 원칙에 따라 제외했다.
+- 검증(정적): GitHub raw로 반영 파일 내용을 재조회했다(기대값과 일치, CR 없음). 두 커밋 사이 변경 파일은 `selfdrived.py` 하나뿐이고, 트리 파일 수는 5,449개로 같으며, 파일 모드는 `100755`를 유지한다. carrot-ryu `selfdrived/tests` 6개 파일에서 6초 기준을 고정하는 테스트는 찾지 못했다(hit은 SOFT_DISABLE_TIME 등 별도 타이머).
+- 실차 검증: 미실시. 시동 시간 개선 여부는 확인하지 않았다. carrot-ms 원본 커밋 본문도 "Device timing unvalidated"라고 적고 있다.
+- 반영 과정: push 전에 스크립트가 3회 중단됐고, 그때마다 원격은 변경되지 않았다. 처음 두 번은 파일 모드 문제로 잘못 진단했다. 실제 원인은 `--no-checkout` clone 뒤 인덱스가 비어 있어 나머지 파일 전체가 "삭제"로 보인 것이었다. 여러 파일이 있는 시뮬레이션에서 재현한 뒤 clone 직후 `git reset --quiet`로 인덱스를 HEAD에 맞춰 해결했다. 교훈: 부분 clone 스크립트는 파일이 여러 개인 저장소로 검증해야 한다. 한 파일짜리 시뮬레이션으로는 이 문제가 드러나지 않았다.
+- 다음: HANDOFF.md 갱신 여부는 사용자 확인 후 결정(교체형 파일). 실차 검증 결과가 나오면 이 항목을 완료 처리한다.
+
 ## 262cha (완료) (Claude, Claude Sonnet 5.5) - carrot-ms 0a67f68..9fe7fa5 신규 8건 점검, 모두 제외 확정(코드 변경 없음, devnotes만)
 
 **배경.** 새 세션 시작 지시(지침 문서를 먼저 읽고 4절 순서로 진행)와 함께 사용자가 "Carrot-ms 분석"을 요청했다. HANDOFF.md의 다음 작업 (5)번(carrot-ms 0a67f68 이후 신규 커밋 점검)으로 해석해 2절 절차로 진행했다. 사용자는 판정안(제외 8건, 반영 후보 0건)을 보고 "제외승인 기록. Termux"라고 답해, 제외 확정 기록과 Termux용 스크립트를 택했다.
