@@ -1,5 +1,24 @@
 # WIP
 
+## 265cha (반영 완료) (Claude, Claude Sonnet 5.5) - carrot-ms a0698918..0e7f299 신규 23건 점검, 시동 직후 조향 차단 3건 carrot-ryu 이식(353cc8e), 제외 20건 확정
+
+**배경.** 새 세션 시작 지시(지침 문서 먼저 읽고 4절 순서)와 함께 사용자가 "Carrot-ms 최신 커밋 분석"을 요청했다. 2절 절차로 점검했고, 사용자는 판정안을 보고 "1번 진행. 나머지 제외 확정"이라고 답했다(1번 = 시동 직후 조향 차단 이식).
+
+**점검.** 4절 0단계로 지침 문서 v2를 읽었다(note eb821ce, SHA 고정본과 브랜치 URL 사본이 `cmp`로 동일). carrot-ms HEAD 0e7f299, 체크포인트 a0698918은 commit이고 조상이다(rebase 없음). `a0698918..HEAD` 신규 23건(2026-10-08~10), 대부분 ajouatom. 23건 전체의 `diff-tree --name-status`(트리 기준)를 읽었고, 반영 후보와 공용 경로 커밋은 diff 본문을 읽었다.
+
+**이식한 것(3건 = 1개 수정).** carrot-ms `7bc3c84`(도입), `1ab76a5`(최초 시동에만 적용하도록 축소), `0e7f299`(테스트). 원인: AlwaysLateral이 켜져 있으면 modelV2/liveParameters가 오기 전에도 `controlsd`가 기본 메시지로 토크를 계산한다(steer ratio와 stiffness가 0.1로 고정돼 토크 포화). carrot-ms는 소나타 2024 로그(00000092)에서 첫 조향 명령으로 한 번에 나가는 것을 확인했다. 수정은 입력 준비 전 `latActive`를 막는 `LateralStartupGate`(프로세스 수명 동안 한 번 통과하면 다시 막지 않음)다.
+- carrot-ryu `353cc8e`(부모 d082d92, ryujmin97, 커밋 메시지 "carrot-ms 7bc3c84/1ab76a5/0e7f299 이식: 시동 직후 입력 준비 전 조향 차단(LateralStartupGate)"). 수정 4파일 + 신규 4파일, +443/-5.
+- 신규: `controls/lib/lateral_readiness.py`(carrot-ms HEAD본 그대로), 테스트 3개(`test_lateral_readiness.py`, `test_lateral_startup_control.py`, `test_lateral_event_readiness.py`). 수정: `controlsd.py`(게이트 생성, 준비 전 기본 파라미터 사용, `latActive` 차단, 첫 활성 때 `desired_curvature`를 현재 곡률로 동기화), `card.py`(SubMaster에 liveParameters/livePose/selfdriveState/lateralPlan 추가, CAN 송신 직전 이중 가드), `carrot_settings.json`(AlwaysLateral 설명 3개 국어), `test_controlsd.py`(2줄).
+- 제외한 부분: Hyundai CAN-FD camera-SCC 전용 `carcontroller.py` 변경(내 차는 비 CAN-FD), docs, AGENTS.md, `latcontrol_torque.py`(7bc3c84에서 추가했다가 1ab76a5에서 제거되어 최종 순변화 0), `test_steer_ratio.py`(ryu에는 해당 exec 테스트 구조가 없음), `ImpactDashcamReboot` 가드(ryu에 없음).
+- ryu 구조 대조: `controlsd.py` 앵커 5곳, `card.py` 앵커 4곳 모두 정확히 1회 매치. cereal 필드(mpcSolutionValid, useLaneLines, inputsOK 등) 존재 확인.
+- 이 이식이 carrot-ryu 고유 상태다: carrot-ms 후속 커밋이 `lateral_readiness`에 의존해도 이제 같은 파일이 있다. 반대로 ms가 이 게이트의 서비스 목록(LATERAL_SERVICES)이나 `lateral_inputs_ready`를 바꾸면 ryu도 따로 대조해야 한다.
+
+**검증(정적, 실차 검증: 미실시).** 전체 체크아웃에서 신규·관련 테스트 155건 통과. `controls/tests`, `car/tests`, `selfdrived/tests` 전체를 d082d92 기준선과 비교: 통과 870 -> 975, 실패 8건 동일(`test_latcontrol` 포화 3건, `test_leads::test_radar_fault`, `test_alerts` 4건), 이식 후에만 새로 생긴 실패 없음. `test_lateral_mpc.py` 등의 ImportError는 이식 전부터 있는 환경 문제다. 반영 스크립트는 로컬 bare 저장소에 끝까지 실행(+443/-5, 파일 모드 보존, CR 0, blob 해시 일치). 이 시뮬레이션은 Termux 실기기 실행이 아니다. 반영 후 GitHub에서 직접 재확인했다: HEAD 353cc8e, 부모 d082d92, 변경 파일 8개의 blob 해시가 샌드박스 값과 일치, 트리 5,453개(5,449 + 신규 4), controlsd.py/card.py 모드 100644 유지, CR 0.
+
+**과정 메모.** (1) 스크립트 시뮬레이션에서 `--no-checkout` clone에는 `controls/lib` 폴더가 아직 없어 신규 파일 쓰기가 실패했다 -> `mkdir -p` 추가(실기기에서는 만나지 않았다). (2) 기준선 비교 중 `mv ... test_lateral_*.py` 글롭이 기존 `test_lateral_mpc.py`까지 옮겨 두 번째 비교 실행이 그 파일 없이 돌았다. 즉시 복구했고 저장소 반영에는 영향이 없다. 글롭으로 파일을 옮길 때는 대상 이름을 명시한다. (3) 처음 "제외 22건"이라고 보고했으나 실제는 신규 23건 - 이식 3건 = 20건이다. 이 기록은 20건으로 바로잡았다.
+
+**미확인.** 기기의 `AlwaysLateral` 값(켜짐/꺼짐)은 확인하지 않았다. 꺼져 있으면 이 게이트는 시동 직후 AlwaysLateral 경로에서는 작동하지 않고, 일반 크루즈 활성화 경로에서만 입력 준비를 요구한다. 실차에서 시동 직후 첫 조향이 부드러운지, 게이트가 너무 늦게 열려 조향이 지연되지 않는지는 로그로 확인해야 한다.
+
 ## 264cha (반영 완료) (Claude, Claude Sonnet 5.5) - carrot-ryu d14303d5 selfdrived 온라인 초기화 대기 6초 -> 10초 반영
 
 - 반영 전후: carrot-ryu `1326f21` -> `d082d92` (ryujmin97, 커밋 메시지: "selfdrived: 온라인 초기화 대기 시간 6초 -> 10초 (carrot-ms d14303d5의 selfdrived.py 부분만 이식, modeld 계측 제외)")

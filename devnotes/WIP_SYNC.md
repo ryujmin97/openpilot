@@ -1,5 +1,25 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-10 (265차) -- carrot-ms a0698918..0e7f299 신규 23건 점검, 시동 직후 조향 차단 3건 이식(carrot-ryu d082d92 -> 353cc8e) · 제외 20건 확정 (체크포인트 a0698918 -> 0e7f299)
+
+- 점검 범위: `a0698918..0e7f299` 신규 23건(2026-10-08~10-10). 체크포인트 a0698918은 commit이고 HEAD의 조상이라 rebase는 없었다. 변경 파일은 `diff-tree --name-status`(트리 기준)로 읽었고 반영 후보와 공용 경로는 diff 본문을 읽었다.
+- 사용자가 고른 것: 판정안 중 "1번 진행. 나머지 제외 확정". 이식 3건(= 1개 수정), 제외 20건.
+
+| 분류 | 커밋 | 판정과 근거 |
+|---|---|---|
+| 이식(carrot-ryu 353cc8e) | `7bc3c84`, `1ab76a5`, `0e7f299` | 시동 직후 입력 준비 전 조향 차단(`LateralStartupGate`). carrot-ryu `controlsd.py` 129행에 같은 AlwaysLateral 경로가 있고 가드가 없었다. 공용 부분만 이식하고 Hyundai CAN-FD `carcontroller.py` 변경, docs, AGENTS.md는 제외. 상세는 WIP.md 265cha. |
+| eGPU / Mountain Dew | `9ef34d8`, `a877bc6`, `c2eafb0`, `2971071`, `13d4357`, `e4aea11`, `8e827cb`, `e18cd51`, `fe61994` | eGPU 모델 선택/복구/진단과 MDM2 CI다. 내 차에 eGPU가 없다(111차 확인). |
+| Toyota / RAV4 | `ac314e0`, `f9ca034` | Toyota 전용이다. `cruise.py` 변경도 `brand == "toyota"` 조건이다. |
+| CAN-FD 차량 | `32b1178` | Sorento HEV 카메라 팝업 필터(`hyundaicanfd.py`). 내 차는 비 CAN-FD. |
+| Tesla | `2cb76e8`, `0c9827c` | Tesla 속도제한 컨트롤러와 테스트. |
+| 기록 문서 | `9ac9e43` | 아이오닉5 신호 헤드 실험 기록 문서만 추가. |
+| 테스트/CI 정리 | `89c870e`, `b8602f8` | loggerd 테스트 파이프 쓰기 검사, 사각지대 테스트 정렬. 동작 변경 없음. |
+| YouTube 라이브 삭제 | `c95f5cd` | YouTube 라이브 기능 전체 삭제(62파일). 공용 파일(`services.py` 1줄, `params_keys.h` 3줄, `process_config.py` 27줄, loggerd/encoderd 삭제, `carrot_settings.json` 59줄)도 모두 YouTube 전용 삭제다(`loggerd.cc` 1줄은 수정, 본문 미확인). carrot-ryu에는 `CarrotYouTube*` 키 3개와 관련 코드가 남아 있어 반영하면 기능이 사라진다. 사용자 요청 없음. |
+| Carrot Web / 설정 UI | `a5e028c`, `2c78e09` | 대시캠 업로드 파일 범위 선택, 설정 검색 UI(PR #536 병합 복구). 웹 UI 기능이고 주행 동작과 무관. 필요해지면 별도 판단. |
+
+- 체크포인트: a0698918 -> 0e7f299. 다음 점검은 0e7f299 이후 신규 커밋부터이고, `git cat-file -t 0e7f299`로 존재부터 확인할 것(carrot-ms는 재생성된다).
+- 한계: 정적 확인이다. eGPU/Toyota/Tesla 코드 본문과 웹 JS는 읽지 않았다. `c95f5cd`의 `loggerd.cc` 1줄 변경 본문과 `a5e028c`/`2c78e09`의 diff 본문은 읽지 않았다. 실차 검증: 미실시.
+
 ## 체크포인트: 2026-10-09 (264차) -- carrot-ms 체크포인트 변화 없음(a0698918), 후보 d14303d5 반영 완료 (carrot-ryu 1326f21 -> d082d92)
 
 - carrot-ms 체크포인트: `a0698918` 그대로. 이번 세션은 신규 점검을 하지 않았다.
