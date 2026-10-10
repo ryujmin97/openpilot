@@ -22,6 +22,7 @@ from openpilot.selfdrive.controls.lib.latcontrol_angle import LatControlAngle, S
 from openpilot.selfdrive.controls.lib.latcontrol_torque import LatControlTorque
 from openpilot.selfdrive.controls.lib.longcontrol import LongControl
 from openpilot.selfdrive.controls.lib.steer_ratio import resolve_vehicle_model_steer_ratio
+from openpilot.selfdrive.controls.lib.lateral_readiness import LateralStartupGate, lateral_vehicle_parameters
 
 
 from openpilot.common.realtime import DT_CTRL, DT_MDL
@@ -68,6 +69,8 @@ class Controls:
     self.steer_limited_by_safety = False
     self.curvature = 0.0
     self.desired_curvature = 0.0
+    self.lateral_startup = LateralStartupGate()
+    self.lateral_started = False
 
     self.pose_calibrator = PoseCalibrator()
     self.calibrated_pose: Pose | None = None
@@ -98,9 +101,10 @@ class Controls:
 
   def state_control(self):
     CS = self.sm['carState']
+    lateral_ready = self.lateral_startup.update(self.sm, CS, 'carState')
 
     # Update VehicleModel
-    lp = self.sm['liveParameters']
+    lp = self.sm['liveParameters'] if lateral_ready else lateral_vehicle_parameters(self.sm, self.CP)
     x = max(lp.stiffnessFactor, 0.1)
     sr = resolve_vehicle_model_steer_ratio(lp.steerRatio,
                                            self.params.get_float("SteerRatioRate"),
@@ -137,6 +141,8 @@ class Controls:
                                            CS.steerFaultTemporary, CS.steerFaultPermanent, below_min_speed,
                                            CS.standstill, steer_at_standstill)
     CC.latActive = self.carrot_controls.lat_suspend_control(CS, CC.latActive)
+    # Wait only for the first readiness confirmation, including AlwaysLateral.
+    CC.latActive = CC.latActive and lateral_ready
     CC.longActive = CC.enabled and not any(e.overrideLongitudinal for e in self.sm['onroadEvents']) and self.CP.openpilotLongitudinalControl
 
     actuators = CC.actuators
@@ -149,6 +155,9 @@ class Controls:
 
     if not CC.latActive:
       self.LaC.reset()
+    if CC.latActive and not self.lateral_started:
+      self.desired_curvature = self.curvature
+      self.lateral_started = True
     if not CC.longActive:
       self.LoC.reset()
 

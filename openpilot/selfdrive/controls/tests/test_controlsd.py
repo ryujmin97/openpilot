@@ -19,12 +19,14 @@ def run_lateral_gate(*, brand="tesla", supported=True, speed=0.0, stopped=True, 
   namespace = {
     "math": math, "car": car, "MIN_LATERAL_CONTROL_SPEED": 0.3,
     "resolve_vehicle_model_steer_ratio": lambda *_args: 15.0,
+    "lateral_vehicle_parameters": lambda sm, _cp: sm["liveParameters"],
   }
   exec(compile(tree, str(path), "exec"), namespace)
   controls = namespace["Controls"].__new__(namespace["Controls"])
   controls.CP = SimpleNamespace(brand=brand, steerAtStandstill=supported, minSteerSpeed=min_speed,
                                lateralTuning=SimpleNamespace(which=lambda: "angle"))
   controls.params = SimpleNamespace(get_float=lambda _key: 0.0, get_bool=lambda _key: always_lateral)
+  controls.lateral_startup = SimpleNamespace(ready=True, update=lambda *_args: True)
   controls.VM = SimpleNamespace(update_params=lambda *_args: None, calc_curvature=lambda *_args: 0.0)
   state = car.CarState.new_message(vEgo=speed, standstill=stopped, gearShifter=gear, latEnabled=lat_enabled,
                                    steerFaultTemporary=temporary_fault, steerFaultPermanent=permanent_fault)
