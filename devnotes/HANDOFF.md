@@ -1,25 +1,32 @@
-Worker: Claude (265cha, Claude Sonnet 5.5). carrot-ms a0698918..0e7f299 신규 23건 점검, carrot-ryu 코드 반영 1회(시동 직후 조향 차단 이식, 커밋 353cc8e)와 그 devnotes 기록(265cha, 265차)을 했다. 나머지 내용은 이전 HANDOFF에서 옮긴 것이다.
-Date: 2026-10-10
+Worker: Claude (266cha, Claude Sonnet 5.5). route 목표속도가 직선 고속도로에서 낡은 filt에 묶이는 현상을 로그(route 00000497 세그먼트 121, 122)로 분석하고 기록만 했다(코드 변경 없음, WIP.md 266cha, FINDINGS 핵심 발견 73). 나머지 내용은 이전 HANDOFF에서 옮긴 것이다.
+Date: 2026-10-11
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (현재 HEAD = base commit 353cc8e, 265cha 반영 커밋. 부모 d082d92 = 264cha 시점 HEAD). 이 세션에서 GitHub로 직접 확인했다: 변경 파일 8개(수정 4, 신규 4, +443/-5)의 blob 해시가 샌드박스 값과 일치, 트리 파일 수 5,453개(이전 5,449 + 신규 4), controlsd.py/card.py 모드 100644 유지, CR 0.
-Note Branch: carrot-ryu-note (이 교체 직전 base eb821ce = 264cha 이후. 이 HANDOFF 교체는 그 위에 올라간다).
+Note Branch: carrot-ryu-note (이 교체 직전 base 72961a8 = 265cha 이후. 이 HANDOFF 교체는 그 위에 올라간다).
 Archive Branches: carrot-ryu-v1 (6df4268eb31442be4d8abd92817111f7b26b1bf4, 불변), carrot-ryu-v2 (3ddf849ea3f3392c16d363d9edea6a1bc8eab041, 212cha 생성, 불변). carrot-ryu-v3는 아직 없고 보존 시점은 사용자가 정한다(20절).
 carrot-ms 마지막 검토 체크포인트: 0e7f299 (265차: a0698918..0e7f299 신규 23건 점검, 시동 직후 조향 차단 3건 이식(carrot-ryu 353cc8e), 제외 20건 확정). 다음 점검은 0e7f299 이후 신규 커밋이 생겼을 때이며, `git cat-file -t 0e7f299`로 존재부터 확인한다(carrot-ms는 재생성되므로).
 
 이 파일은 8절대로 "최신 1개 버전만" 유지한다. 201cha~262cha의 작업/완료/미완료/검증/주의사항/다음 작업 전체 이력은 커밋 f58764b의 같은 경로에 그대로 있다: `git show f58764bd94f0e7fdc5b0c9e9f2028a85726894fa:devnotes/HANDOFF.md` 또는 SHA 고정 raw URL(https://raw.githubusercontent.com/ryujmin97/openpilot/f58764bd94f0e7fdc5b0c9e9f2028a85726894fa/devnotes/HANDOFF.md). 회차별 상세는 WIP.md(불변)가 갖고 있으므로 여기에 다시 쌓지 않는다. 아래 "미완료/주의사항"은 이전 HANDOFF에서 옮긴 것이며, 옮길 때 번호는 그대로 두었다. 상세가 필요하면 위 커밋에서 해당 번호를 읽는다.
 
-작업(265cha, 이 구간):
+작업(266cha, 이 구간, 코드 변경 없음):
+1. 4절 0단계(지침 v2, note 72961a8)와 HANDOFF를 읽고, 사용자가 올린 route 00000497 세그먼트 121, 122 rlog와 params_backup.json으로 route 목표속도 고정 현상을 분석했다(기록 커밋 353cc8e, toolkit route_extract.py 재사용).
+2. 결론: `carrot_navi_route()`의 `route_info_sufficient = len(path) >= ROUTE_PATH_MIN_POINTS(4)`가 직선 고속도로(꼭짓점 간격 중앙값 437 m)에서 거의 항상 "부족"이 되고, freeze가 만료돼도 `navi_route_speed_filt`가 지워지지 않아 점이 충분해지는 순간 낡은 값 기준 +1 km/h/사이클 슬루가 걸린다. 121에서 51.36초에 route 162 -> 83 급락 후 105.9(원시 78.4)까지 램프, 122의 7.6초에 162로 풀림. 급락 직전 filt는 원시 약 60.5로 역산.
+3. 해결안(승인 대기): (1) 충분 판정을 경로가 덮는 길이(약 295 m 이상)로 교체, (2) freeze 만료 시 filt = None, (3) 코드 없는 회피 `TurnSpeedControlMode` 2 -> 1(미검증). 상세와 재생 수치는 WIP.md 266cha, FINDINGS 핵심 발견 73.
+4. 사용자가 "먼저 기록, termux"로 답해 devnotes만 먼저 기록했다(이 HANDOFF 교체 포함). 코드 반영은 사용자의 다음 지시를 기다린다.
+
+작업(265cha, 이전 구간):
 1. 4절 0단계(지침 v2, note eb821ce)와 HANDOFF를 읽고 carrot-ms a0698918..0e7f299 신규 23건을 점검했다. 사용자가 "1번 진행. 나머지 제외 확정"으로 답했다(이식 3건, 제외 20건).
 2. 시동 직후 조향 차단(`LateralStartupGate`)을 carrot-ryu에 이식했다(353cc8e). Termux bash 스크립트로 반영했다(사전/사후 blob 해시 검증, 로컬 bare 시뮬레이션). 반영 뒤 GitHub에서 직접 재확인했다.
 3. 20건의 제외 사유는 WIP_SYNC 265차 표, 이식 상세는 WIP.md 265cha를 본다.
 
-작업(264cha, 이전 구간):
+작업(264cha, 그 이전 구간):
 1. 사용자가 "d14303d5 코드 진행"으로 승인했다. 반영 전에 carrot-ryu 기준 앵커를 확인했다: `selfdrived.py` 529행 `timed_out = self.sm.frame * DT_CTRL > 6.` 한 곳에만 매치되고, 바로 앞 줄은 `all_valid = CS.canValid and self.sm.all_checks()`다. selfdrived/tests 6개 파일에는 6초 기준을 고정하는 테스트가 없다.
 2. Termux 반영 스크립트로 `selfdrived.py`의 한 줄을 주석 1줄과 `> 10.`으로 교체하고 push했다(d082d92). push 전에 스크립트가 3회 중단됐고 원격은 그때마다 변경되지 않았다. 처음 두 번은 파일 모드 문제로 잘못 진단했다. 세 번째 실행의 진단 출력으로 실제 원인을 찾았다: `--no-checkout` clone 뒤 인덱스가 비어 있어 나머지 파일이 전부 "삭제"로 보였다. 파일 여러 개가 있는 시뮬레이션에서 재현한 뒤 clone 직후 `git reset --quiet`로 인덱스를 HEAD에 맞춰 해결했다.
 3. devnotes 기록 스크립트로 WIP.md에 264cha, WIP_SYNC.md에 264차 블록을 최상단에 추가했다(note 3a3937e). 두 파일 모두 기존 내용은 삭제되지 않았다.
 4. 이 HANDOFF를 교체했다(교체형).
 
 완료(최근 구간, 상세는 WIP.md와 WIP_SYNC.md):
+- 266cha: route 낡은 filt 현상 분석 기록(코드 변경 없음, 정적 분석과 로그 재생, 실차 검증 미실시).
 - 265cha: carrot-ryu 시동 직후 조향 차단 이식(`lateral_readiness.py` 신규, `controlsd.py`/`card.py`/`carrot_settings.json` 수정, 테스트 4파일; 353cc8e, 정적 검증, 실차 미실시). 265차(WIP_SYNC): carrot-ms a0698918..0e7f299 신규 23건 점검, 이식 3건, 제외 20건 확정.
 - 264cha: carrot-ryu d14303d5 selfdrived 온라인 초기화 대기 6초 -> 10초 반영(d082d92, 정적 검증, 실차 미실시). devnotes 기록 3a3937e.
 - 263차(WIP_SYNC): carrot-ms 9fe7fa5..a0698918 신규 31건 점검, 제외 30건 확정, 후보 d14303d5 유지. 제외 30건의 분류는 WIP_SYNC 263차 표를 본다(Jetlink/Jetson 13, eGPU 3, CAN-FD 3, 클러스터/C4 2, Tesla 2, Xiaoge 4, 공용 경로 검토 후 제외 2(a0698918, 673d5e74), 기록 문서 1).
@@ -30,6 +37,8 @@ carrot-ms 마지막 검토 체크포인트: 0e7f299 (265차: a0698918..0e7f299 �
 - 이전 구간의 반영 커밋 요약(carrot-ryu): d082d92(selfdrived 온라인 초기화 대기 10초, 264cha), 1326f21(비전 앞차 해제 대역 1.5 m + 3프레임 홀드), 670f72c(carrot-ms 47d35da 간격 헤드룸 유지 거리 대역), `J_EGO_COST` 12.0 반영(246cha, 두 테스트의 하드코딩 보정은 0a1ad62), f9ffbc2(`JerkCostEgo` 설정, 코드 기본 12, 상한 20), b3e16c5(SCC 모드 -1 비전 앞차 허용, 기기값 0이라 현재 비작동), 11d7e89/0f08f08/76b182a(UI 네이티브 배치와 plot 경량화), 8cdb515(SCC 앞차 비전 거리 완화), 99012c3(disabled+blended force_decel 미감속 수정).
 
 미완료(번호는 이전 HANDOFF 기준. 실차 항목은 모두 "실차 검증: 미실시"):
+- 신규(266cha) route 낡은 filt: 코드 수정 승인 대기(1번 길이 기준 판정 + 2번 만료 시 filt 지움 / 2번만 / 세그먼트 120 rlog로 낡은 값의 출처를 먼저 확정 중 선택). 1번은 고속도로에서 route 곡률 감속을 실제로 켜므로 동작이 바뀐다(출구 램프 새 감속). 낡은 값 60.5가 처음 저장된 순간은 미확정(121 시작 filt 67.2, 4.6초 route 180 = 원시 133이 나온 분기를 코드만으로 설명 못 함, 세그먼트 120 필요). 반영 뒤에는 같은 구간 재주행 로그로 직선 구간 route가 상한으로 유지되는지 확인.
+- 기기 `AlwaysLateral`(353cc8e 확인 (a)): params_backup.json에는 1이다. 이 파일이 현재 기기 값과 같은지는 확인하지 않았다.
 - 신규(265cha) 353cc8e 실차 확인: (a) 기기의 `AlwaysLateral` 값 확인(꺼져 있으면 시동 직후 경로는 해당 없음). (b) 시동 직후 첫 조향이 부드러운지, 게이트가 너무 늦게 열려 조향 시작이 지연되지 않는지 주행 로그로 확인(carControl.latActive 시작 시각과 modelV2/liveParameters 첫 수신 시각 비교). (c) 정상 주행 중 게이트가 다시 막지 않는지(한 번 통과하면 재무장 없음이 설계). 변경은 d082d92 이전 동작과 달리 시동 직후 수 초간 조향이 늦게 시작될 수 있다.
 - 신규(264cha) d082d92 실차 확인: 정상 시동에서 온라인 초기화가 이전보다 늦어지거나 이상이 생기지 않는지, 시동 시간이 실제로 줄었는지 주행 로그로 확인한다. 이 변경은 타임아웃 한 줄뿐이라 로직 자체는 1326f21과 같다. 아래 1326f21 기준 항목은 d082d92에서도 그대로 유효하다.
 - 48번 (a) 실기기에서 1326f21의 비전 단독 앞차 장면 확인. (b) 옆 차선 오감속 빈도는 이 로그로 판정 불가: 크루즈 작동 중 비전 단독 앞차가 1.0~1.5 m 경계에 걸리는 장면(옆 차선에 차가 많은 도로) 로그가 필요. (c) G가 A보다 과대하게 나온 원인은 미규명(끊김 뒤 실제 플래너의 lead 유지 로직 읽기, 채운 프레임에 비전 원시값 넣어 `jerk_sim/run_gap.py` 재실행은 선택지).
@@ -71,5 +80,6 @@ carrot-ms 마지막 검토 체크포인트: 0e7f299 (265차: a0698918..0e7f299 �
 - 코드 변경이 나오면 5절 순차 전달(코드 스크립트 먼저 -> GitHub 직접 확인 -> devnotes 1회)을 따른다.
 
 다음 작업:
+- route 낡은 filt 수정(위 신규 266cha 항목)은 사용자 선택 대기이고 다른 항목보다 먼저 묻는다.
 - 사용자가 고를 수 있는 것: (1) 1326f21의 옆 차선 오감속 판정용 로그 확보(크루즈 작동 중 비전 단독 앞차, 옆 차선에 차가 많은 도로)와 `radar_gate/release_replay.py`/`margin_scan.py` 재생(코드 변경 없음), (2) `JerkCostEgo` 20 유지/12/8 결정(CarrotWeb 설정, 코드 변경 없음), (3) 정지 앞차 접근과 내비를 켠 램프 주행 재주행 로그 확보, (4) `test_radar_fault` 처리 결정, (5) carrot-ms 0e7f299 이후 신규 커밋 점검(체크포인트 존재 확인부터), (9) 기기 `AlwaysLateral` 값 확인과 353cc8e 시동 직후 로그 확보, (6) carrot-ryu-v3 보존 시점 지정, (7) d082d92 실차 확인용 주행 로그 확보, (8) Xiaoge 사용 여부 확인(답에 따라 제외 4건 재점검).
 - 코드 변경이 나오면 사용자 승인 후 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes 1회)을 따른다.
