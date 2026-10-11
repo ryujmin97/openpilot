@@ -158,10 +158,15 @@ def carrot_can_error(car_name: str | bytes | None, car_state_current: bool, car_
 V_CURVE_LOOKUP_BP = [0., 1./800., 1./670., 1./560., 1./440., 1./360., 1./265., 1./190., 1./135., 1./85., 1./55., 1./30., 1./25.]
 V_CRUVE_LOOKUP_VALS = [300, 150, 120, 110, 100, 90, 80, 70, 60, 50, 40, 15, 5]
 
-# 핵심 발견 59(161차): get_path_after_distance()가 반환하는 원본 폴리라인 점이 이 값보다 적으면
-# resample()이 만드는 조밀한 점들이 사실상 직선(곡률≈0)이 되어 route 후보 속도가 무제한(300)으로
-# 오판된다. 이 개수 미만이면 곡률 계산 결과를 신뢰하지 않는다(carrot_navi_route() 참고).
-ROUTE_PATH_MIN_POINTS = 4
+# 핵심 발견 59(161차): 경로(폴리라인)가 소진돼 점이 모자라면 resample()이 만드는 조밀한 점들이 사실상
+# 직선(곡률≈0)이 되어 route 후보 속도가 무제한(300)으로 오판된다. 그래서 곡률 계산 결과를 신뢰할지
+# 판정한다(carrot_navi_route() 참고).
+# 핵심 발견 73(267차): 예전에는 원본 점 개수(4개 이상)로 판정했다. 그런데 get_path_after_distance()는 경로가
+# 남아 있으면 항상 전방 탐색거리 끝점까지 보간하므로 점 개수는 경로 소진의 지표가 못 된다. 직선 고속도로는
+# 폴리라인 꼭짓점 간격이 중앙값 437 m라 300 m 창 안 점이 보통 2~3개여서 거의 항상 "부족"으로 판정됐다
+# (266차 재생에서 충분 4.1%). 이제 경로가 실제로 덮는 길이가 전방 탐색거리에서 이 여유를 뺀 값 이상이면
+# 충분으로 본다(같은 재생에서 99.7%, 여유 5 m).
+ROUTE_PATH_COVER_MARGIN_M = 5.0
 
 # 핵심 발견 67(169차): route_info_sufficient=False가 연속으로 이 사이클 수를 넘기면(15초 *
 # 20Hz = 300 사이클, carrot_navi_route()가 Ratekeeper(20)로 호출됨), 직전 유효값(navi_route_
@@ -184,6 +189,18 @@ def route_lookahead_distance(nav_type, x_turn_info, x_dist_to_turn):
     if nav_type == "off ramp" and x_turn_info in (3, 4) and x_dist_to_turn <= ROUTE_OFF_RAMP_TRIGGER_DIST_M:
         return ROUTE_LOOKAHEAD_OFF_RAMP_M
     return ROUTE_LOOKAHEAD_M
+
+
+def route_path_covers_lookahead(path, lookahead_m):
+    # path는 get_path_after_distance()가 돌려준 (lon, lat) 점들이다. 경로가 남아 있으면 첫 점(차 위치에서
+    # 가장 가까운 경로 위 점)에서 lookahead_m까지 보간한 끝점을 포함하므로 길이가 lookahead_m와 같고,
+    # 경로가 먼저 끝나면 그보다 짧다.
+    if len(path) < 2:
+        return False
+    length = 0.0
+    for p1, p2 in zip(path[:-1], path[1:]):
+        length += haversine(p1[0], p1[1], p2[0], p2[1])
+    return length >= lookahead_m - ROUTE_PATH_COVER_MARGIN_M
 
 
 # 224차: 진출 램프 안내 지점을 지나면 시야가 곧바로 300m로 줄어 600m에서 보이던 급커브가 창 밖으로
@@ -647,9 +664,9 @@ class CarrotMan:
       time.monotonic(),
     )
     path, self.navi_points_start_index, start_point = get_path_after_distance(self.navi_points_start_index, self.navi_points, current_position, lookahead_m)
-    # 핵심 발견 59(161차): 원본 폴리라인 점이 ROUTE_PATH_MIN_POINTS개 미만이면(경로 소진) 아래에서
-    # 계산되는 곡률을 신뢰하지 않는다.
-    route_info_sufficient = len(path) >= ROUTE_PATH_MIN_POINTS
+    # 핵심 발견 59(161차): 경로가 전방 탐색거리를 다 덮지 못하면(경로 소진) 아래에서 계산되는 곡률을
+    # 신뢰하지 않는다. 핵심 발견 73(267차): 원본 점 개수가 아니라 경로가 덮는 길이로 판정한다.
+    route_info_sufficient = route_path_covers_lookahead(path, lookahead_m)
     relative_coords = []
     if path:
         #relative_coords = gps_to_relative_xy(path, current_position, heading_deg)
@@ -745,8 +762,13 @@ class CarrotMan:
       # vCruise는 운전자가 직접 설정하는 값이라 이런 인식 노이즈 경로가 없다.
       self.route_insufficient_cycles += 1
       route_freeze_expired = self.route_insufficient_cycles > ROUTE_FREEZE_MAX_CYCLES
+      # 핵심 발견 73(267차): freeze가 만료되면 낡은 filt를 지운다. 지우지 않으면 vCruise로 대체해
+      # 표시하는 동안에도 낡은 값이 남아, 다시 충분해지는 첫 사이클부터 그 값 기준 +-1 km/h/사이클
+      # 슬루가 걸려 route 목표속도가 낡은 값에서 새로 올라간다(route 00000497 세그먼트 121).
+      if route_freeze_expired:
+        self.navi_route_speed_filt = None
       out_speed = (self.navi_route_speed_filt
-                   if self.navi_route_speed_filt is not None and not route_freeze_expired
+                   if self.navi_route_speed_filt is not None
                    else self.sm['carState'].vCruise)
     else:
       self.route_insufficient_cycles = 0
