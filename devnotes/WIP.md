@@ -1,5 +1,30 @@
 # WIP
 
+## 267cha (코드 반영 완료, 정적 분석과 샌드박스 단위 테스트까지, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route 낡은 filt 수정: 충분 판정을 경로 길이 기준으로 교체 + freeze 만료 시 filt 지움
+
+**배경.** 266cha 해결안 중 사용자가 "1+2번으로 진행"으로 승인했다(1번 길이 기준 판정 + 2번 만료 시 filt 지움). 반영 스크립트는 Termux(bash)로 받기로 했다. 4절 0단계로 지침 v2를 읽었다(note 637392e, 브랜치 URL 사본과 SHA 고정본 비교는 하지 않았고 SHA 고정본을 기준으로 삼았다).
+
+**코드 변경(carrot-ryu 110cff9, 부모 353cc8e, `carrot_man.py` +30/-8).**
+- 상수 `ROUTE_PATH_MIN_POINTS = 4`를 `ROUTE_PATH_COVER_MARGIN_M = 5.0`으로 바꿨다(주석에 핵심 발견 59와 73의 이유를 남겼다).
+- 새 함수 `route_path_covers_lookahead(path, lookahead_m)`: 점이 2개 미만이면 부족, 아니면 점들 사이 `haversine` 거리 합이 `lookahead_m - 5 m` 이상일 때 충분. 전방 탐색거리가 600 m(진출 램프 안내)이면 기준도 595 m가 된다.
+- `carrot_navi_route()`: `route_info_sufficient = route_path_covers_lookahead(path, lookahead_m)`로 교체. "부족" 사이클의 freeze/vCruise 대체 로직은 그대로다.
+- `route_freeze_expired`가 참이면 `self.navi_route_speed_filt = None`으로 지우고, 그 뒤 `out_speed`는 filt가 있으면 filt, 없으면 vCruise다(만료 전 동작과 filt 없음 동작은 변경 없음).
+- 신규 테스트 `tests/test_carrot_route_sufficient.py`(+162, 9건): 길이 판정 5건(2점 직선 충분, 짧은/퇴화 경로 부족, 5 m 여유 경계, 600 m 시야), `carrot_navi_route()` 통합 4건(꼭짓점 437 m 직선 고속도로에서 충분, 경로 끝에서 freeze 유지, 만료 시 filt 지움 뒤 다음 충분 사이클에 낡은 값 슬루 없음, filt 없을 때 vCruise). 통합 4건은 shapely가 없으면 건너뛴다.
+
+**검증(샌드박스, 실차 아님).**
+- 새 테스트 9건과 `test_carrot_route_lookahead.py`, `test_carrot_navi_route_bridge.py`를 합쳐 19건 통과.
+- 변이 확인: 판정을 옛 `len(path) >= 4`로 되돌리면 새 테스트 2건이, 만료 시 filt 지움을 빼면 1건이 실패한다.
+- `selfdrive/carrot/tests` 전체(새 테스트 제외)는 원본 353cc8e 코드에서 5 failed, 22 errors, 1730 passed였고 패치본도 같다. 실패/에러 목록 27줄이 `diff`로 동일(새 실패 없음, 기존 실패는 환경 요인으로 이 변경과 무관).
+- 반영 스크립트(Termux bash)를 로컬 bare 저장소로 끝까지 시뮬레이션했다(일반, CRLF 재현, 기준 커밋 불일치/0회 매치/2회 매치 중단 3종, 실제 GitHub 대상 DRY_RUN). Termux 실기기 실행은 이 시뮬레이션에 포함되지 않는다.
+- push 뒤 GitHub에서 직접 확인했다: HEAD 110cff9, 부모 353cc8e, 변경 2개(M carrot_man.py 30/8, A test 162/0), blob `63cdee5b`(carrot_man.py), `b472bcfb`(테스트), 모드 100644, 트리 5,454개(이전 5,453 + 1), CR 0, `carrot_man.py` 내용이 샌드박스 새 파일과 `cmp` 일치.
+
+**한계.**
+- 266cha의 재생 수치(충분 4.1% -> 99.7%, 낡은 값 58.4 가정 때 직선 감속 미만 시간 24.2초 -> 4.4초)는 295 m 기준 재생이며, 이 구현(300 m - 5 m)으로 다시 돌리지 않았다.
+- 1번은 고속도로에서 route 곡률 감속을 실제로 켜므로 동작이 바뀐다(출구 램프에서 새 감속이 하나 생긴다). 이 장면은 실주행 로그로 확인하지 않았다.
+- 낡은 값 60.5가 처음 저장된 순간은 여전히 미확정이다(세그먼트 120 rlog 필요). 2번은 출처와 무관하게 만료 시 filt를 지우므로 이번 증상은 막지만, 만료 전에 생긴 다른 경로의 낡은 값 문제는 이 수정의 범위 밖이다.
+- 이 세션에 올라온 로그 zip 2개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261011_170556.zip`, `..._173000.zip`)는 분석하지 않았다.
+- 실차 검증: 미실시.
+
 ## 266cha (기록 완료, 코드 변경 없음) (Claude, Claude Sonnet 5.5) - route 목표속도가 직선 고속도로에서 낡은 값에 묶이는 현상 분석(route 00000497 세그먼트 121·122)
 
 **배경.** 새 세션 시작 지시(지침 문서 먼저 읽고 4절 순서) 뒤 사용자가 route 00000497 세그먼트 122 rlog와 params_backup.json을 올렸고, 세그먼트 121 rlog를 추가로 올렸다. 목표속도(des)가 route 소스로 약 105에 8초 고정됐다가 7.5초에 162로 풀리는 장면의 원인을 물었다. 이번 회차는 분석과 기록만 했다. carrot-ryu 코드는 바꾸거나 push하지 않았다(HEAD 353cc8e 그대로).
