@@ -1,5 +1,25 @@
 # WIP
 
+## 272cha (코드 변경 없음, 로그 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route 00000497 세그먼트 121·122 rlog(기록 커밋 353cc8e)로 확인 가능한 미결 항목 점검, `MapTurnSpeedFactor` 불일치 해소
+
+**배경.** 새 세션 시작 지시(지침 문서 먼저 읽기) 뒤 사용자가 로그 zip 2개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261011_170556.zip` = 세그먼트 122, `..._173000.zip` = 세그먼트 121, 각각 rlog.zst + qcamera.ts)를 올리고 "이 실차 로그로 할 수 있는 미결 항목 진행"이라고 했다. 첫 세션은 사용량 한도로 중단돼 devnotes에 기록되지 않았고, 이어진 이 세션에서 샌드박스를 다시 만들어 재확인했다. 4절 0단계로 지침 v2를 읽었다(note 0dfb25a, `git ls-remote` 뒤 SHA 고정본). carrot-ryu는 760905a 그대로다. carrot-ryu 코드는 바꾸거나 push하지 않았다.
+
+**로그 기본 사항.** `initData`: gitCommit 353cc8e(carrot-ryu, dirty False), version 0.11.1, tizi, osVersion 19.6.3-carrot. 그래서 이 로그는 110cff9(route 수정)와 760905a(`8212379` 이식) 이전 코드의 동작이다. 두 세그먼트는 각 약 60초(첫 carState 기준 59.97 s / 60.03 s; initData의 logMonoTime은 route 시작이라 t0로 쓰지 않는다)이고 모두 크루즈·`carControl.enabled`·`latActive`·`longActive`가 전 프레임 True, 전환 0회다. 121은 71.8~109.4 km/h(평균 89.0), 깜빡이 725프레임, 조향 개입 217프레임, selfdriveState enabled 5,781/overriding 217. 122는 85.6~110.5 km/h(평균 96.2), 개입 없음.
+
+**확인한 것.**
+1. **route 판정 재생(이 세션에서 재실행, 이전 세션 수치와 일치).** 로그의 navRoute 폴리라인(121: 241점 5회, 222점 56회 / 122: 222점 60회)과 carrotMan 위치로, 353cc8e의 옛 판정(원본 점 4개 이상)과 760905a의 새 판정(`route_path_covers_lookahead`, 300 m)을 `get_path_after_distance`와 함께 소스 원문(ast 추출)으로 돌렸다. 121(1,181사이클): 옛 판정 충분 22(1.9%), 새 판정 1,181(100.0%). 122(1,178사이클): 옛 0(0.0%), 새 1,178(100.0%). 옛 판정의 "부족" 연속 구간은 121에서 0.92~51.21초(1,007사이클), 51.42~51.71(7), 52.31~52.36(2), 52.81~59.92(143)이고, 122는 1.04~59.96초 전체(1,178)다. 51.21~51.42초의 짧은 "충분" 구간이 로그의 51.36초 route 162 -> 83 급락과 맞는다(266cha 원인 분석과 일치). 새 판정은 두 세그먼트 모두 "부족" 구간이 0개다. 이것은 재생이며 110cff9의 실차 동작 확인이 아니다.
+2. **SCC 앞차 입력(HANDOFF 269cha 항목 (e)의 입력 쪽).** `EnableRadarTracks`=0인 실제 스트림에서 `radarState.leadOne`은 레이더 앞차가 모두 `radar=True`, `radarTrackId=0`, 비전 단독은 `radar=False`, `radarTrackId=-1`이었다(121: status True 1,196/1,200 중 레이더 925 + 비전 271, status False 4. 122: 1,201/1,201 중 레이더 1,138 + 비전 63). 레이더/비전 전환은 121에서 43회, 122에서 17회. 269cha가 컨트롤러 단위 실험으로만 본 `radarTrackId=0`이 실제 입력에서도 맞다. 단 이 로그는 353cc8e의 플래너 출력이라 760905a의 이식 코드가 이 입력으로 어떻게 동작하는지는 확인하지 못한다.
+3. **앞차 추종 지표(353cc8e).** 레이더 앞차 시간차(dRel/vEgo) 최소/중앙값 121 1.05/2.82 s, 122 1.19/2.39 s. fcw 0건. 계획 소스 121 lead0 325/cruise 874, 122 cruise 772/lead0 429. aTarget 최소 -0.77/-0.75, aEgo 최소 -1.55/-1.08 m/s^2. 감속 desiredSource는 121 route 1,004/vturn 195, 122 route 1,199. `xTurnInfo`는 전 구간 -1, `vehicleNaviActive`는 0, 내비 안내는 경부 고속도로 "김천휴게소" 한 줄이다.
+4. **기기 설정값(로그 initData).** `AlwaysLateral` 1, `EnableRadarTracks` 0, `JerkCostEgo` 12, `TurnSpeedControlMode` 2, `HyundaiCameraSCC` 1은 271cha의 `params_backup.json`과 같다. 반면 `MapTurnSpeedFactor`는 initData에서 150(두 세그먼트 동일)이고 `params_backup.json`과 266cha 역산(route 162 = vCruise 120 x 1.35)은 135였다. 로그의 route 램프 증분은 1.3~1.4 km/h/사이클(9회 1.3, 8회 1.4, 121)로 실제 적용 배율이 약 1.35였다. 코드는 `route_speed * mapTurnSpeedFactor`(`carrot_serv.py`, 값은 시작 시 `MapTurnSpeedFactor * 0.01`)다. **사용자가 주행 중 150에서 135로 수정했다고 확인했다(272cha).** 따라서 불일치는 해소됐고 266cha의 1.35 역산은 맞다. 두 세그먼트의 initData 값이 같으므로 이 값은 세그먼트별 현재값이 아니라 더 이른 시점 값으로 보인다(추정). initData에는 `AutoNaviSpeedDecelRate` 50, `AutoNaviSpeedCtrlEnd` 8도 있는데 같은 이유로 주행 당시 값이 아닐 수 있다. 266cha와 toolkit `replay_route_geom.py` 재생이 가정한 0.8 m/s^2(80), CtrlEnd 0과 다르니, 곡률 감속 쪽을 다시 재생할 때는 실제 값을 사용자에게 확인한다.
+
+**이 로그로 판정할 수 없는 것.**
+- 760905a 실차 확인 (a)(b): 앞차 감속 장면이 사실상 없다. 레이더 앞차 `aLeadK` 최소 -1.04(121, 37.8초, dRel 117.8 m)/-1.44(122, 19.4초, dRel 91.1 m), -1 미만 1/10프레임, 40 m 이내에서 -1.5~-0.3인 프레임 5/0개.
+- 353cc8e 시동 직후 조향 게이트: `latActive`가 처음부터 켜져 있어 시동 직후가 포함된 로그가 필요하다.
+- 110cff9 실차 확인 (b)(c): 진출 램프와 경로 끝 구간이 없다. 그리고 이 로그는 110cff9 이전 코드다.
+- 낡은 값 60.5가 처음 저장된 순간(세그먼트 120 rlog 필요), 1326f21 옆 차선 오감속(크루즈 중 비전 단독 앞차 경계 장면 필요), 정지 앞차 접근 장면.
+
+**한계.** 재생은 폴리라인 중심선 기준이고 플래너/차량 시뮬레이션이 아니다. 로그는 두 세그먼트 약 2분이며 qcamera 영상은 대조하지 않았다. 새 도구는 만들지 않았다(toolkit 변경 없음). 실차 검증: 미실시.
+
 ## 271cha (코드 변경 없음, 설정값 읽기만, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 기기 params_backup.json으로 `JerkCostEgo`/`AlwaysLateral`/`EnableRadarTracks`/`TurnSpeedControlMode` 값 확인
 
 **배경.** 270cha 직후 이어진 세션이다. 4절 0단계(지침 v2, note 95126c8, 브랜치 URL본과 SHA본 md5 일치)와 HANDOFF를 읽었다. 사용자가 전달한 270cha devnotes push 로그를 GitHub에서 직접 재확인했다: note 95126c8의 부모는 034226d, 변경은 HANDOFF.md +19/-10, WIP.md +27/-0, WIP_SYNC.md +14/-0이고 세 파일 모두 BOM이 없다. carrot-ryu는 `git ls-remote`로 760905a 그대로임을 확인했다.
