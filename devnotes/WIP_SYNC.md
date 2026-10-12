@@ -1,5 +1,19 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-12 (270차) -- carrot-ms 28d2386..b7dd150 신규 3건 점검, 제외 확정 · 268차 `4896f0d`와 제외안 27건 제외 확정, carrot-ryu 반영 없음 (체크포인트 28d2386 -> b7dd150)
+
+- 점검 범위: `28d2386..b7dd150` 신규 3건(ajouatom, 2026-10-12 11:02~11:51 KST, 모두 carrot-wip 체리픽). 체크포인트 28d2386은 commit으로 존재하고 HEAD(b7dd150)의 조상이라 rebase는 없었다. 변경 파일은 `show --stat`으로 읽었고 `cc34d6a`의 공용 경로 diff 본문을 읽었다.
+- 사용자 선택: 신규 3건 "제외", 이전 것도 "제외로 확정"(268차 판정의 `4896f0d`와 제외안 27건). 아래 모든 항목은 확정이다.
+
+| 분류 | 커밋 | 결과 |
+|---|---|---|
+| 신호등 정지 준비 실험(신규 3건, 제외 확정) | `cc34d6a`, `d9c226f`, `b7dd150` | 전제 코드(`signal_assist`, `signal_start_guard`, `signal_tracking_shadow` 등)가 carrot-ryu에 없고, `cc34d6a`는 `longitudinal_planner.py`/`carrot_functions.py`(`XState.e2eStopPrepare = 6`)를 바꾸는 종방향 실험이다. 커밋 메모가 차량 배포 없음과 관측 3,348건 선별 통과 0건을 명시. 268차 신호등 24건과 같은 분류. |
+| 제외 확정(268차 판정) | `4896f0d` | 한글 자모와 기호 글리프 추가가 실효 전부(`text` 인자는 호출부가 안 씀). 화면 글자 깨짐 증상이 있을 때만 필요했고 사용자가 제외로 확정. |
+| 제외 확정(268차 판정) | 제외안 27건(신호등 인식 보조 24, eGPU/MDM 2, CAN-FD 1) | 268차 표의 판정 그대로 제외로 확정. 커밋 목록과 근거는 268차 표를 본다. |
+
+- 체크포인트: 점검은 `b7dd150`까지 끝났다. 268차 판정의 확정 대기 항목은 없다. 다음 점검은 b7dd150 이후 신규 커밋부터이고 `git cat-file -t b7dd150`로 존재부터 확인할 것(carrot-ms는 재생성된다).
+- 한계: 정적 확인이다. 신규 `signal_stop_prepare.py`, `signal_stop_prepare_runtime.py`, 테스트, docs 본문과 `d9c226f`, `b7dd150`의 diff 본문은 읽지 않았다(stat과 커밋 제목까지). 실차 검증: 미실시.
+
 ## 체크포인트: 2026-10-12 (269차) -- carrot-ms `8212379` carrot-ryu 반영 확정(760905a), 점검 체크포인트 28d2386 유지 (`4896f0d`와 제외안 27건은 확정 대기)
 
 - 범위: 268차 판정안 후보 `8212379`("Qualify slower front-radar matches and retain braking-onset distance", carrot-wip 910bd82 체리픽)의 반영 결과 기록이다. 새 carrot-ms 점검은 하지 않았다(체크포인트는 28d2386 그대로, 다음 점검은 `git cat-file -t 28d2386`로 존재 확인부터).

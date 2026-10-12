@@ -1,5 +1,32 @@
 # WIP
 
+## 270cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 28d2386..b7dd150 신규 3건 점검, 제외 확정(`4896f0d`, 268차 제외안 27건, 신규 3건), `JerkCostEgo` 12 유지 결정
+
+**배경.** 269cha 직후 이어진 세션이다. 4절 0단계(지침 v2, note 034226d, 브랜치 URL본과 SHA본 바이트 일치)와 HANDOFF를 읽었다. carrot-ryu HEAD는 `git ls-remote`로 760905a 그대로임을 확인했다.
+
+**결정(사용자).**
+1. `JerkCostEgo`는 12 유지로 결정했다(미결 45/47번의 "20 유지/12/8" 중). 코드 기본값과 `J_EGO_COST = 12.0`(246cha 반영)이 이미 12라 코드 변경은 없다. HANDOFF 기록상 기기 CarrotWeb 설정값은 20이었다. 이 세션에서 기기 값은 확인하지 않았으므로, 기기 값이 아직 20이면 CarrotWeb에서 12로 바꿔야 결정이 실제로 적용된다. 실차 검증은 미실시다.
+2. `4896f0d`("fix(ui): support optional text in font_fallback and add Korean codepoints", 한글 자모와 기호 글리프 추가, 268cha 판정은 "화면 글자가 네모로 깨질 때만 필요")는 제외로 확정했다.
+3. 268차 제외안 27건(신호등 인식 보조 24, eGPU/MDM 2, CAN-FD 1)도 제외로 확정했다. 목록과 근거는 WIP_SYNC 268차 표를 본다.
+
+**carrot-ms 신규 점검.** 체크포인트 `28d2386`은 commit으로 존재하고 carrot-ms HEAD(`b7dd150`)의 조상이라 rebase는 없었다. `28d2386..HEAD`는 3건이다(모두 ajouatom, 2026-10-12 11:02~11:51 KST, carrot-wip 체리픽). blobless bare clone에서 `show --stat`으로 변경 파일을 읽었고 `cc34d6a`의 공용 경로 diff 본문을 읽었다.
+
+| 커밋 | 제목 | 변경 | 체리픽 원본 |
+|---|---|---|---|
+| `cc34d6a` | experiment(signal): add opt-in red stop preparation and simplify overlay | 11개 파일 +573/-4 | carrot-wip 6df4f629 |
+| `d9c226f` | experiment(signal): evaluate road and lane geometry independently of plan | 5개 파일 +177/-27 | carrot-wip df51eed7 |
+| `b7dd150` | experiment(signal): allow lateral margin outside ego lane | 4개 파일 +118/-11 | carrot-wip 4bc5307d |
+
+- 3건 모두 신호등 인식 보조 실험 계열이고, 268차에서 제외한 24건과 같은 분류다. carrot-ryu 760905a에는 이 계열의 전제 코드가 없다: `carrot_functions.py`와 `longitudinal_planner.py`에서 `signal_assist`, `start_guard`, `apply_signal_start_guard` 문자열이 0건이고, `signal_assist`/`signal_start`/`signal_stop`/`signal_display`/`signal_tracking` 이름의 파일이 없다(`ls-tree`. 이름에 `signal_`이 들어간 파일은 turn_signal 아이콘 2개와 `test_usbgpu_signal_wait.py`뿐).
+- `cc34d6a`는 공용 경로를 바꾼다: `carrot_functions.py`(`XState.e2eStopPrepare = 6`, `CarrotPlanner`에 `stop_prepare` 인자와 판정), `longitudinal_planner.py`(`apply_signal_stop_prepare` +28줄: 최종 가속도 상한을 램프로 낮추고 코스팅 목표를 0으로 고정), `model_renderer.py`(상태 6 문구 +2), `cluster_renderer.py`(신호 후보 번호 표시 제거), `signal_tracking_shadow.py`(+5), 테스트 1개 수정, AGENTS.md. 이 기능은 기기별 옵트인이고 기본 OFF라고 커밋의 AGENTS.md 메모에 적혀 있다.
+- 같은 메모가 직접 적은 한계: 빨간불을 확인하면 최종 가속도 상한이 0.25 m/s³ 램프로 -0.5 m/s²까지 내려가는 사전 감속이다. 데스크톱 테스트 184건과 기본 OFF 대상 비교 1,200건이 통과했다. 보관된 야간/아침 관측 3,348건 선별에서 조건을 통과한 진입이 0건이라 더 낫게 멈춘다고 주장하거나 이 결과로 활성화하지 말라고 적혀 있다. 차량 배포는 없고 기하 범위는 가정값이다.
+- 반영하지 않는 이유: 전제 코드가 없어 이식하려면 신호등 인식 계열 전체가 필요하다. 종방향 가속도 경로를 또 바꾸면 쌓여 있는 실차 확인 항목(760905a, 110cff9, 353cc8e 등)의 검증이 섞인다. 업스트림 스스로 실차 근거가 없는 실험이라고 밝혔다.
+- 한계: `signal_stop_prepare.py`, `signal_stop_prepare_runtime.py`, 테스트, docs의 본문과 `d9c226f`, `b7dd150`의 diff 본문은 읽지 않았다(stat과 커밋 제목까지). 두 커밋의 내용 설명은 제목 기준이다. 정적 확인이며 실차 검증은 미실시다.
+
+**확정 결과.** 신규 3건 제외, 이전 것(`4896f0d`, 268차 제외안 27건) 제외가 모두 확정됐다. carrot-ryu 반영은 없다. 점검 체크포인트를 `28d2386` -> `b7dd150`으로 올렸다. 268차 판정의 확정 대기 항목은 남지 않았다.
+
+**미결/다음.** 기기 `JerkCostEgo` 값이 12인지 확인. `b7dd150` 이후 신규 커밋이 생기면 `git cat-file -t b7dd150`로 존재부터 확인하고 점검한다. 신호등 계열 커밋이 이어지면 같은 분류(전제 코드 부재)로 본다.
+
 ## 269cha (코드 반영 완료 후 검증 기록, 오프라인 시뮬레이션, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 8212379 이식(760905a) 검증과 toolkit/cl_sim 등록
 
 **배경.** 268cha의 판정안 중 `8212379`가 carrot-ryu에 이식돼 push됐다(carrot-ryu 760905a, 부모 110cff9). 사용자가 "오프라인 시뮬레이션 검증할 수 있는 건 추가로 해봐"라고 요청했고, 결과 보고 뒤 "파워쉘로, toolkit에도 올리고"로 답했다. 이 세션은 4절 0단계로 지침 v2(note 2627042, 브랜치 URL본과 SHA 고정본의 md5 일치)와 HANDOFF를 읽고 시작했다. 앞 세션이 사용량 한도로 중단돼 샌드박스가 초기화됐고, 하네스 파일(`/home/claude/sim`)이 사라져 앞 세션 기록으로 복원한 뒤 `pytest_ci_setup.sh`로 환경을 다시 만들어 전부 재실행했다. 아래 수치는 이 세션의 재실행 값이며 앞 세션 값과 일치했다.
