@@ -1,5 +1,29 @@
 # WIP
 
+## 274cha (코드 변경 있음 c4f13a7, 정적 분석과 시뮬레이션, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - `ShowPathEnd` 브로커 결함 수정(`params_keys.h` 등록)과 설정-레지스트리 가드 테스트
+
+**배경.** 273cha 기록(note 2af595e) 뒤 사용자가 HANDOFF 선택지 12번(`ShowPathEnd` 브로커 결함 후보 수정)을 승인했다. 5절 순차 절차로 진행했다: 코드 스크립트만 먼저 전달 -> 사용자 실행 -> GitHub 직접 확인 -> 이 devnotes.
+
+**수정안 선택.** 273cha가 낸 두 안 중 (1) `params_keys.h` 등록을 골랐다. 10절(`Params.get()`으로 읽는 키는 같은 커밋에서 등록)과 맞고, 273cha에서 "재빌드가 필요한지 미확인"이던 점을 코드 읽기로 정리했다. 읽어서 확인한 것: 설정 서버의 미등록 키 파일 폴백은 `params.get_param_path(key)`와 같은 파일을 읽고 쓰므로(`server/services/params.py`의 `_unregistered_param_paths`) 이미 저장된 값이 이어진다. 등록 전의 낡은 `params_pyx`에서는 지금처럼 폴백으로 동작하므로 후퇴가 없다. `launch_chffrplus.sh` 395·541행이 `system/manager/params_check.py`로 컴파일된 레지스트리와 헤더를 비교하고 불일치면 `FORCE_REBUILD=1`을 세우므로 다음 부팅에 자동 재빌드된다(코드 읽기이며 기기에서 보지 않았다). `test_settings_schema.py`, `test_param_type_resolution.py`, `test_params_check.py`에는 키 추가로 깨질 허용 목록이 없음을 읽어서 확인했다(이 테스트들은 실행하지 못했다. 저장소 `conftest.py`가 `params_pyx`를 요구한다).
+
+**반영한 것(carrot-ryu c4f13a7, 부모 760905a).** 2개 파일 +46/-0.
+1. `openpilot/common/params_keys.h`: `ShowPathColorLane` 다음 줄에 `{"ShowPathEnd", {PERSISTENT, INT, "1"}}` 추가(+1). 기본값 1은 `carrot_settings.json` 기본값과 같다.
+2. 신규 `openpilot/selfdrive/carrot/server/tests/test_settings_params_registered.py`(+45): 설정 카탈로그의 모든 키가 `params_keys.h`에 있어야 한다(예외 `KNOWN_UNREGISTERED = {"ShowRouteInfo"}`), 예외 항목은 카탈로그에 있고 아직 미등록이어야 한다(등록하면 목록에서 빼라고 실패한다), `ShowPathEnd`가 카탈로그 기본값 1과 같은 `PERSISTENT, INT, "1"`로 등록돼 있어야 한다.
+
+**검증.**
+- 새 테스트를 같은 디렉터리 깊이의 가짜 트리(실제 `carrot_settings.json`·`params_keys.h` 복사)에서 격리 실행: 수정 전 2건 실패(`ShowPathEnd` 미등록 포착), 수정 후 3건 통과.
+- 273cha의 브로커 시뮬레이션을 수정 후 헤더로 다시 실행(`_read_params`를 ast로 추출): 등록 키 367 -> 368, `ShowPathEnd` None -> '1'. 기기 실행이 아니다.
+- 반영 스크립트를 로컬 bare 저장소(진짜 760905a)에 일반/CRLF 두 모드로 실행(PowerShell 7, 파서 오류 0건): 결과 트리 동일, 변경 2파일, `params_keys.h` +1/-0.
+- 사용자 실행 뒤 GitHub 직접 확인: carrot-ryu HEAD c4f13a7(`git ls-remote`와 depth 2 bare clone), 부모 760905a(중간 push 없음), 변경 2파일 +46/-0, `params_keys.h` diff는 위 1줄뿐, BOM 없음, CR 0(파이썬으로 센 값), 테스트 파일이 격리 검증본과 바이트 동일. 커밋 시각 2026-10-13 07:40:53 +0900, Author ryujmin@naver.com(기존 현상, 기능 영향 없음). carrot-ryu-note는 2af595e 그대로였다.
+
+**예상 동작 변화(미확인).** 등록 기본값이 1이므로 설정을 한 번도 건드리지 않았다면 재빌드 뒤 웹 주행 화면에 경로 끝 TF 마커가 켜진다(지금까지는 항상 꺼져 있었다). 설정 UI에서 0으로 둔 값은 같은 파일이라 0이 유지된다. `Params.all_keys()` 순회 대상에 들어가므로 273cha에서 의심한 백업 누락도 이 키에 한해서는 해소될 것으로 읽히지만 백업 동작은 확인하지 않았다.
+
+**새로 발견(손대지 않음).** `ShowPathWidth`: 브로커 `_read_params` 목록과 웹(`road_overlay_geometry_renderer.js` 210행, `home_drive.js` 기본 100)이 읽지만 `params_keys.h`에도 설정 JSON에도 없고 저장소 안에 쓰는 곳이 없다. 항상 `None`이라 웹 기본값 100(경로 폭 100%)이 적용되는 사실상 상수이며 해는 없다. 쓰는 쪽이 없는 키를 등록하는 것은 이번 승인 범위 밖이라 후보로만 기록한다.
+
+**carrot-ms 대비 차이.** carrot-ms와 carrot-wip은 `ShowPathEnd`를 등록하지 않았다(273cha 확인). carrot-ryu만 등록하고 가드 테스트도 carrot-ryu에만 있다. 동기화에서 `params_keys.h`를 가져올 때 이 줄이 사라지지 않게 먼저 대조한다.
+
+**남은 것(전부 실차 검증 미실시).** 업데이트 뒤 첫 부팅의 자동 재빌드와 소요 시간, 재빌드 뒤 실기기에서 `ShowPathEnd` 1이면 TF 마커가 나오고 0이면 사라지는지, 기기에서 새 테스트 실행. 273cha의 (b) `ShowRouteInfo` 외부 소비자, (c) 백업 누락 재확인과 AST 후보 재스캔, (d) 참조 0건 등록 키 10개 처리는 그대로 미결이다.
+
 ## 273cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 데드코드 감사 후속: Params 키·설정 JSON·웹 소비 경로 대조, `ShowPathEnd` 브로커 결함 후보
 
 **배경.** 새 세션 시작 지시(지침 문서 먼저 읽기) 뒤 사용자가 "코드를 분석하고, 데드코드 확인"을 이어가게 했다. 앞 구간(같은 대화)에서 first-party 범위를 AST로 훑어 참조 0건 98개, 연쇄 18개 등의 후보를 냈지만, 그 산출물은 샌드박스 초기화로 사라졌고 이 세션에서 재현하지 못했다. 이 세션은 Params 키·설정 JSON·응답 필드의 실제 소비 경로 대조를 이어갔다. 4절 0단계로 지침 v2를 읽었다(note b2ce088, 브랜치 URL본과 SHA본 md5 일치). carrot-ryu는 760905a 그대로이고 코드는 바꾸거나 push하지 않았다.
