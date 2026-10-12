@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-12 (269차)
+- `cl_sim/` 신규(269cha 작성, 전부 복원본): `cl_sim.py`(실제 acados `LongitudinalMpc` 폐루프 하네스, HEAD 모듈 대 기준선 모듈), `scen.py`(앞차 속도 프로파일), `sweep.py`(고정 10시나리오 x TF 3종), `relief.py`(편안함 완화 경로 15케이스), `fuzz.py`/`fuzz_summary.py`(무작위 케이스와 집계), `fallback.py`(완화 해제 폴백 강제 발동), `prep_base.sh`(기준선 `long_mpc.py` 모듈 준비)(README 269차 추가 참고). carrot-ryu 760905a 대 110cff9로 실행해 sweep 30행, relief 15행, fallback 3행, fuzz 160케이스를 얻었다(269cha 샌드박스). 앞 세션에서 같은 스크립트로 얻은 값과 모두 일치했다. 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-07 (260차)
 - `radar_gate/margin_scan.py` 신규(260cha 작성): 1326f21의 `_update_vision_central_gate`와 670f72c 규칙을 실제 코드로 rlog 여러 개에 재생해, 레이더 앞차가 없는 프레임 중 `cruiseState.enabled`인 프레임만 세그먼트별로 비전 후보 수, 670f72c/1326f21 present 수, 새 present 수, 차단 수와 최소 |dPath|를 집계한다(README 260차 추가 참고). route 478 세그먼트 1~10과 route 492 세그먼트 4로 실행해 478의 크루즈 작동 8,309프레임에서 새 present 0, 492-4에서 17을 얻었다(260cha 샌드박스).
 - `jerk_sim/run_gap.py`, `jerk_sim/calib_gap.py` 신규(260cha 작성): `sim_jerk.py`에 앞차 끊김 유지(G) 시나리오를 더해 채움(A)과 J 5/8/12/20으로 비교하고(`run_gap.py`), 구동 지연별로 실제 속도와의 RMSE를 보는 보정 검사(`calib_gap.py`)를 한다. route 492 세그먼트 4로 실행했고 A는 256cha 수치를 재현했다(260cha 샌드박스). `sim_jerk.py`, `run_final.py`는 변경 없음.

@@ -1,5 +1,16 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-12 (269차) -- carrot-ms `8212379` carrot-ryu 반영 확정(760905a), 점검 체크포인트 28d2386 유지 (`4896f0d`와 제외안 27건은 확정 대기)
+
+- 범위: 268차 판정안 후보 `8212379`("Qualify slower front-radar matches and retain braking-onset distance", carrot-wip 910bd82 체리픽)의 반영 결과 기록이다. 새 carrot-ms 점검은 하지 않았다(체크포인트는 28d2386 그대로, 다음 점검은 `git cat-file -t 28d2386`로 존재 확인부터).
+- 반영 확정: 전체 이식(거리 기억 + 편안함 완화 + 레이더 `closing_range` 매칭)이 carrot-ryu 760905a(부모 110cff9, 10개 파일 +415/-4)로 push됐고 GitHub에서 확인했다.
+
+| 분류 | 커밋 | 결과 |
+|---|---|---|
+| 반영 확정(전체) | `8212379` | carrot-ryu 760905a. 가져온 것: `long_mpc.py`, 신규 `longitudinal_braking_gap.py`, `radar_motion/controller.py`와 `primary.py`, 테스트 3개(`test_longitudinal_braking_gap.py` 신규, `test_longitudinal_gap_recovery.py` +23, `test_cutout_mpc_integration.py` +4), `docs/user/{en,ko}/cruise-gap.md`. 가져오지 않은 것: 업스트림의 `docs/longitudinal_approach_20261011.md`, `test_radar_corroboration.py`(carrot-ryu에 없는 파일이라 carrot-ryu용 `test_radar_closing_range.py` 신규 43줄로 대체). `test_cutout_mpc_integration.py`의 268차 hunk 충돌은 carrot-ryu 기준으로 맞춰 반영. 레이더 `closing_range` 부분은 `EnableRadarTracks` 0/-1에서 작동하지 않음(269cha 재확인, 이 기기 설정에서는 비작동). 검증: 관련 테스트 164건, 폐루프 시뮬레이션(실제 acados), 실차 미실시. 상세는 WIP.md 269cha. |
+| 확정 대기(그대로) | `4896f0d` | 268차 판정안 유지(화면 글자 깨짐 증상이 있을 때만). 이 세션에서 사용자 답 없음. |
+| 확정 대기(그대로) | 제외안 27건(신호등 인식 보조 24, eGPU/MDM 2, CAN-FD 1) | 268차 표 그대로. 이 세션에서 확정 답 없음. |
+
 ## 체크포인트: 2026-10-12 (268차) -- carrot-ms 0e7f299..28d2386 신규 29건 점검(판정안, 사용자 확정 대기), carrot-ryu 반영 없음 (체크포인트 0e7f299 -> 28d2386 점검 완료, 반영/제외 확정 대기)
 
 - 점검 범위: `0e7f299..28d2386` 신규 29건(2026-10-10~10-12). 체크포인트 0e7f299는 commit으로 존재하고 HEAD의 조상이라 rebase는 없었다. 변경 파일은 `log --numstat`으로 읽었고 후보와 공용 경로는 diff 본문을 읽었다.

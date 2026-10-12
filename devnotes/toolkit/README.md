@@ -253,3 +253,19 @@ with OpenpilotPrefix():
 | `jerk_sim/calib_gap.py <plan.pkl>` | 같은 환경에서 G/A를 J=20, 구동 지연 0.10/0.20/0.30/0.35/0.45 s로 돌려 실제 속도(`vEgo`)와의 8~11.5초 RMSE와 10.85초 속도를 출력한다(어느 시나리오가 실제와 맞는지 보는 보정 검사, 10회 실행 약 100초). |
 
 한계: 세 도구 모두 open-loop 인식 주입이고 후보가 옆 차선인지 자차 차선인지 판정하지 않는다. `margin_scan.py`는 차단 사유(prob 대 dPath)를 구분하지 않는다. `run_gap.py`의 A는 채운 프레임의 dRel/vLead가 보간값이고 구동 모델은 J=20 한 장면에 맞춘 것이며(256cha), 운전자 개입과 정지 경로(계획 소스 4)를 재현하지 않는다. G는 실제보다 끊김의 누적 효과를 크게 만든다(실제 속도는 A 쪽, 260cha). 결과와 해석은 WIP.md 260cha. 실차 검증 아님.
+
+### 269차 추가 (cl_sim/: 실제 acados MPC 폐루프로 기준선 대 변경본 비교)
+
+carrot-ms 8212379 이식(carrot-ryu 760905a)을 검증하려고 만든 도구다. `LongitudinalMpc`(실제 acados 솔버)를 자차 플랜트 모델과 이상적 레이더 앞차 1대로 폐루프 구동하고, HEAD 모듈과 기준선 모듈을 같은 시나리오에 돌려 최소 간격/시간차/TTC/최대 제동/저크/FCW 카운트를 비교한다. 결과 해석은 WIP.md 269cha. 실차 검증 아님.
+
+| 파일 | 역할 |
+|---|---|
+| `prep_base.sh <기준선 커밋> [저장소 루트]` | 기준선의 `long_mpc.py`를 `long_mpc_base110.py`(같은 폴더, 모듈 이름 고정)로 복사한다. 쓰고 나면 그 파일을 지워 `git status`를 깨끗하게 한다. depth 1 clone이면 먼저 `git fetch --depth 2 origin <브랜치>`로 부모 커밋을 받는다. |
+| `cl_sim.py` | `run(mod, scen, tf, ego_tau=0.35, delay=0.15, T, vset, lead_gap_enabled)` 폐루프와 `metrics(log)`. 이 모듈이 `head_mod`(현재 long_mpc)와 `base_mod`(기준선 모듈)를 임포트한다. 레이더 노이즈/지연, 플래너 리셋 램프, 끼어들기 사전감속, 앞차 2대는 없다. |
+| `scen.py` | `mk(v0, tf, events, appear=None, present_from=0, gap_extra=0)`: 앞차를 `(시작 시각, 가속도, 목표속도)` 목록으로 만든다. `appear=(t, 간격)`은 끼어들기. |
+| `sweep.py` | 고정 10시나리오(완만/중간/급 감속, 정지, 아코디언, 끼어들기 2종, 접근 진입) x TF 1.0/1.45/2.0. 약 20초. `sweep.json` 저장. |
+| `relief.py` | 편안함 완화가 켜지는 먼/근거리 완만 감속 15케이스와 `comfort_path_has_reserve` 호출/거절 횟수. |
+| `fuzz.py [N]`, `fuzz_summary.py [fuzz.json]` | 시드 20261012 무작위 케이스 N개(기본 120, 160케이스 약 7분이라 `setsid nohup ... < /dev/null &`)와 안전 지표 집계. |
+| `fallback.py` | `comfort_path_has_reserve`를 항상 False로 바꿔 완화 해제 폴백을 강제로 발동시키고 정상/강제/기준선을 비교. |
+
+환경: `pytest_ci_setup.sh`(약 3~4분)로 `/home/claude/repo`를 만든 뒤 `export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo`. 스크립트들은 같은 폴더에서 서로를 임포트하고 결과 json을 현재 폴더에 쓴다(`cd <작업 폴더>; python3 <cl_sim 경로>/sweep.py`). 기준선 모듈 이름이 `long_mpc_base110`로 고정돼 있어 다른 기준선을 쓰면 파일 이름은 그대로 두고 내용만 바꾼다. 한계: 레이더 이상적, 앞차 1대, 자차 응답 값(0.35 s/0.15 s)을 실차에 맞춰 보정하지 않았다. 복원 이력: 앞 세션 파일이 샌드박스 초기화로 사라져 기록에서 복원했고, 복원본으로 앞 세션 수치를 재현했다(269cha). 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).

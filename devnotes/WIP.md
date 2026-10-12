@@ -1,5 +1,27 @@
 # WIP
 
+## 269cha (코드 반영 완료 후 검증 기록, 오프라인 시뮬레이션, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 8212379 이식(760905a) 검증과 toolkit/cl_sim 등록
+
+**배경.** 268cha의 판정안 중 `8212379`가 carrot-ryu에 이식돼 push됐다(carrot-ryu 760905a, 부모 110cff9). 사용자가 "오프라인 시뮬레이션 검증할 수 있는 건 추가로 해봐"라고 요청했고, 결과 보고 뒤 "파워쉘로, toolkit에도 올리고"로 답했다. 이 세션은 4절 0단계로 지침 v2(note 2627042, 브랜치 URL본과 SHA 고정본의 md5 일치)와 HANDOFF를 읽고 시작했다. 앞 세션이 사용량 한도로 중단돼 샌드박스가 초기화됐고, 하네스 파일(`/home/claude/sim`)이 사라져 앞 세션 기록으로 복원한 뒤 `pytest_ci_setup.sh`로 환경을 다시 만들어 전부 재실행했다. 아래 수치는 이 세션의 재실행 값이며 앞 세션 값과 일치했다.
+
+**반영 확인(이 세션, GitHub 직접 조회).** 760905a는 부모가 110cff9이고 변경 10개 파일 +415/-4이다: `docs/user/en/cruise-gap.md` +6, `docs/user/ko/cruise-gap.md` +6, `radar_motion/controller.py` +9, `radar_motion/primary.py` +56/-1, `tests/test_cutout_mpc_integration.py` +4, `tests/test_radar_closing_range.py` 신규 43, `controls/lib/longitudinal_braking_gap.py` 신규 102, `longitudinal_mpc_lib/long_mpc.py` +53/-3, `controls/tests/test_longitudinal_braking_gap.py` 신규 113, `tests/test_longitudinal_gap_recovery.py` +23. 트리 파일 수 5,454 -> 5,457(신규 3개와 일치), 신규 파일 모드 100644, diff 안 CR 0. 커밋 메시지는 `Port carrot-ms 8212379: braking-onset gap memory, bounded comfort relief, qualified slower front-radar match`. 업스트림 8212379와의 줄 단위 대조는 이 세션에서 하지 않았다(carrot-ms를 받지 않음).
+
+**테스트(이 세션).** 관련 4개 파일(`test_longitudinal_braking_gap`, `test_longitudinal_gap_recovery`, `test_radar_closing_range`, `test_cutout_mpc_integration`) 164건 통과. `carrot/tests` + `controls/tests` 전체는 9 failed / 24 errors / 2,625 passed / 4 skipped이고, 실패 33건의 파일별 개수가 앞 세션이 잰 기준선(110cff9: 9 failed / 24 errors / 2,597 passed, 실패 목록 동일)과 같다(xiaoge_vision 22, latcontrol 3, xiaoge_inference 2, 나머지 6 각 1). 기준선은 이 세션에서 다시 돌리지 않았다. 통과 증가분 28건이 신규/확장 테스트다.
+
+**폐루프 시뮬레이션(실제 acados `LongitudinalMpc`, HEAD 760905a 대 기준선 110cff9).** 모델: 자차 1차 지연(시정수 0.35 s) + 0.15 s 지연, 레이더 이상적(노이즈/지연 없음), 앞차 1대, 설정속도 근처 순항. 도구는 `toolkit/cl_sim/`(README 269차 추가).
+- 고정 시나리오 10종 x TF 1.0/1.45/2.0(30행, `sweep.py`): HEAD의 최소 간격이 기준선과 같거나 큼(차이 최소 0.0 m; 정지 앞차 stop_2.0에서 TF 1.45는 5.2 대 4.5 m, TF 2.0은 8.8 대 5.9 m). 불가피 충돌 시나리오(hard_5.0 TF 1.0/1.45, cutin_close 전 TF)는 양쪽 crash 카운트가 같다(11~60). crash 값이 다른 행은 0건, 솔버 비정상 status 0건. 최대 제동 차이(H-B)는 -0.03~+0.06 m/s²(음수=HEAD가 더 세게), 최소 저크 차이는 -0.02~+0.02.
+- 무작위 160케이스(`fuzz.py`, 시드 20261012): 최소 간격 차이(H-B) 최소 -0.44 / 중앙 +0.39 / 최대 +6.38 m, H가 B보다 0.5 m 넘게 나쁜 경우 0건. 최소 TTC 차이 최소 -0.01 s, 1 s 넘는 악화 0건. 최소 시간차 차이 최소 -0.022 s. 최대 제동 차이 중앙 -0.02 / 최악 -0.10 m/s²(HEAD가 약간 더 세게), 최소 저크 차이 최악 -0.04. FCW 차이 0건, 솔버 비정상 0건. 거리 기억(margin>0) 156건, 편안함 완화(relief>0) 1건.
+- 편안함 완화 경로(`relief.py`, 15케이스): 완화는 초기 간격이 기본 추종거리+8 m인 근거리 완만 감속(-0.6 m/s²) 장면에서만 20~23프레임(약 1 s) 켜지고(최대 1.00), 먼 앞차와 강한 감속(-2.0)에서는 켜지지 않았다. 켜진 케이스에서 최소 간격은 기준선보다 0.4~0.5 m 컸고 최소 TTC는 0.5~0.9 s 작았으며(TF 1.45: 15.6 대 16.2), 최대 제동은 0.06~0.07 m/s² 더 강했다.
+- 폴백 강제 발동(`fallback.py`): `comfort_path_has_reserve`를 항상 False로 바꾸면(TF 1.2/1.45/2.0에서 20/21/23회 호출) relief가 0으로 풀리고 솔버 비정상 0, 충돌 없음, 최소 간격은 강제 거절 19.67 m, 정상 실행 19.26 m, 기준선 18.86 m(TF 1.2)로 완화가 풀릴수록 커졌고 최대 제동은 -0.80/-0.84/-0.77 m/s²였다. 해제 경로가 솔버를 깨뜨리지 않고 동작한다는 확인이다.
+
+**알아낸 점.** (1) Hyundai SCC 포인트의 trackId는 `opendbc/car/hyundai/radar_interface.py` 13행 `SCC_TID = 0`이고 `radarSource = "scc"`다. 컨트롤러 단위 실험(`DPathRadarController`, SCC 포인트 입력)에서 `EnableRadarTracks`가 -1, 0, 3이면 모두 `radarTrackId=0`, `radar=True`, `status=True`로 나왔다. 따라서 `radarTrackId >= 0`을 요구하는 이식 코드(거리 기억/완화)는 SCC 앞차에서도 작동 대상이다(HANDOFF 268cha의 미확인 항목에 대한 답). 실제 SCC 스트림은 확인하지 못했다. 같은 파일 306행 주석대로 구형 CAN에서 raw radar tracks를 켜면 SCC11 스트림이 꺼질 수 있으나 내 기기는 `EnableRadarTracks=0`이라 해당 없음(기기 값은 이번에도 확인하지 않음). (2) 레이더 `closing_range` 매칭은 frontRadar 포인트 입력에서 `EnableRadarTracks` 1, 2, 3에서만 성립하고 -1, 0에서는 성립하지 않는다(테스트 nominal과 같은 입력). 268cha 예측대로 이 기기에서는 작동하지 않는 부분이다. (3) 편안함 완화는 대부분 거리 기억이 먼저 걸려서 드물게 켜지고, 강한 감속에서는 사전 조건에서 막힌다.
+
+**한계.** 시뮬레이터가 이상화돼 있다: 레이더 노이즈/지연, SCC 실제 거동, 플래너의 리셋 램프와 끼어들기 사전감속, 앞차 2대 상호작용, 운전자 개입이 없다. 자차 응답 값(0.35 s/0.15 s)은 실차에 맞춰 보정하지 않았다. 실차 로그 재생이 아니다. 완화가 켜질 때 조건부로 추가되는 solve 1회가 콤마 C3 CPU에 주는 부하는 재지 않았다. 실차 검증: 미실시.
+
+**toolkit 등록.** `devnotes/toolkit/cl_sim/`(`cl_sim.py`, `scen.py`, `sweep.py`, `relief.py`, `fuzz.py`, `fuzz_summary.py`, `fallback.py`, `prep_base.sh`)를 신규 추가했다(README 269차 추가, CHANGELOG 269차). 앞 세션의 파일이 사라져 기록에서 복원했고 `relief.py`는 import 시 전체가 실행되던 구조를 main 가드로, `fallback.py`는 중복 코드를 정리했다. 복원본을 이 세션에서 끝까지 실행해 sweep 30행, relief 15행, fallback 3행, fuzz 160케이스가 앞 세션 값과 일치함을 확인했다.
+
+**미결.** 760905a 실차 확인(HANDOFF 참고). `4896f0d` 반영 여부와 제외안 27건은 이 세션에서 사용자 답을 받지 못해 확정 대기 그대로다.
+
 ## 268cha (분석 기록만, 코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 0e7f299..28d2386 신규 29건 점검
 
 **배경.** 사용자가 "carrot-ms 최신 커밋 분석"을 요청했고, 판정안을 본 뒤 "우선 기록. 파워쉘"로 답했다. 반영/제외 확정은 아직 받지 않았다. 4절 0단계로 지침 v2를 읽었다(note 3ddb894, 브랜치 URL본과 SHA 고정본의 md5 일치). carrot-ryu HEAD는 HANDOFF와 같은 110cff9였다.
