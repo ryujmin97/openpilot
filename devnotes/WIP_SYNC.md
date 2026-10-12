@@ -1,5 +1,21 @@
 # WIP SYNC
 
+## 체크포인트: 2026-10-12 (268차) -- carrot-ms 0e7f299..28d2386 신규 29건 점검(판정안, 사용자 확정 대기), carrot-ryu 반영 없음 (체크포인트 0e7f299 -> 28d2386 점검 완료, 반영/제외 확정 대기)
+
+- 점검 범위: `0e7f299..28d2386` 신규 29건(2026-10-10~10-12). 체크포인트 0e7f299는 commit으로 존재하고 HEAD의 조상이라 rebase는 없었다. 변경 파일은 `log --numstat`으로 읽었고 후보와 공용 경로는 diff 본문을 읽었다.
+- 사용자 선택: 판정안을 본 뒤 "우선 기록"으로 답했다. 반영 여부와 제외 확정은 아직 받지 않았다. 아래 "제외"는 판정안이다.
+
+| 분류 | 커밋 | 판정과 근거 |
+|---|---|---|
+| 후보(부분, 확정 대기) | `8212379` | 앞차 제동 시 간격 유지(`long_mpc.py` + 신규 `longitudinal_braking_gap.py`)는 모드와 무관하게 내 차에 작동한다. 레이더 `closing_range` 매칭은 `frontRadar` 전용이라 `EnableRadarTracks=0`에서 작동하지 않는다. `apply --check` 성공(controller/primary/long_mpc/gap_recovery 테스트), `test_cutout_mpc_integration.py` hunk 충돌, `test_radar_corroboration.py`는 carrot-ryu에 없음. 커밋 메시지가 실차/acados 검증 없음을 명시. 옵션: 보류 / long_mpc 쪽만 / 전체. 의견은 보류. 상세는 WIP.md 268cha. |
+| 선택(가치 낮음) | `4896f0d` | 한글 자모와 기호 글리프 추가가 실효 전부(`text` 인자는 호출부가 안 씀). 적용은 가능. 네모 깨짐 증상이 있을 때만 필요. |
+| 신호등 인식 보조 실험(24건) | `5f97f5b`, `84a2f7e`, `4ba2ee2`, `d8a9eff`, `13b6d78`, `528b130`, `ca378aa`, `30e42c8`, `f66a972`, `ec94fbb`, `ace1c84`, `e430957`, `897cac1`, `e46bd0e`, `83c8041`, `22cb9ea`, `cdefda8`, `5e61aae`, `885e292`, `908ae0a`, `b422197`, `28d2386`, `3b23621`, `4ca3de0` | 별도 신호 모델/신경망 관측기와 `modeld.py`, `CarrotPlanner` opt-in 훅(정지 강제 포함). carrot-ryu에 `signal_*` 파일이 없고 공용 `modeld.py` 경로를 건드린다. 커밋 자체가 재검증 실패/false green 진단 단계. `3b23621`은 modeld 미러 baseline 갱신, `4ca3de0`은 USB 클러스터 오버레이(클러스터 미사용). |
+| eGPU / Mountain Dew | `c4575b3`, `7f3f315` | 내 차에 eGPU가 없다(111차 확인). `7f3f315`가 `c4575b3`를 사실상 되돌린다. |
+| CAN-FD 차량 | `91f40a6` | CAN-FD StopReq 중 aReq 0 시험(`hyundaicanfd.py`, carrot-ryu에 없는 `stopping.py`). 내 차는 비 CAN-FD. |
+
+- 체크포인트: 점검은 28d2386까지 끝났다. 다음 점검은 28d2386 이후 신규 커밋부터이고 `git cat-file -t 28d2386`로 존재부터 확인할 것(carrot-ms는 재생성된다). 8212379와 4896f0d의 반영 결정, 제외 27건 확정은 사용자 답을 기다린다.
+- 한계: 정적 확인이다. 신호 계열 `signal_*.py` 본문, `process_config.py` 훅, `91f40a6`의 `stopping.py`와 `carrot_settings.json` diff 본문, docs diff는 읽지 않았다. 8212379는 `apply --check`와 코드 읽기까지만 했고 pytest는 돌리지 않았다. 실차 검증: 미실시.
+
 ## 체크포인트: 2026-10-10 (265차) -- carrot-ms a0698918..0e7f299 신규 23건 점검, 시동 직후 조향 차단 3건 이식(carrot-ryu d082d92 -> 353cc8e) · 제외 20건 확정 (체크포인트 a0698918 -> 0e7f299)
 
 - 점검 범위: `a0698918..0e7f299` 신규 23건(2026-10-08~10-10). 체크포인트 a0698918은 commit이고 HEAD의 조상이라 rebase는 없었다. 변경 파일은 `diff-tree --name-status`(트리 기준)로 읽었고 반영 후보와 공용 경로는 diff 본문을 읽었다.

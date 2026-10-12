@@ -1,5 +1,30 @@
 # WIP
 
+## 268cha (분석 기록만, 코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 0e7f299..28d2386 신규 29건 점검
+
+**배경.** 사용자가 "carrot-ms 최신 커밋 분석"을 요청했고, 판정안을 본 뒤 "우선 기록. 파워쉘"로 답했다. 반영/제외 확정은 아직 받지 않았다. 4절 0단계로 지침 v2를 읽었다(note 3ddb894, 브랜치 URL본과 SHA 고정본의 md5 일치). carrot-ryu HEAD는 HANDOFF와 같은 110cff9였다.
+
+**점검 방법.** happymaj11r/openpilot carrot-ms를 `--bare --filter=blob:none`으로 받았다. HEAD는 28d2386(2026-10-12 07:52 +0900)이고 체크포인트 0e7f299는 commit으로 존재해 rebase는 없었다. `0e7f299..HEAD`는 29건이다. `log --numstat`으로 파일 규모를 보고, 후보와 공용 경로(`modeld.py`, `carrot_functions.py`, `longitudinal_planner.py`, `application.py`, `long_mpc.py`, 레이더 매처)는 diff 본문을 읽었다.
+
+**판정안(사용자 확정 대기).** 후보 1건(부분), 선택 1건, 제외 27건.
+
+1. `8212379` ("Qualify slower front-radar matches and retain braking-onset distance", carrot-wip 910bd82 체리픽). 두 부분이다.
+   - (a) 레이더 `closing_range` 매칭(`primary.py` `_match_closing_range`, `controller.py` 거리 veto 면제). 내 기기에서는 작동하지 않는다: `EnableRadarTracks <= 0`이면 `select_primary_radar_points`가 SCC 포인트만 매처에 넘기고, `match_dpath_primary_lead`의 허용 출력 소스도 `scc`뿐인데, 새 매칭은 `source == "frontRadar"`만 받는다. 기기 값이 지금도 0인지는 이번에 확인하지 않았고 HANDOFF 기록(0으로 계속 사용 예정)에 의존한다.
+   - (b) `long_mpc.py` 제동 시작 거리 기억(`longitudinal_braking_gap.py` 신규 102줄)과 편안함 기준 완화. 모드와 무관하다. 플래너가 `lead_gap_enabled`를 `not reset_state and not gasPressed and not force_slow_decel and not lane_change_active`로 주므로 정상 주행에서는 항상 켜진다. 거리 기억은 앞차와 내가 함께 감속할 때 제동 시작 간격(상한 base+10 m 또는 정지거리+2.5v)을 MPC 기준 간격으로 유지하는 쪽이고, `comfort_relief`는 반대로 예비가 충분할 때 편안함 간격을 최대 0.4 s x 속도만큼 줄이며 예비를 잃으면 즉시 철회하고 완화 없이 한 번 더 풀이한다(조건부 추가 solve 1회).
+   - 적용성(`git apply --check`, carrot-ryu 110cff9 파일 대상): `controller.py`, `primary.py`, `long_mpc.py`, `test_longitudinal_gap_recovery.py`는 offset만 있고 성공(long_mpc hunk 2~6은 +4~+53줄). `test_cutout_mpc_integration.py`는 hunk가 안 맞는다(carrot-ryu 버전이 다름). `test_radar_corroboration.py`는 carrot-ryu에 없는 파일이다. `longitudinal_braking_gap.py`와 `test_longitudinal_braking_gap.py`는 신규다. long_mpc가 쓰는 이름(`get_stopped_equivalence_factor`, `get_safe_obstacle_distance`, `solution_status`, `COST_E_DIM`, `lead_0_obstacle`, `base_desired_distances`, `measured_a_ego`)과 의존 모듈(`longitudinal_gap_recovery`, `longitudinal_cutout`, `longitudinal_preview`, `lane_change_gap`, `traffic_stop`)은 모두 carrot-ryu에 있다.
+   - 주의: 커밋 메시지가 직접 "차량 배포와 네이티브 acados 검증 없음", "보고된 불만의 해결을 입증하지 않음"이라고 적었다. 같은 메시지의 감사 결과(J20이 초기 제동을 약하게 하고 이후 제동을 길게 할 수 있음, 10월 5일 헤드룸 대역이 레벨 5에서 우회됨)는 256cha 시뮬레이션의 "J=20은 감속을 늦추는 증폭 요인"과 방향이 같지만 upstream 주장일 뿐 우리 실차 근거가 아니다(미결 45/47번 `JerkCostEgo` 결정의 참고). SCC 앞차의 `radarTrackId`가 0 이상으로 부여되는지는 읽지 못했다(기존 `LeadGapState`도 같은 조건이라 기존 간격 로직이 이 차에서 동작하면 같이 동작할 것). 실차 확인 대기 항목(J12, 110cff9, 353cc8e 등)이 쌓여 있어 종방향을 하나 더 바꾸면 검증이 섞인다.
+   - 옵션: 보류, `long_mpc` 쪽만 이식(레이더 절반 제외, 최소 변경 원칙), 전체 이식. 제안 의견은 실차 로그 확보 전까지 보류.
+2. `4896f0d` (선택, 가치 낮음, "fix(ui): support optional text in font_fallback and add Korean codepoints", 작성자 Hoya). `font_fallback(font, text=None)`의 `text`는 carrot-ms HEAD에서도 호출부(`font_fallback(font)`, 1029행)가 넘기지 않아 실효가 없다. 실제 변경은 DISPLAY/UNIFONT 글리프에 한글 자모(0x1100-0x11FF, 0x3130-0x318F)와 기호 몇 개를 추가하는 것뿐이다. carrot-ryu `application.py`(호출부 1073행도 `font_fallback(font)`)에 `apply --check` 성공(hunk 2 offset +53). 화면에서 글자가 네모로 보이는 증상이 있을 때만 필요하다. 기기에서 그런 증상이 있는지는 확인하지 않았다.
+
+**제외안 27건과 근거.**
+- 신호등 인식 보조 실험 24건: `5f97f5b`, `84a2f7e`, `4ba2ee2`, `d8a9eff`, `13b6d78`, `528b130`, `ca378aa`, `30e42c8`, `f66a972`, `ec94fbb`, `ace1c84`, `e430957`, `897cac1`, `e46bd0e`, `83c8041`, `22cb9ea`, `cdefda8`, `5e61aae`, `885e292`, `908ae0a`, `b422197`, `28d2386`, `3b23621`(modeld 미러 baseline 갱신), `4ca3de0`(USB 클러스터 오버레이, 클러스터 미사용 181차). 별도 신호 모델/신경망 관측기이고 `modeld.py`(`signal_shadow` 훅)와 `CarrotPlanner`(`signal_assist`/`start_guard` 훅, `signal_hold`/`start_hold`가 정지 상태로 강제)에 opt-in 코드가 들어간다. carrot-ryu에는 `signal_*` 파일이 전혀 없고, 이식하면 공용 `modeld.py` 경로를 건드린다. 커밋 자체가 재검증 실패와 "false green" 진단/실험 단계다. 265차에서 `9ac9e43`(신호 헤드 실험 기록)을 제외한 것과 같은 계열이다.
+- eGPU / Mountain Dew 2건: `c4575b3`, `7f3f315`. 내 차에 eGPU가 없다(111차 확인). `7f3f315`(+41/-393)가 `c4575b3`를 사실상 되돌린다.
+- CAN-FD 1건: `91f40a6`. `hyundaicanfd.py`와 carrot-ryu에 없는 `stopping.py`(StopReq 중 aReq를 0으로 보내는 시험)를 바꾼다. 내 차는 비 CAN-FD다.
+
+**한계.** 정적 확인이다. 신호 계열의 `signal_*.py` 본문, `process_config.py` 훅(6줄), `91f40a6`의 `stopping.py`/`test_stopping.py`/`carrot_settings.json` diff 본문, docs/AGENTS.md diff는 읽지 않았다(파일 목록과 커밋 메시지로 분류). `8212379`는 실행하지 않았고 pytest도 돌리지 않았다(`apply --check`와 코드 읽기만). 실차 검증: 미실시.
+
+**도구 메모.** blobless clone(`--filter=blob:none`)에서 `git grep <rev>`는 모든 blob을 내려받으려다 300초 제한에 걸렸다(이번 세션 실제 발생). 파일 하나는 `git show <rev>:<path>` 또는 `git cat-file blob`로 읽는다.
+
 ## 267cha (코드 반영 완료, 정적 분석과 샌드박스 단위 테스트까지, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route 낡은 filt 수정: 충분 판정을 경로 길이 기준으로 교체 + freeze 만료 시 filt 지움
 
 **배경.** 266cha 해결안 중 사용자가 "1+2번으로 진행"으로 승인했다(1번 길이 기준 판정 + 2번 만료 시 filt 지움). 반영 스크립트는 Termux(bash)로 받기로 했다. 4절 0단계로 지침 v2를 읽었다(note 637392e, 브랜치 URL 사본과 SHA 고정본 비교는 하지 않았고 SHA 고정본을 기준으로 삼았다).
