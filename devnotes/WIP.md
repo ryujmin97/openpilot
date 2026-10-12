@@ -1,5 +1,24 @@
 # WIP
 
+## 271cha (코드 변경 없음, 설정값 읽기만, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 기기 params_backup.json으로 `JerkCostEgo`/`AlwaysLateral`/`EnableRadarTracks`/`TurnSpeedControlMode` 값 확인
+
+**배경.** 270cha 직후 이어진 세션이다. 4절 0단계(지침 v2, note 95126c8, 브랜치 URL본과 SHA본 md5 일치)와 HANDOFF를 읽었다. 사용자가 전달한 270cha devnotes push 로그를 GitHub에서 직접 재확인했다: note 95126c8의 부모는 034226d, 변경은 HANDOFF.md +19/-10, WIP.md +27/-0, WIP_SYNC.md +14/-0이고 세 파일 모두 BOM이 없다. carrot-ryu는 `git ls-remote`로 760905a 그대로임을 확인했다.
+
+**확인한 기기 값.** 사용자가 "현재 기기 설정값"이라며 `params_backup.json`을 올렸다. 파일 안에 저장 시각은 없다.
+
+| 키 | 값 | 이전 기록 | 해석 |
+|---|---|---|---|
+| `JerkCostEgo` | 12 | 이전 HANDOFF 기록상 기기 20(270cha에서 값 미확인) | 270cha 결정(12 유지), 코드 기본값, `J_EGO_COST = 12.0`과 일치. CarrotWeb에서 바꿀 일 없음. 20에서 12로 바뀐 시점은 알 수 없다. |
+| `AlwaysLateral` | 1 | 이전 HANDOFF: params_backup.json에는 1(현재 기기 값과 같은지 미확인) | 켜져 있어 353cc8e의 시동 직후 조향 게이트 경로가 해당된다. 확인 (b)(c)는 주행 로그가 필요. |
+| `EnableRadarTracks` | 0 | 이전 HANDOFF: 0 | 760905a의 레이더 `closing_range` 매칭은 작동하지 않고(1/2/3에서만 성립), b3e16c5(SCC 모드 -1 비전 앞차)도 비작동. `8212379`는 간격 유지(`long_mpc.py`) 쪽만 실질적으로 작동한다. |
+| `TurnSpeedControlMode` | 2 | 266cha의 코드 없는 회피안은 2 -> 1 | 회피안은 적용되지 않았다. 110cff9가 코드(경로 길이 기준 충분 판정, 만료 시 filt 지움)로 고쳤으므로 값을 바꿀 필요는 없다. 진출 램프 route 곡률 감속이 과한지는 로그 확인 항목으로 남는다. |
+| `HyundaiCameraSCC` | 1 | - | 참고용으로만 확인했다. |
+
+**한계.** 업로드한 파일 값이며 기기에서 직접 읽은 것이 아니다. 저장 시각이 없어 "현재 값"은 사용자 진술을 따랐다. 위 5개 키 외의 키는 이전 값과 비교하지 않았다. 설정값 읽기만 했고 코드는 바꾸지 않았다. 실차 검증은 미실시다.
+
+**미결/다음.** 기기 값 확인 항목 중 `JerkCostEgo`와 `AlwaysLateral`은 닫았다(HANDOFF 갱신). 남은 것은 로그가 필요한 실차 확인(760905a, 110cff9, 353cc8e)과 `b7dd150` 이후 carrot-ms 신규 커밋 점검이다.
+
+
 ## 270cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 28d2386..b7dd150 신규 3건 점검, 제외 확정(`4896f0d`, 268차 제외안 27건, 신규 3건), `JerkCostEgo` 12 유지 결정
 
 **배경.** 269cha 직후 이어진 세션이다. 4절 0단계(지침 v2, note 034226d, 브랜치 URL본과 SHA본 바이트 일치)와 HANDOFF를 읽었다. carrot-ryu HEAD는 `git ls-remote`로 760905a 그대로임을 확인했다.
