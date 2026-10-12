@@ -1,5 +1,25 @@
 # WIP
 
+## 273cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 데드코드 감사 후속: Params 키·설정 JSON·웹 소비 경로 대조, `ShowPathEnd` 브로커 결함 후보
+
+**배경.** 새 세션 시작 지시(지침 문서 먼저 읽기) 뒤 사용자가 "코드를 분석하고, 데드코드 확인"을 이어가게 했다. 앞 구간(같은 대화)에서 first-party 범위를 AST로 훑어 참조 0건 98개, 연쇄 18개 등의 후보를 냈지만, 그 산출물은 샌드박스 초기화로 사라졌고 이 세션에서 재현하지 못했다. 이 세션은 Params 키·설정 JSON·응답 필드의 실제 소비 경로 대조를 이어갔다. 4절 0단계로 지침 v2를 읽었다(note b2ce088, 브랜치 URL본과 SHA본 md5 일치). carrot-ryu는 760905a 그대로이고 코드는 바꾸거나 push하지 않았다.
+
+**확인한 것.**
+1. **설정 JSON 186개 대 `params_keys.h` 등록 367개.** 설정에는 있고 등록에는 없는 키는 `ShowPathEnd`, `ShowRouteInfo` 둘뿐이다. 설정 UI에 없는 등록 키는 183개다.
+2. **`ShowPathEnd`: 데드코드가 아니다. 그러나 결함 후보다.** 소비처는 웹 UI다: `web/src/features/drive/contents/vision/road_overlay_aux_renderer.js` 75행 `drawProjectedTfMarker`(값이 0 이하면 TF 마커를 그리지 않고 return), `web/js/realtime/home_drive.js`(`defaultParams` 0, `normalizeVisualParams`), 브로커 `server/live_runtime/broker.py`의 `_read_params` 이름 목록. 설정 서버는 미등록 키를 파일 폴백으로 읽고 쓴다(`server/services/params.py`의 `_unregistered_param_paths`, `_read_param_value`, `_put_unregistered_setting`). 그래서 설정 UI에서는 값이 저장된다. 그런데 주행 화면의 `paramsState`는 `readLiveRuntimeParams()`(`CarrotLiveRuntimeState.runtime.params`)로만 갱신되고(`refreshParams`), `home_drive.js`는 `/api/params_bulk`를 쓰지 않는다. 그 값은 브로커의 `_read_params`에서 오는데, 브로커는 `Params().get(name)`을 호출하고 미등록 키는 `common/params_pyx.pyx`의 `check_key`가 `UnknownKeyName`을 던지며 `except`가 이를 삼켜 `None`으로 만든다. 웹은 `None`이면 이전 값(처음은 기본 0)을 유지하므로, 설정이 1이어도 마커가 켜지지 않을 가능성이 높다. 이것은 10절(새 `Params.get()` 키는 `params_keys.h`에도 등록) 규칙과 맞지 않는 상태다. carrot-ms(happymaj11r, 420줄)와 carrot-wip(ajouatom, 418줄)의 `params_keys.h`도 두 키를 등록하지 않았다(HTTP 200으로 조회). 업스트림에서 이어진 상태일 수 있고, 업스트림 웹 UI가 같은 구조인지는 보지 않았다. 앞 구간에서 "직접 소비 경로를 찾지 못했다"고 한 것은 이 항목에서 정정한다.
+3. **`ShowPathEnd` 시뮬레이션.** `broker.py`의 `_read_params` 소스를 ast로 뽑아, `params_keys.h` 등록 367개 키 기반의 가짜 `Params`(미등록 키는 `UnknownKeyName`)로 실행했다. 설정 파일에 1이 있다고 가정해도 `ShowPathEnd`는 `None`, 등록된 `ShowLaneInfo`/`ShowRadarInfo`/`ShowPathMode`는 정상 값이었다. 기기 실행이 아니라 시뮬레이션이다.
+4. **`ShowRouteInfo`: 유력 후보.** carrot-ryu 전체 텍스트 검색에서 `carrot_settings.json`(표시 그룹 472행, 항목 2213행)과 `docs/user`에만 나온다. 코드, C++, 웹 소스, 생성 번들에 소비처가 없고 `ShowRoute`/`Show` 접두사 조합이나 일괄 순회 패턴도 없다. 앱(APN) 같은 저장소 밖 소비자는 배제하지 못했다.
+5. **설정 UI에 없는 등록 키 183개의 참조.** 참조 0건 10개: `ApiCache_Device`, `ApiCache_NavDestinations`, `GMapKey`, `LastAgnosPowerMonitorShutdown`, `LastPowerDropDetected`, `NavPastDestinations`, `NavSettingLeftSide`, `NavSettingTime24h`, `Offroad_NoFirmware`, `SearchInput`. 접두사 조합 같은 동적 접근은 찾지 못했다(`ApiCache_FirehoseStats`는 별개 키로 살아 있다). `Offroad_NoFirmware`는 `alerts_offroad.json`에도 정의가 없다. 테스트에서만 쓰이는 키는 `AccessToken` 1개(`DONT_LOG` 검증, 콤마 표준). 내비 계열 6개는 이를 쓰던 화면 코드가 이 저장소에 없다.
+6. **쓰기만 있고 읽기 패턴이 없는 키 17개.** 정규식이 변수·헬퍼 경유 읽기를 놓친 오탐이 많았다(`NavDestination`, `IsEngaged`, `LastGPSPosition`, `PendingModelName`은 읽는 쪽이 있다). 저장소 안에 읽는 쪽이 없는 것은 `EnableRadarTracksResult`(`opendbc_repo/opendbc/car/hyundai/interface.py` 273행 `put_bool`, `EnableRadarTracks > 0`일 때만 실행되고 기기값은 0), `TimezoneName`(`carrot_serv.py`, `timezone_helper.py`가 씀), `SoftRestartTriggered`(`controlsd.py` 233행 주석 처리된 코드뿐, 활성 참조 0), 콤마 표준 키들이다. `logger.cc` 62행은 `DONT_LOG`가 아닌 키를 initData에 기록하므로 쓰기만 하는 키가 진단 출력으로 쓰일 수 있다. `EnableRadarTracksResult`는 `INT`로 등록됐는데 `put_bool`로 쓰지만, 파이썬 `put_bool`은 `check_key`만 하고 C++ `putBool`은 타입 검사 없이 "1"/"0"을 쓰며 `INT` 읽기도 정상 변환되므로 무해하다.
+
+**판정(이 세션 기준, 확정 데드코드 없음).** 정상 사용: `ShowPathEnd`(웹 소비), `LeadAccelResponse*`, `_ingest_*` 9개(앞 구간). 결함 후보(수정 승인 대기): `ShowPathEnd` 브로커 경로. 유력 후보: `ShowRouteInfo`, 참조 0건 등록 키 10개, `SoftRestartTriggered`. 참조 0건 등록 키는 carrot-ms와의 diff만 늘리므로 삭제를 권하지 않는다(10절 최소 변경, 제안일 뿐 결정 아님).
+
+**제안(미적용).** `ShowPathEnd` 결함 수정안은 (1) `params_keys.h` 등록(네이티브 키 테이블이라 `params_pyx` 재빌드가 필요한지는 확인하지 않았다), (2) 브로커의 미등록 키 파일 폴백이다. 둘 다 코드 변경이라 사용자 승인과 5절 순차 절차가 필요하다.
+
+**검증과 한계.** 정적 분석, 시뮬레이션이며 실차 검증은 미실시다. 첫 스캔 시도는 키마다 전체 파일을 정규식으로 훑어 300초 제한에 걸렸고, 파일마다 한 번만 토큰화하는 방식으로 다시 실행했다(스캔 4,822개 파일, `docs/`·생성 번들·`params_keys.h` 제외). 읽기/쓰기 분류는 정규식이라 오탐이 있어 해당 키를 grep -w로 다시 대조했다. 이 세션에서 다시 확인하지 못한 것: 미등록 두 키가 백업 경로(`Params::allKeys()`, `get_all_param_values_for_backup()`)에서 누락된다는 앞 구간 보고, AST 후보(참조 0건 98개, 자기 재귀, 테스트 전용, 연쇄 18개)의 재스캔과 동적 호출 배제.
+
+**기록.** devnotes(WIP.md 273cha, 이 HANDOFF)를 PowerShell 스크립트로 기록한다. carrot-ms 점검이 없어 WIP_SYNC.md는 바꾸지 않았다.
+
 ## 272cha (코드 변경 없음, 로그 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route 00000497 세그먼트 121·122 rlog(기록 커밋 353cc8e)로 확인 가능한 미결 항목 점검, `MapTurnSpeedFactor` 불일치 해소
 
 **배경.** 새 세션 시작 지시(지침 문서 먼저 읽기) 뒤 사용자가 로그 zip 2개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261011_170556.zip` = 세그먼트 122, `..._173000.zip` = 세그먼트 121, 각각 rlog.zst + qcamera.ts)를 올리고 "이 실차 로그로 할 수 있는 미결 항목 진행"이라고 했다. 첫 세션은 사용량 한도로 중단돼 devnotes에 기록되지 않았고, 이어진 이 세션에서 샌드박스를 다시 만들어 재확인했다. 4절 0단계로 지침 v2를 읽었다(note 0dfb25a, `git ls-remote` 뒤 SHA 고정본). carrot-ryu는 760905a 그대로다. carrot-ryu 코드는 바꾸거나 push하지 않았다.

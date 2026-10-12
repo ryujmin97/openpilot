@@ -1,14 +1,22 @@
-Worker: Claude (272cha, Claude Sonnet 5.5). 사용자가 올린 route 00000497 세그먼트 121·122 rlog(기록 커밋 353cc8e)로 확인 가능한 미결 항목을 점검했다(코드 변경 없음, 로그 재생·확인만, 실차 검증 미실시). `MapTurnSpeedFactor` 로그 150 대 135 불일치는 사용자가 주행 중 150에서 135로 수정했다고 확인해 해소됐다. 나머지 내용은 이전 HANDOFF에서 옮긴 것이다.
+Worker: Claude (273cha, Claude Sonnet 5.5). 데드코드 감사 후속으로 Params 키·설정 JSON·웹 소비 경로를 대조했다(코드 변경 없음, 정적 분석, 실차 검증 미실시). `ShowPathEnd`가 `params_keys.h`에 없어 브로커 경로에서 항상 None이 되는 결함 후보를 찾았다(수정 승인 대기). 나머지 내용은 이전 HANDOFF에서 옮긴 것이다.
 Date: 2026-10-12
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (현재 HEAD = base commit 760905a(270cha에서 `git ls-remote`로 다시 확인), 8212379 이식 커밋. 부모 110cff9 = 267cha 반영 커밋). 269cha에서 GitHub로 직접 확인했다: 변경 10개 파일 +415/-4(신규 3: `longitudinal_braking_gap.py`, `test_longitudinal_braking_gap.py`, `test_radar_closing_range.py`), 트리 파일 수 5,454 -> 5,457, 신규 파일 모드 100644, diff 안 CR 0.
-Note Branch: carrot-ryu-note (이 교체 직전 base 0dfb25a. 이 HANDOFF 교체는 그 위에 올라간다).
+Note Branch: carrot-ryu-note (이 교체 직전 base b2ce088. 이 HANDOFF 교체는 그 위에 올라간다).
 Archive Branches: carrot-ryu-v1 (6df4268eb31442be4d8abd92817111f7b26b1bf4, 불변), carrot-ryu-v2 (3ddf849ea3f3392c16d363d9edea6a1bc8eab041, 212cha 생성, 불변). carrot-ryu-v3는 아직 없고 보존 시점은 사용자가 정한다(20절).
 carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 신규 3건 점검, 전부 제외 확정. 268차의 `4896f0d`와 제외안 27건도 270차에 제외로 확정되어 확정 대기 항목은 없다. 후보 `8212379`는 269차에 전체 이식, carrot-ryu 760905a). 다음 점검은 b7dd150 이후 신규 커밋이 생겼을 때이며, `git cat-file -t b7dd150`로 존재부터 확인한다(carrot-ms는 재생성되므로).
 
 이 파일은 8절대로 "최신 1개 버전만" 유지한다. 201cha~262cha의 작업/완료/미완료/검증/주의사항/다음 작업 전체 이력은 커밋 f58764b의 같은 경로에 그대로 있다: `git show f58764bd94f0e7fdc5b0c9e9f2028a85726894fa:devnotes/HANDOFF.md` 또는 SHA 고정 raw URL(https://raw.githubusercontent.com/ryujmin97/openpilot/f58764bd94f0e7fdc5b0c9e9f2028a85726894fa/devnotes/HANDOFF.md). 회차별 상세는 WIP.md(불변)가 갖고 있으므로 여기에 다시 쌓지 않는다. 아래 "미완료/주의사항"은 이전 HANDOFF에서 옮긴 것이며, 옮길 때 번호는 그대로 두었다. 상세가 필요하면 위 커밋에서 해당 번호를 읽는다.
 
-작업(272cha, 이 구간, 코드 변경 없음):
+작업(273cha, 이 구간, 코드 변경 없음):
+1. 4절 0단계(지침 v2, note b2ce088, 브랜치 URL본과 SHA본 md5 일치)와 HANDOFF를 읽고, carrot-ryu 760905a(`git ls-remote`, depth 1 clone)로 데드코드 감사를 이어갔다. 앞 구간의 AST 산출물은 샌드박스 초기화로 사라져 재현하지 못했다.
+2. `ShowPathEnd`: 웹 UI가 소비하는 살아 있는 키(`road_overlay_aux_renderer.js` 75행 TF 마커, `home_drive.js`, 브로커 `_read_params`)다. 그러나 `params_keys.h`에 없어서 브로커의 `Params().get`이 `UnknownKeyName`을 던지고 `except`가 `None`으로 만든다. 웹 `paramsState`는 브로커 값으로만 갱신되므로 설정이 1이어도 TF 마커가 꺼진 채일 가능성이 높다(결함 후보, 시뮬레이션만, 기기 확인 없음). 설정 UI의 쓰기·읽기는 파일 폴백이라 저장은 된다. carrot-ms/carrot-wip도 이 키를 등록하지 않았다. 10절 규칙과 맞지 않는 상태다.
+3. `ShowRouteInfo`: `carrot_settings.json`과 docs에만 있고 저장소 안 소비처가 없다(유력 후보, 앱 등 외부 소비자 미배제).
+4. 설정 UI에 없는 등록 키 183개: 참조 0건 10개(`ApiCache_Device`, `ApiCache_NavDestinations`, `GMapKey`, `LastAgnosPowerMonitorShutdown`, `LastPowerDropDetected`, `NavPastDestinations`, `NavSettingLeftSide`, `NavSettingTime24h`, `Offroad_NoFirmware`, `SearchInput`), 테스트 전용 1개(`AccessToken`). 쓰기만 하는 것으로 보인 17개는 오탐이 많았고, 저장소에 읽는 쪽이 없는 것은 `EnableRadarTracksResult`, `TimezoneName`, `SoftRestartTriggered`(주석 처리된 코드뿐) 등이다. `EnableRadarTracksResult`의 INT 등록 대 `put_bool` 불일치는 무해하다. 확정 데드코드는 없다.
+5. 수정은 하지 않았다. 다시 확인하지 못한 것: 미등록 두 키의 백업 누락 보고, AST 후보 재스캔. 상세는 WIP.md 273cha.
+6. devnotes(WIP.md 273cha, 이 HANDOFF)를 PowerShell 스크립트로 기록한다. carrot-ms 점검이 없어 WIP_SYNC.md는 바꾸지 않았다.
+
+작업(272cha, 이전 구간, 코드 변경 없음):
 1. 4절 0단계(지침 v2, note 0dfb25a)와 HANDOFF를 읽었다. 사용자가 올린 로그 2개(route 00000497 세그먼트 121·122, 기록 커밋 353cc8e)를 분석했다. 첫 세션이 사용량 한도로 중단돼 이 세션에서 샌드박스를 다시 만들고 재생을 재실행했다.
 2. route 판정 재생: 121(1,181사이클)에서 옛 판정 충분 1.9% -> 새 판정(760905a) 100.0%, 122(1,178사이클) 0.0% -> 100.0%. 옛 판정의 "부족" 연속 구간 끝(51.21초)이 로그의 51.36초 route 162 -> 83 급락과 맞는다. 재생일 뿐 110cff9의 실차 확인은 아니다(이 로그는 110cff9 이전 코드).
 3. SCC 앞차 입력: `EnableRadarTracks`=0에서 레이더 앞차는 전부 `radar=True`/`radarTrackId=0`, 비전 단독은 `-1`(121 레이더 925/비전 271, 122 1,138/63). 269cha 컨트롤러 단위 실험의 `radarTrackId=0` 가정이 실제 입력에서 맞다.
@@ -65,6 +73,7 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 4. 이 HANDOFF를 교체했다(교체형).
 
 완료(최근 구간, 상세는 WIP.md와 WIP_SYNC.md):
+- 273cha: 데드코드 감사 후속(코드 변경 없음, 정적 분석과 시뮬레이션, 실차 검증 미실시). 설정 JSON 186 대 등록 367 대조, `ShowPathEnd`(웹 소비, 브로커 경로 항상 None 결함 후보)와 `ShowRouteInfo`(소비처 0, 유력 후보) 판정, 설정 UI에 없는 등록 키 183개 중 참조 0건 10개 확인. 수정은 하지 않았다.
 - 272cha: 사용자가 올린 로그 2개(route 00000497 세그먼트 121·122, 353cc8e)로 route 판정 재생(옛 1.9%/0.0% -> 새 100%/100%), SCC 앞차 `radarTrackId=0` 실스트림 확인, 기기 설정값 대조, `MapTurnSpeedFactor` 150/135 불일치 해소(사용자 주행 중 수정 확인) 기록(코드 변경 없음, 로그 재생·확인, 실차 검증 미실시). 앞차 감속·시동 직후·램프 장면은 로그에 없어 판정 불가.
 - 271cha: 사용자가 올린 기기 `params_backup.json`으로 `JerkCostEgo`=12, `AlwaysLateral`=1, `EnableRadarTracks`=0, `TurnSpeedControlMode`=2 확인(코드 변경 없음, 설정값 읽기만, 실차 검증 미실시). 270cha devnotes push(95126c8) GitHub 재확인.
 - 270cha: carrot-ms 28d2386..b7dd150 신규 3건(신호등 정지 준비 실험) 점검과 제외 확정, 268차 `4896f0d`와 제외안 27건 제외 확정(코드 변경 없음, 정적 분석, 실차 미실시). `JerkCostEgo` 12 유지 결정 기록. WIP_SYNC 270차에 확정 기록, 점검 체크포인트 b7dd150.
@@ -82,6 +91,7 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 - 이전 구간의 반영 커밋 요약(carrot-ryu): d082d92(selfdrived 온라인 초기화 대기 10초, 264cha), 1326f21(비전 앞차 해제 대역 1.5 m + 3프레임 홀드), 670f72c(carrot-ms 47d35da 간격 헤드룸 유지 거리 대역), `J_EGO_COST` 12.0 반영(246cha, 두 테스트의 하드코딩 보정은 0a1ad62), f9ffbc2(`JerkCostEgo` 설정, 코드 기본 12, 상한 20), b3e16c5(SCC 모드 -1 비전 앞차 허용, 기기값 0이라 현재 비작동), 11d7e89/0f08f08/76b182a(UI 네이티브 배치와 plot 경량화), 8cdb515(SCC 앞차 비전 거리 완화), 99012c3(disabled+blended force_decel 미감속 수정).
 
 미완료(번호는 이전 HANDOFF 기준. 실차 항목은 모두 "실차 검증: 미실시"):
+- 신규(273cha) 데드코드 감사 후속(전부 "실차 검증: 미실시"): (a) `ShowPathEnd` 브로커 결함 후보 수정 여부 결정. 반영하면 실기기에서 웹 주행 화면의 TF 마커가 `ShowPathEnd`=1로 켜지는지 확인한다(수정안: `params_keys.h` 등록 — 네이티브 키 테이블이라 `params_pyx` 재빌드가 필요한지 미확인 — 또는 브로커의 미등록 키 파일 폴백). (b) `ShowRouteInfo` 외부 소비자(APN 앱 등) 확인 뒤 설정 항목 유지/삭제 결정. (c) 273cha에 재확인하지 못한 항목: 미등록 두 키가 백업(`Params::allKeys()`, `get_all_param_values_for_backup()`)에서 누락된다는 앞 구간 보고, AST 후보(참조 0건 98개, 자기 재귀, 테스트 전용, 연쇄 18개)의 재스캔과 동적 호출 배제. (d) 참조 0건 등록 키 10개와 `SoftRestartTriggered`는 carrot-ms diff를 늘리므로 삭제를 권하지 않는다(제안, 결정 아님).
 - 신규(269cha) 760905a 실차 확인(8212379 이식, 전부 "실차 검증: 미실시"): (a) 앞차와 함께 감속하는 장면(앞차 제동 때 간격 유지)에서 간격이 기준선(110cff9)보다 크게 유지되는지, 제동이 너무 일찍/강하게 걸리지 않는지(시뮬레이션은 최대 제동 차이 -0.03~+0.06 m/s², 최소 간격 중앙 +0.39 m). (b) 근거리에서 앞차가 완만하게 감속할 때 편안함 완화(`comfort_relief`)가 약 1초 켜지는지와 승차감(시뮬레이션은 최소 TTC가 0.5~0.9 s 줄고 최대 제동이 0.06~0.07 m/s² 더 세졌다). (c) 완화가 켜질 때 조건부 추가 solve 1회가 C3 CPU/플래너 시간에 주는 부하(재지 않았다). (d) 기기 `EnableRadarTracks`는 271cha에 params_backup.json에서 0으로 확인했다(0이라 레이더 `closing_range` 절반은 작동하지 않는 것이 맞다). (e) SCC 앞차에서 `radarTrackId=0`으로 이식 코드가 실제로 작동하는지 실제 SCC 스트림이 들어간 로그로 확인(컨트롤러 단위 실험에서만 확인. 272cha: 353cc8e 기록 로그 2개에서 입력 쪽은 확인, `EnableRadarTracks`=0 레이더 앞차가 전부 `radar=True`/`radarTrackId=0`. 이식 코드 자체의 동작은 760905a 이후 기록 로그가 필요). `toolkit/cl_sim`은 합성 시나리오용이라 실로그 재생에는 쓸 수 없다(실로그 재생 도구 `gap_replay/`는 gap_recovery용이라 이식 코드에는 그대로 맞지 않을 수 있다).
 - 신규(268cha) carrot-ms 판정은 모두 확정됐다(남은 것 없음): `8212379`는 269차에 전체 이식, `4896f0d`와 제외안 27건은 270차에 제외로 확정, 신규 3건(28d2386..b7dd150)도 270차에 제외 확정. WIP_SYNC 270차에 기록했다.
 - 신규(267cha) 110cff9 실차 확인: 같은 구간(직선 고속도로, 내비 경로 활성) 재주행 로그에서 (a) 직선 구간 route 목표속도가 상한으로 유지되고 낡은 값에서 +1 km/h/사이클로 올라가는 구간이 사라졌는지, (b) 진출 램프(안내 600 m 구간)에서 route 곡률 감속이 새로 켜져 너무 일찍/강하게 걸리지 않는지(1번이 고속도로에서 route 곡률 감속을 실제로 켜므로 동작이 바뀐다), (c) 경로 끝이나 내비 종료 근처에서 freeze 유지와 만료 동작을 확인한다. 266cha 재생 수치(충분 4.1% -> 99.7%)는 295 m 기준이고 이 구현(300 m - 5 m)으로 다시 돌리지 않았다. 낡은 값 60.5가 처음 저장된 순간은 여전히 미확정이다(세그먼트 120 rlog가 있으면 확인; 만료 시 filt를 지우므로 출처와 무관하게 이번 증상은 막지만 만료 전 다른 경로의 낡은 값 문제는 범위 밖). 이 로그 zip 2개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261011_170556.zip`, `..._173000.zip`, route 00000497 세그먼트 122, 121, 기록 커밋 353cc8e)는 272cha에 분석했다(110cff9 이전 코드라 옛 판정 대 새 판정 재생만 했고 이 확인 항목 (a)~(c)의 실차 동작은 여전히 미확인).
@@ -104,6 +114,7 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 - carrot-ms 263차 제외 중 재검토 조건이 있는 것: a0698918(camerad poll 구조 변경, 실물 재연결·점화 사이클 검증 미완, 공용 카메라 코드)은 실차 근거가 있을 때만 다시 본다. 673d5e74(운전자 카메라 사용 불가 배너 제거, 안전 알림 변경)는 사용자 승인 없이는 반영하지 않는다. Xiaoge 4건(12e01eb5, 986b4979, 1c9351b5, 4a2115dc)은 내 차량에서 Xiaoge를 쓰는지 확인한 뒤 재점검한다.
 
 검증:
+- 273cha 검증: 지침 v2(note b2ce088 SHA 고정본의 md5 a65171e1c13167abcc87b8ed6e34a47a, 브랜치본과 일치)와 carrot-ryu 760905a(`git ls-remote`, depth 1 clone)를 확인했다. 두 키의 참조는 저장소 전체 grep, 브로커 동작은 `broker.py`의 `_read_params` 소스를 ast로 뽑아 `params_keys.h` 367개 키 기반 가짜 Params로 실행한 시뮬레이션이다. 업스트림 `params_keys.h`는 happymaj11r carrot-ms(420줄)와 ajouatom carrot-wip(418줄)을 HTTP 200으로 읽었다. 한계: 기기 실행이 아니라 시뮬레이션이고, 정규식 읽기/쓰기 분류는 오탐이 있어 grep -w로 재확인했으며, 저장소 밖 소비자(앱 등)는 보지 못했고, `params_pyx` 재빌드 필요 여부는 확인하지 않았다. 실차 검증은 미실시다.
 - 272cha 검증: 이 세션에서 지침 v2(note 0dfb25a, `git ls-remote`와 SHA 고정 raw), carrot-ryu 760905a(`git ls-remote`, blobless bare clone)를 확인했다. 로그 스키마는 로그 기록 커밋 353cc8e에서 받았다(`initData.gitCommit`). route 판정 재생은 353cc8e와 760905a의 `carrot_man.py`에서 ast로 뽑은 소스 원문으로 이 세션에 재실행했고 첫 세션 출력과 일치했다. 앞차/설정값 수치는 rlog에서 직접 읽었다(`radarState.leadOne`, `longitudinalPlan`, `carState`, initData params). `MapTurnSpeedFactor` 150 -> 135 주행 중 수정은 사용자 진술이다. 한계: 두 세그먼트 약 2분, 재생은 폴리라인 중심선 기준, 플래너/차량 시뮬레이션 아님, qcamera 영상 미대조. 실차 검증은 미실시다.
 - 271cha 검증: GitHub에서 note 95126c8의 부모(034226d), 변경 파일 3개(HANDOFF.md +19/-10, WIP.md +27/-0, WIP_SYNC.md +14/-0), 세 파일의 첫 3바이트(BOM 없음), WIP.md 최상단 270cha 블록, carrot-ryu 760905a를 `git ls-remote`와 blobless bare clone으로 확인했다. 기기 설정값은 사용자가 업로드한 params_backup.json 파일에서 읽었다(파일 안에 저장 시각이 없어 "현재 값"은 사용자 진술에 따른 것이고, 기기에서 직접 읽은 것이 아니며, 위 5개 키 외에는 비교하지 않았다). 설정값 읽기만이며 실차 검증은 미실시다.
 - 270cha 검증: carrot-ms HEAD `b7dd150`(`git ls-remote`), `git cat-file -t 28d2386` = commit, `merge-base --is-ancestor 28d2386 HEAD` 성공, `28d2386..HEAD` 3건을 확인했다. 변경 파일은 `show --stat`으로 읽었다(`cc34d6a` 11개 +573/-4, `d9c226f` 5개 +177/-27, `b7dd150` 4개 +118/-11). `cc34d6a`의 공용 경로 diff(`longitudinal_planner.py` +28, `carrot_functions.py`, `model_renderer.py`, `cluster_renderer.py`, `signal_tracking_shadow.py`, `test_signal_start_guard.py`, AGENTS.md)는 본문을 읽었다. carrot-ryu 760905a의 `carrot_functions.py`/`longitudinal_planner.py`에서 `signal_assist`/`start_guard`/`apply_signal_start_guard` 0건, signal 계열 파일 없음을 blobless bare clone의 `ls-tree`와 `git show`로 확인했다. 한계: `signal_stop_prepare*.py`, 테스트, docs 본문과 `d9c226f`/`b7dd150` diff 본문은 읽지 않았다. 정적 확인이며 실차 검증은 미실시다.
@@ -114,6 +125,7 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 - 이전 검증 기록은 WIP.md 해당 회차를 본다.
 
 주의사항:
+- 키 사용 스캔은 키마다 전체 파일을 정규식으로 훑으면 300초 제한에 걸린다(273cha). 파일마다 한 번만 토큰화하고 중간 결과를 파일에 저장한다. 정규식 읽기/쓰기 분류는 변수·헬퍼 경유를 놓쳐 오탐이 많으니 판정 전에 grep -w로 대조한다. 샌드박스 초기화로 앞 구간 AST 산출물이 사라졌다.
 - 로그의 `initData` 파라미터(`MapTurnSpeedFactor` 등)는 주행 당시 값이 아닐 수 있다(272cha). 두 세그먼트의 값이 같았고 `MapTurnSpeedFactor`는 initData 150인데 실제 적용은 135(사용자가 주행 중 수정)였다. route 배율은 램프 증분(+1 km/h/사이클 x 배율)으로 역산해 대조하고, `AutoNaviSpeedDecelRate`/`AutoNaviSpeedCtrlEnd`는 initData의 50/8을 당시 값으로 단정하지 않는다.
 - 샌드박스가 세션 중간에 초기화될 수 있다(272cha 첫 세션 중단 뒤 `/home/claude`가 비어 있었다). 분석 파일을 믿지 말고 환경(압축 해제, 스키마, pip)부터 다시 만든다. `cut -c`에 한글 줄을 넘기면 출력 전체가 사라지니 파이썬으로 자른다.
 - 스크립트 시뮬레이션(265cha): `--no-checkout` clone에는 없는 폴더가 있으니 신규 파일을 쓰기 전에 `mkdir -p`를 한다. 샌드박스의 `/bin/sh`는 `${N:0:7}`를 못 쓰니 `bash`로 실행한다. 시뮬레이션 push에는 `GIT_AUTHOR_*`/`GIT_COMMITTER_*` 환경변수가 필요하다. 파일을 글롭(`test_lateral_*.py`)으로 옮길 때 기존 파일이 같이 딸려가지 않게 이름을 명시한다.
@@ -141,5 +153,5 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 
 다음 작업:
 - route 낡은 filt 수정은 110cff9로 반영됐다(위 신규 267cha 항목). 다음은 사용자가 고른다. 새 로그가 있으면 직선 고속도로 route 상한 유지와 진출 램프 감속 과다 여부를 먼저 본다.
-- 사용자가 고를 수 있는 것: (1) 1326f21의 옆 차선 오감속 판정용 로그 확보(크루즈 작동 중 비전 단독 앞차, 옆 차선에 차가 많은 도로)와 `radar_gate/release_replay.py`/`margin_scan.py` 재생(코드 변경 없음), (2) 완료(271cha): 기기 `JerkCostEgo` 값 12 확인(결정은 12 유지, 270cha, 코드 변경 없음), (3) 정지 앞차 접근과 내비를 켠 램프 주행 재주행 로그 확보, (4) `test_radar_fault` 처리 결정, (5) carrot-ms b7dd150 이후 신규 커밋 점검(체크포인트 존재 확인부터; 268차 판정은 270차에 모두 확정), (11) 760905a 실차 확인용 주행 로그 확보(앞차와 함께 감속하는 장면, 위 신규 269cha 항목), (9) 353cc8e 시동 직후 로그 확보(기기 `AlwaysLateral`=1은 271cha에 확인), (6) carrot-ryu-v3 보존 시점 지정, (7) d082d92 실차 확인용 주행 로그 확보, (8) Xiaoge 사용 여부 확인(답에 따라 제외 4건 재점검), (10) 110cff9 실차 확인용 재주행 로그 확보(위 신규 267cha 항목).
+- 사용자가 고를 수 있는 것: (1) 1326f21의 옆 차선 오감속 판정용 로그 확보(크루즈 작동 중 비전 단독 앞차, 옆 차선에 차가 많은 도로)와 `radar_gate/release_replay.py`/`margin_scan.py` 재생(코드 변경 없음), (2) 완료(271cha): 기기 `JerkCostEgo` 값 12 확인(결정은 12 유지, 270cha, 코드 변경 없음), (3) 정지 앞차 접근과 내비를 켠 램프 주행 재주행 로그 확보, (4) `test_radar_fault` 처리 결정, (5) carrot-ms b7dd150 이후 신규 커밋 점검(체크포인트 존재 확인부터; 268차 판정은 270차에 모두 확정), (11) 760905a 실차 확인용 주행 로그 확보(앞차와 함께 감속하는 장면, 위 신규 269cha 항목), (9) 353cc8e 시동 직후 로그 확보(기기 `AlwaysLateral`=1은 271cha에 확인), (6) carrot-ryu-v3 보존 시점 지정, (7) d082d92 실차 확인용 주행 로그 확보, (8) Xiaoge 사용 여부 확인(답에 따라 제외 4건 재점검), (10) 110cff9 실차 확인용 재주행 로그 확보(위 신규 267cha 항목), (12) `ShowPathEnd` 브로커 결함 후보 수정 승인(위 신규 273cha (a)), (13) 데드코드 감사 이어가기: 백업 누락 재확인과 AST 후보 재스캔(위 신규 273cha (c)).
 - 코드 변경이 나오면 사용자 승인 후 5절 순차 전달(코드 스크립트 먼저 -> 확인 -> devnotes 1회)을 따른다.
