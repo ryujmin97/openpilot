@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-13 (277차)
+- `dead_scan/` 신규(277cha 새로 작성): `scan.py`(first-party 정의의 이름 기준 참조 스캔, 파일마다 ast 1회 파싱), `classify.py`(live/zero/test_only/dyn_only 분류와 연쇄 후보 고정점 계산)(README 277차 추가 참고). carrot-ryu c4f13a7에 실행해 직접 후보 19, 연쇄 11을 얻었고 해석은 WIP.md 277cha에 있다. 이름 기준 정적 분석이며 실차 검증과 무관하다. 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-13 (276차)
 - `lead_replay/` 신규(276cha 작성, 전부 앞 구간 기록에서 복원): `extract_log.py`(rlog -> cs/cc/rs/lp/gt pkl), `ol_replay.py`(게이트만 끈 열린 루프 재생), `lead_fit.py`(앞차 감속 역산), `plant_fit.py`(자차 1차 플랜트 보정), `cl_replay.py`(로그 앞차 궤적 폐루프), `batch.py`(민감도 묶음), `vision_stats.py`(비전 단독 대 레이더 앞차 통계), `cruise_speed.py`(로그 설정속도 확인)(README 276차 추가 참고). 275cha 로그(route 0000049d, 기록 커밋 760905a)의 119초 급제동 분석에 썼고 수치는 WIP.md 276cha에 있다. 실제 로그로는 다시 돌리지 못했고 합성 로그로 끝까지 도는 것만 확인했다. 다른 toolkit 파일은 변경 없음.
 
