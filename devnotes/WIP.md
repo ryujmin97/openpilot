@@ -1,5 +1,34 @@
 # WIP
 
+## 281cha 계속 (코드 변경 있음 91a6deb, 정적 분석과 샌드박스 단위 테스트, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `1728400` 부분 이식 반영 확인(carrot-ryu `91a6deb`: SubMaster 수신 시점 freq_ok 캐시와 managerState 디코딩 캐시), UI 번갈아 그리기 15개 파일은 미이식·미결
+
+**배경.** 같은 281cha의 이어진 구간이다(사용자가 "281cha 계속"으로 지정). 새 세션이라 4절 0단계로 지침 v2를 읽었다(note `9b89579` SHA 고정본, 브랜치 URL본과 `cmp`로 바이트 일치, 49,277바이트). 사용자가 "푸시 완료"라고 알렸다. 이 push를 만든 앞 구간의 대화(분석, 코드 작성, 테스트, 코드 스크립트)는 이 구간에서 보지 못했다. HANDOFF.md에 `91a6deb`는 없었고(`grep` 0건), `git ls-remote`는 carrot-ryu `91a6deb80ef863a800faad88e05a96dc5a39cf6d`(HANDOFF의 `9033753`이 아님), carrot-ryu-note `9b89579`를 반환했다. 그래서 16절대로 push 결과를 GitHub에서 직접 확인한 뒤 기록한다. 아래 값은 이 구간에서 GitHub와 샌드박스로 다시 얻은 것만 사실로 쓴다.
+
+**코드 반영 1회(carrot-ryu `91a6deb`, 5절의 코드 push 뒤 devnotes).** 부모 `9033753`, 작성자 ryujmin97, 2026-10-13 14:30:12 KST, 메시지 "perf: cache SubMaster frequency health and managerState process decoding (selective port of 1728400)", 3개 파일 +77/-5, 트리 파일 수 5,463 -> 5,464.
+1. `openpilot/cereal/messaging/__init__.py`(+22/-, 모드 100644, blob 6601c14): `SubMaster`가 `_received_freq_ok`를 두고 `freq_tracker[s].valid`를 메시지를 받은 루프(`self.updated[s]`)에서만 읽는다. `alive`/age와 시뮬레이션 덮어쓰기(`or self.simulation`)는 매 루프 계산한다. `all_alive`/`all_freq_ok`/`all_valid`는 `all(...)` 제너레이터 대신 조기 종료 루프이고 제외 목록 조건은 그대로다(`all_freq_ok`는 `_check_avg_freq`의 세 조건을 인라인했다).
+2. `openpilot/selfdrive/selfdrived/selfdrived.py`(+7/-, 모드 100755, blob 3e4126b): `managerState`의 `recv_frame`이 바뀔 때만 not-running 프로세스 집합을 다시 만든다(`_manager_frame`, `_not_running`). 이벤트 판단은 매 스텝 그대로다.
+3. 신규 `openpilot/cereal/messaging/tests/test_health_cache.py`(+53, 모드 100644, blob ec511b3): 2,500프레임 동안 수신 끊김, 무시 목록 변경, 시뮬레이션 토글을 넣어 캐시 방식과 원래 방식의 결과가 같은지 비교한다.
+4. 커밋 메시지의 "Not included": UI overlay 레이어 캐시(`overlay_cache`/`overlay_state`, 모델/HUD 렌더러 변경, 문서). `dm_fallback_processes`는 `1728400`에 없던 carrot-ms 기존 차이라 건드리지 않았다고 적혀 있다. "Static analysis and sandbox unit tests only; no on-road verification."
+
+**carrot-ms `1728400`과 대조(이 구간).** `1728400`(ajouatom 2026-10-13 12:56 KST)은 18개 파일 +722/-64이다(`git show --stat`).
+1. 가져온 3개 파일은 패치가 같다. `1728400~1..1728400`과 carrot-ryu `9033753..91a6deb`의 같은 3개 파일 diff를 `index`/`diff --git` 줄만 빼고 비교하니 `__init__.py`, `test_health_cache.py`는 완전히 같고 `selfdrived.py`는 hunk 시작 줄 번호만 다르다(carrot-ms 134/403, carrot-ryu 130/388, 파일 앞부분 줄 수 차이). 내용은 같다.
+2. 가져오지 않은 15개 파일: `docs/ui_alternating_layers_20261013.md`, `selfdrive/ui/mici/onroad/{augmented_road_view,hud_renderer,model_renderer}.py`, `selfdrive/ui/onroad/{augmented_road_view,hud_renderer,model_renderer}.py`, `selfdrive/ui/overlay_state.py`, `system/ui/lib/{application,overlay_cache}.py`, 테스트 5개(`test_carrot_hud_renderer.py`, `test_carrot_model_renderer.py`, `test_mici_road_view_mode.py`, `test_overlay_cache.py`, `test_ui_render_costs.py`). 이 묶음은 C3/C4 모델과 HUD 그리기를 번갈아 하는 표시 쪽 변경이다. 이 구간에서도 diff 본문은 읽지 않았고 이식 여부는 정해지지 않았다. `ui/onroad/model_renderer.py`는 carrot-ryu `64d3469`도 건드린 파일이다.
+
+**샌드박스 테스트(이 구간, `pytest_ci_setup.sh`로 91a6deb 체크아웃, `-n 0`).**
+1. 신규 `test_health_cache.py` 1 passed(0.19초).
+2. 변이 실험으로 테스트가 캐시 오류를 잡는지 봤다: (a) 수신 때 캐시를 갱신하는 `if self.updated[s]:`를 `if False:`로 바꾸면 1 failed. (b) `all_freq_ok`에서 `s not in self.ignore_alive` 조건을 빼면 1 failed. 둘 다 원복했고 `git status`에 추적 파일 변경이 없음을 확인했다. (c) `selfdrived.py` 캐시는 이 테스트가 겨냥하지 않는다. 그 캐시를 직접 검증하는 테스트는 없고 이 구간에서 만들지 않았다(변이 3은 돌리지 않고 원복했다).
+3. 관련 기존 테스트(`cereal/messaging/tests`, `common/tests/test_runtime_diagnostics.py`, `controls/tests/test_lateral_event_readiness.py`, `test_lateral_readiness.py`, `selfdrived/tests`): `91a6deb`에서 6 failed/506 passed(첫 실행)와 5 failed/507 passed(재실행). 기준선은 패치를 되돌려(`git apply -R`) `9033753` 내용으로 돌려 6 failed/505 passed였다. 계속 실패하는 5건(`test_services.py::test_generated_header`, `test_alerts.py`의 `test_events_defined`/`test_alert_translation_catalogs_complete`/`test_alert_text_length`/`test_alert_sanity_check`)은 기준선에서도 같다. `test_update_reboot_alert.py::test_notice_has_no_disengage_and_yields_to_critical_alerts`는 기준선 1회 실패, `91a6deb` 1회 실패와 1회 통과로 실행마다 달랐다(원인은 조사하지 않았다). 5건의 원인도 조사하지 않았다. 패치를 다시 적용한 뒤 HEAD가 `91a6deb`이고 추적 파일 변경이 없음을 확인했다(`openpilot/cereal/gen/`는 설정 스크립트나 테스트가 만든 미추적 폴더).
+4. `freq_ok`를 쓰는 곳 `git grep`: 비테스트 코드는 읽기만 하는 `common/runtime_diagnostics.py`와 값을 임의로 넣는 디버그 도구 `selfdrive/debug/cycle_alerts.py`뿐이고, 이 도구는 실행하지 않았다. `FrequencyTracker.valid`는 `record_recv_time`이 바꾸는 이동평균에만 의존해(소스 확인) 수신 없이는 값이 바뀌지 않으므로 수신 때만 갱신해도 원래 값과 같아야 한다.
+
+**사용자 결정과 미결.** 이 구간은 `1728400`의 어느 부분을 이식할지 승인한 대화를 보지 못했다. 사용자가 확인해 준 것은 "push 완료"와 "281cha 계속"이다. UI 번갈아 그리기 15개 파일의 이식 여부와 `1728400` 전체 판정은 미결이고 carrot-ms 체크포인트는 `b7dd150`을 유지한다. 280차 제안 22건 중 미확정분, `3038d4a`(현 상태 유지), CAN 파서 보류는 281cha 앞 구간 기록 그대로다.
+
+**확인한 것(이 구간, GitHub SHA 고정과 blobless fetch).**
+1. `git ls-remote`: carrot-ryu `91a6deb`, carrot-ryu-note `9b89579`(281cha devnotes 반영본, 부모 `d0df240`, 변경 HANDOFF.md/WIP.md/WIP_SYNC.md 3개 +63/-5). carrot-ryu 부모 체인 `91a6deb` -> `9033753` -> `64d3469` -> `307b341` -> `3684e67` -> `c4f13a7`.
+2. 3개 파일 모드와 blob 해시(`git diff-tree --raw`), 변경 파일 3개 BOM 없음과 CR 0(파이썬으로 센 값), 트리 파일 수 5,463 -> 5,464, `--shortstat` 3 files +77/-5.
+3. diff 본문 전체를 읽었다(`__init__.py`, `selfdrived.py`). 인라인한 조건이 원래 `_check_avg_freq`와 같음을 소스로 확인했다.
+
+**한계.** 정적 읽기와 샌드박스 단위 테스트이며, 전체 pytest는 돌리지 않았다. 실기기에서 `SubMaster` 헬스 판단, 시동과 주행, 이벤트(프로세스 미실행, 통신 이상), CPU 부하 감소는 확인하지 않았고 부하를 재지 않았다. 앞 구간의 테스트 수치는 보지 못했다. 실차 검증: 미실시.
+
 ## 281cha (코드 변경 있음 64d3469, 9033753, 정적 분석과 샌드박스 단위 테스트, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 성능 커밋 `ef2660e`/`46ce7a8` 선택 이식 2회(MPC 비용 캐시와 핫패스 정리, 파라미터 조건부 읽기와 coasting 조기 종료), 신호등 6건 제외 결정, CAN 파서 보류, 신규 `1728400` 미검토
 
 **배경.** 이 구간은 새 세션이다. 4절 0단계로 지침 v2를 읽었고(note `d0df240` SHA 고정본, 브랜치 URL본과 `cmp`로 바이트 일치), HANDOFF.md, WIP.md, WIP_SYNC.md도 같은 SHA에서 읽었다. 사용자는 세션 시작 지시문과 앞 구간의 마지막 응답(2차 코드 push 확인 결과와 devnotes 계획)을 붙여넣고 "진행"으로 devnotes 스크립트 작성을 승인했다. 앞 구간(성능 커밋 분석, 코드 작성, 샌드박스 테스트, 1차 push 확인, 코드 스크립트 전달)의 대화는 이 구간에서 보지 못했다. 그래서 아래 값은 이 구간에서 GitHub로 다시 얻은 것만 사실로 쓰고, 앞 구간에서 온 것은 그렇게 표시한다.

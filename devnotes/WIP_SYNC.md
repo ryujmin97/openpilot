@@ -1,5 +1,20 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-13 (281차 계속) -- carrot-ms `1728400` 부분 이식 반영 확인(carrot-ryu 91a6deb, 3개 파일: SubMaster 헬스 캐시), UI 번갈아 그리기 15개 파일 미이식·미결, 체크포인트 `b7dd150` 유지
+
+- 점검 범위: carrot-ms HEAD는 이 구간에서도 `1728400acbeec422cdc4d5c784b02c019c2ca6c6`(depth 3 blobless fetch로 확인, 281차 때와 같다). `b7dd150..HEAD` 24건은 281차 기록 그대로다.
+- 체크포인트는 `b7dd150` 그대로다. `1728400`은 일부만 이식했고 나머지는 판정하지 않았다.
+- 이 세션은 push를 만든 앞 구간의 대화를 보지 못했다. 반영 내용은 carrot-ryu `91a6deb`의 커밋 메시지, diff 본문, carrot-ms `1728400`의 stat과 같은 파일 patch 대조에서 얻었다.
+
+| 분류 | 커밋 | 결과 |
+|---|---|---|
+| 부분 이식 반영(사용자 push, 승인 대화는 이 세션 미확인) | `1728400` 중 3개 파일 | carrot-ryu `91a6deb`(부모 `9033753`, 3개 파일 +77/-5). 가져온 것: `cereal/messaging/__init__.py`(SubMaster 수신 시점 `freq_ok` 캐시와 `all_*` 조기 종료), `selfdrive/selfdrived/selfdrived.py`(managerState `recv_frame`이 바뀔 때만 not-running 집합 재계산), 신규 `cereal/messaging/tests/test_health_cache.py`. carrot-ms 같은 3개 파일 patch와 비교해 내용이 같다(`selfdrived.py`는 hunk 줄 번호만 다름). 샌드박스: 신규 테스트 1 passed, 변이 2종은 실패로 잡힘, 관련 기존 테스트의 실패 5건은 기준선(`9033753`)에서도 같음. 정적 분석과 샌드박스 단위 테스트, 실차 미실시. 상세는 WIP.md 281cha 계속. |
+| 미이식, 미결 | `1728400` 중 나머지 15개 파일 | `docs/ui_alternating_layers_20261013.md`, `ui/mici/onroad/{augmented_road_view,hud_renderer,model_renderer}.py`, `ui/onroad/{augmented_road_view,hud_renderer,model_renderer}.py`, `ui/overlay_state.py`, `system/ui/lib/{application,overlay_cache}.py`, 테스트 5개. C3/C4 모델/HUD 그리기를 번갈아 하는 표시 변경이다(메시지: 카메라, 알림, 상호작용, 100 Hz selfdrived 판단은 그대로, 문서에 실기기 한계가 남음). diff 본문은 읽지 않았다. 이식 여부는 사용자가 고른다. `ui/onroad/model_renderer.py`는 carrot-ryu `64d3469`도 건드린 파일이라 먼저 대조한다. |
+| 변화 없음 | `3038d4a`, 280차 제안의 나머지, `ef2660e`의 CAN 파서 | 281차 기록 그대로다(`3038d4a` 현 상태 유지, 280차 제안 중 미확정분은 사용자 확정 전, CAN 파서 보류). |
+
+- 한계: 정적 분석이다. 코드 변경은 앞 구간의 push이고 이 세션은 devnotes만 기록한다. 장치 통합, 실차 검증 없음. 실차 검증: 미실시.
+- 다음 점검: `git cat-file -t b7dd150`로 존재부터 확인하고 b7dd150 이후를 이어서 한다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-13 (281차) -- carrot-ms `ef2660e`/`46ce7a8` 부분 이식 반영(carrot-ryu 64d3469, 9033753), 신호등 6건 제외 결정, CAN 파서 보류, 신규 `1728400` 미검토, 체크포인트 `b7dd150` 유지
 
 - 점검 범위: carrot-ms HEAD `1728400acbeec422cdc4d5c784b02c019c2ca6c6`. `git rev-list --count b7dd150..HEAD` = 24(280차의 23건 + 신규 `1728400`). `b7dd150`과 `3038d4a`는 commit으로 존재하고 HEAD의 조상이라 rebase는 없었다.
