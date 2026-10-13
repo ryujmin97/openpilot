@@ -1,5 +1,22 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-13 (282차) -- carrot-ms `1728400` 나머지 UI 번갈아 그리기 15개 파일 분류, 이식 보류(사용자 선택지 A), 체크포인트 `b7dd150` 유지
+
+- 점검 범위: carrot-ms HEAD는 `1728400acbeec422cdc4d5c784b02c019c2ca6c6`(`git ls-remote`, depth 3 blobless fetch, 281차 계속과 같다). `b7dd150..HEAD` 24건은 281차 기록 그대로다. 이번에는 `1728400` 중 281차 계속에서 이식하지 않은 15개 파일만 읽었다.
+- 체크포인트는 `b7dd150` 그대로다. `1728400`은 3개 파일만 부분 이식(carrot-ryu `91a6deb`)했고 나머지 15개는 이번에 분류만 하고 이식을 보류했다.
+
+| 분류 | 파일 | 결과 |
+|---|---|---|
+| 보류(신규 파일) | `system/ui/lib/overlay_cache.py`, `selfdrive/ui/overlay_state.py`, `selfdrive/ui/tests/test_overlay_cache.py` | carrot-ryu에 없음, 그대로 추가 가능하나 이식 보류 |
+| 보류(그대로 적용됨) | `system/ui/lib/application.py`, `selfdrive/ui/onroad/model_renderer.py`, `tests/test_carrot_model_renderer.py`, `tests/test_ui_render_costs.py` | `git apply --check` 통과(줄 번호 offset만) |
+| 보류(손질 필요) | `selfdrive/ui/onroad/hud_renderer.py`(14 중 2 거부), `onroad/augmented_road_view.py`(4 중 3 거부), `tests/test_carrot_hud_renderer.py`(4 중 2 거부) | carrot-ryu 고유 코드(스크린샷/녹화 버튼, `uiHud` 계측, `DriverStateRenderer`, `close()` 없음)와 맞지 않음. 이식하면 `_render` 재구성, `close()` 추가, 테스트 보정 필요 |
+| 내 차량 해당 없음으로 읽음(C4 전용) | `selfdrive/ui/mici/onroad/{augmented_road_view,hud_renderer,model_renderer}.py`, `tests/test_mici_road_view_mode.py` | 큰 UI는 tici/tizi, 그 외는 `MiciMainLayout`(코드 읽기). 본문 전체는 읽지 않았다 |
+| 이식 불필요 | `docs/ui_alternating_layers_20261013.md` | 문서 |
+
+- 보류 사유: 업스트림 실측이 C3 실기기가 아니다(C4 하드웨어에서 C3 UI 코드 오프스크린 측정, 27.6% 감소), GPU/메모리 증가(렌더 텍스처 2장, 약 36 MiB 추정)와 프레임당 합성 2회로 순효과를 모른다, 이 기기의 fps 저하는 원래 수준일 가능성이 크다는 227cha 판단, 화면 갱신 10 Hz로 움직임이 덜 부드러울 수 있다.
+- 재결정 조건: 다음 주행 로그의 `runtimeTiming` UI 구간 시간(`uiHud` 등)을 먼저 확인한다. 이식하면 선택지 B(부분) 또는 C(전체)와 5절 순차 전달을 따른다.
+- 정적 분석이며 carrot-ryu `91a6deb`에 대한 `git apply --check`/`--reject`(임시 사본)만 실행했다. 실차 검증은 미실시다. 상세는 WIP.md 282cha.
+
 ## 중간 기록: 2026-10-13 (281차 계속) -- carrot-ms `1728400` 부분 이식 반영 확인(carrot-ryu 91a6deb, 3개 파일: SubMaster 헬스 캐시), UI 번갈아 그리기 15개 파일 미이식·미결, 체크포인트 `b7dd150` 유지
 
 - 점검 범위: carrot-ms HEAD는 이 구간에서도 `1728400acbeec422cdc4d5c784b02c019c2ca6c6`(depth 3 blobless fetch로 확인, 281차 때와 같다). `b7dd150..HEAD` 24건은 281차 기록 그대로다.
