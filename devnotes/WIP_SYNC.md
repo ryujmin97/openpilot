@@ -1,5 +1,22 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-13 (281차) -- carrot-ms `ef2660e`/`46ce7a8` 부분 이식 반영(carrot-ryu 64d3469, 9033753), 신호등 6건 제외 결정, CAN 파서 보류, 신규 `1728400` 미검토, 체크포인트 `b7dd150` 유지
+
+- 점검 범위: carrot-ms HEAD `1728400acbeec422cdc4d5c784b02c019c2ca6c6`. `git rev-list --count b7dd150..HEAD` = 24(280차의 23건 + 신규 `1728400`). `b7dd150`과 `3038d4a`는 commit으로 존재하고 HEAD의 조상이라 rebase는 없었다.
+- 체크포인트는 `b7dd150` 그대로다. 280차 제안 22건 중 이 세션에서 확정된 것은 아래 반영분과 신호등 6건 제외뿐이고, 신규 `1728400`은 아직 검토하지 않았다.
+- 이 세션은 앞 구간(성능 커밋 분석과 코드 반영)의 대화를 보지 못했다. 반영 내용은 carrot-ryu 두 커밋의 메시지와 변경 파일 목록, carrot-ms 커밋의 stat을 이 세션에서 GitHub로 읽은 것이다.
+
+| 분류 | 커밋 | 결과 |
+|---|---|---|
+| 부분 이식 반영(사용자 승인) | `ef2660e`, `46ce7a8` | carrot-ryu `64d3469`(1차, 13개 파일 +209/-26)와 `9033753`(2차, 6개 파일 +135/-30). 가져온 것: MPC 비용 캐시(`long_mpc.py`, `lat_mpc.py`)와 `A_CHANGE_FACTORS`, 앞차 간격 여유 루프 재사용, `longitudinal_braking_gap.py` 만료 floor 조기 반환, hyundai `clip_float`(신규 `scalar.py`), `carrot_functions.py` t_follow 정리, `runtime_diagnostics.py` 집계, `model_renderer.py` 초기화, `carrot_controls.py`/`controlsd.py` 파라미터 조건부 읽기, `longitudinal_planner.update_coasting` 조기 veto, 테스트(신규 `test_cpu_cost_cache.py`, `test_carrot_controls_cpu.py`, `test_scalar.py` 등). 가져오지 않은 것: 문서 2개, `hyundaicanfd.py`(CAN-FD), `signal_*` 계열과 `tools/signal_analysis`, `cluster_renderer.py` 5줄(신호등 표시), `impact_detector.py` 관련(carrot-ryu에 파일 없음). 정적 분석과 샌드박스 단위 테스트(커밋 메시지 표기), 실차 미실시. 상세는 WIP.md 281cha. |
+| 보류 | `ef2660e`의 CAN 파서 변경(`opendbc_repo/opendbc/can/parser.py` +11, `test_packer_parser.py` +29) | 이식하지 않았다. 사유는 이 세션에서 보지 못했고 사용자가 보류로 정했다. 재결정은 사용자가 고른다. |
+| 제외 결정(사용자) | 신호등 정지 준비 계열 6건 | 280차 표의 신규 6건 `8675127`, `064bc77`, `1a96636`, `830775d`, `529d4e7`, `a20ed50`으로 읽는다(앞 구간에서 6건의 해시를 이 세션에서 보지 못해 280차 기록과의 연결은 추정). 전제 파일(`signal_assist`, `signal_start_guard`, `signal_tracking_shadow`, `signal_stop_prepare`)이 carrot-ryu에 없고 263~270차에 같은 계열을 제외 확정한 전례가 있다. |
+| 신규, 미검토 | `1728400` | "perf: alternate onroad display layers and cache unchanged health work"(ajouatom 2026-10-13 12:56 KST, 체리픽 원본 `0611d489`). 18개 파일 +722/-64. C3/C4 모델/HUD 그리기 번갈아 하기와 health 디코딩 캐시. 공용 경로(`cereal/messaging/__init__.py`, `selfdrived.py`, `ui/onroad/*`, `system/ui/lib/application.py`)를 건드린다. 이 세션에서는 stat과 커밋 메시지만 읽었고 diff 본문은 읽지 않았다. `ui/onroad/model_renderer.py`는 carrot-ryu 64d3469도 건드린 파일이다. |
+| 변화 없음 | `3038d4a`, 280차 제안의 나머지 | `3038d4a`는 현 상태 유지, 로그 분석 후 재결정(280차 결정 그대로). 1차 `64d3469`가 비용 캐시와 `A_CHANGE_FACTORS`를 carrot-ryu에 넣었으므로 `long_mpc.py` 충돌 범위가 달라졌을 수 있다(`git apply --check` 재실행 전이라 미확인). 280차의 Bosch 4건 제외 제안, 신호등 나머지 4건(`a3d8efe`, `21d1372`, `ca2c55f`, `e036d89`) 보류 제안, 테스트/문서 6건은 사용자 확정을 받지 않았다. |
+
+- 한계: 정적 분석이다. `1728400`과 성능 커밋의 diff 본문 전체는 읽지 않았다. 코드 변경(이 세션은 devnotes만), 테스트 실행, 장치 통합, 실차 검증 없음. 실차 검증: 미실시.
+- 다음 점검: `git cat-file -t b7dd150`로 존재부터 확인하고 b7dd150 이후를 이어서 한다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-13 (280차) -- carrot-ms `b7dd150..3038d4a` 신규 23건 1차 분류, 체크포인트 `b7dd150` 유지 (`3038d4a`는 현 상태 유지 후 로그 분석으로 결정)
 
 - 점검 범위: carrot-ms HEAD `3038d4aa93d7bb174b88501b3f1dca47b588ddca`. `git rev-list --count b7dd150..3038d4a` = 23. `b7dd150`은 commit으로 존재하고 HEAD의 조상이라 rebase는 없었다. 첨부된 앞 응답은 HEAD를 `4646ccb`(22건)로 봤고, `4646ccb`는 조상이다. 이후 1건(`3038d4a`)이 늘었다.
