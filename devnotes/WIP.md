@@ -1,5 +1,29 @@
 # WIP
 
+## 284cha (코드 변경 없음, 정적 분석과 샌드박스 단위 테스트, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ryu `044fa76`(carrot-ms `ef2660e` CAN 파서 이식)와 `e1fa15a`(carrot-ms `3038d4a` 거리 기억 제거 이식) push를 GitHub로 직접 확인하고 기록, 체크포인트 `1728400` 유지
+
+**배경.** 새 세션이다. 4절 0단계로 지침 v2(note `ed623a8` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트)와 HANDOFF를 읽었다. HANDOFF의 carrot-ryu HEAD는 `91a6deb`인데 `git ls-remote`의 실제 HEAD는 `e1fa15a`였다(16절 괴리). 사용자가 붙여 준 push 로그(`044fa76` -> `e1fa15a`)와 depth 15 blobless fetch의 `git log`로 확인했다: `91a6deb` 뒤에 `044fa76`(2026-10-13 16:09 KST)와 `e1fa15a`(16:37 KST) 두 커밋이 있다. 283cha WIP/WIP_SYNC/HANDOFF는 이 두 건을 보류(`ef2660e` CAN 파서)와 현 상태 유지(`3038d4a`)로 적었으므로, 그 뒤에 사용자가 이식한 것이다. 이 이식을 결정하고 만든 앞 구간의 대화는 이 구간에서 보지 못했다(결정 경위 미확인). 사용자가 확인 결과를 보고 기록하라고 해서("진행") 이 회차로 남긴다. 아래 283cha 등의 "보류" 기록은 그 시점의 기록이고 지우지 않는다.
+
+**커밋 내용(diff 본문과 커밋 메시지).**
+1. `044fa76`(부모 `91a6deb`, 2개 파일 +37/-3): carrot-ms `ef2660e` 중 `opendbc_repo/opendbc/can/parser.py`(+8/-3)와 `opendbc_repo/opendbc/can/tests/test_packer_parser.py`(+29)만 이식했다. `CANParser.update()`가 매번 모든 주소의 값 리스트를 `clear()`하던 것을, 직전 업데이트에서 값이 들어온 리스트(`_updated_lists`)만 비우도록 바꾼다. 리스트 객체 identity는 유지한다. 커밋 메시지는 동작 동등 최적화라고 적는다.
+2. `e1fa15a`(부모 `044fa76`, 11개 파일 +99/-166): carrot-ms `3038d4a`의 이식이다. `longitudinal_braking_gap.py`의 `BrakingGapState`가 `LeadComfortState`로 바뀌고 제동 시작 거리 기억(`floor`, `margin`, `margins()`, `_advance()`)과 정차 후 유지가 없어진다. comfort relief와 그 점검(`comfort_path_has_reserve`, `comfort_relief`)은 남는다(`eligible`에서 `self.margin <= 0.01` 조건만 빠졌다). `long_mpc.py`는 `self.braking_gap_states`를 `self.lead_comfort_states`로 바꾸고 `braking.update(...)`와 `braking_margins`를 `lead_gap_margins`에 합치던 줄을 지웠다. `docs/user/{en,ko}/{cruise-gap,settings}.md` 4개(각 +1/-1), `carrot_settings.json`(+15/-15), 테스트 4개(`test_cutout_mpc_integration.py`, `test_cpu_cost_cache.py`, `test_longitudinal_braking_gap.py`, `test_longitudinal_gap_recovery.py`)가 바뀌었다. carrot-ms의 설계 문서 `docs/longitudinal_approach_20261011.md`는 넣지 않았다(커밋 메시지).
+
+**GitHub로 직접 확인(16절, 이 구간).**
+- `git ls-remote`: carrot-ryu `e1fa15a`, note `ed623a8`. 부모 체인 `e1fa15a` -> `044fa76` -> `91a6deb`.
+- 변경량과 모드: `044fa76` +37/-3(2개 파일), `e1fa15a` +99/-166(11개 파일, push 로그의 stat과 같다). 13개 파일 모두 모드 100644, BOM 없음, CR 0. 트리 파일 수 `91a6deb`, `044fa76`, `e1fa15a` 모두 5,464.
+- 남은 참조: `e1fa15a` 트리에서 `BrakingGapState`, `braking_gap_states`, `braking_margins`는 `openpilot/selfdrive`의 `.py`와 `docs`에 없다. `.margins(` 두 곳은 `long_mpc.py`의 `LeadGapState.margins`와 그 테스트로 다른 클래스다(`git grep`).
+- carrot-ms `3038d4a`와 대조: `docs/user`와 `openpilot/selfdrive` 변경 줄(+/-)을 뽑아 비교했다. 각각 265줄이고, `carrot_settings.json`의 설명문 15쌍(공통값 1개와 갭 1~4단계의 `descr`/`edescr`/`cdescr`) 말고는 줄이 글자 그대로 같다. 설명문은 carrot-ms 쪽에 "추가 여유의 유지 조건 ... 1.2~1.5배" 문장이 이미 들어 있는데 carrot-ryu 기존 문장에는 없고, 이식분은 carrot-ryu 기존 문장 끝에 "감속 시작 거리를 별도로 기억하거나 정차 후 유지하지 않습니다" 문장만 붙였다. 이 문장 차이는 이번 변경 전부터 있었고 원인은 조사하지 않았다.
+
+**샌드박스 테스트(`pytest_ci_setup.sh`로 carrot-ryu `e1fa15a` 환경 구성, `-n 0 -p no:randomly`).**
+- 이번에 바뀐 테스트 4개 파일(`test_longitudinal_braking_gap.py`, `test_longitudinal_gap_recovery.py`, `test_cpu_cost_cache.py`, `test_cutout_mpc_integration.py`)과 `test_packer_parser.py`를 함께 돌린 1차: 174 passed / 12 failed. 12건은 전부 `test_packer_parser.py`이고 원인은 샌드박스에 생성형 DBC(`honda_civic_touring_2016_can_generated.dbc` 등)가 없어서였다(FileNotFoundError). 바뀐 테스트 4개 파일에는 실패가 없었다.
+- `opendbc/dbc/generator/generator.py`로 DBC를 만든 뒤 `opendbc_repo/opendbc/can/tests/`: 50 passed / 1 failed(`test_parser_can_valid`, `assert not parser.can_valid`). `parser.py`를 `91a6deb` 내용으로 되돌려 같은 테스트 파일을 돌려도 17 passed / 1 failed로 같은 테스트가 같은 이유로 실패한다. 이번 변경이 만든 실패가 아니다. 구 파서와 결과가 같으므로 이 테스트 묶음은 `_updated_lists` 최적화의 적용 여부를 가르지는 못한다(동작 동등 최적화라 예상된 결과이고, 변이 시험은 하지 않았다). 생성기는 샌드박스 사본의 추적 파일 2개(`hyundai_canfd_corner_radar_180_generated.dbc`, `..._235_generated.dbc`)를 바꿨다(push하지 않았고 원인은 조사하지 않았다).
+- `openpilot/selfdrive/controls/tests`와 `openpilot/selfdrive/carrot/tests` 전체(`--continue-on-collection-errors`): 2,657 passed / 6 failed / 4 skipped / 24 errors. 실패 6건: `test_leads.py::TestLeads::test_radar_fault`, `test_cluster_performance_safeguards.py::test_cluster_autorun_restarts_without_delay_after_orientation_change`, `test_cluster_scene.py::test_road_camera_world_reuses_one_projection_for_background_and_overlay`, `test_dashcam_replay.py::test_raw_query_extracts_nested_lists_and_state_transitions`, `test_xiaoge_inference.py`의 ONNX 2건. 에러 24건: `test_xiaoge_vision.py` 22건, `test_latcontrol_torque_buffer.py` 수집(`LAT_ACCEL_REQUEST_BUFFER_SECONDS` import 실패), `test_lateral_mpc.py` 수집(`lateral_mpc_lib/c_generated_code` 없음, 샌드박스에서 lat_mpc 솔버를 만들지 않았다).
+- `test_radar_fault`는 `parser.py`를 `91a6deb` 내용으로 되돌려도 똑같이 실패한다(`HyundaiSafetyFlags`에 `CANFD_LKA_STEER_MSG` 속성이 없다). 이번 변경과 무관하다. 나머지 실패와 에러는 이번 변경과 닿지 않는 영역(xiaoge, 클러스터, 대시캠, lat_mpc 솔버)으로 읽었지만 이전 커밋 기준선과 직접 비교하지는 않았다.
+
+**carrot-ms 상태.** `git ls-remote` HEAD는 `97515da`이고, `1728400`은 commit으로 존재하며 HEAD의 조상이다(rebase 없음). `1728400..HEAD`는 2건이다: `ad17ce5`(2026-10-13 16:07, "restore per-frame UI rendering after C3 overlay flicker")와 `97515da`(16:26, "preserve comma window framebuffer during overlay reuse"). 제목과 날짜만 읽었고 diff는 읽지 않았다(미검토). 체크포인트는 `1728400` 그대로다.
+
+**한계와 주의.** 정적 분석, diff 읽기, 샌드박스 단위 테스트까지다. 실차 검증: 미실시. 두 이식의 결정 경위와 앞 구간의 테스트 결과는 보지 못했다. `3038d4a`의 효과(거리 기억을 없앤 것이 앞차와 함께 감속하는 장면의 간격에 주는 영향)를 로그로 판정하는 작업은 이 구간에서도 하지 않았고, 280cha에서 "로그 분석 후 결정"이라던 순서보다 이식이 먼저 이루어졌다. 이 판정을 계속할지는 사용자가 정한다. 코드는 수정하지 않았다.
+
 ## 283cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 280차 제안 22건 중 미확정 20건 제외 확정, 체크포인트 `b7dd150` -> `1728400` 전진, 보류 3건(`3038d4a`, `ef2660e` CAN 파서, `1728400` UI 15개) 추적 유지
 
 **배경.** 새 세션이 아니라 282cha 뒤 이어진 대화다(회차는 devnotes 기록 단위로 올렸다). 사용자가 HANDOFF의 "280차 제안 22건 확정"과 "`ef2660e` CAN 파서 재결정" 두 항목의 내용을 물었고, 내용을 설명한 뒤 선택지 A(나머지 제외 확정, 체크포인트 전진, CAN 파서 보류), B(CAN 파서 이식), C(확정 미룸)를 냈더니 사용자가 "너의 판단대로 진행"으로 맡겼다. 아래 결정은 사용자가 위임한 Claude의 판단이며 선택지 A에 해당한다. 되돌리고 싶으면 사용자가 알려 주면 된다.
