@@ -1,5 +1,28 @@
 # WIP
 
+## 280cha (코드 변경 없음, 정적 분석과 읽기 전용 `git apply --check`, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `b7dd150..3038d4a` 신규 23건 1차 분류, `3038d4a`(거리 기억 제거)는 현 상태 유지 후 로그 분석으로 결정
+
+**배경.** 이 구간은 새 세션이다. 4절 0단계로 지침 v2를 읽었고(note `dd8baa8` SHA 고정본, 브랜치 URL본과 `cmp`로 바이트 일치), HANDOFF.md도 같은 SHA에서 읽었다. 사용자는 앞선 응답(대화에 붙여넣어진 carrot-ms 22건 1차 분류)과 `Update-CarrotMsAudit-279.ps1`을 첨부하고 "계속"이라고 했다. 첨부 응답의 판정은 이 세션에서 diff를 다시 읽지 않았으므로 앞 세션의 기록으로만 취급한다.
+
+**16절 상태 대조(첨부 응답과 현재 GitHub).** 첨부 응답은 carrot-ryu `c4f13a7` 변경 없음, note `ee4068a`, carrot-ms HEAD `4646ccb`(신규 22건)라고 했다. 이 세션에서 `git ls-remote`/`git clone`으로 직접 확인한 현재 값은 carrot-ryu `307b341`(279cha 반영), note `dd8baa8`(279cha devnotes, 부모 `ee4068a`), carrot-ms HEAD `3038d4a`(신규 23건)이다. GitHub API는 rate limit이라 `git`만 썼다. `b7dd150`과 `4646ccb`는 carrot-ms에 존재하고 `4646ccb`는 HEAD의 조상이라 rebase는 없었다. `git rev-list --count b7dd150..3038d4a` = 23.
+
+**첨부 스크립트는 폐기한다.** `Update-CarrotMsAudit-279.ps1`은 note가 `ee4068a`일 때만 적용되도록 막혀 있어 지금은 안전 중단되고, `ee4068a` 이후 note 커밋은 `dd8baa8` 하나뿐이라 반영된 흔적이 없다. 그대로 쓰면 안 되는 이유: (1) 회차 번호 279가 이미 사용 중이다. (2) WIP.md 항목을 파일 끝에 붙인다(7절은 최상단). (3) HANDOFF.md를 통째로 교체해 279cha까지의 작업/미완료/주의사항 이력을 지운다. (4) Worker를 다른 AI로 적는다. 이 회차에서 새로 작성했다.
+
+**신규 커밋 `3038d4a`(ajouatom, 2026-10-13 10:51 KST, 커밋 메시지상 체리픽 원본 `626b887d527ff3c619e885ff65c303255e2933c6`) "fix: remove braking-onset following distance memory".**
+- 269cha에 `8212379`로 이식해 carrot-ryu `760905a`부터 켜진 거리 기억(`BrakingGapState`: 감속 시작 거리 floor, margin 램프, 정차 쌍 유지, 예측 margins)을 제거한다. 클래스는 `LeadComfortState`로 바뀌고 `comfort_relief`의 적격 조건에서 `self.margin <= 0.01`이 빠진다. 편안함 완화, 레이더 `closing_range` 매칭, 물리적 장애물·가속·정지 제약은 유지한다. 12개 파일 +125/-166. 설정 JSON은 `descr`/`edescr`/`cdescr` 설명문만 바뀌고 키와 기본값은 그대로다.
+- 업스트림이 밝힌 이유: 갭 1단계 Urgent follow에서 차간이 늘고 앞차에서 너무 멀리 서는 문제를 사용자가 보고했고, 복구 방식을 손보는 대신 기억 제거를 요청했다. 이것은 업스트림 사용자의 보고이며 제네시스 DH 2015에서 같은 증상이 있다는 근거는 없다.
+- 업스트림 검증: 데스크톱 테스트 332건, 새 회귀 12건(부모에서 실패, 제거 후 통과). native ACADOS와 실차는 하지 않았다고 문서에 적혀 있다.
+- carrot-ryu 적용 가능성(읽기 전용 `git apply --check`, 파일 수정 없음): 문서 `cruise-gap.md` en/ko, 테스트 3개(`test_cutout_mpc_integration.py`, `test_longitudinal_braking_gap.py`, `test_longitudinal_gap_recovery.py`)는 적용된다. `long_mpc.py`, `longitudinal_braking_gap.py`, `docs/user/{en,ko}/settings.md`, `carrot_settings.json`은 적용되지 않는다. `test_cpu_cost_cache.py`는 carrot-ryu에 없다. 원인(diff로 확인한 차이): carrot-ryu `longitudinal_braking_gap.py`는 부모(`3038d4a^`)와 4줄 다르고(`margins()`의 만료 floor 조기 반환 3줄이 carrot-ryu에 없음), `long_mpc.py`는 부모와 167줄 다르다(carrot-ryu 맞춤 변경: `J_EGO_COST=12`, 리드 감속 게이트, `j_ego_cost` 인자. 부모에만 있는 것: 비용 캐시 `_cost_key`, `A_CHANGE_FACTORS`, `get_jerk_factor`). 부모에만 있는 변경이 어느 커밋에서 왔는지는 확인하지 않았다(성능 커밋 `ef2660e`일 가능성이 있으나 추정). 통째 체리픽은 불가하고 수동 적응이 필요하다.
+- 효과 판단 근거는 아직 없다. 275cha 로그(route 0000049d, `760905a`)에는 기준선이 없어 거리 기억의 개선 여부를 판정하지 못했다.
+
+**사용자 결정(280cha).** `3038d4a`는 "현 상태 유지 후 로그 분석을 통해 이식 결정"이다. 이식하지 않고, `760905a`의 거리 기억을 그대로 둔다. 로그 분석의 방향(제안, 아직 하지 않았다): 275/276cha의 route 0000049d(세그먼트 4~9)와 `toolkit/lead_replay/`로 거리 기억을 켠 경우와 끈 경우를 열린 루프로 비교하고, 앞차와 함께 감속하는 장면의 감속 시작 간격과 정차 후 최종 간격을 본다. 새 로그가 있으면 정지 앞차 접근과 갭 1단계 Urgent follow 장면을 우선한다.
+
+**나머지 22건(`b7dd150..4646ccb`) 분류.** 신규 6건(`8675127`, `064bc77`, `1a96636`, `830775d`, `529d4e7`, `a20ed50`)은 이 세션에서 `git show --stat`만 봤고 diff 본문은 읽지 않았다. 모두 신호등 정지 준비 계열(`signal_stop_prepare*`, `signal_tracking_shadow`, 신호 분석 도구, 문서)이다. carrot-ryu에는 `signal_assist`, `signal_start_guard`, `signal_tracking_shadow`, `signal_stop_prepare` 이름의 파일이 하나도 없다(`git ls-files`로 확인, `SignalAssistMode` 참조도 없음). 나머지 16건은 앞 세션 기록의 분류를 옮긴 것이다. 상세 표는 WIP_SYNC.md 280차 중간 기록. 제외/보류는 제안이며 사용자 확정은 `3038d4a` 외에는 받지 않았다(2절 4번).
+
+**정정 가능성.** 앞 세션 기록 중 "Bosch 커밋 `cc539b2`와 `6fd695a`를 앞서 잘못 연결했다"는 부분과 "`_tf_base_last` 미초기화 의심 철회(생성자에서 1.5)"는 이 세션에서 재확인하지 않았다.
+
+**한계.** 정적 분석과 읽기 전용 `git apply --check`, `diff`만 수행했다. 코드 수정, 테스트 실행, 장치 통합, 실차 검증은 하지 않았다. 실차 검증: 미실시.
+
 ## 279cha (코드 변경 있음 307b341, 정적 분석과 단위 테스트, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 데드코드 정리 결함 수정: 공유 헬퍼 `_draw_navi_round_line` 복원, `ClusterUiRenderer` 미정의 호출 가드 테스트 추가
 
 **배경.** 277cha (a) 정리안(`SceneCamera`와 신호등 패널 묶음)의 코드 정리가 이 회차의 앞 구간에 carrot-ryu 3684e67로 반영됐다(작성자 ryujmin97, 2026-10-13 10:54 KST, 3개 파일 256줄 삭제: `cluster_models.py` -20, `cluster_renderer.py` -231, `test_cluster_navi.py` -5). 앞 구간의 대화와 스크립트는 이 구간에서 보지 못했고, 3684e67은 GitHub의 커밋 메타데이터와 diff로 읽었다. 이 구간은 새 세션이다: 4절 0단계로 지침 v2를 읽었고(note ee4068a SHA 고정본, 브랜치 URL본과 바이트 일치), HANDOFF.md와 WIP.md도 같은 SHA에서 읽었다. 사용자는 앞 구간의 마지막 응답(결함 수정 스크립트 전달문)과 push 로그를 붙여넣었고, "너의 판단대로"로 devnotes 작성을 맡겼다.

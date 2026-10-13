@@ -1,14 +1,21 @@
-Worker: Claude (279cha, Claude Sonnet 5.5). 코드 변경 있음(carrot-ryu 307b341). 277cha 정리안으로 지운 코드 중 공유 헬퍼 `_draw_navi_round_line`을 3684e67이 함께 지운 결함을 복원하고, `ClusterUiRenderer` 미정의 `self._draw*`/`self._navi*` 호출을 잡는 ast 가드 테스트를 추가했다(정적 분석과 단위 테스트, 실차 검증 미실시). 나머지 내용은 이전 HANDOFF에서 옮긴 것이다.
+Worker: Claude (280cha, Claude Sonnet 5.5). 코드 변경 없음(carrot-ryu 307b341 그대로). carrot-ms `b7dd150..3038d4a` 신규 23건을 1차 분류했고 `3038d4a`(거리 기억 제거)는 현 상태 유지 후 로그 분석으로 결정하기로 했다(정적 분석과 읽기 전용 `git apply --check`, 실차 검증 미실시). 아래 "작업(279cha..."부터는 이전 구간 내용이다. 279cha 요약: 코드 변경 있음(carrot-ryu 307b341). 277cha 정리안으로 지운 코드 중 공유 헬퍼 `_draw_navi_round_line`을 3684e67이 함께 지운 결함을 복원하고, `ClusterUiRenderer` 미정의 `self._draw*`/`self._navi*` 호출을 잡는 ast 가드 테스트를 추가했다(정적 분석과 단위 테스트, 실차 검증 미실시). 나머지 내용은 이전 HANDOFF에서 옮긴 것이다.
 Date: 2026-10-13
 Repository: ryujmin97/openpilot
 Code Branch: carrot-ryu (현재 HEAD = 307b341(279cha 반영: `_draw_navi_round_line` 복원 +8, 신규 `test_cluster_renderer_self_calls.py` +72, 부모 3684e67 = 277cha 정리안 삭제 커밋, 그 부모 c4f13a7. 279cha에서 GitHub로 직접 확인했다: 변경 2개 파일 +80/-0, 모드 100644, BOM 없음, CR 0, 트리 파일 수 5,459). 그 아래 c4f13a7(275cha~278cha는 코드 변경 없음. 274cha 반영: `ShowPathEnd` 등록 + 가드 테스트, 부모 760905a). 274cha에서 GitHub로 직접 확인했다: 변경 2개 파일 +46/-0(`params_keys.h` +1, 신규 `test_settings_params_registered.py` +45), BOM 없음, CR 0, 중간 push 없음. 그 아래 base 760905a(8212379 이식 커밋, 부모 110cff9 = 267cha 반영 커밋)는 269cha에서 GitHub로 직접 확인했다: 변경 10개 파일 +415/-4(신규 3: `longitudinal_braking_gap.py`, `test_longitudinal_braking_gap.py`, `test_radar_closing_range.py`), 트리 파일 수 5,454 -> 5,457, 신규 파일 모드 100644, diff 안 CR 0.
-Note Branch: carrot-ryu-note (이 교체 직전 base ee4068a = 278cha devnotes 반영본. 이 HANDOFF 교체는 그 위에 올라간다).
+Note Branch: carrot-ryu-note (이 280cha 반영 직전 base dd8baa8 = 279cha devnotes 반영본. 이 HANDOFF 수정은 그 위에 올라간다).
 Archive Branches: carrot-ryu-v1 (6df4268eb31442be4d8abd92817111f7b26b1bf4, 불변), carrot-ryu-v2 (3ddf849ea3f3392c16d363d9edea6a1bc8eab041, 212cha 생성, 불변). carrot-ryu-v3는 아직 없고 보존 시점은 사용자가 정한다(20절).
-carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 신규 3건 점검, 전부 제외 확정. 268차의 `4896f0d`와 제외안 27건도 270차에 제외로 확정되어 확정 대기 항목은 없다. 후보 `8212379`는 269차에 전체 이식, carrot-ryu 760905a). 다음 점검은 b7dd150 이후 신규 커밋이 생겼을 때이며, `git cat-file -t b7dd150`로 존재부터 확인한다(carrot-ms는 재생성되므로).
+carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 신규 3건 점검, 전부 제외 확정. 268차의 `4896f0d`와 제외안 27건도 270차에 제외로 확정되어 확정 대기 항목은 없다. 후보 `8212379`는 269차에 전체 이식, carrot-ryu 760905a). 280차: `b7dd150..3038d4a` 신규 23건을 1차 분류했으나 사용자 확정 전이라 체크포인트는 b7dd150 유지(WIP_SYNC.md 280차 중간 기록). carrot-ms HEAD는 `3038d4a`(23건). `3038d4a`는 현 상태 유지, 로그 분석 후 이식 결정. 다음 점검은 b7dd150 이후를 이어서 하며, `git cat-file -t b7dd150`로 존재부터 확인한다(carrot-ms는 재생성되므로).
 
 이 파일은 8절대로 "최신 1개 버전만" 유지한다. 201cha~262cha의 작업/완료/미완료/검증/주의사항/다음 작업 전체 이력은 커밋 f58764b의 같은 경로에 그대로 있다: `git show f58764bd94f0e7fdc5b0c9e9f2028a85726894fa:devnotes/HANDOFF.md` 또는 SHA 고정 raw URL(https://raw.githubusercontent.com/ryujmin97/openpilot/f58764bd94f0e7fdc5b0c9e9f2028a85726894fa/devnotes/HANDOFF.md). 회차별 상세는 WIP.md(불변)가 갖고 있으므로 여기에 다시 쌓지 않는다. 아래 "미완료/주의사항"은 이전 HANDOFF에서 옮긴 것이며, 옮길 때 번호는 그대로 두었다. 상세가 필요하면 위 커밋에서 해당 번호를 읽는다.
 
-작업(279cha, 이 구간, 코드 변경 있음 307b341):
+작업(280cha, 이 구간, 코드 변경 없음):
+1. 4절 0단계(지침 v2, note dd8baa8 SHA 고정본, 브랜치 URL본과 바이트 일치)와 HANDOFF를 읽었다. 사용자가 붙여넣은 앞 응답(carrot-ms 22건 1차 분류, carrot-ryu c4f13a7, note ee4068a, carrot-ms HEAD 4646ccb 기준)과 `Update-CarrotMsAudit-279.ps1`을 현재 GitHub와 대조했다(16절): carrot-ryu 307b341, note dd8baa8, carrot-ms 3038d4a(23건)로 달랐다. 첨부 스크립트는 기대 HEAD ee4068a 때문에 안전 중단되고, 회차 번호 충돌, WIP.md 끝 이어붙임, HANDOFF 통째 교체 문제가 있어 폐기했다.
+2. 신규 `3038d4a`(거리 기억 제거)를 diff와 읽기 전용 `git apply --check`로 분석했다. 269cha 이식분(`BrakingGapState`, carrot-ryu 760905a)을 `LeadComfortState`로 바꾸며 거리 기억을 없앤다. 문서 2개와 테스트 3개만 carrot-ryu에 적용되고 `long_mpc.py`, `longitudinal_braking_gap.py`, `settings.md` 2개, `carrot_settings.json`은 carrot-ryu 맞춤 변경과 부모에만 있는 변경 때문에 적용되지 않아 수동 적응이 필요하다. 업스트림은 데스크톱 332건과 회귀 12건, native/실차 미실시.
+3. 사용자 결정: `3038d4a`는 현 상태 유지, 로그 분석을 거쳐 이식 여부를 결정한다. 거리 기억의 효과는 275cha 로그에 기준선이 없어 판정 못 했다.
+4. 나머지 22건은 앞 세션 기록의 분류를 옮겼고, 신규 6건(`8675127`, `064bc77`, `1a96636`, `830775d`, `529d4e7`, `a20ed50`)은 stat만 확인했다(모두 신호등 정지 준비 계열, carrot-ryu에 전제 파일 없음). 제외/보류는 제안이고 사용자 확정 전이라 WIP_SYNC 체크포인트는 b7dd150 유지.
+5. 수정은 하지 않았다. devnotes(WIP.md 280cha, WIP_SYNC.md 280차 중간 기록, 이 HANDOFF)를 PowerShell 스크립트로 기록한다. 코드 변경이 없어 5절의 devnotes 1회 push다.
+
+작업(279cha, 이전 구간, 코드 변경 있음 307b341):
 1. 4절 0단계(지침 v2, note ee4068a SHA 고정본, 브랜치 URL본과 바이트 일치)와 HANDOFF/WIP를 읽었다. 앞 구간(대화에 붙여넣어진 응답)에서 277cha (a) 정리안(`SceneCamera`와 신호등 패널 묶음)이 carrot-ryu 3684e67(256줄 삭제, 3개 파일)로 반영됐고, 그 삭제가 277cha 연쇄 9개 목록 밖의 공유 헬퍼 `_draw_navi_round_line`까지 지워 내비 회전 아이콘과 차선 스트립의 호출 5곳이 정의 없는 메서드를 가리키는 결함이 생긴 것을 확인해 고쳤다.
 2. 수정(307b341, 부모 3684e67): `cluster_renderer.py`에 `_draw_navi_round_line` 8줄을 `_draw_navi_guidance_image_box` 바로 앞에 복원했고(c4f13a7 원본 블록과 글자 그대로 같음), 신규 `selfdrive/carrot/tests/test_cluster_renderer_self_calls.py`(+72, 테스트 3개)를 넣었다. 가드는 ast로 `ClusterUiRenderer`의 `self._draw*`/`self._navi*` 직접 호출이 모두 정의돼 있는지 보고, 비어 통과하는 것과 검사기 오작동도 막는다. raylib가 필요 없다.
 3. 5절 순차 전달: 코드 스크립트 전달 -> 사용자 실행(`3684e67..307b341`) -> GitHub 직접 확인(부모 3684e67, 2개 파일 +8/+72, blob 해시, 모드 100644, BOM 없음, CR 0, 복원 블록이 c4f13a7과 일치, 트리 5,459) -> 이 devnotes. 가드 테스트는 이 구간에 샌드박스(`--noconftest`)에서 다시 돌렸다: 307b341 렌더러 3 passed, 3684e67 렌더러 1 failed(`{'_draw_navi_round_line': [5476, 5477, 5409, 5455, 5473]}`), pyflakes 0건.
@@ -126,6 +133,7 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 4. 이 HANDOFF를 교체했다(교체형).
 
 완료(최근 구간, 상세는 WIP.md와 WIP_SYNC.md):
+- 280cha: carrot-ms `b7dd150..3038d4a` 신규 23건 1차 분류와 `3038d4a`(거리 기억 제거) 분석을 마쳤다. `3038d4a`는 현 상태 유지, 로그 분석 후 이식 결정(사용자 결정). 나머지 22건 분류는 제안이고 체크포인트는 b7dd150 유지. 정적 분석이며 실차 검증은 미실시다.
 - 279cha: 277cha 정리안 삭제 커밋 3684e67이 공유 헬퍼 `_draw_navi_round_line`을 함께 지운 결함을 복원하고(carrot-ryu 307b341, 부모 3684e67, 2개 파일 +8/+72) `ClusterUiRenderer` 미정의 `self._draw*`/`self._navi*` 호출 ast 가드 테스트를 추가했다. GitHub에서 직접 확인했다. 정적 분석과 단위 테스트이며 실차 검증은 미실시다(기기에서 내비 회전 아이콘과 차선 스트립이 그려지는지는 미확인).
 - 278cha: cut-in 헬퍼 두 개를 운영 경로(`radar_motion/`)와 `CUTIN_VALIDATION.md`에 대조했다(헬퍼는 테스트 전용 사본이고 운영 불일치 결함 후보 없음, 277cha 표현 정정, 정적 분석, 실차 검증 미실시). 코드 변경 없음.
 - 277cha: 데드코드 감사 후속(백업 누락 재확인: 미등록 키는 `all_keys()` 순회라 백업에서 빠짐, 274cha 이후 미등록 설정 키는 `ShowRouteInfo`뿐 / first-party 정의 4,212개 AST 이름 기준 재스캔: 직접 후보 19, 연쇄 11 / 재스캔 도구 `toolkit/dead_scan/` 등록, 코드 변경 없음, 정적 분석, 실차 검증 미실시). 수정은 하지 않았다.
@@ -229,6 +237,7 @@ carrot-ms 마지막 검토 체크포인트: b7dd150 (270차: 28d2386..b7dd150 �
 - 코드 변경이 나오면 5절 순차 전달(코드 스크립트 먼저 -> GitHub 직접 확인 -> devnotes 1회)을 따른다.
 
 다음 작업:
+- 신규(280cha): (18) `3038d4a` 거리 기억 제거의 이식 여부는 로그 분석 후 결정한다(그때까지 760905a의 거리 기억 유지). 방향(제안, 아직 하지 않았다): route 0000049d(세그먼트 4~9, 275/276cha)와 `toolkit/lead_replay/`로 거리 기억을 켠 경우와 끈 경우를 열린 루프로 비교하고 앞차와 함께 감속하는 장면의 감속 시작 간격과 정차 후 최종 간격을 본다. 새 로그(정지 앞차 접근, 갭 1단계 Urgent follow)가 있으면 우선한다. 이식한다면 `long_mpc.py` 충돌 때문에 수동 적응이 필요하고 코드 변경이라 승인 후 5절 순차 전달을 따른다. (19) carrot-ms 23건의 제외/보류 제안(WIP_SYNC.md 280차 표) 확정과 체크포인트 전진 여부, 신호등 계열 신규 6건의 diff 본문 확인은 사용자가 고른다.
 - 신규(276cha): (15) 119초 장면 후속은 게이트만 끈 재생과 로그 앞차 궤적 폐루프까지 완료(276cha). 남은 것은 다른 로그에서 비전 단독 앞차의 감속 과소 보고 반복 확인(크루즈 중 앞차 급감속 장면 로그 필요, 도구는 `toolkit/lead_replay/`). (16) 고속도로 직선·진출 램프 로그와 정지 앞차 접근 로그 확보(이번 도심 로그로 판정 못 한 항목, 위 신규 275cha (c)). (17) 게이트가 입력이 정확할 때 제동을 늦추는 점의 수정안 검토(코드 변경이라 승인 전, 제안·구현하지 않았다. 근거가 한 로그의 한 사건이라 단독으로는 약하다).
 - route 낡은 filt 수정은 110cff9로 반영됐다(위 신규 267cha 항목). 다음은 사용자가 고른다. 새 로그가 있으면 직선 고속도로 route 상한 유지와 진출 램프 감속 과다 여부를 먼저 본다.
 - 사용자가 고를 수 있는 것: (1) 1326f21의 옆 차선 오감속 판정용 로그 확보(크루즈 작동 중 비전 단독 앞차, 옆 차선에 차가 많은 도로)와 `radar_gate/release_replay.py`/`margin_scan.py` 재생(코드 변경 없음), (2) 완료(271cha): 기기 `JerkCostEgo` 값 12 확인(결정은 12 유지, 270cha, 코드 변경 없음), (3) 정지 앞차 접근과 내비를 켠 램프 주행 재주행 로그 확보, (4) `test_radar_fault` 처리 결정, (5) carrot-ms b7dd150 이후 신규 커밋 점검(체크포인트 존재 확인부터; 268차 판정은 270차에 모두 확정), (11) 760905a 실차 확인용 주행 로그 확보(앞차와 함께 감속하는 장면, 위 신규 269cha 항목), (9) 353cc8e 시동 직후 로그 확보(기기 `AlwaysLateral`=1은 271cha에 확인), (6) carrot-ryu-v3 보존 시점 지정, (7) d082d92 실차 확인용 주행 로그 확보, (8) Xiaoge 사용 여부 확인(답에 따라 제외 4건 재점검), (10) 110cff9 실차 확인용 재주행 로그 확보(위 신규 267cha 항목), (12) 완료(274cha): `ShowPathEnd` 등록 c4f13a7, 기기 확인은 남음(위 신규 274cha), (13) 완료(277cha): 백업 누락 재확인과 AST 후보 재스캔, 정리 후보는 위 신규 277cha, (14) `ShowPathWidth` 처리 결정(위 신규 274cha (d)). (18) 데드코드 정리 후보 처리 결정(위 신규 277cha (a)~(d)와 신규 278cha (a), 정리안 작성은 승인 후 5절 순차 전달. (b) cut-in 헬퍼 운영 대조는 278cha에 완료).
