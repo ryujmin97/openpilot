@@ -5528,6 +5528,14 @@ class ClusterUiRenderer:
             y += 31.0
         self._draw_navi_guidance_image_box(info.guidance_image)
 
+    @staticmethod
+    def _draw_navi_round_line(start: "rl.Vector2", end: "rl.Vector2", width: float, color: tuple[int, int, int]) -> None:
+        draw_color = rl_color(color)
+        rl.draw_line_ex(start, end, width, draw_color)
+        cap_radius = width * 0.5
+        rl.draw_circle_v(start, cap_radius, draw_color)
+        rl.draw_circle_v(end, cap_radius, draw_color)
+
     def _draw_navi_guidance_image_box(self, image: NaviGuidanceImage | None) -> None:
         theme = self._current_theme()
         box_x = self._information_panel_x(NAVI_GUIDANCE_IMAGE_X)
