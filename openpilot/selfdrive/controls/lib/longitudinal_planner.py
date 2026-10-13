@@ -328,31 +328,43 @@ class LongitudinalPlanner:
   def update_coasting(self, sm, carrot, v_cruise_kph, v_cruise, reset_state,
                       force_slow_decel, coasting_turn_blocked, cutin_predecel_limit):
     self.coasting_target = 0.0
-    if self.coasting_percent > 0:
-      carrot_man = get_carrot_man(sm)
-      # A stale navigation publisher must not authorize ignoring a speed cap.
-      navigation_current = not sm.seen['carrotMan'] or carrot_man is not None
-      ratio = sm['carState'].vCluRatio if sm['carState'].vCluRatio > 0.5 else 1.0
-      external_limit = carrot_man.desiredSpeed * CV.KPH_TO_MS * ratio if carrot_man is not None else 250 * CV.KPH_TO_MS
-      enabled = (
-        self.CP.openpilotLongitudinalControl and not reset_state and self.reset_decel_timer == 0
-        and sm.all_checks(service_list=['carState', 'controlsState', 'selfdriveState', 'radarState', 'modelV2'])
-        and self.mpc.mode == 'acc' and self.mpc.source == 'cruise' and self.mpc.solution_status == 0
-        and navigation_current and not force_slow_decel and not self.output_should_stop and not self.fcw
-        and not sm['carState'].gasPressed and not sm['carState'].brakePressed and not sm['carState'].carrotCruise
-        and not sm['carState'].standstill and not carrot.soft_hold_active
-        and no_coasting_lead(sm['radarState']) and cutin_predecel_limit is None
-        and not coasting_turn_blocked and not carrot.atc_active and not carrot.lane_change_active
-        and carrot.xState.name in ('cruise', 'e2eCruise') and carrot.eco_target_speed == 0
-        and abs(self.v_cruise_kph - v_cruise_kph) < 0.001
-        and abs(carrot.v_cruise - v_cruise) < 0.001
-      )
-      self.coasting_target = self.coasting.update(
-        enabled=enabled, percent=self.coasting_percent, set_speed=v_cruise_kph,
-        target=v_cruise, external_limit=external_limit, dt=self.dt,
-      )
-    else:
+    # Reject cheap controller/driver states before walking subscriber health or
+    # reading navigation. Every veto still clears the coasting stability history.
+    if not self.coasting_percent > 0 or not self.CP.openpilotLongitudinalControl or reset_state or self.reset_decel_timer != 0:
       self.coasting.reset()
+      return
+    if self.mpc.mode != 'acc' or self.mpc.source != 'cruise' or self.mpc.solution_status != 0:
+      self.coasting.reset()
+      return
+    if force_slow_decel or self.output_should_stop or self.fcw:
+      self.coasting.reset()
+      return
+    cs = sm['carState']
+    if cs.gasPressed or cs.brakePressed or cs.carrotCruise or cs.standstill or carrot.soft_hold_active:
+      self.coasting.reset()
+      return
+    if cutin_predecel_limit is not None or coasting_turn_blocked or carrot.atc_active or carrot.lane_change_active:
+      self.coasting.reset()
+      return
+    if (carrot.xState.name not in ('cruise', 'e2eCruise') or carrot.eco_target_speed != 0
+        or not abs(self.v_cruise_kph - v_cruise_kph) < 0.001 or not abs(carrot.v_cruise - v_cruise) < 0.001):
+      self.coasting.reset()
+      return
+    if not no_coasting_lead(sm['radarState']) or not sm.all_checks(
+        service_list=('carState', 'controlsState', 'selfdriveState', 'radarState', 'modelV2')):
+      self.coasting.reset()
+      return
+    carrot_man = get_carrot_man(sm)
+    # An unseen publisher is optional; a seen but stale one still cancels relief.
+    if sm.seen['carrotMan'] and carrot_man is None:
+      self.coasting.reset()
+      return
+    ratio = cs.vCluRatio if cs.vCluRatio > 0.5 else 1.0
+    external_limit = carrot_man.desiredSpeed * CV.KPH_TO_MS * ratio if carrot_man is not None else 250 * CV.KPH_TO_MS
+    self.coasting_target = self.coasting.update(
+      enabled=True, percent=self.coasting_percent, set_speed=v_cruise_kph,
+      target=v_cruise, external_limit=external_limit, dt=self.dt,
+    )
 
   def publish(
     self,
