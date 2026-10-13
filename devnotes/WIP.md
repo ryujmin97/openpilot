@@ -1,5 +1,28 @@
 # WIP
 
+## 279cha (코드 변경 있음 307b341, 정적 분석과 단위 테스트, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 데드코드 정리 결함 수정: 공유 헬퍼 `_draw_navi_round_line` 복원, `ClusterUiRenderer` 미정의 호출 가드 테스트 추가
+
+**배경.** 277cha (a) 정리안(`SceneCamera`와 신호등 패널 묶음)의 코드 정리가 이 회차의 앞 구간에 carrot-ryu 3684e67로 반영됐다(작성자 ryujmin97, 2026-10-13 10:54 KST, 3개 파일 256줄 삭제: `cluster_models.py` -20, `cluster_renderer.py` -231, `test_cluster_navi.py` -5). 앞 구간의 대화와 스크립트는 이 구간에서 보지 못했고, 3684e67은 GitHub의 커밋 메타데이터와 diff로 읽었다. 이 구간은 새 세션이다: 4절 0단계로 지침 v2를 읽었고(note ee4068a SHA 고정본, 브랜치 URL본과 바이트 일치), HANDOFF.md와 WIP.md도 같은 SHA에서 읽었다. 사용자는 앞 구간의 마지막 응답(결함 수정 스크립트 전달문)과 push 로그를 붙여넣었고, "너의 판단대로"로 devnotes 작성을 맡겼다.
+
+**결함.** `ClusterUiRenderer._draw_navi_round_line`(`@staticmethod`, 8줄: `rl.draw_line_ex`로 선을 긋고 양 끝에 반지름 `width * 0.5` 원 캡)은 신호등 패널 전용이 아니라 내비 회전 아이콘(`_draw_navi_turn_icon`, 호출 4곳)과 차선 스트립(`_draw_navi_lane_strip`, 호출 1곳)이 함께 쓰는 공유 헬퍼였다. 277cha 기록의 연쇄 9개 목록(`_navi_primary_signal_seconds`, `_draw_navi_red_signal`, `_draw_navi_green_signal`, `_draw_navi_turn_signal_slot`, `_navi_signal_active`, `_draw_navi_circle_stroke`, `_draw_navi_horizontal_arrow`, `_draw_navi_uturn_arrow`, `_navi_slot_point`)에는 이 이름이 없었는데 3684e67이 패널과 함께 지웠다. 그 결과 `self._draw_navi_round_line(...)` 호출 5곳(3684e67 기준 5409, 5455, 5473, 5476, 5477행)이 정의 없는 메서드를 가리켰고, 해당 아이콘 경로가 실행되면 `AttributeError`가 났을 것이다(정적 분석이다. 기기나 raylib에서 재현하지 않았다). 삭제 대상을 277cha의 목록 밖으로 넓힌 것이 원인으로 보이지만, 앞 구간의 근거는 이 구간에서 보지 못해 추정이다.
+
+**수정(carrot-ryu 307b341).** 부모 3684e67, 변경 2개 파일. `cluster_renderer.py`는 +8/-0(복원), 신규 `tests/test_cluster_renderer_self_calls.py`는 +72/-0이다. 복원 위치는 `_draw_navi_guidance_image_box` 정의 바로 앞이다. 복원한 8줄은 c4f13a7 원본 블록과 글자 그대로 같다.
+
+**가드 테스트(`test_cluster_renderer_self_calls.py`, 테스트 3개).** raylib 없이 ast만 쓴다. (1) `ClusterUiRenderer` 안의 `self._draw*`/`self._navi*` 직접 호출이 모두 그 클래스 안에서 정의(def 또는 대입 이름)돼 있는지 검사한다. 정의가 없으면 이름과 줄 번호를 실패 메시지로 보인다. 클래스에 상위 클래스가 생기면 상속 이름을 못 푸니 assert로 실패해 가드 확장을 요구한다. (2) 검사가 비어 통과하는 것을 막는다(검사 대상 이름 10개 이상). (3) 검사기 자체를 합성 소스로 확인한다(없는 헬퍼를 잡고, 정의를 더하면 통과). 이 가드가 보는 범위는 `self.<_draw*/_navi*>(...)` 직접 호출뿐이다. 접두사가 다른 이름, 콜백으로 넘기는 `self._x`(호출이 아닌 참조), 다른 클래스/모듈 이름은 보지 않는다. 모듈 수준 미정의 이름은 pyflakes가 잡는 영역이다.
+
+**확인한 것(이 구간, GitHub SHA 고정과 샌드박스 사본).**
+1. `git ls-remote`: carrot-ryu = 307b3413d920b89e3de393e915b7fe97afe31865, carrot-ryu-note = ee4068a8ddb7c9fd398dbd9f347f2cce22d96658(278cha devnotes 반영본, 279cha 기록 없음).
+2. 307b341: 부모 3684e67a66f588bbb7f3a67ff8d737b5ec8b231d, 변경 2개 파일(numstat 8/0, 72/0), 모드 100644. blob 해시는 `cluster_renderer.py` 29af2768fa5d7abd7361b282cac7a3a238d18819(수정 전 841672e3264f27609881a6809e89554701a3ba52), 신규 테스트 ff5c2a3b9e9c43970450e284a93a6d56ce55f1d1이다. 두 파일 모두 BOM 없음, CR 0. 트리 파일 수 5,459(277cha 기록 5,458 + 신규 테스트 1).
+3. 3684e67 -> 307b341의 `cluster_renderer.py` diff는 `_draw_navi_round_line` 8줄 추가뿐이다. 새 파일에서 복원 블록은 정확히 1회 있고 c4f13a7의 블록과 일치한다. c4f13a7 대비 남은 차이는 의도한 삭제뿐이다: 제거된 메서드는 `_draw_navi_traffic_light_panel`과 277cha 연쇄 9개이고, `NAVI_TRAFFIC_*` 상수 13개와 `NaviTrafficLightInfo` import도 지워져 있다(추가된 메서드 없음).
+4. 신규 테스트를 샌드박스에서 저장소 `conftest.py` 없이(`--noconftest`) 두 사본에 돌렸다: 307b341의 렌더러에서 3 passed, 3684e67의 렌더러에서 `test_renderer_self_calls_are_defined`가 실패하고 메시지는 `{'_draw_navi_round_line': [5476, 5477, 5409, 5455, 5473]}`였다. pyflakes는 307b341과 c4f13a7 렌더러 모두 경고 0건이다.
+5. 호출 5곳의 위치는 ast로 확인했다: `_draw_navi_lane_strip` 5409행, `_draw_navi_turn_icon` 5455, 5473, 5476, 5477행. 헬퍼 정의는 5532행이다.
+
+**앞 구간 출력에서 옮긴 것(이 구간에서 재실행하지 않았다).** 전체 체크아웃 pytest에서 신규 테스트 3건 통과, `test_cluster_*.py` 전체 270 passed / 2 failed. 그 2건(`test_cluster_autorun_restarts_without_delay_after_orientation_change`, `test_road_camera_world_reuses_one_projection_for_background_and_overlay`)은 c4f13a7 기준선에서도 같게 실패한다(267 passed / 2 failed)고 했다. 3684e67에서는 기존 테스트 전부(`test_cluster_navi.py` 44건 포함)가 이 결함을 못 잡고 통과했다고 했다. 전달 스크립트 `carrot-ryu-279cha-restore-round-line-v1.ps1`은 로컬 bare 저장소에서 일반/CRLF 두 모드로 끝까지 실행했고(pwsh 7.6.6, 파서 오류 0건) 잘못된 베이스에서는 변경 전에 중단됐다고 했다. 사용자가 실행한 push 로그는 `3684e67..307b341 carrot-ryu -> carrot-ryu`, `remote now: 307b3413...`이다.
+
+**정정.** 277cha의 "연쇄 9개" 목록은 맞았고 3684e67이 그 목록 밖의 `_draw_navi_round_line`까지 지운 것이다. 277cha 기록은 불변이라 그대로 두고 여기에 적는다. 277cha의 "연쇄 2단계 이후는 삭제 전에 호출처를 grep으로 다시 확인한다"는 규칙이 이 헬퍼에는 적용되지 않았다. 삭제를 반영하기 전에 같은 클래스 안 `self.<이름>(` 호출처를 모두 확인하고, 이제는 위 가드 테스트가 그 확인을 대신 한다.
+
+**한계.** 정적 분석, ast 가드, 단위 테스트다. 실차 검증: 미실시. 실제 raylib 렌더링으로 내비 회전 아이콘과 차선 스트립을 그려 보지 않았고, 3684e67 상태에서 `AttributeError`가 나는 것을 기기나 실행으로 재현하지 않았다. 3684e67만 설치한 기기가 있었다면 그 사이에 해당 아이콘 경로가 실행됐는지는 모른다(307b341 이후에는 정의가 있다). 스크립트 시뮬레이션은 Linux의 PowerShell 7이며 Windows PowerShell 5.1 실제 실행이 아니다. `carrot/tests`+`controls/tests` 전체는 돌리지 않았다. 이 devnotes 스크립트는 carrot-ryu-note만 바꾸고 carrot-ryu는 307b341 그대로다. carrot-ms 점검이 없어 WIP_SYNC.md는 바꾸지 않았다.
+
 ## 278cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 데드코드 감사 후속: cut-in 헬퍼를 운영 경로와 대조
 
 **배경.** 277cha 기록(note bbc6ba0) 뒤 새 세션에서 사용자가 진행을 맡겼고("너의 판단대로 진행해"), 코드 변경이 없고 승인이 필요 없는 277cha 미완료 (b) cut-in 헬퍼 운영 대조를 골랐다. 이어서 사용자가 `CUTIN_VALIDATION.md`까지 먼저 읽고 기록하라고 지시했다. 4절 0단계로 지침 v2를 읽었다(note bbc6ba0, `git ls-remote`로 SHA 확인. SHA 고정본과 브랜치 URL본은 본문이 일치했고 비교용 사본 끝에 개행 1바이트 차이만 있었다). HANDOFF.md와 WIP.md도 같은 SHA 고정본으로 읽었다. carrot-ryu는 `git ls-remote`로 c4f13a7을 확인하고 그 SHA를 depth 1로 가져와 읽었다.
