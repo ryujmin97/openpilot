@@ -269,3 +269,24 @@ carrot-ms 8212379 이식(carrot-ryu 760905a)을 검증하려고 만든 도구다
 | `fallback.py` | `comfort_path_has_reserve`를 항상 False로 바꿔 완화 해제 폴백을 강제로 발동시키고 정상/강제/기준선을 비교. |
 
 환경: `pytest_ci_setup.sh`(약 3~4분)로 `/home/claude/repo`를 만든 뒤 `export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo`. 스크립트들은 같은 폴더에서 서로를 임포트하고 결과 json을 현재 폴더에 쓴다(`cd <작업 폴더>; python3 <cl_sim 경로>/sweep.py`). 기준선 모듈 이름이 `long_mpc_base110`로 고정돼 있어 다른 기준선을 쓰면 파일 이름은 그대로 두고 내용만 바꾼다. 한계: 레이더 이상적, 앞차 1대, 자차 응답 값(0.35 s/0.15 s)을 실차에 맞춰 보정하지 않았다. 복원 이력: 앞 세션 파일이 샌드박스 초기화로 사라져 기록에서 복원했고, 복원본으로 앞 세션 수치를 재현했다(269cha). 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).
+
+### 276차 추가 (lead_replay/: 로그 앞차 입력 재생과 로그 앞차 궤적 폐루프)
+
+275cha 로그(route 0000049d)의 119초 급제동 장면을 분석하려고 만든 도구다(앞 구간 기록에서 복원, 275cha 해석 정정 포함, 결과 해석은 WIP.md 276cha). 실제 acados `LongitudinalMpc`(HEAD)에 로그의 앞차 입력을 넣어 게이트만 끈 열린 루프 재생과, 앞차 참값 궤적을 만들어 자차를 1차 플랜트로 응답시키는 폐루프를 돌린다. `cl_sim/`은 합성 시나리오용이고 이 폴더는 실로그용이다(`cl_sim.py`의 `mk_carrot`, `lead_ns`를 가져다 쓴다). 실차 검증 아님.
+
+| 파일 | 역할 |
+|---|---|
+| `extract_log.py <schema> <segs> <out.pkl>` | rlog.zst -> pkl(cs/cc/rs/lp/gt). leadOne/leadTwo 전 필드, carControl accel, longitudinalPlan, logMessage의 `lead_gate` 줄을 담는다. `python3 -I`로 실행. initData는 읽지 않는다(시크릿). 옛 `lead_decel/parse_lead_log.py`의 후속 격 |
+| `ol_replay.py [t0 t1]` | 열린 루프: 로그 leadOne/leadTwo와 vEgo/aEgo를 MPC에 투입, 게이트 그대로(hd) 대 g=1 강제(goff) 대 로그 aTarget. `gate_trace()`로 프레임별 g도 본다. 결과 `ol_replay.pkl` |
+| `lead_fit.py [lo hi]` | 앞차 감속 시작 ts와 감속 a를 비전 점에 최소제곱으로 맞춘다. 275/276cha 로그에서는 해가 경계에 붙어 참고용 |
+| `plant_fit.py [lo hi]` | 자차 1차 플랜트(시정수, 지연)를 로그 명령과 vEgo에 맞춘다. 로그에서 0.4 s/0 s, RMSE 0.236 m/s |
+| `cl_replay.py` | 폐루프: `lead_true(ts)`로 앞차 참값 궤적, `run(ts, 'vision'/'ideal', gate_off, vset)`, `summ()`, `log_row()`. 인자 없이 실행하면 8런(약 2~4분) |
+| `batch.py` | `cl_replay.run` 민감도 묶음(ts 3점 x 입력 x 게이트 + 설정속도 19.4). 약 11런이라 `setsid nohup ... < /dev/null &`로 돌린다 |
+| `vision_stats.py` | 비전 단독 대 레이더 앞차의 속도 잡음/aLeadK 과소 보고 통계와 비전 -> 레이더 인계 사건 표 |
+| `cruise_speed.py <schema> <segs> [t ...]` | `carState.cruiseState.speed/enabled`를 지정 시각에 출력(로그에서 설정속도를 읽을 수 있는지 확인) |
+
+실행 순서: (1) `pytest_ci_setup.sh`(약 3~4분) -> `cd /home/claude/repo && git fetch --depth 3 origin carrot-ryu` -> `bash <toolkit>/cl_sim/prep_base.sh HEAD~2`(`cl_sim.py`가 기준선 모듈을 임포트하므로 필요하다. 끝나면 `long_mpc_base110.py`를 지운다) -> `export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo`. (2) 스키마를 로그 기록 커밋 기준으로 모으고(97차 환경 구성) `python3 -I extract_log.py <schema> <segs> log_lead.pkl`. (3) 작업 폴더에서 `export LR_PKL=$PWD/log_lead.pkl` 뒤 `python3 ol_replay.py`, `plant_fit.py`, `cl_replay.py`, `batch.py`, `vision_stats.py`. `cl_sim` 폴더 위치는 같은 toolkit 안 `../cl_sim`이 기본이고 `CL_SIM_DIR`로 바꾼다.
+
+주의: `cl_replay.py`의 값 중 로그 0000049d 전용이 있다(T0~T1 112~126초, 앞차 감속 전 속도 16.4 m/s, 레이더 인계 119.0초, 설정속도 17.9 m/s, stop_distance 7.0, comfort_brake 2.5, TAU/DELAY 0.4/0). 다른 로그에는 이 값부터 바꾼다. 앞차 참값 궤적은 추정이고 레이더/비전 지연과 노이즈, 플래너 리셋 램프가 없다. 로그 값 조회는 영차 유지여야 하고(선형 보간은 앞차 끊김 구간에서 가짜 제동을 만든다), 게이트 교체는 `__dict__['_gate_raw'].__func__`로 한다(WIP.md 276cha 함정).
+
+복원 이력: 앞 구간의 스크립트가 샌드박스 초기화로 사라져 대화 기록에서 복원했다. 경로를 인자/환경변수로 바꾸고 앞 구간에서 고친 내용을 반영했으며 논리는 같다. 실제 로그로는 다시 돌리지 못했고, 합성 로그(pkl, rlog.zst)로 8개 모두 끝까지 도는 것만 샌드박스에서 확인했다. 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).

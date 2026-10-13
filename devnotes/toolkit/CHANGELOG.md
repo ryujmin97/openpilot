@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-13 (276차)
+- `lead_replay/` 신규(276cha 작성, 전부 앞 구간 기록에서 복원): `extract_log.py`(rlog -> cs/cc/rs/lp/gt pkl), `ol_replay.py`(게이트만 끈 열린 루프 재생), `lead_fit.py`(앞차 감속 역산), `plant_fit.py`(자차 1차 플랜트 보정), `cl_replay.py`(로그 앞차 궤적 폐루프), `batch.py`(민감도 묶음), `vision_stats.py`(비전 단독 대 레이더 앞차 통계), `cruise_speed.py`(로그 설정속도 확인)(README 276차 추가 참고). 275cha 로그(route 0000049d, 기록 커밋 760905a)의 119초 급제동 분석에 썼고 수치는 WIP.md 276cha에 있다. 실제 로그로는 다시 돌리지 못했고 합성 로그로 끝까지 도는 것만 확인했다. 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-12 (269차)
 - `cl_sim/` 신규(269cha 작성, 전부 복원본): `cl_sim.py`(실제 acados `LongitudinalMpc` 폐루프 하네스, HEAD 모듈 대 기준선 모듈), `scen.py`(앞차 속도 프로파일), `sweep.py`(고정 10시나리오 x TF 3종), `relief.py`(편안함 완화 경로 15케이스), `fuzz.py`/`fuzz_summary.py`(무작위 케이스와 집계), `fallback.py`(완화 해제 폴백 강제 발동), `prep_base.sh`(기준선 `long_mpc.py` 모듈 준비)(README 269차 추가 참고). carrot-ryu 760905a 대 110cff9로 실행해 sweep 30행, relief 15행, fallback 3행, fuzz 160케이스를 얻었다(269cha 샌드박스). 앞 세션에서 같은 스크립트로 얻은 값과 모두 일치했다. 다른 toolkit 파일은 변경 없음.
 
