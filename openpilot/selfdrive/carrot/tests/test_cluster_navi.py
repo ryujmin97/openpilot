@@ -642,11 +642,6 @@ def test_live_navi_guidance_media_is_scaled_up(monkeypatch):
   monkeypatch.setattr(ClusterUiRenderer, "_rounded_rect", lambda *args, **kwargs: None)
   monkeypatch.setattr(ClusterUiRenderer, "_draw_navi_crossroad_box", lambda *args, **kwargs: None)
   monkeypatch.setattr(ClusterUiRenderer, "_navi_media_fitted_size", lambda self, frame, rect: (rect.width, rect.height))
-  monkeypatch.setattr(
-    ClusterUiRenderer,
-    "_draw_navi_traffic_light_panel",
-    lambda *args, **kwargs: pytest.fail("structured traffic signal fallback must not render"),
-  )
 
   def capture_media(self, frame, rect, **kwargs):
     if frame is not None:

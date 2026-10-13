@@ -510,23 +510,3 @@ class ClusterUiState:
     recorded_cutin_active: bool = False
     recorded_cutin_sound: bool = False
     alert: ClusterAlert | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class SceneCamera:
-    active: bool
-    position_x_m: float
-    position_y_m: float
-    position_z_m: float
-    right_x: float
-    right_y: float
-    right_z: float
-    up_x: float
-    up_y: float
-    up_z: float
-    forward_x: float
-    forward_y: float
-    forward_z: float
-    center_y: float
-    focal_x: float
-    focal_y: float
