@@ -1,5 +1,22 @@
 # WIP
 
+## 283cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 280차 제안 22건 중 미확정 20건 제외 확정, 체크포인트 `b7dd150` -> `1728400` 전진, 보류 3건(`3038d4a`, `ef2660e` CAN 파서, `1728400` UI 15개) 추적 유지
+
+**배경.** 새 세션이 아니라 282cha 뒤 이어진 대화다(회차는 devnotes 기록 단위로 올렸다). 사용자가 HANDOFF의 "280차 제안 22건 확정"과 "`ef2660e` CAN 파서 재결정" 두 항목의 내용을 물었고, 내용을 설명한 뒤 선택지 A(나머지 제외 확정, 체크포인트 전진, CAN 파서 보류), B(CAN 파서 이식), C(확정 미룸)를 냈더니 사용자가 "너의 판단대로 진행"으로 맡겼다. 아래 결정은 사용자가 위임한 Claude의 판단이며 선택지 A에 해당한다. 되돌리고 싶으면 사용자가 알려 주면 된다.
+
+**읽은 것.** note `49f6da1`(SHA 고정본, 이 구간 시작 시 `git ls-remote`로 HEAD 변화 없음 확인, carrot-ryu는 `91a6deb` 그대로)에서 WIP_SYNC 280차/281차 표를 읽었다. carrot-ms는 depth 90 blobless fetch로 HEAD `1728400`(`git ls-remote`), `b7dd150`이 commit으로 존재하는 것, 280차 제안 20건(제외/보류/문서 대상)의 변경 파일 목록(`git show --numstat`)을 읽었다. `ef2660e`는 커밋 메시지, stat(19개 파일 +405/-38), `opendbc_repo/opendbc/can/parser.py` diff 본문을 읽었다. 제외 20건의 diff 본문은 이 구간에서도 읽지 않았다(stat까지).
+
+**`ef2660e` CAN 파서 변경의 내용(diff 본문).** `CANParser.update()`가 매번 모든 주소의 값 리스트(`vl_all[addr][k]`)를 `clear()`하던 것을, 직전 업데이트에서 값이 들어온 리스트만 비우도록 바꾼다(`_updated_lists`에 모아 두었다가 다음 업데이트 시작 때 비움, 리스트 객체의 identity는 유지). 결과는 같고 반복 작업만 줄이는 최적화다. 테스트 +29줄(`test_packer_parser.py`). 차량 CAN 수신 전체가 거치는 공용 경로(`opendbc_repo`)라 281차에 사용자가 보류로 정했고, 이번에도 보류를 유지한다(이식하면 얻는 것은 CPU 소폭 절감뿐이고 효과는 재지 않았다. 이식하려면 테스트를 함께 가져와 샌드박스에서 동등성을 확인하고 5절 순차 전달을 따른다).
+
+**제외 확정 20건(이 구간 변경 파일 목록으로 분류가 280차 제안과 맞는지 재확인).**
+1. Bosch/CAN-FD/eGPU 4건: `cc539b2`(Bosch MRRevo14F 패시브 레이더 트랙, 23개 파일에 `interface.py`, `radar_interface.py`, `radard_dpath.py`, `process_replay.py`가 들어 있어 공용 경로를 건드리지만 Bosch 레이더 전용 지원이고 제네시스 DH 2015 지원 근거가 없다는 280차 판단을 그대로 따랐다), `6fd695a`(CAN-FD `hyundaicanfd.py`/`stopping.py` 정지 가속도 하한, 4개 파일), `8a4dc5e`(signal-shadow 실험 통합과 eGPU 재학습 모델, 32개 파일에 `carrot_functions.py`, `longitudinal_planner.py`, `cluster_renderer.py` 포함, eGPU 제외 결정과 같은 분류), `804b44f`(Mountain Dew 표시명, 4개 파일 웹).
+2. 신호등 정지 준비 계열 10건: `8675127`, `a3d8efe`, `064bc77`, `1a96636`, `830775d`, `529d4e7`, `a20ed50`, `21d1372`, `ca2c55f`, `e036d89`. 변경 파일 이름이 모두 `signal_*`와 그 테스트/문서이거나 `carrot_functions.py`/`longitudinal_planner.py`/`carrot_settings.json`/`params_keys.h`에 신호 모드를 붙이는 것이다(`a3d8efe`, `a20ed50`은 설정과 `params_keys.h`까지 건드림). carrot-ryu에는 `signal_assist`, `signal_start_guard`, `signal_tracking_shadow`, `signal_stop_prepare`가 없고 263~270차에 같은 계열을 제외 확정한 전례가 있다. 281차에 6건은 제외로 정해졌고(해시 연결은 추정이었다) 이번에 10건 전체를 제외로 확정한다.
+3. 테스트/문서 6건: `4646ccb`(Bosch 폴링 테스트 격리, `test_radard_dpath.py` 1개, Bosch를 이식하지 않으므로 실익 없음), `2977fb5`, `239eea8`, `f289f8e`, `c3f6b5c`, `0e91e42`(문서, `0e91e42`는 `AGENTS.md` 1개).
+
+**체크포인트 전진.** `b7dd150` -> `1728400`(carrot-ms HEAD). 점검은 `1728400`까지 끝났다. 전진해도 아래 보류 3건이 사라지지 않게 WIP_SYNC 283차 표와 HANDOFF 미완료에 따로 적었다. (1) `3038d4a`(거리 기억 제거): 현 상태 유지, 로그 분석 후 이식 결정(280cha 사용자 결정). (2) `ef2660e`의 CAN 파서 변경: 보류. (3) `1728400`의 나머지 UI 번갈아 그리기 15개 파일: 보류(282cha 사용자 선택지 A), 다음 주행 로그의 `runtimeTiming` 보고 재결정. 이식 완료분: `ef2660e`/`46ce7a8` 부분(carrot-ryu `64d3469`, `9033753`), `1728400` 3개 파일(`91a6deb`), `8212379`(`760905a`) 등은 이전 기록 그대로다.
+
+**한계.** 제외 20건의 diff 본문은 읽지 않았고(stat과 파일 이름), 신호등 10건 중 4건(`a3d8efe`, `21d1372`, `ca2c55f`, `e036d89`)은 280차에 앞 세션 기록으로 분류된 것을 이 구간 stat으로만 재확인했다. `cc539b2`의 공용 경로 변경은 본문을 읽지 않았으므로, 제네시스 DH 2015에 Bosch 레이더가 쓰이지 않는다는 판단은 280차 기록을 따른 것이다(기기에서 확인하지 않았다). 코드를 고치지 않았고 테스트를 돌리지 않았다. 실차 검증: 미실시. devnotes(WIP.md 283cha, WIP_SYNC.md 283차, 이 HANDOFF)를 PowerShell 스크립트로 기록한다. 코드 변경이 없어 5절의 devnotes 1회 push다.
+
 ## 282cha (코드 변경 없음, 정적 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `1728400` 나머지 UI 번갈아 그리기 15개 파일 분류와 이식 보류(선택지 A) 기록
 
 **배경.** 새 세션이라 4절 0단계로 지침 v2를 읽었다(note `9b3719a` SHA 고정본, 브랜치 URL본과 `cmp`로 바이트 일치, 49,277바이트). `git ls-remote`로 carrot-ryu `91a6deb80ef863a800faad88e05a96dc5a39cf6d`, carrot-ryu-note `9b3719af0f27fcf6e635be360718750fd56481e1`을 확인했다(HANDOFF의 기록과 같다). 281cha 계속 devnotes push가 `9b3719a`로 반영된 것은 앞 응답에서 직접 확인한 값이며(부모 `9b89579`, 변경 3개 파일, BOM 없음, carrot-ryu 불변), 이 구간에서는 `git ls-remote`로 HEAD만 다시 봤다. 사용자가 HANDOFF 다음 작업 (24)(`1728400`의 나머지 UI 15개 파일 diff 확인과 이식 여부 결정)를 골랐고, 분석 뒤 "A로 진행"(보류)으로 답했다.
