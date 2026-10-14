@@ -319,3 +319,17 @@ carrot-ms 8212379 이식(carrot-ryu 760905a)을 검증하려고 만든 도구다
 실행 순서(000004a0 예시): (1) 스키마를 로그 기록 커밋 기준으로 모으고(97차 환경 구성), 로그 zip을 풀어 `<route>--<n>/rlog.zst`를 한 폴더(`segs`)에 모은다. `radar_motion` 코드는 `git fetch --depth 1 --filter=blob:none origin <커밋>` 뒤 `git checkout FETCH_HEAD -- openpilot/selfdrive/carrot/radar_motion`으로 받는다(`variants.py`, `release_replay_dump.py`용 `<repo_dir>`). (2) `python3 -I lead_replay/extract_log.py <schema> <segs> log_lead.pkl` 뒤 `export LR_PKL=$PWD/log_lead.pkl`, `python3 dropouts2.py`, `python3 frame.py 97.8 98.1 0.1`. (3) `SCHEMA_DIR=<schema> python3 -I lane_check.py <seg2 rlog.zst> 35.0 40.6 60.021`. (4) `python3 -I variants.py <schema> <repo_dir> <segs>`. (5) `DUMP=37.70:39.30 ROUTE_OFF=60.021 python3 -I release_replay_dump.py <schema> <repo_dir> <seg2 rlog.zst> 34:44`.
 
 한계: 모두 open-loop이고 자차 거동과 오감속은 반영하지 않는다. `variants.py`의 변형 평가는 옆 차선 오감속 위험을 보지 못한다. `lane_check.py`의 위치 비 범위는 샘플 시각 격자에 따라 달라진다(약 0.095 s 간격으로 첫 샘플 시각 기준으로 뽑으며, 000004a0 route 97.88~99.14초는 `35.0 40.6`으로 시작하면 0.71~1.13, `37.7`로 시작하면 0.71~1.16). 부호 해석은 modeld 규약(y 양수가 오른쪽) 기준으로 코드로 확인하지 않았다. 구간·시각 기본값(`97.90:99.09`)은 000004a0 전용이다. 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).
+
+### 287차 추가 (lead_dropout/full_replay2.py: DPathRadarController 전체 재생)
+
+287cha(WIP.md 287cha)에서 route 000004a0(기록 커밋 e1fa15a)의 136.25초와 140.64~148.83초 앞차 끊김을 분석하려고 다시 쓴 도구다. 앞 세션의 `full_replay2.py`는 기록이 잘려 복원하지 못해 새로 썼고, 같은 로그에서 앞 세션과 같은 결과(로그 대조 일치율 100%)를 얻었다. 실차 검증 아님.
+
+| 파일 | 역할 |
+|---|---|
+| `full_replay2.py <schema_dir> <repo_dir> <segs_dir>` | `<segs_dir>/<route>--<n>/rlog.zst`를 n 순서로 이어서, `radard_dpath.DPathRadarD.update`와 같은 입력(모델 시각 timestampEof, v_ego, liveTracks 점, livePose yaw, 레이더-모델 시간차)으로 `DPathRadarController`를 재생한다. 컨트롤러 인자(EnableRadarTracks, EnableCornerRadar, radarDelay)는 로그의 initData.params와 CarParams에서 읽는다. 매 radarState 프레임의 leadOne (status, radar)를 직전 modelV2 재생 결과와 대조(`CMPFROM`, 기본 route 100초 이후)하고 재생 끊김 구간(status False, route 90초 이후)을 출력한다 |
+
+환경변수: `DUMP=a:b`(route 초 구간 프레임표: 재생 status/radar/dRel, 로그 값, 비전 prob(원->사용), 비전 d와 y_rel, 가장 가까운 레이더 점), `PROBFIX=a:b`와 `PROBMIN`(기본 0.45, 그 구간 비전 prob 하한), `FREEZE=a:b:src_t`(a~b 동안 비전 x/y를 src_t 직전 마지막 값으로 고정), `YSHIFT=a:b:dy`(a~b 동안 비전 y에 dy를 더함, 모델 y 부호 기준이고 y_rel = -y), `CMPFROM`, `QUIET=1`(요약과 끊김 구간만). `python3 -I`로 실행하고 의존은 pycapnp, zstandard다.
+
+`<repo_dir>`은 `git fetch --depth 1 --filter=blob:none origin <기록 커밋>` 뒤 `git checkout FETCH_HEAD -- openpilot/selfdrive/carrot/radar_motion openpilot/selfdrive/carrot/radar`(스키마용 `openpilot/cereal/*.capnp`, `include`, `opendbc_repo/opendbc/car/car.capnp` 포함)로 받은 트리다. 횡 위치 허용치 변형(`YTOL`)은 이 트리를 복사한 사본에서 `primary.py`의 `or abs(point.y_rel - vision.y_rel) >= 2.0`(e1fa15a 3486행, 한 번만 나타남)을 `or abs(point.y_rel - vision.y_rel) >= float(__import__('os').environ.get('YTOL','2.0'))`로 바꾸고, 그 사본을 `<repo_dir>`로 넘기면서 `YTOL=2.5` 등을 주는 방식으로 쓴다(스크립트 안에는 이 치환이 없다).
+
+검증(287cha, route 000004a0, e1fa15a, 세그먼트 3개): 재생 3,600프레임, route 100초 이후 1,599프레임에서 로그와 (status, radar) 1,599개(100.00%) 일치, 끊김 구간 95.35~95.75, 96.30~96.39, 97.90~99.09, 99.80~100.05, 136.25~139.54, 140.64~148.80, 160.80~160.90초. 한계: open-loop(자차 거동과 오감속 미반영). `radard_dpath`는 cereal 런타임이 필요해 샌드박스에서 import되지 않으므로 `corner_radar_enabled`를 줄여 썼고 `EnableCornerRadar`가 0보다 크면 중단한다. route 시각은 첫 세그먼트 첫 carState 기준 mono 초라 앞 세션 표(첫 carState 오프셋 상수 사용)와 약 0.02초 다를 수 있다. 앞 세션이 같이 쓰던 `geom_dump.py`(레이더 점/비전 후보 dPath 표)와 `track_dump.py`(liveTracks 덤프)는 저장하지 않았다. 샌드박스 전용이다.

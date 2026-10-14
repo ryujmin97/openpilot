@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-14 (287차)
+- `lead_dropout/full_replay2.py` 신규(287cha 다시 작성): e1fa15a 등 기록 커밋의 `DPathRadarController`를 `radard_dpath.DPathRadarD.update`와 같은 입력으로 rlog 세그먼트 전체에 재생하고 로그 leadOne과 대조하는 open-loop 도구. PROBFIX/FREEZE/YSHIFT 변형과 DUMP 프레임표를 지원한다(README 287차 추가 참고). route 000004a0에서 1,599프레임 100% 일치. `geom_dump.py`, `track_dump.py`는 저장하지 않았다. 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-14 (286차)
 - `lead_dropout/` 신규(286cha 작성, 앞 구간 기록에서 복원): `dropouts2.py`(크루즈 중 앞차 끊김 구간 표), `frame.py`(pkl 프레임 덤프), `lane_check.py`(비전 후보의 차선 위치), `variants.py`(비전 앞차 중앙 차선 게이트 변형 재생, 재구현 게이트), `release_replay_dump.py`(`radar_gate/release_replay.py`에 DUMP/ROUTE_OFF 블록을 더한 사본)(README 286차 추가 참고). route 000004a0(e1fa15a)의 97.90~99.15초 분석에 썼고 해석은 WIP.md 286cha에 있다. 올린 로그로 5개 모두 실제로 돌려 앞 구간 수치와 같은 값을 얻었다. 다른 toolkit 파일은 변경 없음.
 
