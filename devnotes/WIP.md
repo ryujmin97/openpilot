@@ -1,5 +1,39 @@
 # WIP
 
+## 289cha (코드 변경 없음, carrot-ms 정적 분석과 결정 기록, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `1728400..88803f6` 신규 17건 분류, `7514554`와 `9381d34`의 `build.py` 캐시 정리 이식 결정, 나머지 제외 확정, 체크포인트 `1728400` -> `88803f6`
+
+**배경.** 세션 시작 때 4절 0단계를 수행했다(note `d209c20` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트). 사용자가 붙여넣은 "carrot-ms 최신 커밋 분석 - 286차" 문서(carrot-ms `589bef9` 기준 신규 14건)는 이 devnotes에 기록이 없었고(WIP.md 286cha는 다른 내용), 3절에 따라 GitHub를 다시 조회해 대조했다. 그 문서의 14건은 이번 조회의 앞 14건과 해시와 순서가 같았다. 어느 세션이 만든 문서인지는 확인하지 못했다. 사용자가 "carrot-ms 최신 커밋 분석"을 요청했고, 분석 뒤 "1번과 2번을 각각 이식하고, 나머지는 제외 확정하는 내용으로 기록부터"로 답했다. 이 기록은 결정만 담는다. 코드 이식은 하지 않았고 이식 세션에서 5절 순차 전달(코드 -> 확인 -> devnotes)을 따른다. 실차 검증: 미실시.
+
+1. **조회.** carrot-ms HEAD는 `88803f6`(2026-10-14 12:57 KST, `git ls-remote`). depth 40 blobless bare fetch로 `1728400`이 commit이고 HEAD의 조상임을 확인했다(rebase 없음). `1728400..HEAD`는 17건이다. carrot-ryu는 depth 1 blobless fetch로 `e1fa15a` 트리(파일 5,464개)를 읽어 전제 파일 유무를 대조했다. 인용한 행 번호는 carrot-ms HEAD 기준이다.
+
+2. **17건 분류(제네시스 DH 2015 + 콤마 C3 기준).** 읽은 범위는 열마다 다르다: `7514554`, `ed7813b`, `1537d18`은 해당 파일 diff 본문, `9381d34`는 `build.py` diff와 `docs/startup_recovery.md`, `0f178af`는 `carstate.py` 변경 위치, `ad17ce5`/`97515da`는 stat과 `docs/ui_alternating_layers_20261013.md`, 나머지는 변경 파일 목록(stat)과 carrot-ryu의 전제 파일 유무까지다.
+
+| 커밋 | 내용 | 결정 |
+|---|---|---|
+| `7514554` | `carrot_man` 크래시 복구 시 spawn 컨텍스트 사용(`process_config.py` +3/-1, 테스트 관련 2개, CI 1개, 문서 1개) | 이식(사용자 결정) |
+| `9381d34`의 `build.py` | SCons 캐시 정리가 캐시 최상위 파일(SCons 설정, Params 스탬프)까지 오래된 순으로 지우지 않게 정리 대상을 2글자 버킷 디렉터리 파일로 한정하고 정리 때 캐시 잠금을 잡음 | 이식(사용자 결정, 범위는 이식 세션에서 확정) |
+| `9381d34` 나머지 | 시작 복구 UI, `Rebuild All` 지연 요청, 터치 로그, 워크플로, 문서, `hyundaicanfd.py`(CAN-FD) | 제외 확정 |
+| `ad17ce5`, `97515da` | C3 오버레이 소실 뒤 프레임별 렌더링 복원, 이어서 프레임버퍼 보존 방식으로 번갈아 그리기 재구현 | 보류 유지(282차 사용자 선택지 A) |
+| `1537d18` | 정차 소프트 홀드 중 운전자 모니터링 일시 정지(`dm2d.py`) | 제외 확정(carrot-ryu에 `dm2d.py` 없음, DM2 계열은 217cha 제외) |
+| `0f178af` | 현대 내비/레버 제어, 구간 단속, RAV4 ARS510 레이더 | 제외 확정 |
+| `6ca44d8` | 모델셀렉터에 레버 방향지시등 유지 메타 2줄 | 제외 확정(0f178af의 레버 기능이 전제) |
+| `ed7813b` | eGPU USB 링크 실패 뒤 영구 거부 방지(`precompiled_model.py`) | 제외 확정(eGPU 계열, 283차 `804b44f` 제외와 같은 분류, carrot-ryu 사본은 해당 함수들이 없는 옛 형태) |
+| `0fcf436`, `28057bc`, `8796c65`, `88803f6` | 신호등 계열(고속도로 중단, 녹색 전환 출발 연결, 지연 중복 제거, 진단 문서) | 제외 확정(`signal_road_policy.py`, `signal_start_guard.py` 등 전제 파일이 carrot-ryu에 없음, 정차/출발 동작 변경 계열, 263~270차 전례) |
+| `2236029`, `719e452` | 테스트 전용 | 제외 확정(전제 코드 없음) |
+| `eb269e7`, `16f8b9d`, `589bef9` | 문서 전용 | 제외 확정 |
+
+3. **`7514554` 이식 전제(이식 세션에서 먼저 확인).** 업스트림 사고 분석: `carrot_man`이 죽은 뒤 복구에서 manager가 이미 IPC 스레드를 돌리는 인터프리터를 fork하면 재시작이 막히고 `managerState` 발행까지 멈춘다(Kona 로그, 최초 abort 원인은 미확인이라고 커밋 메시지가 밝힘). 변경은 `PythonProcess("carrot_man", ..., restart_if_crash=True, spawn=True)` 한 줄이다. carrot-ryu `process_config.py` 193행은 옛 형태(`spawn` 없음)이고, carrot-ryu `system/manager/process.py`는 `spawn`/`get_context` 문자열이 없다(`grep`, 28행에 fork 주석뿐). carrot-ms `process.py` 171~178행에는 `spawn=False` 인자와 `get_context('spawn').Process`가 있다. 도입 커밋은 얕은 clone의 `git log -S`가 `8a4dc5e`(10-12, eGPU 재학습 통합 커밋)를 가리켰으나 경계 효과일 수 있어 확정하지 않았다. 그러므로 `process.py`의 `spawn` 지원을 함께 가져와야 할 가능성이 높고, `PythonProcess`/`ManagerProcess`의 다른 경로(`prepare`, `start`, 종료 처리)와 spawn 컨텍스트가 맞물리는지, 기기에서 `carrot_man` 모듈이 spawn으로 다시 import될 때 문제가 없는지는 읽지 않았다. 함께 추가된 테스트(`test_python_process_spawn.py`, `process_lifecycle_probe.py`)와 CI 파일의 carrot-ryu 존재 여부도 확인하지 않았다.
+
+4. **`9381d34` `build.py` 캐시 정리 이식 전제.** carrot-ryu `build.py` 272~279행은 `CACHE_DIR.rglob('*')`로 모든 파일을 mtime 순으로 지워 `MAX_CACHE_SIZE`(2e9, CI 4e9) 아래로 줄인다. 업스트림은 `prunable_cache_files`로 2글자 이름 버킷 안 파일만 정리 대상으로 삼고, `prune_cache`가 `acquire_cache_lock`을 잡아 다른 SCons/Params 빌드와 겹치지 않게 한다. 캐시가 상한을 넘을 때만 발동하므로 기기에서 실제로 문제가 있었는지는 모른다(기기 캐시 크기 미확인). 최소 이식이 `prunable_cache_files`만으로 되는지, 잠금 모듈 `openpilot/common/scons_cache_lock.py`(신규 63줄)와 `SConstruct`(+16/-2), `scripts/ensure_params_build.sh`(+30/-1), `launch_chffrplus.sh`(+135/-1)와의 의존이 있는지는 읽지 않았다. 최소 범위가 되도록 이식 세션에서 diff를 읽고 제안한다(10절).
+
+5. **UI 두 건 정보(결정은 보류 유지).** `ad17ce5`는 `1728400`의 번갈아 그리기를 걷어내고(`overlay_cache.py`와 `overlay_state.py` 삭제), `97515da`가 다시 넣으면서 `BeginDrawing()` 뒤의 실제 프레임버퍼를 잡도록 고쳤다. 업스트림 문서의 원인 설명: comma 화면은 내부 회전 프레임버퍼에 그리는데 캐시 레이어 갱신 뒤 FBO 0으로 되돌려 오버레이가 그 위에 그려지지 않았다. 데스크톱 GPU 재현에서 수정 전 40프레임 중 37프레임이 소실, 수정 후 0이다(문서 기재, 이 세션에서 재현하지 않음, 실제 C3 패널 시험 아님). `1728400..HEAD` 순변경은 UI 경로와 문서 17개 파일 +838/-17(`git diff --stat 1728400 ms`)이고 이 안에는 `97515da` 외에 레이더 표시(`radar_display.py`)와 신호 상태(`signal_status.py`) 등 다른 커밋의 UI 변경이 섞여 있다. carrot-ryu에는 `overlay_cache.py`/`overlay_state.py`가 없어 이 소실 결함도 없다. 다시 이식을 검토하면 `1728400`이 아니라 `97515da` 시점의 코드를 기준으로 한다. 285cha 기준선(ui fps 19.94, work 24.3 ms)이 20 Hz 목표에 가까워 이식 필요성은 불분명하다.
+
+6. **정정(이 구간 대화 보고).** "`0f178af`의 현대 내비/레버 변경은 `update_canfd` 안에서만 호출되므로 CAN-FD 전용"이라는 설명은 호출처 설명으로는 맞으나 변경 범위로는 과했다. `carstate.py` 변경 hunk는 `__init__`(speedcam 정책 객체 생성과 `_read_speedcam_params()` 호출)와 `_update_vehicle_speed_camera_params`(마지막에 `_read_speedcam_params()` 호출)에도 있어 비 CAN-FD `update()` 경로의 차량에서도 실행될 수 있다. 기능 쪽(`_update_blinker_stalks` 1395행, `_apply_speedcam_policy` 1592행, `_apply_section_average` 1597행, `_hold_speedcam_decel` 1607행)은 `update_canfd`에서만 호출되고 CAN-FD 내비 메시지에 의존한다. 제외 결정은 유지한다. 비 CAN-FD 경로에서 이 `__init__` 변경이 문제를 일으키는지는 확인하지 않았다(이식하지 않으므로 영향 없음). `0f178af`는 `car.capnp`(+6, 공용 스키마)와 Toyota 파일도 바꾸지만 diff 본문은 읽지 않았다.
+
+7. **체크포인트.** 사용자가 이식 2건 외 전부 제외로 확정했으므로 체크포인트를 `1728400` -> `88803f6`으로 전진한다. 보류 UI(`1728400` 나머지 15개 파일과 `ad17ce5`/`97515da`)는 체크포인트를 전진해도 HANDOFF 미완료(신규 282cha, 신규 289cha)에서 추적한다. 이식 2건은 코드 반영 전이므로 "결정됨, 미반영"이다. 다음 carrot-ms 점검은 `88803f6` 이후 신규 커밋부터이고 `git cat-file -t 88803f6`로 존재부터 확인한다(carrot-ms는 재생성된다).
+
+8. **한계.** 정적 분석이다. 제외 확정 중 `0f178af`, `0fcf436`, `28057bc`, `8796c65`는 diff 본문을 읽지 않았다(stat과 일부 함수 위치까지). 테스트를 돌리지 않았다. 이식 2건의 carrot-ryu 반영 가능성(`git apply --check` 등)은 보지 않았다. 샌드박스에는 carrot-ryu `e1fa15a` 일부와 carrot-ms 얕은 bare 사본만 있고 지속되지 않는다. 실차 검증: 미실시.
+
 ## 288cha (코드 변경 없음, 실차 로그 재생 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route `000004a0--f5a03a6de0` 149.14초 레이더 5 m 대 비전 13~14 m 불일치 조사와 140~149초 수치 재확인, 도구 `geom_dump.py`/`track_dump.py` toolkit 저장
 
 **배경.** 287cha HANDOFF 다음 작업 중 사용자가 (1) 149.14초 레이더 5 m 대 비전 13~14 m 불일치 원인 조사, (2) 140~149초 수치 재확인(`geom_dump.py`, `track_dump.py` 다시 쓰기)을 골랐고, 이어서 "a번"(도구 2개 저장과 이 기록)을 골랐다. 로그는 같은 zip 3개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261014_073307/073351/073405.zip`)이고 기록 커밋은 e1fa15a다. 샌드박스가 초기화돼 있어 스키마(`openpilot/cereal/{log,custom,deprecated}.capnp`, `cereal/include`, `opendbc_repo/opendbc/car/car.capnp`)와 e1fa15a 트리, 로그 세그먼트를 다시 모았다. 이 분석은 open-loop 로그 재생이다. 실차 검증: 미실시.
