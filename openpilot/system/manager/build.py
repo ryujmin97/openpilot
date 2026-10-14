@@ -269,7 +269,21 @@ def build(spinner: Spinner, dirty: bool = False, minimal: bool = False) -> None:
     exit(1)
 
   # enforce max cache size
-  cache_files = [f for f in CACHE_DIR.rglob('*') if f.is_file()]
+  prune_cache(CACHE_DIR)
+
+
+def prunable_cache_files(cache_dir: Path) -> list[Path]:
+  # Only cached build results, which SCons keeps in two-character bucket
+  # directories. The top level holds the SCons config (and its lock) and
+  # carrot's Params stamp (carrot_params_keys.sha256); pruning those by age
+  # breaks or slows the next boot.
+  if not cache_dir.is_dir():
+    return []
+  return [f for d in cache_dir.iterdir() if d.is_dir() and len(d.name) == 2 for f in d.iterdir() if f.is_file()]
+
+
+def prune_cache(cache_dir: Path) -> None:
+  cache_files = prunable_cache_files(cache_dir)
   cache_files.sort(key=lambda f: f.stat().st_mtime)
   cache_size = sum(f.stat().st_size for f in cache_files)
   for f in cache_files:
