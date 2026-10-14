@@ -303,3 +303,19 @@ carrot-ms 8212379 이식(carrot-ryu 760905a)을 검증하려고 만든 도구다
 실행 순서: `git clone --depth 1 --branch carrot-ryu <url> repo`(약 508 MB, 샌드박스에서 약 90초라 `setsid nohup ... < /dev/null &`로 분리) -> `python3 scan.py repo out` -> `python3 classify.py out`. 한 명령은 300초 제한이 있어 scan은 파일당 1회 파싱으로 유지한다.
 
 한계: 이름 기준이라 "참조 0건"은 확실하지만 "참조 있음"은 상한이다(동명 메서드, `getattr` 동적 호출 구분 불가). `__all__` 안의 문자열은 사용으로 세지 않는다. `*_test.py` 접미사 파일(`server/**/vision_test.py`, `youtube_test.py`)은 `carrot` 명령이 쓰는 운영 유틸이라 테스트로 보지 않는다. 저장소 밖 소비자(앱 등)는 보지 못하고, 연쇄 2단계 이후는 삭제 전에 호출처를 grep으로 다시 확인한다. 새로 작성한 도구라 복원 이력은 없고, carrot-ryu c4f13a7에서 실행해 직접 후보 19, 연쇄 11을 얻었다. 실차 검증과 무관한 정적 분석이다.
+
+### 286차 추가 (lead_dropout/: 크루즈 중 앞차 끊김 구간 표, 프레임 덤프, 비전 앞차 차선 위치, 게이트 변형 재생)
+
+286cha(WIP.md 286cha, 286cha 계속)에서 route 000004a0(기록 커밋 e1fa15a, 도심 180초)의 97.90~99.15초 "앞차 끊김"을 분석하려고 만든 도구다. 앞 구간 기록에서 복원했고 경로를 인자/환경변수로 바꿨으며 논리는 같다. 286cha 계속에서 올린 로그(세그먼트 1~3)와 e1fa15a 스키마/`radar_motion` 코드로 5개 모두 실제 로그에서 끝까지 돌려 앞 구간 수치(끊김 7개 표, V0~V5 표, 97.85/97.90초 게이트 프레임)와 같은 값을 얻었다. 실차 검증 아님.
+
+| 파일 | 역할 |
+|---|---|
+| `dropouts2.py [log_lead.pkl]` | `lead_replay/extract_log.py`의 pkl에서 크루즈(longActive) 중 leadOne.status가 끊겼다 돌아온 구간(앞뒤 정상)을 표로 출력: 시각, 길이(False 프레임 수 x 0.05 s), 직전/재인식의 dRel vLead aLeadK 종류, accel 명령(직전 -> 끊김 중 최소/최대 -> 재인식 뒤 2 s 최소). 크루즈 시작 전 구간은 제외한다 |
+| `frame.py <t0> <t1> [step]` | 같은 pkl의 시각 구간을 step 간격 한 줄씩: vEgo/aEgo, accel 명령, aTarget, desiredDistance, tFollow, leadOne/leadTwo, `lead_gate` g. pkl은 `LR_PKL`(기본 `./log_lead.pkl`) |
+| `lane_check.py <rlog.zst> <t_from> <t_to> [route_offset]` | modelV2 후보(leadsV3[0])가 가까운 좌/우 차선(laneLines[1]/[2]) 사이 어디인지(0 = 왼쪽 선, 1 = 오른쪽 선), 모델 경로 y, 선 확률을 약 0.1 s 간격으로. 스키마는 `SCHEMA_DIR`(기본 `/tmp/schema`), `python3 -I`로 실행 |
+| `variants.py <schema_dir> <repo_dir> <segs_dir> [ev_from:ev_to]` | 비전 앞차 중앙 차선 게이트를 변형 파라미터 V0~V5(현행, 유지 prob 0.35, 해제 대역 2.5/4.0 m, 유예 10프레임)로 오프라인 재생하는 open-loop 비교표. 세그먼트 route 오프셋은 첫 carState에서 계산한다. 게이트는 이 파일 안의 재구현이고(V0가 레이더 앞차 없는 프레임에서 로그와 전부 일치하는지로 확인), 실제 코드 호출은 `radar_gate/release_replay.py`다 |
+| `release_replay_dump.py <schema_dir> <repo_dir> <rlog.zst> [t_from:t_to ...]` | `radar_gate/release_replay.py`에 `DUMP=<t_from>:<t_to>`(세그먼트 로컬 시각)와 `ROUTE_OFF=<초>` 환경변수 블록을 더한 사본. DUMP를 주면 프레임별 로그 status, 레이더, 1326f21 게이트(new), 670f72c 규칙(old), 비전 prob/dRel/dPath/v 표를 출력한다. 환경 변수 없이 쓰면 `release_replay.py`와 같다 |
+
+실행 순서(000004a0 예시): (1) 스키마를 로그 기록 커밋 기준으로 모으고(97차 환경 구성), 로그 zip을 풀어 `<route>--<n>/rlog.zst`를 한 폴더(`segs`)에 모은다. `radar_motion` 코드는 `git fetch --depth 1 --filter=blob:none origin <커밋>` 뒤 `git checkout FETCH_HEAD -- openpilot/selfdrive/carrot/radar_motion`으로 받는다(`variants.py`, `release_replay_dump.py`용 `<repo_dir>`). (2) `python3 -I lead_replay/extract_log.py <schema> <segs> log_lead.pkl` 뒤 `export LR_PKL=$PWD/log_lead.pkl`, `python3 dropouts2.py`, `python3 frame.py 97.8 98.1 0.1`. (3) `SCHEMA_DIR=<schema> python3 -I lane_check.py <seg2 rlog.zst> 35.0 40.6 60.021`. (4) `python3 -I variants.py <schema> <repo_dir> <segs>`. (5) `DUMP=37.70:39.30 ROUTE_OFF=60.021 python3 -I release_replay_dump.py <schema> <repo_dir> <seg2 rlog.zst> 34:44`.
+
+한계: 모두 open-loop이고 자차 거동과 오감속은 반영하지 않는다. `variants.py`의 변형 평가는 옆 차선 오감속 위험을 보지 못한다. `lane_check.py`의 위치 비 범위는 샘플 시각 격자에 따라 달라진다(약 0.095 s 간격으로 첫 샘플 시각 기준으로 뽑으며, 000004a0 route 97.88~99.14초는 `35.0 40.6`으로 시작하면 0.71~1.13, `37.7`로 시작하면 0.71~1.16). 부호 해석은 modeld 규약(y 양수가 오른쪽) 기준으로 코드로 확인하지 않았다. 구간·시각 기본값(`97.90:99.09`)은 000004a0 전용이다. 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).

@@ -1,5 +1,12 @@
 # WIP
 
+## 286cha 계속 (코드 변경 없음, toolkit 저장, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 286cha 분석 스크립트 5개를 `toolkit/lead_dropout/`에 저장하고 실제 로그로 재실행해 수치 재확인
+
+1. **저장.** 사용자가 "스크립트 5개 toolkit 저장"을 요청했다. 286cha 9번에서 "toolkit에 넣지 않았다"고 쓴 5개(`dropouts2.py`, `frame.py`, `lane_check.py`, `variants.py`, `release_replay_dump.py`)를 `devnotes/toolkit/lead_dropout/`에 넣고 README(286차 추가)와 CHANGELOG를 갱신했다(14절). 샌드박스가 초기화돼 파일이 없었으므로 앞 구간 출력의 코드로 복원했고, 경로를 인자/환경변수로 바꿨다(`variants.py`는 하드코딩이던 route 오프셋과 구간을 인자/계산으로, `release_replay_dump.py`는 toolkit의 `release_replay.py`에 DUMP/ROUTE_OFF 블록을 더한 사본으로).
+2. **실제 로그로 재실행.** 사용자가 올린 같은 zip 3개(route 000004a0)와 e1fa15a의 스키마/`radar_motion` 코드로 5개 모두 끝까지 돌렸다. 같은 값이 나온 것: `extract_log.py` 프레임 수(carState 17,999, carControl 17,992, radarState 3,600, longitudinalPlan 3,601, lead_gate 52), `dropouts2.py` 끊김 7개 표(97.90~99.15초 1.25초, accel -1.12 -> -1.14/+0.39 -> -2.40 등), `variants.py` 세그먼트 오프셋 0/60.021/119.991과 V0 2,621/2,621 및 V1~V5 표 전부, `release_replay_dump.py` 97.85초 prob 0.43 dPath -1.47 new 1에서 97.90초 prob 0.37 dPath -1.11 new 0, 그리고 `release_replay` 요약(747프레임, 1326f21 present 119, 670f72c 재생 714/747). 286cha의 수치는 이 재실행으로 이 세션에서 다시 확인됐다.
+3. **286cha 5번 보충(위치 비 범위).** `lane_check.py`의 "0.71~1.13"은 샘플 시각 격자에 따라 달라진다. 앞 구간과 같은 `35.0 40.6`으로 시작하면 route 97.88~99.14초 13개 샘플이 0.71~1.13으로 그대로 재현되고, `37.7`로 시작하면 같은 구간이 0.71~1.16이다(97.93초 1.16). 후보가 구간 초반에 오른쪽 선 밖으로 1.0~1.16 정도 나가 있다가 안쪽으로 들어온다는 해석은 같지만, 1.13은 정확한 최댓값이 아니라 그 격자의 값이다.
+4. 코드 변경 없음, 수정 안 함. 실차 검증: 미실시.
+
 ## 286cha (코드 변경 없음, 실차 로그 재생 분석, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route `000004a0--f5a03a6de0` 97.90~99.15초 "앞차 끊김"을 carrot-ryu `e1fa15a`의 비전 앞차 중앙 차선 게이트로 재생하고 285cha 기록 정정 후보 정리
 
 **배경.** 285cha 다음 작업 (a)(앞차 트랙 끊김 때 감속이 풀리는 문제가 276cha 119초 급제동과 같은 원인인지 재생으로 확인)에 해당하는 분석을 앞 구간에서 끝냈고, 이 구간은 사용자의 "일단 기록부터" 요청으로 그 결과를 옮긴다. 로그는 285cha와 같은 zip 3개(`HYUNDAI_GENESIS_541384155f4f8ca5_20261014_073307/073351/073405.zip`)다. 이 구간에서 4절 0단계를 다시 수행했다(지침 v2, note `63098cc` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트, carrot-ryu HEAD `e1fa15a` 그대로). 아래 수치는 앞 구간 도구 출력에서 옮겼고 이 구간에서 로그를 다시 돌리지 않았다(샌드박스가 새로 시작돼 앞 구간의 스크래치 스크립트는 남아 있지 않다).

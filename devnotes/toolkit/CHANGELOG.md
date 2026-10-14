@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-14 (286차)
+- `lead_dropout/` 신규(286cha 작성, 앞 구간 기록에서 복원): `dropouts2.py`(크루즈 중 앞차 끊김 구간 표), `frame.py`(pkl 프레임 덤프), `lane_check.py`(비전 후보의 차선 위치), `variants.py`(비전 앞차 중앙 차선 게이트 변형 재생, 재구현 게이트), `release_replay_dump.py`(`radar_gate/release_replay.py`에 DUMP/ROUTE_OFF 블록을 더한 사본)(README 286차 추가 참고). route 000004a0(e1fa15a)의 97.90~99.15초 분석에 썼고 해석은 WIP.md 286cha에 있다. 올린 로그로 5개 모두 실제로 돌려 앞 구간 수치와 같은 값을 얻었다. 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-13 (277차)
 - `dead_scan/` 신규(277cha 새로 작성): `scan.py`(first-party 정의의 이름 기준 참조 스캔, 파일마다 ast 1회 파싱), `classify.py`(live/zero/test_only/dyn_only 분류와 연쇄 후보 고정점 계산)(README 277차 추가 참고). carrot-ryu c4f13a7에 실행해 직접 후보 19, 연쇄 11을 얻었고 해석은 WIP.md 277cha에 있다. 이름 기준 정적 분석이며 실차 검증과 무관하다. 다른 toolkit 파일은 변경 없음.
 
