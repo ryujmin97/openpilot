@@ -1,5 +1,36 @@
 # WIP
 
+## 290cha (코드 변경 없음, 샌드박스 재검증과 기록, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 289cha 이식 결정 2건이 carrot-ryu `19819e5`, `427bc8c`로 반영된 것을 GitHub에서 직접 확인하고 샌드박스 테스트로 재검증
+
+**배경.** 세션 시작 때 4절 0단계를 수행했다(note `83a9d4b` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트). HANDOFF의 carrot-ryu HEAD는 `e1fa15a`였는데 `git ls-remote`는 `427bc8c`였고, 사용자가 붙여준 push 로그(`e1fa15a..427bc8c`)와 맞았다(16절 괴리). 그 사이 두 커밋은 289cha에서 이식하기로 한 `7514554`와 `9381d34`의 `build.py` 부분이다. 이식 세션의 대화(결정 경위, 그때의 테스트)는 이 세션에서 보지 못했다. 사용자가 "두 이식을 샌드박스에서 테스트로 재검증한 뒤 기록합니다"를 골랐다. 이 세션은 코드를 고치지 않았다. 실차 검증: 미실시.
+
+1. **GitHub에서 직접 확인(16절).** `git ls-remote`: carrot-ryu `427bc8c`, carrot-ryu-note `83a9d4b`, carrot-ryu-v1 `6df4268`, carrot-ryu-v2 `3ddf849`(carrot-ms/carrot-wip 브랜치 없음). depth 6 blobless fetch로 읽었다.
+
+| 커밋 | 시각(KST) | 변경 |
+|---|---|---|
+| `19819e5` (부모 `e1fa15a`) | 2026-10-14 14:55:02 | `process.py` +4/-3, `process_config.py` +3/-1, 신규 `test/process_lifecycle_probe.py` +121, 신규 `test/test_python_process_spawn.py` +66 |
+| `427bc8c` (부모 `19819e5`) | 2026-10-14 14:55:06 | `build.py` +15/-1, 신규 `test/test_build_cache_prune.py` +61 |
+
+   변경 6개 파일 모두 BOM 없음, CR 0이다. 기존 파일 모드는 그대로(`build.py` 100755, `process.py`와 `process_config.py` 100644)이고 신규 3개는 100644다. 트리 파일 수는 `e1fa15a` 5,464 -> `19819e5` 5,466 -> `427bc8c` 5,467이다. 두 커밋의 Author 이메일은 `ryujmin@naver.com`이다(HANDOFF 주의사항의 기존 현상, 기능 영향 없음).
+
+2. **이식 내용(diff 본문을 읽었다).**
+   - `19819e5`(carrot-ms `7514554` 이식): `PythonProcess.__init__`에 `spawn=False` 인자를 추가하고 `self.process_factory = get_context('spawn').Process if spawn else Process`로 두며, `start()`가 `Process(...)` 대신 `self.process_factory(...)`를 쓴다. `process_config.py`는 `carrot_man`에 `spawn=True`를 주고 설명 주석 2줄을 단다. 커밋 메시지에 따르면 `test_python_process_spawn.py`는 carrot-ryu에 있는 `carrot_man`만 기대하고(carrot-ms는 `signalcolord`, `xiaoge_data`도 나열하는데 carrot-ryu에는 없다), `process_lifecycle_probe.py`는 업스트림과 같고, 시작 복구 CI 워크플로와 사고 문서는 이식하지 않았다.
+   - `427bc8c`(carrot-ms `9381d34`의 `build.py` 부분): 빌드 뒤 캐시 크기 제한 정리가 `CACHE_DIR.rglob('*')` 전체가 아니라 새 `prunable_cache_files()`(이름이 2글자인 디렉터리 바로 아래 파일만, 캐시 디렉터리가 없으면 빈 목록)를 거쳐 새 `prune_cache()`에서 오래된 순으로 지운다. 289cha 4번(`build.py` 이식 전제)에서 확정하기로 한 최소 범위 결과는 이렇다: 정리 대상을 버킷 파일로 한정하는 것만 이식했고, 커밋 메시지에 따르면 캐시 잠금, `SConstruct`, 런처, 시작 복구 부분은 이식하지 않았다.
+
+3. **샌드박스 환경.** `toolkit/pytest_ci_setup.sh carrot-ryu`로 만들었고 `git rev-parse HEAD`가 `427bc8c3a90dcd10691e7fe59b9beaad049b6f2b`임을 먼저 확인했다. pytest는 `-n 0 -p no:randomly`다. 환경은 이 세션의 샌드박스일 뿐 기기가 아니다.
+
+4. **결과(전부 샌드박스).**
+   - 신규 테스트 2개 파일: `test_build_cache_prune.py`(4건)와 `test_python_process_spawn.py`(5건) 모두 9 passed(0.5초대). `test_python_process_spawn.py`에는 `test_real_crash_restart_and_supervisor_responsiveness[False]`/`[True]`와 `test_deferred_and_restart_sensitive_services_select_spawn`이 있다(테스트 본문은 읽지 않았고 이름만 봤다).
+   - 변이 3종(각각 변이 뒤 원복해 9 passed 재확인): (1) `prunable_cache_files`의 반환을 `cache_dir.rglob('*')` 파일 전체로 바꾸면 `test_build_cache_prune.py` 2 failed/2 passed. (2) `process_config.py`에서 `spawn=True`를 지우면 `test_python_process_spawn.py` 2 failed/3 passed. (3) `process_factory`를 항상 `Process`로 두면 `test_python_process_spawn.py` 2 failed/3 passed. 신규 테스트가 두 이식의 옛 동작을 잡는다.
+   - 기존 `openpilot/system/manager/test/test_manager.py`: `427bc8c`에서 4 failed/5 passed/1 skipped(`test_carrot_navi_is_permanent_7714_owner`, `test_cluster_hud_excludes_carrot_vision_processes`, `test_removed_cluster_hud_mode_is_inactive`, `test_set_params_with_default_value`). 기준선(변경 3개 파일 `build.py`/`process.py`/`process_config.py`를 `e1fa15a` 내용으로 되돌림, `test_camera_config.py` 포함)은 같은 4건이 실패하고 4 failed/7 passed/1 skipped로 실패 목록이 같다. 원인은 2건만 읽었다: `ClusterHud` 파라미터 쓰기에서 문자열 `'0'` 대 INT 타입 불일치(TypeError), `TimezoneName`의 기본값이 `''`가 아니라 None. 나머지 2건은 원인을 조사하지 않았다. 캡처 출력에는 `rednose.helpers.ekf_sym_pyx`와 `lateral_mpc_lib.c_generated_code` 모듈이 없다는 메시지가 있다(샌드박스에 생성물이 없는 것으로 읽었다).
+   - 코드가 `process_config.py` 소스를 읽는 테스트 `test_radar_motion_predictor.py::test_production_radar_is_fixed_to_carrot`(8757행) 1 passed. `test_youtube_live_contract.py`와 `test_model_build_cache.py`를 함께 돌려 22 passed/1 failed였고 실패는 `test_model_build_cache.py::test_scons_rebuilds_model_when_serialization_helper_changes`(`assert 1 == 0`)다. 같은 파일을 기준선(위 3개 파일을 `e1fa15a`로 되돌림)에서 돌리면 같은 테스트가 실패한다(1 failed/13 passed). 원인은 조사하지 않았다.
+
+5. **정정과 사고 기록.** 기준선 비교 중 셸 한 줄이 구문 오류로 통째로 건너뛰어져(도구 셸 `sh`에서 `diff <(...)` 사용) 작업트리를 `427bc8c`로 되돌리는 `git checkout`이 실행되지 않았고, 작업트리가 `e1fa15a` 파일 상태로 남은 채 명령 몇 개가 돌았다. `git diff HEAD --stat`이 변경 3개 파일(+5/-22)을 보여 발견했고 `git checkout HEAD -- <3개 파일>`로 복원한 뒤 `git diff HEAD --stat`이 0줄임을 확인했다. 영향을 받은 것은 (a) `test_manager.py` 실패 원인 2건의 문구를 읽은 실행(기준선 파일 상태, 실패 목록은 HEAD 실행에서도 같음), (b) `-k manager_source`로 아무것도 선택되지 않은 실행(447 deselected, 결과 없음)이다. 위 4번의 HEAD 결과는 복원 확인 뒤 다시 돌린 실행(신규 9 passed, `test_manager.py` 같은 4건 실패)과 복원 전 첫 HEAD 실행이 일치한다.
+
+6. **이 세션에서 하지 않은 것.** carrot-ms 원본(`7514554`, `9381d34`)을 조회해 이식 내용을 직접 대조하지 않았다. 전체 pytest는 돌리지 않았다. 기기에서 `carrot_man`이 spawn 방식으로 기동하는지, 크래시 복구 뒤 `managerState`가 계속 발행되는지, 캐시 정리가 최상위 파일(Params 스탬프 `carrot_params_keys.sha256` 등)을 보존하는지는 보지 못했다. 잠금을 이식하지 않은 상태에서 정리와 동시 빌드의 경쟁은 보지 않았다. 기기 SCons 캐시 크기와 실제 문제 발생 여부는 모른다.
+
+7. **기록.** devnotes(WIP.md 290cha, WIP_SYNC.md 290차 중간 기록, 이 HANDOFF)를 PowerShell 스크립트로 기록한다. 코드 변경이 없어 5절의 devnotes 1회 push다. carrot-ms 점검이 없어 체크포인트는 `88803f6` 그대로다. toolkit과 FINDINGS.md는 건드리지 않았다.
+
 ## 289cha (코드 변경 없음, carrot-ms 정적 분석과 결정 기록, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `1728400..88803f6` 신규 17건 분류, `7514554`와 `9381d34`의 `build.py` 캐시 정리 이식 결정, 나머지 제외 확정, 체크포인트 `1728400` -> `88803f6`
 
 **배경.** 세션 시작 때 4절 0단계를 수행했다(note `d209c20` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트). 사용자가 붙여넣은 "carrot-ms 최신 커밋 분석 - 286차" 문서(carrot-ms `589bef9` 기준 신규 14건)는 이 devnotes에 기록이 없었고(WIP.md 286cha는 다른 내용), 3절에 따라 GitHub를 다시 조회해 대조했다. 그 문서의 14건은 이번 조회의 앞 14건과 해시와 순서가 같았다. 어느 세션이 만든 문서인지는 확인하지 못했다. 사용자가 "carrot-ms 최신 커밋 분석"을 요청했고, 분석 뒤 "1번과 2번을 각각 이식하고, 나머지는 제외 확정하는 내용으로 기록부터"로 답했다. 이 기록은 결정만 담는다. 코드 이식은 하지 않았고 이식 세션에서 5절 순차 전달(코드 -> 확인 -> devnotes)을 따른다. 실차 검증: 미실시.
