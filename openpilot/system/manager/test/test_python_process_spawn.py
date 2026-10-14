@@ -45,7 +45,8 @@ def test_deferred_and_restart_sensitive_services_select_spawn():
   calls = [n for n in ast.walk(ast.parse(path.read_text(encoding='utf-8')))
            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'PythonProcess']
   selected = [n.args[0].value for n in calls if any(k.arg == 'spawn' and ast.literal_eval(k.value) for k in n.keywords)]
-  # carrot-ms also lists signalcolord and xiaoge_data; carrot-ryu has neither process.
+  # carrot-ms also spawns signalcolord and xiaoge_data. carrot-ryu has no signalcolord
+  # process and starts xiaoge_data without spawn, so only carrot_man is selected here.
   assert selected == ['carrot_man']
 
 
