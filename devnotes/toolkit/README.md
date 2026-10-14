@@ -333,3 +333,16 @@ carrot-ms 8212379 이식(carrot-ryu 760905a)을 검증하려고 만든 도구다
 `<repo_dir>`은 `git fetch --depth 1 --filter=blob:none origin <기록 커밋>` 뒤 `git checkout FETCH_HEAD -- openpilot/selfdrive/carrot/radar_motion openpilot/selfdrive/carrot/radar`(스키마용 `openpilot/cereal/*.capnp`, `include`, `opendbc_repo/opendbc/car/car.capnp` 포함)로 받은 트리다. 횡 위치 허용치 변형(`YTOL`)은 이 트리를 복사한 사본에서 `primary.py`의 `or abs(point.y_rel - vision.y_rel) >= 2.0`(e1fa15a 3486행, 한 번만 나타남)을 `or abs(point.y_rel - vision.y_rel) >= float(__import__('os').environ.get('YTOL','2.0'))`로 바꾸고, 그 사본을 `<repo_dir>`로 넘기면서 `YTOL=2.5` 등을 주는 방식으로 쓴다(스크립트 안에는 이 치환이 없다).
 
 검증(287cha, route 000004a0, e1fa15a, 세그먼트 3개): 재생 3,600프레임, route 100초 이후 1,599프레임에서 로그와 (status, radar) 1,599개(100.00%) 일치, 끊김 구간 95.35~95.75, 96.30~96.39, 97.90~99.09, 99.80~100.05, 136.25~139.54, 140.64~148.80, 160.80~160.90초. 한계: open-loop(자차 거동과 오감속 미반영). `radard_dpath`는 cereal 런타임이 필요해 샌드박스에서 import되지 않으므로 `corner_radar_enabled`를 줄여 썼고 `EnableCornerRadar`가 0보다 크면 중단한다. route 시각은 첫 세그먼트 첫 carState 기준 mono 초라 앞 세션 표(첫 carState 오프셋 상수 사용)와 약 0.02초 다를 수 있다. 앞 세션이 같이 쓰던 `geom_dump.py`(레이더 점/비전 후보 dPath 표)와 `track_dump.py`(liveTracks 덤프)는 저장하지 않았다. 샌드박스 전용이다.
+
+### 288차 추가 (lead_dropout/track_dump.py, geom_dump.py: liveTracks 점 덤프와 radar_motion 매처 반환 경로 추적)
+
+288cha(WIP.md 288cha)에서 route 000004a0(기록 커밋 e1fa15a)의 149.14초 레이더 5 m 대 비전 13~14 m 불일치를 조사하려고 쓴 도구 2개다. 287cha에서 앞 세션 사본이 저장되지 않아 288cha에서 다시 썼다. 같은 로그에서 288cha 분석 출력과 같은 값을 얻었다. open-loop 로그 읽기와 재생이며 실차 검증 아님.
+
+| 파일 | 역할 |
+|---|---|
+| `track_dump.py <schema_dir> <segs_dir> <t_from> <t_to> [max_d]` | route 초(첫 carState 기준 mono 초) 구간에서 `liveTracks` 프레임마다 한 블록: 자차 vEgo, 비전 후보(`modelV2.leadsV3[0]`)의 d(= x[0] - 1.52)/y_rel/v/prob, 이어서 점(dRel < max_d, 기본 40 m, dRel 순)의 id, d, y, vRel, measured, source. 점 필드는 스키마에 없으면 `-`. `radarSource` 필드를 읽는다(`source`가 아니다). 재생 없이 로그만 읽으므로 `repo_dir` 불필요, `python3 -I`로 실행 |
+| `geom_dump.py <schema_dir> <repo_dir> <segs_dir>` | `full_replay2.py`와 같은 재생에 `VisionRadarMatcher`의 `_match_*` 메서드를 감싸, `WRAP=a:b`(route 초 구간, 필수) 안의 매 modelV2 프레임에 비전 d/y_rel, 레이더 점 목록, 비전 후보의 d/prob/dPath(`visdPath` 줄), 각 `_match_*`가 돌려준 점(또는 None), 최종 leadOne (status, radar, dRel)을 출력한다. `full_replay2.py`의 CMPFROM/QUIET/PROBFIX/FREEZE/YSHIFT도 그대로 쓴다(QUIET=1 권장). `repo_dir`의 `primary.py`를 고친 사본을 넘기면 그 코드로 재생한다 |
+
+사용 예(000004a0, 288cha): `python3 -I track_dump.py <schema> <segs> 148.7 149.45 40`, `WRAP=148.95:149.30 QUIET=1 python3 -I geom_dump.py <schema> <repo_dir> <segs>`. `<repo_dir>`와 스키마 모으는 법은 287차 추가(`full_replay2.py`)와 같다.
+
+검증(288cha, route 000004a0, e1fa15a, 세그먼트 3개): 두 파일 모두 `py_compile` 통과. `track_dump.py 149.05 149.25 40`은 149.11초에 id 0 d 5.1 y -0.60 vRel -0.60 meas True src scc 블록을 낸다. `geom_dump.py`(WRAP=149.05:149.2)는 149.13초에 `_match_vision_corroborated_radar` -> `pt d=5.1 y=-0.60 id=0 src=scc`, `visdPath d=12.9 prob=0.99 dPath=+0.72`, leadOne st=True radar=True dRel=5.1을 낸다. 같은 실행에서 재생 3,600프레임, 비교 1,599프레임 (status, radar) 100.00% 일치. 한계: open-loop(자차 거동 미반영). `geom_dump.py`는 `_match_*` 반환만 찍고 각 매처 내부 한도(거리 오차, dPath 차, 속도 차)는 찍지 않는다. `_match_vision_corroborated_radar` 내부 값은 288cha에서 1회용 래퍼로 따로 찍었고 저장하지 않았다.

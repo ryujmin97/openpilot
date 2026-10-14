@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-14 (288차)
+- `lead_dropout/track_dump.py`, `lead_dropout/geom_dump.py` 신규(288cha 다시 작성, 287cha에서 저장하지 못한 도구): `track_dump.py`는 liveTracks 점 전체와 비전 후보(leadsV3[0])를 프레임마다 덤프, `geom_dump.py`는 `full_replay2.py` 재생에 `VisionRadarMatcher._match_*` 반환 경로와 비전 dPath를 찍는 래퍼를 더한 사본(README 288차 추가 참고). route 000004a0(e1fa15a) 149.14초 분석에 썼고 해석은 WIP.md 288cha에 있다. 실제 로그로 돌려 출력과 `py_compile`을 확인했다. 다른 toolkit 파일은 변경 없음.
+
 ## 2026-10-14 (287차)
 - `lead_dropout/full_replay2.py` 신규(287cha 다시 작성): e1fa15a 등 기록 커밋의 `DPathRadarController`를 `radard_dpath.DPathRadarD.update`와 같은 입력으로 rlog 세그먼트 전체에 재생하고 로그 leadOne과 대조하는 open-loop 도구. PROBFIX/FREEZE/YSHIFT 변형과 DUMP 프레임표를 지원한다(README 287차 추가 참고). route 000004a0에서 1,599프레임 100% 일치. `geom_dump.py`, `track_dump.py`는 저장하지 않았다. 다른 toolkit 파일은 변경 없음.
 
