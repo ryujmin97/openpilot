@@ -1,5 +1,25 @@
 # WIP
 
+## 291cha (코드 변경 없음, 실차 로그 000004a6 rlog 요약 분석과 기록, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - route 000004a6 10세그먼트(약 10분)를 rlog만으로 요약 분석, 기록 커밋 0255dc6 스키마로 재확인
+
+**배경.** 사용자가 `HYUNDAI_GENESIS_541384155f4f8ca5_20261014_160359.zip`(130 MB, route 000004a6, 세그먼트 1~10, 각 `rlog.zst` + `qcamera.ts`)을 올리고 "토큰 감안 로그 분석 후 중간저장"을 요청했다. 이어서 "계속", "체크포인트", "다시 기록"을 요청했고, 이 회차가 그 기록이다. 코드 변경은 없다. 분석 결과는 세션 중 요약 JSON 3개(`summary1~3`)와 `.md` 보고서로 중간저장했고, 이 회차에서 devnotes로 옮긴다.
+
+**절차 정정(솔직 기록).** (1) 사용자의 첫 메시지가 4절 0단계(지침 조회)를 요구했는데 세션 앞부분에서 건너뛰고 로그 분석부터 진행했다. 0단계는 "다시 기록" 요청 뒤에야 수행했다(note `e13c6b6` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트, v2). (2) 14절의 `toolkit/README.md` 확인 전에 새 요약 스크립트를 먼저 만들었다. README에는 rlog 추출 도구(`lead_replay/extract_log.py` 등)가 있으나 이번 요약(활성 비율/제어 오차/장치/CAN/GPS)과 같은 목적의 도구는 없어 새 도구로 `toolkit/rlog_summary/`에 저장한다(README, CHANGELOG 갱신 포함). (3) 처음에는 스키마를 upstream commaai/openpilot과 opendbc master로 받아 파싱했다. 이후 `initData.gitCommit`으로 기록 커밋이 `0255dc6`임을 확인하고, carrot-ryu `0255dc6`의 `openpilot/cereal/*.capnp`, `openpilot/cereal/include/`, `opendbc_repo/opendbc/car/car.capnp`로 3개 요약을 다시 돌렸다. 결과는 모두 같았고 차이는 두 가지뿐이다: `thermalStatus` 라벨이 `ok`(upstream) 대신 `green`(carrot-ryu, 같은 단계), `radarState.leadOne`의 `present`(upstream) 대신 `status`(carrot-ryu) 필드. 이 필드 이름 차이 때문에 `summary3.py`는 `status`가 없으면 `present`를 읽도록 고쳤다. 아래 수치는 모두 0255dc6 스키마 기준 재실행값이다.
+
+1. **로그 메타(`initData`/`carParams`).** gitCommit `0255dc6940a71366bb8c055a68ccf96ad2f4a327`, branch carrot-ryu, dirty False, 커밋 시각 2026-10-14 15:26:23 KST, version 0.11.1, deviceType tizi, osVersion 19.6.3-carrot. carFingerprint HYUNDAI_GENESIS, brand hyundai, openpilotLongitudinalControl True, pcmCruise False, radarUnavailable False. 세그먼트당 약 60초(carState 6,000건, 100 Hz). `logMonoTime` 최댓값-최솟값으로 잰 길이는 부팅 이전 이벤트 때문에 부정확해(121.5~661.5초로 누적처럼 보임) 쓰지 않았다. GPS 이동은 위도 36.42에서 36.35, 경도 127.38에서 127.49 방향.
+
+2. **16절 괴리.** HANDOFF의 carrot-ryu HEAD는 `427bc8c`였는데 `git ls-remote`는 `0255dc6`이었다. `0255dc6`은 `427bc8c`의 자식으로 메시지는 `test: correct comment on carrot-ms-only spawn processes`(2026-10-14 15:26:23 KST)다. 메시지와 `git log`만 확인했고 diff는 읽지 않았다(주석 정정으로 보이지만 추정). 이 로그는 그 HEAD에서 기록됐다.
+
+3. **1차 요약(오류, 활성, 속도, 알림).** 차량/panda 폴트 0(`steerFaultTemporary/Permanent`, `accFaulted`, `canValid`, `canTimeout`, panda `faults`/`heartbeatLost`/`safetyRxInvalid`/`safetyTxBlocked`/버퍼 오버플로). `logMessage`의 levelnum 30 이상은 loggerd 로테이션 10건뿐(키는 `level`이 아니라 `levelnum`). 활성(`selfdriveState.enabled`) 비율: 1번 76%(초반 `disabled` 1,442틱 후 버튼 enable, 알림 `buttonEnable/enable` 21틱), 2~10번 100%. 속도 평균/최고(km/h): 1번 54/65, 2번 67/81, 3번 78/87, 4번 76/101, 5번 84/103, 6번 97/106, 7번 88/97, 8번 106/114, 9번 105/111, 10번 105/114. 브레이크 입력 0. 가속페달: 1번 23.6%(disabled 구간), 4번 5.6%. 알림: `laneChange/warning`(2·4·5·7·8번), `gasPressedOverride/overrideLongitudinal` 336틱(4번, `overriding` 334틱), `steerOverride/overrideLateral` 719틱(7번, `overriding` 806틱).
+
+4. **2차 요약(제어 품질).** 횡제어는 `torqueState`. `controlsState`의 `curvature - desiredCurvature` RMS는 0.00005~0.00046 1/m(1번 최대 0.00046, 6~10번 0.0001 이하). 가속도 추종 `aEgo - longitudinalPlan.aTarget` RMS 0.09~0.18 m/s²(5번 최대 0.18). `aEgo` 미분(저크)은 센서 노이즈가 섞여 참고용: RMS 2.6에서 4.9로 속도와 함께 증가, 최대 78.5(6번). 7번 세그먼트 34~39초에 조향 개입(`steeringPressed` 13.4%, `steeringTorque` 절댓값 최대 272), 4번 33.6~37.8초는 가속페달 override.
+
+5. **3차 요약(장치, panda, CAN, GPS, 선행차).** `thermalStatus` 전 구간 green, CPU 최대 온도 61.1에서 75.2°C로 완만히 상승(세그먼트 평균 59.3에서 73.3°C), 메모리 66~68%, 전력 평균 약 10 W, 저장공간 여유 87.9에서 87.0%. panda 전압 13,101~13,849 mV, 점화 100%. CAN은 bus 0/130이 세그먼트당 약 118,800건, bus 2/128이 약 12,000건으로 일정했고 sendcan은 bus 0만 약 12,000건이라 누락 징후는 없다. GPS는 세그먼트당 60픽스인데 9번만 36픽스(약 24초 공백, 원인 미확인). 선행차(`leadOne.status`) 감지율 45.5~100%(1번 77.4, 2번 59.6, 3번 100, 4번 45.5, 5번 84.8, 6번 100, 7번 100, 8번 100, 9번 98.3, 10번 81.0). 최근접 `dRel`은 10.3 m가 2번 27.1초(vEgo 81 km/h, `vRel` +4.3 km/h, 차간 0.46초)와 7번 53.1초(86 km/h, +0.7 km/h, 0.43초)에서 나왔다. 두 시점 모두 `vRel`이 0 이상이라 접근 상황은 아니고, 근처에 차선변경 알림이 있어 끼어들기로 추정하지만 `lane_check.py` 등으로 확인하지는 않았다. `driverMonitoringState`는 이 로그의 이벤트 목록에 없었다.
+
+6. **하지 않은 것.** `qcamera.ts` 영상 확인(2번 27초, 7번 53초, 7번 34~39초, 9번 GPS 공백 구간 대조), 개입 원인 확정(운전자 의도인지 상황 반응인지), `lead_gate`/게이트 계열 swaglog 분석, 정지/저속 구간 분석, 이 로그를 이전 route(`000004a0` 등)와 비교, 전체 pytest, 코드 변경 제안. 도구 모두 읽기 전용 요약이고 폐루프/재생 시뮬레이션이 아니다.
+
+7. **검증.** 실차 검증: 미실시(실주행 로그를 읽은 것으로 개입 구간의 원인 판정이나 코드 효과 검증이 아니다). 세 요약을 두 스키마(upstream master, carrot-ryu 0255dc6)로 각각 돌려 비교했다. devnotes는 Termux 스크립트로 기록한다. 코드 변경이 없어 5절의 devnotes 1회 push다.
+
 ## 290cha (코드 변경 없음, 샌드박스 재검증과 기록, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 289cha 이식 결정 2건이 carrot-ryu `19819e5`, `427bc8c`로 반영된 것을 GitHub에서 직접 확인하고 샌드박스 테스트로 재검증
 
 **배경.** 세션 시작 때 4절 0단계를 수행했다(note `83a9d4b` SHA 고정본, 브랜치 URL본과 `cmp` 바이트 일치, 49,277바이트). HANDOFF의 carrot-ryu HEAD는 `e1fa15a`였는데 `git ls-remote`는 `427bc8c`였고, 사용자가 붙여준 push 로그(`e1fa15a..427bc8c`)와 맞았다(16절 괴리). 그 사이 두 커밋은 289cha에서 이식하기로 한 `7514554`와 `9381d34`의 `build.py` 부분이다. 이식 세션의 대화(결정 경위, 그때의 테스트)는 이 세션에서 보지 못했다. 사용자가 "두 이식을 샌드박스에서 테스트로 재검증한 뒤 기록합니다"를 골랐다. 이 세션은 코드를 고치지 않았다. 실차 검증: 미실시.

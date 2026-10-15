@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-15 (291차)
+- `rlog_summary/load.py`, `summary1.py`, `summary2.py`, `summary3.py` 신규(291cha, route 000004a6 요약 분석용): rlog.zst에서 오류/활성/속도/제어 품질/장치/panda/CAN/GPS/선행차를 세그먼트별 JSON으로 요약. 스키마 폴더는 `SCHEMA_DIR`, 세그먼트 폴더는 `SEGS_DIR` 환경변수. `summary3.py`는 `leadOne.status`(carrot-ryu)와 `present`(upstream) 모두 처리. README에 291차 항목 추가.
+
 ## 2026-10-14 (288차)
 - `lead_dropout/track_dump.py`, `lead_dropout/geom_dump.py` 신규(288cha 다시 작성, 287cha에서 저장하지 못한 도구): `track_dump.py`는 liveTracks 점 전체와 비전 후보(leadsV3[0])를 프레임마다 덤프, `geom_dump.py`는 `full_replay2.py` 재생에 `VisionRadarMatcher._match_*` 반환 경로와 비전 dPath를 찍는 래퍼를 더한 사본(README 288차 추가 참고). route 000004a0(e1fa15a) 149.14초 분석에 썼고 해석은 WIP.md 288cha에 있다. 실제 로그로 돌려 출력과 `py_compile`을 확인했다. 다른 toolkit 파일은 변경 없음.
 

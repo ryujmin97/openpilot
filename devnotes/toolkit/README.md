@@ -346,3 +346,12 @@ carrot-ms 8212379 이식(carrot-ryu 760905a)을 검증하려고 만든 도구다
 사용 예(000004a0, 288cha): `python3 -I track_dump.py <schema> <segs> 148.7 149.45 40`, `WRAP=148.95:149.30 QUIET=1 python3 -I geom_dump.py <schema> <repo_dir> <segs>`. `<repo_dir>`와 스키마 모으는 법은 287차 추가(`full_replay2.py`)와 같다.
 
 검증(288cha, route 000004a0, e1fa15a, 세그먼트 3개): 두 파일 모두 `py_compile` 통과. `track_dump.py 149.05 149.25 40`은 149.11초에 id 0 d 5.1 y -0.60 vRel -0.60 meas True src scc 블록을 낸다. `geom_dump.py`(WRAP=149.05:149.2)는 149.13초에 `_match_vision_corroborated_radar` -> `pt d=5.1 y=-0.60 id=0 src=scc`, `visdPath d=12.9 prob=0.99 dPath=+0.72`, leadOne st=True radar=True dRel=5.1을 낸다. 같은 실행에서 재생 3,600프레임, 비교 1,599프레임 (status, radar) 100.00% 일치. 한계: open-loop(자차 거동 미반영). `geom_dump.py`는 `_match_*` 반환만 찍고 각 매처 내부 한도(거리 오차, dPath 차, 속도 차)는 찍지 않는다. `_match_vision_corroborated_radar` 내부 값은 288cha에서 1회용 래퍼로 따로 찍었고 저장하지 않았다.
+
+### 291차 추가 (rlog_summary/: rlog 10세그먼트 요약 분석)
+route 단위로 rlog.zst를 읽어 오류, 활성 비율, 속도, 제어 품질, 장치, panda, CAN, GPS, 선행차를 세그먼트별 JSON으로 요약하는 읽기 전용 도구. 291cha(route 000004a6, 기록 커밋 0255dc6)에서 만들었다. 실차 검증 아님(로그 확인).
+| `rlog_summary/load.py` | `capnp` 스키마 로더와 `events(path)`. 스키마 폴더는 환경변수 `SCHEMA_DIR`(기본 `./schema`)로 지정하며 **로그를 기록한 커밋**의 `openpilot/cereal/{log,deprecated,custom}.capnp`, `openpilot/cereal/include/c++.capnp`, `opendbc_repo/opendbc/car/car.capnp`를 한 폴더에 모은다(`include/`는 하위 폴더). 인자 없이 `python3 load.py <rlog.zst>`는 이벤트 종류별 개수를 출력 |
+| `rlog_summary/summary1.py` | 세그먼트별 carState/selfdriveState/pandaStates/logMessage/deviceState 요약(폴트, 활성 %, 속도, 알림, 가속/브레이크 %, 조향각, panda 폴트, 경고 로그) -> `summary1.json` |
+| `rlog_summary/summary2.py` | 제어 품질: `controlsState.curvature - desiredCurvature` RMS/최대, `aEgo - aTarget` RMS, aEgo 미분 저크(노이즈 포함, 참고용), 조향 토크/`steeringPressed`, 상태 전이(disabled/overriding) 시각 -> `summary2.json` |
+| `rlog_summary/summary3.py` | 장치 온도/전력/메모리/저장공간, panda 전압/점화, `radarState.leadOne` 감지율과 최근접 dRel, GPS 픽스 수와 위치, bus별 CAN/sendcan 개수 -> `summary3.json` |
+환경: `pip install --break-system-packages pycapnp zstandard`. 실행(작업 폴더에서): `SCHEMA_DIR=<schema> SEGS_DIR=<segs> python3 summary1.py`(2, 3도 같음). `SEGS_DIR` 아래 `<route>--<n>/rlog.zst` 구조를 `n` 순서로 읽고, 결과 JSON은 현재 폴더에 쓴다(각 세그먼트 처리 뒤 덮어써 중간저장).
+한계: 스키마를 기록 커밋 것으로 받지 않으면 필드가 다르다(upstream은 `leadOne.present`와 `thermalStatus` `ok`, carrot-ryu는 `status`와 `green`; `summary3.py`는 둘 다 처리). `logMonoTime` 범위로 구간 길이를 재면 부팅 이전 이벤트 때문에 틀리므로 쓰지 않았다(carState 건수 / 100 Hz로 판단). logMessage 레벨 키는 `levelnum`. 저크는 aEgo 단순 미분이라 센서 노이즈가 크다. 영상(`qcamera.ts`)은 다루지 않는다.
