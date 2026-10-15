@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-15 (292차)
+- `rlog_summary/lead_win.py`, `steer_win.py`, `gps_gap.py` 신규(292cha, route 000004a6 영상 대조용): 한 rlog.zst의 시간 구간만 읽어 leadOne, 조향/개입/활성/가속 명령/깜빡이, gpsLocation 공백을 출력. `load.py`와 같은 폴더, 스키마는 `SCHEMA_DIR`. 앞 대화 원본이 샌드박스 초기화로 사라져 README 사양대로 다시 썼다. `py_compile` 통과, 실제 로그 세그먼트 2, 7, 8, 9, 10으로 재실행. README에 292차 추가(영상 프레임 추출 ffmpeg 명령 포함).
+
 ## 2026-10-15 (291차)
 - `rlog_summary/load.py`, `summary1.py`, `summary2.py`, `summary3.py` 신규(291cha, route 000004a6 요약 분석용): rlog.zst에서 오류/활성/속도/제어 품질/장치/panda/CAN/GPS/선행차를 세그먼트별 JSON으로 요약. 스키마 폴더는 `SCHEMA_DIR`, 세그먼트 폴더는 `SEGS_DIR` 환경변수. `summary3.py`는 `leadOne.status`(carrot-ryu)와 `present`(upstream) 모두 처리. README에 291차 항목 추가.
 
