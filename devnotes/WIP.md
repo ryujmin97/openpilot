@@ -1,5 +1,21 @@
 # WIP
 
+## 294cha (코드 변경 있음 c091a24 = 35ce18f 원복, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 최신 코드 커밋 35ce18f 원복과 사용자 보고 주행 증상 기록
+
+**배경.** 사용자가 세션 시작 지침과 함께 "코드변경 가장 최신 커밋. 주행감 안좋음. 원복해줘"를 요청했다. 원복 push를 GitHub에서 확인한 뒤, 사용자가 증상을 "정지후 출발이 너무 늦고, 앞차추종감속도 반응이 늦음"이라고 알려주며 기록을 요청했다. 사용자는 이 증상이 어느 주행, 기기에 설치된 어느 커밋에서 나온 것인지 말하지 않았고 로그도 올리지 않았다. 이 회차는 로그 분석이 없다.
+
+**절차 기록.** (1) 4절 0단계: 사용자가 준 브랜치 URL로 지침을 먼저 받고 그 뒤 `git ls-remote`로 SHA(note `b440c7d`)를 얻어 SHA 고정본으로 다시 받았다(지침 순서와 반대, 293cha와 같은 순서 위반). 두 본이 `cmp` 바이트 일치였다. HANDOFF는 SHA 고정본으로 읽었다. 첫 응답에 "지침 문서 확인함(v2, `b440c7d`)"을 보고했다. (2) `api.github.com` 커밋 상세 조회가 rate limit에 걸려 얕은 `git clone`(`--depth`)으로 대체했다.
+
+1. **괴리(16절).** HANDOFF의 carrot-ryu HEAD는 `0255dc6`이었으나 세션 시작 때 실제 HEAD는 `35ce18f`(부모 `0255dc6`, 2026-10-15 13:56:11 KST)였다. devnotes 어디에도 `35ce18f`와 carrot-ms `1d5acbc` 기록이 없었다(`grep` 0건). 이 커밋을 올린 세션 대화는 보지 못했다.
+2. **`35ce18f` 내용(diff 직접 읽음).** 제목 "radar: release replaced Cap'n Proto allocations after every update (port of carrot-ms 1d5acbc)". `openpilot/selfdrive/carrot/radar/radard_dpath.py` `update()`가 매 프레임 `log.RadarState.new_message()`로 시작하도록 한 줄이 추가됐고(이전 주석은 builder를 재사용한다고 했다), 신규 `openpilot/selfdrive/carrot/tests/test_radard_message_memory.py` +111. 합계 2개 파일 +115/-2(`radard_dpath.py` +4/-2). 커밋 메시지는 "Docs/AGENTS.md from upstream not ported"와 "Static analysis and sandbox tests only; no vehicle verification"을 밝혔다. 발행 필드 값을 바꾸지 않는다는 것은 커밋 메시지의 설명이며 이 세션에서 측정하지 않았다.
+3. **원복 스크립트.** 사용자가 말한 "가장 최신 코드 커밋"을 현재 HEAD `35ce18f`로 해석했다. 처음 PowerShell 버전(`revert-35ce18f-v1.ps1`)을 만들었고 사용자가 "Termux"라고 알려 같은 로직의 Termux bash 버전(`revert-35ce18f-termux-v1.sh`)을 전달했다. 로직: `--depth 3` 얕은 clone, HEAD가 `35ce18f`인지 확인, `git revert --no-commit`, 결과 트리가 `0255dc6` 트리와 같은지 확인한 뒤에만 커밋·push(`--force` 없음). 사용자는 "완료"만 알렸고 실행 로그는 받지 못했다. 어느 스크립트를 실행했는지는 직접 보지 못했다(두 버전의 커밋 메시지가 같다).
+4. **GitHub 직접 확인(16절, 얕은 clone).** carrot-ryu HEAD `c091a24`(2026-10-15 16:46:22 KST, 작성자 ryujmin97), 부모 `35ce18f`, 제목 `Revert 'radar: release replaced Cap'n Proto allocations after every update' (35ce18f)`. 파일 2개 +2/-115(`radard_dpath.py` +2/-4, `test_radard_message_memory.py` 삭제 -111). 트리 `51bcaf2cb27c65254cc6f9ac8fc8d4ae035f6f1d`가 `0255dc6`의 트리와 같고(`git diff --quiet 0255dc6 HEAD` 통과) 테스트 파일은 없다. note 브랜치는 `git ls-remote`로 `b440c7d` 그대로였다.
+5. **스크립트 검증(샌드박스).** pwsh 7.6.7 파서로 PowerShell 버전 구문 오류 0건(후행 쉼표 대조군은 오류 2건 검출). 두 버전 모두 `35ce18f` 전후의 실제 두 파일과 `.gitattributes`(`* text=auto`)로 만든 로컬 bare 저장소에서 일반·CRLF(`core.eol=crlf`) 두 모드로 끝까지 실행했고 결과 트리가 base 트리와 같았다. 기대 HEAD가 다르면 중단되는 것도 확인했다. 전체 저장소가 아니라 해당 파일 둘로 만든 합성 저장소이고, 실제 Windows PowerShell 5.1이나 Termux 실행은 아니다.
+6. **사용자 보고 증상(기록만, 분석 없음).** (a) 정지 후 출발이 너무 늦다. (b) 앞차 추종 감속의 반응이 늦다. 둘이 같은 원인인지, 원복 전후 어느 쪽에서 나온 것인지, 이전 커밋에서도 있었는지는 모른다.
+7. **해석 한계.** 이 세션에서 `35ce18f` diff는 읽었으나 이 커밋이 주행감(예: 레이더 처리 시간)에 영향을 주는지는 측정하지 않았다. 앞서 사용자에게 "발행 값이 그대로라 원인일 가능성이 낮아 보인다"고 말한 것은 diff와 커밋 메시지를 읽은 정적 판단이다. 같은 답변에서 `e1fa15a`(carrot-ms `3038d4a` 이식, 제동 시작 앞차 간격 기억 제거)를 "더 유력한 후보"라고 한 것은 커밋 제목만 보고 한 추정이며 그 diff는 이 세션에서 읽지 않았다. 둘 다 원인으로 확정된 것이 아니다.
+8. **하지 않은 것.** 기기에 설치된 커밋 확인, 증상 구간 로그 분석, `e1fa15a`/`3038d4a` diff 읽기, carrot-ms `1d5acbc` 원본과의 대조, `WIP_SYNC.md` 갱신(`1d5acbc` 검토 기록 없음, carrot-ms는 조회하지 않았고 체크포인트 `88803f6` 그대로), 원복 뒤 증상이 남는지 확인.
+9. **devnotes.** 이 WIP.md 294cha와 HANDOFF.md를 Termux bash 스크립트로 기록한다(5절 순차 전달: 코드 push `c091a24` 확인 뒤 devnotes 1회). 실차 검증: 미실시.
+
 ## 293cha (코드 변경 없음, route 000004a6 7번 세그먼트 조향 토크 두 구간의 모델 차선 출력·로그 재확인, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 292cha 미완료 (a)(b) 처리, toolkit `lane_win.py`
 
 **배경.** 이 회차는 앞 대화(샌드박스 초기화로 도구와 스크립트 생성기 끝부분이 사라짐)의 작업을 이어받았다. 앞 대화에서 사용자가 292cha 선택지 (a)(7번 34.0~44.5초 조향 토크 구간과 57~59초의 영상 확인, 코드 변경 아님)를 골랐고 영상 대조(세그먼트 7의 39.5~48.5초와 56~60초, 세그먼트 8의 0~4.5초)를 했다. 이 대화에서 사용자가 앞 대화의 WIP 초안과 같은 로그 zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20261014_160359.zip`, route 000004a6, 세그먼트 1~10)을 올리고 "이어서 진행"을 요청했다. 영상 관찰은 앞 대화 초안에서 옮긴 눈대중이며 이 대화에서 영상은 다시 보지 않았다. 로그 수치는 이 대화에서 세그먼트 7, 8의 rlog로 다시 읽었다.
