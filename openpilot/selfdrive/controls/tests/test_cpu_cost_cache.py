@@ -7,6 +7,7 @@ from types import SimpleNamespace as NS
 import numpy as np
 import pytest
 
+from openpilot.selfdrive.controls.lib.longitudinal_braking_gap import BrakingGapState
 
 
 class Solver:
@@ -68,6 +69,17 @@ def test_cost_cache_tracks_exact_values_solver_and_mode(lateral):
   obj._cost_key = None
   call()
   assert len(obj.solver.calls) >= 2 * count
+
+
+@pytest.mark.parametrize('margin', [0., -0., .005, 1., float('nan')])
+def test_empty_braking_forecast_keeps_residual_margin_and_state(margin):
+  state = BrakingGapState()
+  state.margin = margin
+  before = vars(state).copy()
+  times = np.linspace(0., 10., 13)
+  result = state.margins(times, times, times, times, 1.5, 6.)
+  assert result.tobytes() == np.full_like(times, margin).tobytes()
+  assert vars(state) == before
 
 
 @pytest.mark.parametrize('lateral', [False, True])
