@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-15 (293차)
+- `rlog_summary/lane_win.py` 신규(293cha, route 000004a6 조향 토크 구간 대조용): 한 rlog.zst의 시간 구간에서 `modelV2`의 `laneChangeState`/방향, 차선 폭, 변경 가능 여부, `laneLines` 안쪽 두 줄의 첫 점 y/확률/중간값을 출력. `load.py`와 같은 폴더, 스키마는 `SCHEMA_DIR`
+
 ## 2026-10-15 (292차)
 - `rlog_summary/lead_win.py`, `steer_win.py`, `gps_gap.py` 신규(292cha, route 000004a6 영상 대조용): 한 rlog.zst의 시간 구간만 읽어 leadOne, 조향/개입/활성/가속 명령/깜빡이, gpsLocation 공백을 출력. `load.py`와 같은 폴더, 스키마는 `SCHEMA_DIR`. 앞 대화 원본이 샌드박스 초기화로 사라져 README 사양대로 다시 썼다. `py_compile` 통과, 실제 로그 세그먼트 2, 7, 8, 9, 10으로 재실행. README에 292차 추가(영상 프레임 추출 ffmpeg 명령 포함).
 
