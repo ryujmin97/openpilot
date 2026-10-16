@@ -1,5 +1,21 @@
 # WIP
 
+## 297cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `88803f6..dc1f47b` 신규 41건 점검과 전체 제외 확정
+
+**배경.** 사용자가 세션 시작 지침과 함께 "carrot-ms 최신 커밋 분석"을 요청했고, 분석 보고(이식 권장 0건, 사용자 판단 3건)를 받은 뒤 "전체 제외 확정. Termux"로 답했다. 확정 대상은 보고한 41건 전부다.
+
+**절차 기록.** 4절 0단계: 사용자가 준 브랜치 raw URL로 지침을 먼저 받고 이어 `git ls-remote`로 SHA(note `51488e7`)를 얻어 SHA 고정본을 받았다(지침 순서와 반대, 293cha 이후와 같은 순서 위반). 두 본이 `cmp`로 바이트 일치했다(49,277바이트). 첫 응답에 "지침 문서 확인함(v2, `51488e7`)"과 순서 위반을 보고했다. HANDOFF와 WIP_SYNC는 SHA 고정본으로 읽었고 carrot-ryu HEAD `f295c96`을 `git ls-remote`로 확인했다.
+
+1. **조회.** carrot-ms HEAD `dc1f47b`(2026-10-16 07:55 KST, `git ls-remote`), `88803f6`은 commit이고 HEAD의 조상, `88803f6..dc1f47b` 신규 41건(depth 120 blobless bare fetch). 41건 전부의 변경 파일을 carrot-ryu `f295c96` 트리(추적 파일 5,467개)와 대조했고, 공용 경로를 건드리는 커밋은 diff 본문을 읽었다.
+2. **분류 결과(상세 표는 WIP_SYNC.md 297차).** eGPU·MD v3 15, ESP32-S3 Wi-Fi HUD 13, 코너 레이더 3, Jetlink 1, Tesla 1, 신호등 2, 문서 2, selfdrived 2(`f061297`, `e3884b8`), manager 진단 1(`fbc6d37`), 레이더 메모리 1(`1d5acbc`). 이식 권장은 0건이었다.
+3. **코너 레이더 3건(`e2e7228`, `2ea0781`, `de3dccd`).** 코드에서 `self.enable_radar_tracks > 0 and self.motion_sensor == "corner"`일 때만 작동한다(`controller.py` diff 본문 확인). 기기 `EnableRadarTracks`는 271cha에 params_backup.json에서 0으로 확인했고 계속 0으로 쓸 예정이다. `e2e7228`이 `selfdrived`에 넣는 전방 물체 경고(`radar_only_warning.py`)도 `frontRadar` 점과 `corner` 점이 짝지어질 때만 울린다. 선행 파일(`stationary_lane.py`, `radar_only_warning.py`, `radar_motion/timing.py`)이 carrot-ryu에 없고 `selfdrived.py` hunk 하나가 `git apply --check`에서 거부됐다. 제네시스 DH 2015에 코너 레이더가 없다는 점은 확인한 사실이 아니라 가정이다.
+4. **사용자 판단이 필요했던 3건과 확정.** (a) `1d5acbc`: carrot-ms의 `radard_dpath.py`가 매 프레임 `RadarState.new_message()`를 다시 만들게 하는 변경이다. 기존 코드 주석은 빌더 재사용이 기기에서 측정되는 CPU 절감이라고 적고 있어 이 커밋이 그 최적화를 되돌린다. 근거 문서(`docs/elantra_memory_20261014.md`)는 Elantra 한 대의 메모리 조사이고 "전체 증가의 원인이 아니라 기여 요인 하나, 기기 설치 후 측정 없음"이라고 밝힌다. carrot-ryu `35ce18f`로 이식됐다가 294cha에 원복된 그 커밋이다. (b) `e3884b8`: 일시적 조향 경고(`steerTempUnavailable`)의 비치명 경고 표시를 120 ms 늦춘다. `events.py`에 `git apply --check`로 깨끗하게 적용됐다(줄 오프셋 -2). 이 차량 로그에서 임시 조향 폴트가 문제였다는 근거는 없다. (c) `fbc6d37`: 프로세스 비정상 종료 때 tmux를 보존·업로드하는 진단 인프라다. `process.py`, `tombstoned.py`, `process_lifecycle_probe.py` 패치는 깨끗하게 적용되나 `process_crash.py`가 부르는 `create_web_upload_session_sync`, `tmux_web_target`의 `def`를 carrot-ryu `web_upload.py`에서 찾지 못했다(`web_upload_settings`, `carrot_logs_web_target`, `post_tmux_web`만 찾음, `def` 검색 기준). 사용자가 41건 전부를 제외로 확정했다.
+5. **`f061297`(NNFF 알림 재시도와 검색 전용 `NNFF` 설정).** carrot-ryu에는 `update_system_ready_alert` 선행 코드가 없어 `selfdrived.py` hunk 하나가 `git apply --check`에서 거부됐고, 기능은 기본 꺼짐이다. carrot-ryu `selfdrived.py` 508행에는 옛 방식의 `frame == 550` NNFF 알림이 있고 `carrot_settings.json`에는 `NNFF` 키가 없다.
+6. **확정과 체크포인트.** 41건 전부 제외 확정, 체크포인트 `88803f6` -> `dc1f47b`. carrot-ryu 반영 없음.
+7. **확정 직후 상태 변화.** `git ls-remote`로 carrot-ms HEAD가 `86c666b`(2026-10-16 09:36 KST)로 바뀐 것을 확인했고 `dc1f47b`가 조상이다. 신규 2건: `ed83b18`(`fix: reclaim HUD GBM resources across reconnects`, 12개 파일 +681/-34, `cluster_renderer.py`, `main.py`, 신규 `gbm_cleanup.c`, 테스트 2개 등)과 `86c666b`(문서 2개 +8). 이 2건은 stat만 읽었고 점검하지 않았다(제목상 HUD 연결 계열이나 확정하지 않는다). 사용자의 "전체 제외 확정"은 보고한 41건에 대한 것이므로 이 2건은 체크포인트에 넣지 않았고 미검토로 남긴다.
+8. **한계.** diff 본문을 읽은 것: `de3dccd`와 `e2e7228`(컨트롤러, `selfdrived`, `events`, `radar_only_warning.py`, 문서), `1d5acbc` 전체, `fbc6d37`의 `process.py`, `tombstoned.py`, `process_crash.py` 앞부분과 문서, `e3884b8`(`events.py`와 문서), `f061297`(`selfdrived.py`, `carrot_settings.json`), `e04d756`의 `latcontrol_angle.py`. 메시지와 변경 줄 수만 본 것: eGPU 15건, ESP32-S3 13건, `5521d28`, `8e8ab53`, `c1f5923`(`longitudinal_planner.py` diff 본문 미확인), `2ea0781`, `d2b0a5c`, 나머지 Tesla 변경. 제외 전제 중 eGPU와 ESP32-S3 하드웨어를 쓰지 않는다는 점은 기기에서 확인하지 않았다(사용자에게 S3 사용 여부를 물었고 전체 제외 확정이 답이다). 테스트 실행 없음. 이 세션 중 로그 분석은 하지 않았고 294cha 증상(정지 후 출발 지연, 앞차 추종 감속 반응 지연)의 원인 후보를 이 41건에서 찾지 못했다.
+9. **실차 검증: 미실시**(정적 분석). 코드 변경이 없어 5절의 devnotes 1회 push다. 이 기록은 Termux bash 스크립트로 반영한다.
+
 ## 296cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ryu-v3 아카이브 생성 기록
 
 **배경.** 사용자가 세션 시작 지침과 함께 `carrot-ryu-v3` 생성 스크립트의 결과 출력만 붙여 줬다(두 브랜치 모두 `f295c96e4adb9fd3a5081b8eb26e17640a61946c`를 가리키고 "완료: carrot-ryu-v3 가 carrot-ryu HEAD(...)를 가리킨다"). v3를 만든 스크립트, 그 실행 로그, 보존 시점을 정한 대화는 이 세션에서 보지 못했다(20절 1단계는 사용자 지정이어야 하나 이 세션은 지정 대화를 확인하지 못했고 결과 출력만 근거로 삼았다). 이어 사용자가 devnotes 스크립트 형식으로 "Termux"를 알렸다.

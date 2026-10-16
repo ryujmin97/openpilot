@@ -1,5 +1,26 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-16 (297차) -- carrot-ms `88803f6..dc1f47b` 신규 41건 점검, 전체 제외 확정, 체크포인트 `88803f6` -> `dc1f47b`
+
+- 점검 범위: carrot-ms HEAD `dc1f47b`(2026-10-16 07:55 KST), `88803f6`은 조상이고 `88803f6..dc1f47b` 신규 41건 전부를 개별 점검했다(변경 파일을 carrot-ryu `f295c96` 트리와 대조, 공용 경로 커밋은 diff 본문). 사용자가 "전체 제외 확정"으로 답했다. carrot-ryu 반영 없음, 코드 변경 없음.
+- 점검 뒤 carrot-ms HEAD가 `86c666b`로 바뀌었다(`dc1f47b`가 조상). 신규 2건 `ed83b18`(HUD GBM 자원 회수, 12개 파일 +681/-34), `86c666b`(문서 +8)은 stat만 읽었고 미검토이며 체크포인트에 넣지 않았다.
+
+| 분류 | 커밋(carrot-ms) | 결과 | 사유 |
+|---|---|---|---|
+| eGPU·MD v3 (15) | `0a1e1dd`, `c6a5405`, `01a7c2f`, `d585230`, `3dff1fe`, `cf9061f`, `a50e7a2`, `a58e5d1`, `84a8952`, `c30637d`, `ebe86d0`, `0600ddf`, `791a9ec`, `d2b0a5c`, `2eeaa96` | 제외 확정 | eGPU 런타임·UI·모델 선택 경로(`d2b0a5c`는 메시지상 eGPU용 MD v3 선택). eGPU를 쓰지 않는다는 전제는 기기에서 확인하지 않았다. 메시지와 stat 위주로 확인, 본문 미확인 |
+| ESP32-S3 Wi-Fi HUD (13) | `0e162ca`, `7a02b6e`, `b5a981a`, `e3b81f5`, `2b305d6`, `7d3f1c3`, `1eab1ad`, `bd4ddbd`, `67ee505`, `a2bec9f`, `239e28a`, `1938673`, `dc1f47b` | 제외 확정 | S3 보드와 허브를 쓰는 별도 디스플레이 하드웨어용(`0e162ca` 메시지: C4에서 HUD를 렌더해 S3로 전달). 메시지와 stat 위주, 본문 미확인 |
+| 코너 레이더 (3) | `e2e7228`, `2ea0781`, `de3dccd` | 제외 확정 | `enable_radar_tracks > 0 and motion_sensor == "corner"`일 때만 작동(기기 `EnableRadarTracks` 0). `radar_only_warning`도 frontRadar와 corner 점이 짝지어져야 울린다. 선행 파일 없음, `selfdrived.py` hunk 거부. 제네시스 DH 2015에 코너 레이더가 없다는 것은 가정 |
+| Jetlink (1) | `5521d28` | 제외 확정 | carrot-ryu에 Jetlink 없음(263차 제외 계열과 같음) |
+| Tesla (1) | `e04d756` | 제외 확정 | Tesla 전용. 공용 `latcontrol_angle.py` 변경은 각도 제어 차량만 영향 |
+| 신호등 (2) | `8e8ab53`, `c1f5923` | 제외 확정 | carrot-ryu에 `signal_*` 계열 없음(270차 제외 이력과 같음). `c1f5923`의 `longitudinal_planner.py` diff 본문은 읽지 않았다 |
+| 문서 (2) | `6fbb9e0`, `ddc5821` | 제외 확정 | 문서만 변경(코드 파일 없음 확인) |
+| selfdrived (2) | `f061297`, `e3884b8` | 제외 확정 | `f061297`: NNFF 알림 재시도와 검색 전용 `NNFF` 설정, carrot-ryu에 `update_system_ready_alert`가 없어 `selfdrived.py` hunk 거부, 기본 꺼짐. `e3884b8`: 일시적 조향 경고 표시 120 ms 지연, `events.py`에 `git apply --check` 통과, 이 차량 로그에서 필요했다는 근거 없음 |
+| manager 진단 (1) | `fbc6d37` | 제외 확정 | 프로세스 비정상 종료 때 tmux 보존·업로드 진단. `process.py` 등 3개 패치는 적용되나 `process_crash.py`가 부르는 `create_web_upload_session_sync`, `tmux_web_target`의 `def`를 carrot-ryu `web_upload.py`에서 찾지 못함(`def` 검색 기준). 모든 Python 프로세스 시작과 tmux 로그 외부 업로드를 건드림 |
+| 레이더 메모리 (1) | `1d5acbc` | 제외 확정 | 매 프레임 `RadarState.new_message()` 재생성으로 기존 빌더 재사용(CPU 절감) 최적화를 되돌림. 근거 문서는 Elantra 한 대의 메모리 조사이고 기여 요인 하나라고 밝힘. carrot-ryu `35ce18f`로 이식됐다가 294차에 원복된 커밋(위 295차 표 "이미 원복(294차)") |
+
+- 한계: 제외 41건 중 diff 본문을 읽은 것은 `de3dccd`, `e2e7228`, `1d5acbc`, `fbc6d37`, `e3884b8`, `f061297`, `e04d756`의 일부 파일뿐이고 나머지는 커밋 메시지와 변경 줄 수 기준이다. eGPU, ESP32-S3 하드웨어 미사용 전제는 기기에서 확인하지 않았다. 테스트 미실행. 정적 분석, 실차 검증 미실시.
+- 다음 점검은 `dc1f47b` 이후 신규 커밋(`ed83b18`, `86c666b` 포함)부터다. `git cat-file -t dc1f47b`로 존재부터 확인한다(carrot-ms는 재생성된다).
+
 ## 중간 기록: 2026-10-15 (295차) -- carrot-ryu `e1fa15a`(carrot-ms `3038d4a` 이식)를 원복해 `f295c96`으로 반영, 체크포인트 `88803f6` 유지
 
 - 점검 범위: carrot-ms는 이 세션에서 조회하지 않았다. carrot-ryu만 `git ls-remote`(`c091a24`)와 blobless fetch로 읽었다. 체크포인트는 `88803f6` 그대로이고 다음 점검은 `88803f6` 이후 신규 커밋부터다(`git cat-file -t 88803f6`로 존재부터 확인, carrot-ms는 재생성된다).
