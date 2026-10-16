@@ -1,5 +1,23 @@
 # WIP
 
+## 299cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `e17bcb1..b82f4a8` 신규 3건 점검과 제외 확정
+
+**배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주었고 이어 "최신커밋분석"을 요청했다. 점검 보고 뒤 사용자가 "전체제외. Termux"로 답했다(신규 3건 전체 제외 확정, devnotes를 Termux 스크립트로 기록).
+
+**절차 기록.** 4절 0단계: 사용자가 준 브랜치 raw URL로 지침을 먼저 받고 이어 `git ls-remote`로 SHA(note `b6ef4ad`)를 얻어 SHA 고정본을 받았다(지침 순서와 반대, 이전 회차와 같은 순서 위반). 브랜치본과 SHA 고정본은 `cmp`로 바이트 일치했다(49,324바이트, sha256 앞 20자 `21e134d668cd2f79adb0`). 이 `cmp`는 보고 뒤 같은 세션에서 확인했다. 첫 응답에 "지침 문서 확인함(v2, `b6ef4ad`)"를 보고했다. HANDOFF는 SHA 고정본으로 읽었고 carrot-ryu HEAD `f295c96`을 `git ls-remote`로 확인해 HANDOFF와 같았다. HANDOFF의 Note Branch base 2726e87은 298cha 반영 직전 base이고 실제 note HEAD `b6ef4ad`는 298cha devnotes 반영본(부모 2726e87, 2026-10-16 13:48 KST, `git log`로 확인)이라 괴리가 아니다(16절).
+
+1. **조회.** `api.github.com` compare 요청 2건이 rate limit로 실패해 `git clone --bare --filter=blob:none --single-branch --branch carrot-ms`로 대체했다. carrot-ms HEAD `b82f4a8`(`b82f4a812bbd17b6934ca4ef73c3d3ac82e0ff3c`), `e17bcb1`은 commit이고 HEAD의 조상이다. `e17bcb1..b82f4a8` 신규 3건(2026-10-16, 셋 다 cherry-pick 표기): `0207b13`(13개 파일 +539/-6, 신호 처리 부하 감소와 앞차 브레이크등 관찰 `LeadBrakeLights`), `d3fde7a`(22개 파일 +457/-45, S3 Wi-Fi HUD H.264 스트리밍과 펌웨어 1.2.0), `b82f4a8`(7개 파일 +145/-13, HUD 네트워크 정체 허용과 S3 AP 선택).
+
+2. **`d3fde7a`, `b82f4a8` 제외 근거(ESP32-S3 Wi-Fi HUD, 297차에 제외한 13건의 후속).** carrot-ryu `f295c96`에 `cluster_wifi_display.py`, `cluster_wifi_protocol.py`, `tools/esp32s3_display/*`, `test_cluster_wifi_h264.py`, 신규 문서가 없다(파일 유무 대조). carrot-ryu `main.py`에는 wifi 관련 코드가 없고(grep으로 `usb_codec` 대입 2줄만 확인), `d3fde7a`의 `main.py` hunk는 `cluster_wifi_display`/`cluster_wifi_protocol` import 줄 문맥을 전제한다. carrot-ryu의 `ClusterHud` 설명은 "0: 끄기 / 1: TURZX 9.2인치"뿐이다. 공용 경로 변경(`cluster_h264_pipeline.py`의 참조 프레임 큐와 백프레셔, `cluster_usb_display.py`의 `uses_host_usb` 1줄)은 `h264_preserve_reference_frames`가 켜진 S3 디스플레이 경로용으로 읽히고 `uses_host_usb` 기본값이 True라 USB 직결 HUD 동작은 그대로로 읽힌다(정적 판단).
+
+3. **`0207b13` 제외 근거(신호등 보조 계열, 297차에 제외한 신호등 2건의 후속).** carrot-ryu에 `signal_display.py`, `signal_assist_runtime.py`, `signal_start_guard.py`, modeld의 `signal_tracking_shadow.py`/`signal_neural_shadow.py`가 없고 `params_keys.h`에 `SignalAssistMode`가 없다(`TrafficLightDetectMode`만 있음). `cluster_renderer.py`에도 `signal_display`/`_draw_signal_detections`가 없어 hunk가 붙을 자리가 없다. 신규 `LeadBrakeLights`는 기본 OFF이고 신호보조 모드 1/2에서만 앞차 중앙 제동등 후보를 화면에 표시하고 기록하며, 문서 문장 기준으로 감속이나 출발 제어에는 관여하지 않는다(코드 본문은 읽지 않았다).
+
+4. **읽은 범위와 한계.** 세 커밋의 메시지와 `--stat`, 공용 경로 diff 본문(`cluster_h264_pipeline.py`, `cluster_usb_display.py`, `main.py`, `carrot_settings.json`, `params_keys.h`, `cluster_renderer.py`, `signal_neural_shadow.py`, `signal_tracking_shadow.py`), `docs/signal_speed_brake_lamps_20261016.md` 본문을 읽었다. 읽지 않은 것: `docs/s3_h264_release_20261016.md`, ESP32 펌웨어와 설치 파일, 신규 파이썬 파일 본문(`lead_brake_lights.py`, `cluster_wifi_*.py`)과 테스트, `settings.md` 문서, `AGENTS.md`. `git apply --check`는 하지 않았고 파일 유무와 diff 문맥 대조만 했다. 문서의 성능·검증 수치(6000프레임 20.00092Hz, 변환 CPU 약 11~12% 감소, 693개 테스트 통과 등)는 업스트림 주장이며 직접 확인하지 않았다. 정적 분석이고 기기 확인과 테스트는 하지 않았다.
+
+5. **사용자 결정.** 신규 3건 전체 제외 확정("전체제외"). 체크포인트 `e17bcb1` -> `b82f4a8`. carrot-ryu 반영 없음. 재검토 조건: S3 Wi-Fi HUD나 신호등 보조 계열을 carrot-ryu에 도입하기로 할 때(그때는 297차 제외 목록과 함께 다시 본다).
+
+6. **하지 않은 것.** 수정, 기기 값(ClusterHud, SignalAssistMode 등) 확인, `git apply --check`, 로그 분석. devnotes(WIP.md 299cha, WIP_SYNC.md 299차, 이 HANDOFF)를 Termux bash 스크립트로 기록한다. 코드 변경이 없어 5절의 devnotes 1회 push다. 실차 검증: 미실시.
+
 ## 298cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `dc1f47b..e17bcb1` 신규 3건 점검과 제외 확정, 지침 20절 번호 문구 변경(B안)
 
 **배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주었고, 첫 응답의 "다음 작업" 선택지 중 "1번과 3번"을 골랐다. 1번은 297cha 때 미검토로 남은 carrot-ms 신규 커밋 점검, 3번은 지침 20절의 "현재 다음 번호는 v3" 문구 수정이었다. 점검 보고와 변경안을 낸 뒤 사용자가 "1. 제외확정, 2 b안으로"로 답했다(1: 신규 3건 제외 확정, 2: 20절을 B안으로 변경).

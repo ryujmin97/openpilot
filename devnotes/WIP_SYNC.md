@@ -1,5 +1,19 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-17 (299차) -- carrot-ms `e17bcb1..b82f4a8` 신규 3건 점검, 전체 제외 확정, 체크포인트 `e17bcb1` -> `b82f4a8`
+
+- 점검 범위: carrot-ms HEAD `b82f4a8`(`b82f4a812bbd17b6934ca4ef73c3d3ac82e0ff3c`, blobless bare clone), `e17bcb1`은 조상이고 `e17bcb1..b82f4a8` 신규 3건(2026-10-16, 셋 다 cherry-pick 표기). 사용자가 "전체제외"로 답했다. carrot-ryu 반영 없음, 코드 변경 없음.
+- 읽은 범위: 세 커밋의 메시지와 `--stat`, carrot-ryu `f295c96` 트리와 변경 파일 유무 대조, 공용 경로 diff 본문(`cluster_h264_pipeline.py`, `cluster_usb_display.py`, `main.py`, `carrot_settings.json`, `params_keys.h`, `cluster_renderer.py`, `signal_neural_shadow.py`, `signal_tracking_shadow.py`), `docs/signal_speed_brake_lamps_20261016.md`. 신규 파이썬 파일 본문, 펌웨어, `docs/s3_h264_release_20261016.md`, 테스트는 읽지 않았고 `git apply --check`는 하지 않았다.
+
+| 분류 | 커밋(carrot-ms) | 결과 | 사유 |
+|---|---|---|---|
+| S3 Wi-Fi HUD H.264 (2) | `d3fde7a`, `b82f4a8` | 제외 확정 | 22개 파일 +457/-45와 7개 파일 +145/-13. carrot-ryu에 `cluster_wifi_display.py`, `cluster_wifi_protocol.py`, `tools/esp32s3_display/*`가 없고 `main.py`에 wifi 코드가 없어 `main.py` hunk 문맥이 맞지 않는다. 공용 경로 변경(`cluster_h264_pipeline.py` 참조 프레임 큐와 백프레셔, `cluster_usb_display.py` 1줄)은 S3 디스플레이 경로용으로 읽힌다. 297차에 제외한 ESP32-S3 Wi-Fi HUD 13건의 후속 |
+| 신호 처리 부하 감소와 앞차 브레이크등 관찰 (1) | `0207b13` | 제외 확정 | 13개 파일 +539/-6. carrot-ryu에 `signal_display.py`, `signal_assist_runtime.py`, `signal_start_guard.py`, modeld `signal_tracking_shadow.py`/`signal_neural_shadow.py`가 없고 `SignalAssistMode`가 없다. 신규 `LeadBrakeLights`는 기본 OFF이고 표시·기록 전용(문서 기준, 코드 본문 미확인). 297차에 제외한 신호등 계열의 후속 |
+
+- 재검토 조건: S3 Wi-Fi HUD나 신호등 보조 계열을 carrot-ryu에 도입하기로 할 때. 그때는 297차 제외 목록과 함께 다시 본다.
+- 문서의 성능·검증 수치는 업스트림 주장이며 확인하지 않았다.
+- 체크포인트: `e17bcb1` -> `b82f4a8`. 다음 점검은 `b82f4a8` 이후부터이며 `git cat-file -t b82f4a8`로 존재부터 확인한다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-16 (298차) -- carrot-ms `dc1f47b..e17bcb1` 신규 3건 점검, 전체 제외 확정, 체크포인트 `dc1f47b` -> `e17bcb1`
 
 - 점검 범위: carrot-ms HEAD `e17bcb1`(`git ls-remote`), `dc1f47b`는 조상이고 `dc1f47b..e17bcb1` 신규 3건(297차에 stat만 읽은 `ed83b18`, `86c666b`와 신규 `e17bcb1`). 사용자가 "제외확정"으로 답했다. carrot-ryu 반영 없음, 코드 변경 없음.
