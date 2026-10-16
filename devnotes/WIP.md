@@ -1,5 +1,19 @@
 # WIP
 
+## 298cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `dc1f47b..e17bcb1` 신규 3건 점검과 제외 확정, 지침 20절 번호 문구 변경(B안)
+
+**배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주었고, 첫 응답의 "다음 작업" 선택지 중 "1번과 3번"을 골랐다. 1번은 297cha 때 미검토로 남은 carrot-ms 신규 커밋 점검, 3번은 지침 20절의 "현재 다음 번호는 v3" 문구 수정이었다. 점검 보고와 변경안을 낸 뒤 사용자가 "1. 제외확정, 2 b안으로"로 답했다(1: 신규 3건 제외 확정, 2: 20절을 B안으로 변경).
+
+**절차 기록.** 4절 0단계: 사용자가 준 브랜치 raw URL로 지침을 먼저 받고 이어 `git ls-remote`로 SHA(note `2726e87`)를 얻어 SHA 고정본을 받았다(지침 순서와 반대, 이전 회차와 같은 순서 위반). 두 본이 sha256으로 일치했다(49,277바이트). 첫 응답에 "지침 문서 확인함(v2, `2726e87`)"과 순서 위반을 보고했다. HANDOFF는 SHA 고정본으로 읽었고 carrot-ryu HEAD `f295c96`을 `git ls-remote`로 확인했다. HANDOFF의 Note Branch base `51488e7`과 실제 note HEAD `2726e87`이 달라 16절로 확인했다: `git log`로 `2726e87`이 297cha devnotes 반영본(부모 `51488e7`, 2026-10-16 12:27)임을 확인했다(괴리 아님).
+
+1. **조회.** carrot-ms HEAD `e17bcb1`(`git ls-remote`), `dc1f47b`는 commit이고 HEAD의 조상(depth 60 blobless bare fetch). `dc1f47b..e17bcb1` 신규 3건(git log 표기 시각): `ed83b18`(2026-10-16 09:34, 12개 파일 +681/-34, HUD GBM 자원 회수), `86c666b`(09:36, `AGENTS.md` +2, 문서 +6), `e17bcb1`(10:09, `AGENTS.md` +16, 신규 문서 +71, 저메모리 경고 사례 기록). 297cha 때 stat만 본 2건(`ed83b18`, `86c666b`)에 `e17bcb1`이 더해졌다.
+2. **`ed83b18` 내용(커밋 메시지와 문서 본문 기준).** HUD 프로세스가 쓰는 comma-raylib가 윈도 열고 닫을 때마다 GBM 버퍼(ION 6개, 1,658,880바이트)와 DRM 디스크립터를 회수하지 않는 문제를, HUD 프로세스 안에서만 로드하는 작은 네이티브 어댑터(`gbm_cleanup.c`)로 해제하게 한다. 문서는 `comma-deps-raylib 6.0.0.1.post98` 바이너리의 `ClosePlatform` 역어셈블 확인과 post98/post103 검증을 말하고, SHA256으로 검증한 두 바이너리만 받아들이며 바뀌었거나 모르는 바이너리는 그래픽 초기화 전에 실패하게 한다고 적는다. 검증 대상은 C4이고 S3 Wi-Fi 전송 재시도가 누수를 드러낸다고 설명한다.
+3. **제외 근거.** (a) carrot-ryu `params_keys.h`에서 `ClusterHud` 기본값이 0이다(내 기기 값은 확인하지 않았다). (b) 업스트림 재현과 검증이 C4의 post98/post103 조합이다. 내 기기의 raylib 버전과 바이너리는 확인하지 않았고, 목록에 없으면 HUD가 아예 뜨지 않을 위험이 문서 설계상 있다. (c) carrot-ryu `f295c96`(트리 5,467개)에 신규 7개 파일(`cluster/SConscript`, `cluster_graphics_cleanup.py`, `gbm_cleanup.c`, 테스트 2개, 문서 2개)이 없다. (d) 기존 6개 파일을 모아 `git apply --check`를 돌린 결과: `cluster_renderer.py` 통과(오프셋 -61), `main.py` hunk 거부, `SConstruct`와 `AGENTS.md` 적용 안 됨(`AGENTS.md`는 carrot-ryu에 해당 내용이 없어 당연하다). `cluster_run.py`와 `cluster_autorun.py`는 출력이 중간에 잘려 결과를 보지 못했다. carrot-ms 부모 대비 차이량(`git diff --no-index --shortstat`): `main.py` +147/-121, `cluster_renderer.py` +58/-499, `cluster_run.py` +63/-6. (e) 297cha에서 S3 Wi-Fi HUD 13건을 이미 제외했고 내 차량은 콤마 C3 기준이다. `86c666b`와 `e17bcb1`은 문서와 `AGENTS.md`만 바꾼다.
+4. **읽은 범위와 한계.** `ed83b18` 커밋 메시지, `docs/hud_native_cleanup_20261016.md`(ed83b18 시점), `e17bcb1`의 `docs/hud_low_memory_reboot_20261016.md`, 세 커밋의 `--numstat`을 읽었다. `ed83b18`의 코드 diff 본문(`main.py`, `gbm_cleanup.c` 등)과 `86c666b` 문서 본문은 읽지 않았다. 정적 분석이며 기기 확인과 테스트는 하지 않았다.
+5. **사용자 결정.** 신규 3건 전체 제외 확정. 체크포인트 `dc1f47b` -> `e17bcb1`. carrot-ryu 반영 없음. 재검토 조건: 기기에서 ClusterHud를 켜 두었고 HUD 프로세스 메모리 증가나 저메모리 경고가 확인될 때(그때는 raylib 버전부터 확인한다).
+6. **지침 20절 변경(19절 절차).** 변경 이유: 20절 절차 2번이 "현재 다음 번호는 v3"로 박혀 있는데 v3가 296cha에 기록돼 지금은 v4가 맞고 HANDOFF Archive Branches는 이미 v4다(296cha, 297cha가 제안만 해 둔 항목). 기존 문구: "(N은 기존 최대값 +1, 현재 다음 번호는 v3)". 변경 문구(사용자가 B안 선택): "(N은 기존 최대값 +1이며, 현재 번호는 HANDOFF.md의 Archive Branches 항목을 따른다)". 이 devnotes 커밋의 `PROJECT_INSTRUCTIONS_carrot-ryu.md` 한 곳만 바뀌고 상세 사유는 커밋 메시지에 남긴다. 사용자 승인 후 변경하며 이 커밋이 push돼야 반영 완료로 본다.
+7. **하지 않은 것.** `ed83b18` 코드 diff 정독, `86c666b` 문서 본문, 기기의 ClusterHud 설정과 raylib 버전 확인, carrot-ryu-v3의 `git ls-remote` 재확인(HANDOFF 기록 그대로 둠). 코드 변경은 없다. 실차 검증: 미실시.
+
 ## 297cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `88803f6..dc1f47b` 신규 41건 점검과 전체 제외 확정
 
 **배경.** 사용자가 세션 시작 지침과 함께 "carrot-ms 최신 커밋 분석"을 요청했고, 분석 보고(이식 권장 0건, 사용자 판단 3건)를 받은 뒤 "전체 제외 확정. Termux"로 답했다. 확정 대상은 보고한 41건 전부다.

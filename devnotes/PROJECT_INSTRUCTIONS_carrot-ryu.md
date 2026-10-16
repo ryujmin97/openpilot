@@ -529,7 +529,7 @@ commit) / Note Branch(base commit) / carrot-ms 마지막 검토·동기화 커�
 1. 사용자가 보존 시점을 지정한다(고정된 기준 없음, 매번 사용자가 판단). Claude가
    시점을 제안할 수는 있지만 사용자 지정 없이 만들지 않는다.
 2. 현재 carrot-ryu HEAD를 그대로 가리키는 새 브랜치 `carrot-ryu-vN`(N은 기존 최대값
-   +1, 현재 다음 번호는 v3)을 생성한다. 기존 커밋에 새 참조를 붙이는 것뿐이라
+   +1이며, 현재 번호는 HANDOFF.md의 Archive Branches 항목을 따른다)을 생성한다. 기존 커밋에 새 참조를 붙이는 것뿐이라
    히스토리 파괴가 없고 force가 필요 없다(15절의 강제 push 금지와 무관).
 3. carrot-ryu-vN은 생성 이후 절대 수정하지 않는다(과거 기록 전용, WIP.md/FINDINGS.md와
    동일한 불변 원칙). 새 작업은 항상 carrot-ryu에서만 진행한다.

@@ -1,5 +1,18 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-16 (298차) -- carrot-ms `dc1f47b..e17bcb1` 신규 3건 점검, 전체 제외 확정, 체크포인트 `dc1f47b` -> `e17bcb1`
+
+- 점검 범위: carrot-ms HEAD `e17bcb1`(`git ls-remote`), `dc1f47b`는 조상이고 `dc1f47b..e17bcb1` 신규 3건(297차에 stat만 읽은 `ed83b18`, `86c666b`와 신규 `e17bcb1`). 사용자가 "제외확정"으로 답했다. carrot-ryu 반영 없음, 코드 변경 없음.
+- 읽은 범위: `ed83b18` 커밋 메시지와 문서 본문, `e17bcb1` 문서 본문, 세 커밋의 `--numstat`, carrot-ryu `f295c96` 트리와 파일 유무 대조, 기존 6개 파일 `git apply --check`(4개 결과 확인, `cluster_run.py`/`cluster_autorun.py`는 출력이 잘려 미확인). 코드 diff 본문과 `86c666b` 문서 본문은 읽지 않았다.
+
+| 분류 | 커밋(carrot-ms) | 결과 | 사유 |
+|---|---|---|---|
+| HUD GBM 자원 회수 (1) | `ed83b18` | 제외 확정 | 12개 파일 +681/-34. `ClusterHud` 기본값 0(내 기기 값은 미확인). 업스트림 근거가 C4의 comma-raylib post98/post103이고 SHA256 검증된 바이너리만 허용(미지 바이너리는 그래픽 초기화 전에 실패). carrot-ryu에 신규 7개 파일 없음, `main.py` hunk 거부와 `SConstruct`/`AGENTS.md` 적용 불가. S3 Wi-Fi HUD 계열은 297차에 제외한 것과 같은 하드웨어 경로 |
+| 문서 (2) | `86c666b`, `e17bcb1` | 제외 확정 | 문서와 `AGENTS.md`만 변경(코드 파일 없음). `e17bcb1`은 저메모리 경고와 재부팅 사례 기록 |
+
+- 재검토 조건: 기기에서 ClusterHud를 켜 두었고 HUD 프로세스 메모리 증가나 저메모리 경고가 확인될 때. 그때는 설치된 raylib 버전과 바이너리부터 확인한다.
+- 체크포인트: `dc1f47b` -> `e17bcb1`. 다음 점검은 `e17bcb1` 이후부터이며 `git cat-file -t e17bcb1`로 존재부터 확인한다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-16 (297차) -- carrot-ms `88803f6..dc1f47b` 신규 41건 점검, 전체 제외 확정, 체크포인트 `88803f6` -> `dc1f47b`
 
 - 점검 범위: carrot-ms HEAD `dc1f47b`(2026-10-16 07:55 KST), `88803f6`은 조상이고 `88803f6..dc1f47b` 신규 41건 전부를 개별 점검했다(변경 파일을 carrot-ryu `f295c96` 트리와 대조, 공용 경로 커밋은 diff 본문). 사용자가 "전체 제외 확정"으로 답했다. carrot-ryu 반영 없음, 코드 변경 없음.
