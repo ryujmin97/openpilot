@@ -197,7 +197,7 @@ def test_cluster_navi_map_params_and_receiver_updates_next_manifest():
     map_theme="dark", map_type="normal", map_hz=10, map_bitrate_kbps=3000,
   )
 
-  assert reader() == ("light", "satellite", 30, 6000, 0.68)
+  assert reader() == ("light", "satellite", 30, 10667, 0.68)
   assert receiver.set_map_config(*reader()) is True
   assert receiver.set_map_config(*reader()) is False
 
@@ -206,12 +206,12 @@ def test_cluster_navi_map_params_and_receiver_updates_next_manifest():
   assert map_stream["params"]["map_theme"] == "light"
   assert map_stream["params"]["map_type"] == "satellite"
   assert map_stream["params"]["fps"] == 30
-  assert map_stream["params"]["h264_bitrate_kbps"] == 6000
+  assert map_stream["params"]["h264_bitrate_kbps"] == 10667
   assert map_stream["params"]["screen_center_y_ratio"] == 0.68
   assert receiver.health()["map_theme"] == "light"
   assert receiver.health()["map_type"] == "satellite"
   assert receiver.health()["map_hz"] == 30
-  assert receiver.health()["map_bitrate_kbps"] == 6000
+  assert receiver.health()["map_bitrate_kbps"] == 10667
   assert receiver.health()["screen_center_y_ratio"] == 0.68
 
 
@@ -229,6 +229,17 @@ def test_cluster_navi_map_fps_modes_and_automatic_bitrate_resolution():
   assert resolve_map_bitrate_kbps(960, 540, 30) == 6000
   assert resolve_map_bitrate_kbps(480, 270, 30) == 1500
   assert resolve_map_bitrate_kbps(1920, 1080, 30) == 12000
+
+
+def test_map_render_stream_is_portrait_720x1280_with_pixel_scaled_bitrate():
+  manifest = build_manifest("12345678")
+  map_stream = next(stream for stream in manifest["streams"] if stream["kind"] == "render")
+
+  assert map_stream["params"]["width"] == 720
+  assert map_stream["params"]["height"] == 1280
+  assert resolve_map_bitrate_kbps(720, 1280, 5) == 2667
+  assert resolve_map_bitrate_kbps(720, 1280, 10) == 5333
+  assert resolve_map_bitrate_kbps(720, 1280, 30) == 10667
 
 
 def test_receiver_logs_changed_tbt_and_sdi_values(capsys):

@@ -34,8 +34,12 @@ BIND_RETRY_COUNT = 10
 BIND_RETRY_INTERVAL_S = 0.5
 MAP_THEMES = frozenset(("auto", "dark", "light"))
 MAP_TYPES = frozenset(("normal", "satellite"))
-MAP_RENDER_WIDTH = 960
-MAP_RENDER_HEIGHT = 540
+MAP_RENDER_WIDTH = 720
+MAP_RENDER_HEIGHT = 1280
+# Auto bitrate scales by pixel count relative to this reference size (the former
+# render size), independent of MAP_RENDER_WIDTH/HEIGHT.
+MAP_AUTO_BITRATE_REFERENCE_WIDTH = 960
+MAP_AUTO_BITRATE_REFERENCE_HEIGHT = 540
 MAP_HZ_MIN = 1
 MAP_HZ_MAX = 60
 MAP_HZ_DEFAULT = 10
@@ -207,7 +211,7 @@ def resolve_map_bitrate_kbps(
 ) -> int:
   pixels = max(1, int(width)) * max(1, int(height))
   effective_hz = max(MAP_HZ_MIN, min(MAP_HZ_MAX, int(map_hz)))
-  reference_pixels = MAP_RENDER_WIDTH * MAP_RENDER_HEIGHT
+  reference_pixels = MAP_AUTO_BITRATE_REFERENCE_WIDTH * MAP_AUTO_BITRATE_REFERENCE_HEIGHT
   reference_bitrate = MAP_AUTO_BITRATE_KBPS_BY_HZ.get(effective_hz)
   if reference_bitrate is None:
     reference_bitrate = (
