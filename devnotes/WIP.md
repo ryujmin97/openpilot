@@ -1,5 +1,21 @@
 # WIP
 
+## 300cha (코드 변경 있음 ac92b84, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 당근네비 지도 스트림 720x1280 반영 스크립트의 Termux 변환과 GitHub 반영 확인
+
+**배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주었고, `carrot_navi_map_720x1280.ps1`을 올리며 "Termux로...주라"고 요청했다. 이 ps1(carrot-ryu base `f295c96`, 대상 `carrot_navi.py`와 `test_carrot_navi.py`)은 이 세션에서 만든 것이 아니며 만든 세션은 확인하지 못했다. 이어 사용자가 "완료"를 알렸고, devnotes 기록을 Termux로 하자는 제안에 "네"라고 답했다.
+
+**절차 기록.** 4절 0단계: 사용자가 준 브랜치 raw URL로 지침을 먼저 받고 이어 `git ls-remote`로 SHA(note `5622950`)를 얻어 SHA 고정본을 받았다(지침 순서와 반대, 이전 회차와 같은 순서 위반). 브랜치본과 SHA 고정본은 `cmp`로 바이트 일치했다(49,324바이트). 이 `cmp`는 첫 응답 전에 확인했고 첫 응답에 "지침 문서 확인함(v2, `5622950`)"을 보고했다. HANDOFF는 SHA 고정본으로 읽었다. carrot-ryu HEAD `f295c96`을 `git ls-remote`로 확인했고 ps1의 base와 같았다. 대상 두 파일의 pre-image blob도 ps1 값과 일치했다(`5a4b51b8...`, `0d595113...`).
+
+1. **ps1 변경 내용.** `carrot_navi.py`: `MAP_RENDER_WIDTH/HEIGHT` 960x540 -> 720x1280, 신규 `MAP_AUTO_BITRATE_REFERENCE_WIDTH/HEIGHT` 960x540(자동 비트레이트를 픽셀 수 비례로 환산하는 기준을 렌더 해상도와 분리), `resolve_map_bitrate_kbps`의 `reference_pixels`가 이 기준 상수를 쓴다. `test_carrot_navi.py`: 30Hz 기대값 6000 -> 10667 세 곳, 신규 테스트 `test_map_render_stream_is_portrait_720x1280_with_pixel_scaled_bitrate`(5/10/30Hz에서 2667/5333/10667). js/css 소스는 건드리지 않아 번들 재생성은 필요 없다(ps1 주석 근거).
+
+2. **Termux 변환.** `carrot_navi_map_720x1280.sh`를 만들어 전달했다. ps1 로직을 그대로 옮겼다(pre/post blob 가드, 앵커 정확히 1회 치환과 재확인, BOM 확인, py_compile, 작업 트리에 두 파일만 변경 확인). 치환은 python3 헬퍼로 바꿨고 git user.name/email 미설정 확인을 추가했다. 전달 전 검증: `bash -n` 통과, 파일 첫 3바이트 `23 21 2f`(BOM 없음), 로컬 bare 저장소(f295c96 트리) 대상 모의 실행을 일반 체크아웃과 CRLF 체크아웃 재현 두 모드로 끝까지 실행해 둘 다 성공(치환 6곳 매치 1회, post blob 일치, 변경량 `carrot_navi.py` +7/-3, 테스트 +14/-3, 임시 폴더 삭제). 한계: 샌드박스 Linux(Python 3.12)에서의 모의 실행이며 실제 Termux 실행이 아니다. shellcheck는 샌드박스에 없어 돌리지 못했다. pytest는 돌리지 않았다.
+
+3. **반영 확인(16절).** 사용자는 "완료"만 알렸고 실행 로그는 받지 못했다. GitHub 직접 확인: carrot-ryu HEAD `ac92b84d05fa27c810ed4dd51517b35e2c4c106c`(`git ls-remote`), 부모 `f295c96`, 2026-10-17 18:39:43 KST, 작성자 ryujmin97, 커밋 메시지 `carrot navi: map stream 960x540 -> 720x1280 portrait for split pane, keep auto bitrate reference at 960x540`, 파일 2개 +21/-6(`carrot_navi.py` +7/-3, `test_carrot_navi.py` +14/-3). SHA 고정 raw 조회로 받은 두 파일의 blob 해시가 스크립트의 post 값과 일치했다(`5078277065000653e3040b758cf9220ea055e517`, `1d269dce4857b4c9b8f0e178579ea0c302195ee4`). `api.github.com`은 rate limit로 실패해 `git fetch`와 raw 조회로 대신했다. 변경 파일의 파일 모드와 트리 파일 수는 보지 않았다.
+
+4. **읽은 범위와 한계.** ps1 전문과 이 변경의 diff(`carrot_navi.py`의 상수와 `resolve_map_bitrate_kbps` 부분)만 읽었다. 읽지 않은 것: `carrot_navi.py` 나머지 본문, CarrotWeb의 JS/CSS가 지도 스트림을 16:9로 가정하는지, 지도 스트림을 소비하는 다른 코드. 정적 확인이고 기기 확인과 pytest는 하지 않았다.
+
+5. **하지 않은 것.** `test_carrot_navi.py` 실행, 기기의 CarrotWeb 분할 화면 확인, 기기에 설치된 커밋 확인, 10667kbps가 네트워크와 인코더에 과한지 검토. carrot-ms는 조회하지 않아 체크포인트 `b82f4a8`은 그대로이고 WIP_SYNC.md는 고치지 않는다. devnotes(WIP.md 300cha, 이 HANDOFF)를 Termux bash 스크립트로 기록한다. 5절 순차 전달(코드 push 확인 뒤 devnotes 1회)이다. 실차 검증: 미실시.
+
 ## 299cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `e17bcb1..b82f4a8` 신규 3건 점검과 제외 확정
 
 **배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주었고 이어 "최신커밋분석"을 요청했다. 점검 보고 뒤 사용자가 "전체제외. Termux"로 답했다(신규 3건 전체 제외 확정, devnotes를 Termux 스크립트로 기록).
