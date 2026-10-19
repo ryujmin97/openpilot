@@ -1,7 +1,9 @@
+from copy import copy
+
 import numpy as np
 import pytest
 
-from openpilot.selfdrive.controls.lib.longitudinal_braking_gap import BrakingGapState, braking_gap_reference
+from openpilot.selfdrive.controls.lib.longitudinal_braking_gap import BrakingGapState, braking_gap_reference, floor_ceiling
 
 
 def update(state, **kwargs):
@@ -111,3 +113,58 @@ def test_nonfinite_prediction_withdraws_comfort_relief(field):
   relief(state)
   assert state.relief > 0.
   assert not relief(state, **{field: np.full(13, np.nan)}).any()
+
+
+def test_capture_uses_the_same_ceiling_as_later_advances():
+  state = BrakingGapState()
+  for _ in range(20):
+    update(state, distance=100., desired_distance=17.)
+    if state.floor is not None:
+      break
+  assert state.floor == pytest.approx(floor_ceiling(5. + 15. * .6, 5., 15.), abs=.2)
+
+
+def stop_approach(state, final_distance):
+  # A far lead stopping at a signal: captured near cruise speed, then the ego slows faster than the 8 s relaxation.
+  for _ in range(20):
+    update(state, distance=100., desired_distance=17.)
+  for i in range(400):
+    speed = max(.31, 15. - i * .05)
+    update(state, distance=100. - i * (100. - final_distance) / 400., ego_speed=speed,
+           lead_speed=max(0., 14.5 - i * .1), lead_accel=-.5, desired_distance=5. + .6 * speed)
+    yield speed
+
+
+def test_distance_memory_cannot_outlive_the_speed_it_was_captured_at():
+  state = BrakingGapState()
+  for speed in stop_approach(state, 9.):
+    assert state.floor <= floor_ceiling(5. + speed * .6, 5., speed) + 1e-9
+  assert state.floor <= 5. + 2.5 * .31 + 1e-9
+  assert state.margin < 1.
+
+
+def test_prediction_applies_the_same_ceiling():
+  state = BrakingGapState()
+  for _ in range(20):
+    update(state, distance=100., desired_distance=17.)
+  times = np.linspace(0., 10., 21)
+  speeds = np.linspace(15., .5, 21)
+  lead = np.maximum(speeds - .5, 0.)
+  desired = 5. + .6 * speeds
+  predicted = state.margins(times, speeds, lead, desired, .6, 5.)
+  unbounded = copy(state)
+  for i in range(1, len(times)):
+    unbounded._advance(times[i] - times[i - 1], 5. + speeds[i] * .6, desired[i], speeds[i], lead[i])
+  assert predicted[-1] < unbounded.margin - 1.
+
+
+def test_stopped_pair_still_holds_what_it_had_when_it_halted():
+  state = BrakingGapState()
+  for _ in stop_approach(state, 9.):
+    pass
+  halted = state.floor
+  assert halted is not None
+  for _ in range(600):
+    update(state, distance=9., ego_speed=0., ego_accel=0., lead_speed=0., lead_accel=0., relative_speed=0.,
+           desired_distance=5.)
+  assert state.floor == halted

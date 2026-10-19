@@ -6,6 +6,16 @@ import math
 import numpy as np
 
 
+# Distance memory ceiling. Capture uses it, and so does every later advance while the ego still moves:
+# a gap preference captured at speed must not outlive that speed, or a signal stop ends far behind the lead.
+FLOOR_CEILING_ABOVE_BASE = 10.0
+FLOOR_CEILING_SECONDS = 2.5
+
+
+def floor_ceiling(base_distance, stop_distance, ego_speed):
+  return min(base_distance + FLOOR_CEILING_ABOVE_BASE, stop_distance + FLOOR_CEILING_SECONDS * ego_speed)
+
+
 def comfort_path_has_reserve(ego_speeds, physical_gaps, danger_margins, times, stop_distance):
   near = times <= 3.0
   return bool(np.all(np.isfinite(danger_margins)) and np.all(np.isfinite(physical_gaps))
@@ -42,13 +52,14 @@ class BrakingGapState:
         and ego_accel < -0.2 and lead_accel < -0.2 and relative_speed < -0.2):
       # Capture once per braking episode, not once per sample. Bound distant
       # acquisition and do not carry one vehicle's gap into a replacement lead.
-      self.floor = min(distance, base_distance + 10.0, stop_distance + 2.5 * ego_speed)
+      self.floor = min(distance, floor_ceiling(base_distance, stop_distance, ego_speed))
     self.distance, self.relative_speed = distance, relative_speed
     self._advance(dt, base_distance, desired_distance, ego_speed, lead_speed,
-                  releasing=(ego_accel > 0.1 or lead_accel > 0.3))
+                  releasing=(ego_accel > 0.1 or lead_accel > 0.3), stop_distance=stop_distance)
     return self.margin
 
-  def _advance(self, dt, base_distance, desired_distance, ego_speed, lead_speed, releasing=False):
+  def _advance(self, dt, base_distance, desired_distance, ego_speed, lead_speed, releasing=False,
+               stop_distance=None):
     if self.floor is None:
       return
     # A stopped pair must not slowly creep forward just because its reference
@@ -57,6 +68,10 @@ class BrakingGapState:
     if not stopped_pair or releasing:
       target = min(self.floor, base_distance)
       self.floor += (target - self.floor) * -math.expm1(-dt / (2.0 if releasing else 8.0))
+    if stop_distance is not None and not stopped_pair:
+      # The relaxation above is slower than a stop, so without this the memory captured at cruise speed is still
+      # far above the stop distance when the pair halts, and it is then held there.
+      self.floor = min(self.floor, floor_ceiling(base_distance, stop_distance, ego_speed))
     requested = max(0.0, self.floor - desired_distance)
     self.margin = min(requested, self.margin + dt) if requested >= self.margin else max(requested, self.margin - dt)
     if releasing and self.margin < 0.01 and self.floor <= base_distance + 0.05:
@@ -72,7 +87,7 @@ class BrakingGapState:
     for i, time_s in enumerate(times):
       if time_s > previous:
         predicted._advance(float(time_s - previous), stop_distance + ego_speeds[i] * base_tf,
-                           desired_distances[i], ego_speeds[i], lead_speeds[i])
+                           desired_distances[i], ego_speeds[i], lead_speeds[i], stop_distance=stop_distance)
       result[i] = predicted.margin
       previous = time_s
     return result
