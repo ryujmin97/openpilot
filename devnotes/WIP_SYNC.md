@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-19 (301차) -- carrot-ms `0d9f2c72`의 proclogd 프로세스 캐시 부분만 carrot-ryu `007d9b9`로 이식, 체크포인트 `b82f4a8` 유지
+
+- 반영: 다른 세션이 만든 `proclogd_cache_fix_v1.ps1`(주석 머리 "302차 후보", 만든 세션과 그 세션의 점검 기록은 devnotes에 없음)을 사용자가 올리고 푸시를 요청해 PowerShell로 실행했고, carrot-ryu `ac92b84` 위에 `007d9b9`가 올라갔다(`proclogd.py` +15/-4, 신규 `test_proclogd_cache.py` +94, GitHub에서 blob 일치 확인).
+- 이식한 것: 프로세스 메타데이터 캐시를 `starttime`으로도 구분하고(`name`과 함께) 종료된 프로세스를 정리하는 부분(`_prune_proc_cache`). ps1 주석 기준으로 `gc.freeze()` 부분은 이식하지 않았다.
+- 대상 커밋: `0d9f2c72`(`0d9f2c72a6a70d538449deae9cd2caafb763d4b3`, ajouatom, 2026-10-18 11:39 KST, `fix: bound proclog metadata and preserve inherited heap sharing`, 5개 파일 +326/-5: `AGENTS.md`, `docs/memory_scope_followup_20261018.md`, `docs/proclog_memory_20261018.md`, `proclogd.py`, 신규 `test_proclog_smaps.py`). 이 세션은 메시지와 `--stat`만 읽었고 diff 본문은 읽지 않았다. `proclogd.py`의 나머지 변경, 문서 3개, `test_proclog_smaps.py`의 이식 여부와 필요성은 판단하지 못했다.
+- carrot-ms HEAD `345b257`(`345b25706332314df941e4c11ff566d4aab0f9b0`), `b82f4a8`은 조상이고 `b82f4a8..HEAD`는 17건이다. `0d9f2c72` 외 16건은 점검하지 않았다(제목만 봤다): `345b2570`, `d2f76eae`, `e0c9197d`, `926bb2ab`, `f29befc7`, `f84b89b1`, `657fbf2e`, `6b0f7a37`, `cd05c4ce`, `5b617838`, `bac79777`, `cbc2c5d9`, `51bf5d9c`, `fdb09f1c`, `34b37fd1`, `bfef0029`.
+- 체크포인트: `b82f4a8` 유지(전진 안 함). 다음 점검은 `b82f4a8` 이후 17건부터이며 `git cat-file -t b82f4a8`로 존재부터 확인한다(carrot-ms는 재생성되므로). `0d9f2c72`는 proclogd 캐시 부분이 이미 반영된 상태로 보고 나머지 부분만 판단한다.
+- 정적 확인이며 pytest와 실차 검증은 하지 않았다. 상세는 WIP.md 301cha.
+
 ## 중간 기록: 2026-10-17 (299차) -- carrot-ms `e17bcb1..b82f4a8` 신규 3건 점검, 전체 제외 확정, 체크포인트 `e17bcb1` -> `b82f4a8`
 
 - 점검 범위: carrot-ms HEAD `b82f4a8`(`b82f4a812bbd17b6934ca4ef73c3d3ac82e0ff3c`, blobless bare clone), `e17bcb1`은 조상이고 `e17bcb1..b82f4a8` 신규 3건(2026-10-16, 셋 다 cherry-pick 표기). 사용자가 "전체제외"로 답했다. carrot-ryu 반영 없음, 코드 변경 없음.
