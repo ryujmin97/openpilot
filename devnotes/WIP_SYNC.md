@@ -1,5 +1,21 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-19 (302차) -- carrot-ms `b82f4a8..12da1a1` 신규 20건 점검, 전체 제외 확정, 체크포인트 `b82f4a8` -> `12da1a1`
+
+- 점검 범위: carrot-ms HEAD `12da1a1`(`12da1a10ce32c61a653a3c4f8b371e04bbaa1940`, 2026-10-19 13:09 KST, depth 60 blobless fetch), `b82f4a8`은 조상이고 `b82f4a8..12da1a1` 신규 20건(ajouatom 19건, Hermes Agent 1건). 사용자가 "hud를 안씀. 모두 제외"로 답했다. carrot-ryu 반영 없음, 코드 변경 없음. 상세는 WIP.md 302cha.
+- 제외 사유 공통: carrot-ryu `007d9b9`에 해당 기능이 없거나(신호등, S3 Wi-Fi HUD, Jetlink, eGPU 대기 shadow, 차량 CAN GPS), 사용자가 HUD를 쓰지 않는다고 답했다. 기기 `ClusterHud` 값은 직접 확인하지 않았다(사용자 진술).
+- 신호등 4건: `bfef002`(2026-10-17, 보조 적색 veto 중 기존 리드 인계 존중), `34b37fd`(리드 추종 중 신호 알림 억제), `bac7977`(녹화 주행 기반 중앙 신호 선택 실험, 도구와 문서), `cd05c4c`(신호 인식 실패 진단 문서). 제외 근거: carrot-ryu `carrot_functions.py`에 `start_guard`/`signal_decision` 등이 0건이라 diff가 기반 기능 없이 적용되지 않는다(299cha, 297cha의 신호등 제외와 같은 이유). `bfef002`, `34b37fd`는 diff 본문을 읽었고 나머지 둘은 stat만 봤다.
+- S3 Wi-Fi HUD·펌웨어·HUD 메모리 7건: `68a16c4`(S3 H264 버스트 제한, QP 범위, `main.py`/인코더 일부 공용 파일 포함), `6b0f7a3`(Wi-Fi 복구 시 USB 대기 생략), `2a9f80d`(S3 Wi-Fi 세션 복구와 HUD 화질, 펌웨어 19개 파일), `12da1a1`(최종 복구 문서), `fdb09f1`(HUD 세션 메모리 재연결 전 회수, `cluster_wifi_protocol` import 추가), `51bf5d9`, `cbc2c5d`(HUD 메모리 문서). 제외 근거: `cluster_wifi_*`, `tools/esp32s3_display`가 carrot-ryu에 없고 `main.py`, `cluster_autorun.py`에 wifi 코드가 없어 공용 파일 hunk도 적용되지 않으며, HUD를 쓰지 않는다. `68a16c4`의 `.cc`와 `fdb09f1`은 diff 출력이 잘려 끝까지 읽지 못했다.
+- `345b257`(HUD H.264 패킷 파싱 지연 감소, `_h264_start_codes`를 `bytes.find`로, 신규 테스트 `test_cluster_h264_complexity.py`): 사용자 판단 1건으로 보고했고 HUD를 안 쓴다는 답으로 제외. 파이프라인 파일은 carrot-ryu에 있어 HUD를 켜면 적용 가능해 보이므로 재검토 조건은 WIP.md 302cha 6번.
+- 차량 CAN GPS 2건: `657fbf2`(아이오닉5 PE CAN-FD 위치 GPS 우선, 15개 파일 +604/-80, `hyundai_canfd.dbc`와 `custom.capnp`, `carrot_serv.py` +75/-79), `f29befc`(DBC 프로필로 차량 GPS 선택). 제외 근거: CAN-FD DBC에 신호를 추가하는 변경이고 carrot-ryu `carstate.py`에 gps 코드가 없으며 `carrot_serv.py`가 크게 달라져 있다. diff 본문은 읽지 않았다(stat과 grep만). 제네시스 DH 2015가 CAN-FD가 아니라는 것은 가정이다.
+- eGPU 대기 2건: `e0c9197`(대기 모델에서 shadow 비교 워커 비활성화, `modeld.py` +7/-3), `d2f76ea`(model_selector의 `modeld.py.baseline` 갱신, Hermes Agent). 제외 근거: carrot-ryu `modeld.py`에 `signal`/`shadow`/`standby`가 0건이라 대상 코드가 없다. `e0c9197`의 `modeld.py` diff는 읽었다.
+- Jetlink 1건: `926bb2a`(빈 포트의 USB 입력 전류 보호, 7개 파일 +415). 제외 근거: `jetlink/daemon.py`, `power.py`, `tools/jetlink/*`가 carrot-ryu에 없다. diff 본문은 읽지 않았다.
+- 진단·문서 2건: `f84b89b`(기기 메모리 이력 캡처 도구 `capture_device_memory.py`와 HUD 메모리 문서), `5b61783`(철회된 locationd CPU 실험과 복원 기록). 동작 변경이 없고 제외.
+- `0d9f2c7`(`fix: bound proclog metadata and preserve inherited heap sharing`): 301차에 프로세스 메타데이터 캐시 부분만 `007d9b9`로 이식했다. 나머지(힙 공유와 `gc.freeze()`, 문서, `test_proclog_smaps.py`)는 이번 "모두 제외"에 포함돼 제외 확정됐다. 나머지 diff 본문은 읽지 않았다.
+- `AGENTS.md`는 대부분의 커밋이 몇 줄씩 추가하는 업스트림 작업 문서이며 carrot-ryu에도 있으나 이식하지 않는다.
+- 체크포인트: `12da1a1`로 전진(301차의 17건 중 `0d9f2c72`와 위 16건, 그 뒤의 3건 `68a16c4`, `2a9f80d`, `12da1a1`까지 모두 처리). 다음 점검은 `12da1a1` 이후부터이며 `git cat-file -t 12da1a1`로 존재부터 확인한다(carrot-ms는 재생성되므로).
+- 정적 분석이며 `git apply --check`, pytest, 실차 검증은 하지 않았다.
+
 ## 중간 기록: 2026-10-19 (301차) -- carrot-ms `0d9f2c72`의 proclogd 프로세스 캐시 부분만 carrot-ryu `007d9b9`로 이식, 체크포인트 `b82f4a8` 유지
 
 - 반영: 다른 세션이 만든 `proclogd_cache_fix_v1.ps1`(주석 머리 "302차 후보", 만든 세션과 그 세션의 점검 기록은 devnotes에 없음)을 사용자가 올리고 푸시를 요청해 PowerShell로 실행했고, carrot-ryu `ac92b84` 위에 `007d9b9`가 올라갔다(`proclogd.py` +15/-4, 신규 `test_proclogd_cache.py` +94, GitHub에서 blob 일치 확인).

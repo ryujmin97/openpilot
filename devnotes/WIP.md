@@ -1,5 +1,29 @@
 # WIP
 
+## 302cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `b82f4a8..12da1a1` 신규 20건 점검과 사용자의 전체 제외 확정, 체크포인트 `b82f4a8` -> `12da1a1`
+
+**배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주고 "최신커밋 분석"이라고만 요청했다. 297cha, 299cha의 같은 요청처럼 carrot-ms 신규 커밋 점검(2절)으로 해석했고 사용자가 이의를 달지 않았다. 사용자의 결정은 "hud를 안씀. 모두 제외"다. carrot-ryu 반영은 없고 코드 변경도 없다.
+
+**절차 기록.** 4절 0단계: 사용자가 준 브랜치 raw URL로 지침을 먼저 받고 이어 `git ls-remote`로 SHA(note `3c45b6f`)를 얻어 SHA 고정본을 받았다(지침 순서와 반대, 이전 회차와 같은 순서 위반). 브랜치본과 SHA 고정본은 `cmp`로 바이트 일치했다(49,324바이트). 첫 응답에 "지침 문서 확인함(v2, `3c45b6f`)"을 보고했다. HANDOFF는 SHA 고정본으로 받았고 한 번은 한글 출력 오류로 다시 읽었으며, 앞 140줄(301cha~289cha 구간)과 완료/미완료/다음 작업 섹션 앞부분만 읽었다. carrot-ryu HEAD `007d9b9`(`git ls-remote`)는 HANDOFF와 같았고 note HEAD `3c45b6f`는 301cha devnotes 반영본이다(부모 `c29f0f7`, 2026-10-19 10:21:46 KST, blobless fetch `git log`로 확인). `api.github.com`은 쓰지 않았다.
+
+1. **점검 범위.** carrot-ms HEAD `12da1a1`(`12da1a10ce32c61a653a3c4f8b371e04bbaa1940`, ajouatom, 2026-10-19 13:09:42 KST, `docs: record final S3 recovery firmware and deployment validation`). depth 60 blobless fetch에서 체크포인트 `b82f4a8`은 조상이었고 `b82f4a8..12da1a1`은 20건이다(2026-10-17 08:02 ~ 2026-10-19 13:09 KST). 변경 파일은 `git log --numstat`으로 뽑아 carrot-ryu `007d9b9` 트리(5,468개 파일, `git ls-tree -r --name-only`)와 대조했다.
+
+2. **분류(20건, 사유는 WIP_SYNC.md 302차 표).** 신호등 4건(`bfef002`, `34b37fd`, `bac7977`, `cd05c4c`), S3 Wi-Fi HUD·펌웨어·HUD 메모리 7건(`68a16c4`, `6b0f7a3`, `2a9f80d`, `12da1a1`, `fdb09f1`, `51bf5d9`, `cbc2c5d`), HUD H.264 파싱 1건(`345b257`), 차량 CAN GPS 2건(`657fbf2`, `f29befc`), eGPU 대기 2건(`e0c9197`, `d2f76ea`), Jetlink 1건(`926bb2a`), 진단·문서 2건(`f84b89b`, `5b61783`), proclogd 1건(`0d9f2c72`, 301cha에서 캐시 부분만 이식한 상태). 이식 권장 0건, 사용자 판단 1건(`345b257`)으로 보고했다.
+
+3. **carrot-ryu 쪽 대조(grep, `007d9b9`).** `carrot_functions.py`에 `start_guard`/`start_decision`/`signal_decision`/`signal_detection_suspended`/`signal_observation_color`/`signal_green_active`가 0건(신호등 diff는 이 기능 위의 변경). `modeld.py`에 `signal`/`shadow`/`standby`가 0건. `hyundai/carstate.py`에 gps가 0건. `cluster_autorun.py`에 `usb_settle`/`settle`/`wifi`/`s3`/`gc.`/`freeze`가 0건, `cluster/main.py`에 wifi가 0건. 파일명 대조에서 `cluster_wifi*`, `esp32s3*`, `jetlink*`, `signal_*.py`(아이콘 png와 `test_usbgpu_signal_wait.py` 제외)가 없었다. `cluster_h264_pipeline.py`, `cluster_h264_encoder.cc`와 브리지는 carrot-ryu에 있다.
+
+4. **diff 본문을 읽은 것.** `bfef002`+`34b37fd`의 `carrot_functions.py`(리드 근접 시 신호 알림 억제와 `lead_follow` 출발 보류 해제), `e0c9197`의 `modeld.py`(대기 모델의 shadow 비활성화), `345b257`의 `cluster_h264_pipeline.py`(`_h264_start_codes`를 `bytes.find` 방식으로), `68a16c4`의 `cluster_h264_pipeline.py`/`main.py`/`cluster_h264_encoder.cc`(QP 범위 설정과 S3 비트레이트 `500k`/`cbr-cfr`, 출력이 `.cc` 중간에서 잘려 끝까지는 못 읽었다), `fdb09f1`의 `cluster_profile.py`/`cluster_autorun.py`(`cluster_wifi_protocol`을 import하는 S3 탐색 추가, 출력이 중간에서 잘렸다).
+
+5. **`345b257` 판단.** USB H.264 파이프라인의 시작 코드 탐색을 빠르게 하는 독립 변경이고 신규 테스트 `test_cluster_h264_complexity.py`(carrot-ryu에 없음)가 함께 온다. 효과는 HUD를 켠 경우에만 있고 업스트림의 측정 근거는 읽지 않았다. 사용자가 HUD를 쓰지 않는다고 답해 제외했다.
+
+6. **사용자 결정.** "hud를 안씀. 모두 제외". 20건 전체 제외 확정, 체크포인트 `b82f4a8` -> `12da1a1`. 기기의 `ClusterHud` 값은 직접 확인하지 않았고 사용자의 진술이다(298cha/299cha가 남긴 ClusterHud 확인 항목은 이 진술로 대체, 필요하면 params로 재확인). 재검토 조건: HUD를 켜게 되면 `345b257`과 S3 Wi-Fi 계열, 298cha의 `ed83b18`을 함께 다시 본다.
+
+7. **읽지 않은 것(한계).** GPS 2건(`657fbf2`, `f29befc`)은 stat과 carrot-ryu grep만으로 판단했고 diff 본문은 읽지 않았다. "제네시스 DH 2015가 CAN-FD가 아니다"는 가정이다. `0d9f2c72`의 나머지(힙 공유와 `gc.freeze()` 관련, 문서, `test_proclog_smaps.py`)는 이번에도 diff 본문을 읽지 않았고 "모두 제외"에 포함돼 제외 확정됐다. Jetlink, 신호등 신규 파이썬 파일과 테스트, `bac7977`의 분석 도구, S3 펌웨어, `docs/` 본문, `git apply --check`는 하지 않았다. 문서의 성능 수치는 업스트림 주장이다. pytest, 실차 검증: 미실시.
+
+8. **번호.** 301cha가 미완료(c)로 남긴 301cha/302cha 번호 정리: 이 세션이 302cha를 쓴다. 301cha의 ps1 주석 "302차 후보"를 만든 세션은 여전히 확인하지 못했다. 301cha 미완료 (d)(`b82f4a8..HEAD` 17건 중 16건 미점검)는 이번에 처리됐다.
+
+9. **devnotes.** WIP.md 302cha, WIP_SYNC.md 302차, HANDOFF.md를 PC PowerShell 스크립트로 기록한다. 코드 변경이 없어 5절의 devnotes 1회 push다.
+
 ## 301cha (코드 변경 있음 007d9b9, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms 0d9f2c72 proclogd 캐시 부분 이식 ps1의 PowerShell 푸시 안내와 GitHub 반영 확인
 
 **배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주고 `proclogd_cache_fix_v1.ps1`을 올리며 "푸시 명령어 줘. 파워셀"이라고 요청했다. 이 ps1(carrot-ryu base `ac92b84`, 대상 `openpilot/system/proclogd.py`와 신규 `openpilot/system/tests/test_proclogd_cache.py`)은 이 세션에서 만든 것이 아니며 만든 세션은 확인하지 못했다. 주석 머리에 "302차 후보"로 적혀 있었으나 WIP.md, HANDOFF.md, WIP_SYNC.md에는 301cha/302cha 언급이 없었다(`grep` 0건, 최신 기록은 300cha). 이어 사용자가 push 로그의 마지막 줄만 알렸고, devnotes는 PC PowerShell로, 회차는 "너의 판단대로"라고 맡겼다. 그래서 300cha 다음 번호인 301cha로 기록한다. 이 번호를 쓰지 않은 다른 301cha/302cha 세션이 있었다면 번호가 겹칠 수 있다.
