@@ -1,5 +1,27 @@
 # WIP
 
+## 303cha (코드 변경 있음 5339d98, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 신호정지 때 앞차와 너무 멀리서 정차하는 증상: 거리 기억 상한을 주행 중에도 적용
+
+**배경.** 사용자가 세션 시작 지침을 주고 로그 zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20261019_180500.zip`, route 000004b7 세그먼트 3 한 개)과 함께 "신호정지시 앞차와의 거리가 너무 멀리서 정차함. 수정코딩"이라고 요청했다.
+
+**절차 기록.** 4절 0단계: 브랜치 raw URL로 지침을 먼저 받고 이어 `git ls-remote`로 SHA(note `3f56345`)를 얻어 SHA 고정본을 받았다(지침 순서와 반대, 이전 회차와 같은 위반). 두 본은 `cmp`로 바이트 일치(49,324바이트). HANDOFF는 전체를 읽었다(253,685바이트). carrot-ryu HEAD `007d9b9`는 HANDOFF와 같았고 note HEAD `3f56345`는 302cha 반영본이다(`git log`로 확인, 괴리 아님). "지침 문서 확인함" 보고는 첫 응답이 아니라 마지막 응답에서 했다(4절 4번 위반). 5절 순차 전달(코드 스크립트 -> 사용자 실행 -> GitHub 직접 확인 -> devnotes 1회)을 따랐다.
+
+1. **로그.** 60초, 기록 커밋 `007d9b9`(dirty False), 기기 tizi. initData에서 키 이름으로 골라 읽은 값(시크릿은 읽지 않음): `StopDistanceCarrot` 600(6.0 m), `TrafficStopDistanceAdjust` 0, `LongitudinalPersonality` 3, `EnableRadarTracks` 0, `JerkCostEgo` 12, `VEgoStopping` 5, `TrafficLightDetectMode` 2.
+
+2. **장면(로그 값, 영상 `qcamera.ts`는 보지 않았다).** 42~46초 앞차가 감속해 정지(앞차 거리 약 115 m에서 64 m로 줄며 vLead 7.9 -> 0.3 m/s), 자차 17.7 m/s에서 감속, 57.6초부터 정지 유지(accel 명령 -0.5), 58.34초 정차, 정차 간격 9.0 m(56.0초 v 0.37에서 9.7 m). 같은 구간 `longitudinalPlan.desiredDistance`가 12.3 m(55초)에서 16.1 m(59.6초)로 올랐다.
+
+3. **원인 재생.** 로그의 carState/radarState를 실제 `BrakingGapState`(007d9b9)에 넣어 재생했다(레이더 앞차일 때만 eligible, `lead_gap_enabled`와 추적 프레임 조건은 켜진 것으로 가정, 근사 base 거리 사용). 46.5초에 floor 37.7 m 캡처(앞차 65.7 m, `base+10`에 걸림), 정차 때(57초~) floor 약 16.8 m로 동결, margin이 1 m/s로 올라 59.5초 10.0 m, base 6.0 + 10.0 = 16.0이 로그 표시 16.1과 맞는다. 원인 판단: 캡처 시점에만 상한(`min(distance, base+10, stop+2.5v)`)이 있고 이후는 8초 시정수 완화뿐이라, 자차가 더 빨리 멈추면 먼 기억값이 남고, 정지한 쌍은 그 값을 그대로 동결한다.
+
+4. **수정(5339d98, 부모 007d9b9, 4개 파일 +79/-7).** `longitudinal_braking_gap.py`: `floor_ceiling(base, stop, v) = min(base+10, stop+2.5v)` 헬퍼를 추가하고 캡처가 이를 쓰게 했으며, `_advance`가 `stop_distance`를 받아 정지한 쌍이 아닌 동안 floor를 이 상한으로 계속 깎는다(예측 `margins()`도 같은 인자 전달, `stop_distance=None`이면 이전 동작). 정지한 쌍의 동결은 그대로다. 테스트 `test_longitudinal_braking_gap.py` +58/-1(4개 신규), 사용자 문서 영·한 `cruise-gap.md` 각 1줄.
+
+5. **폐루프 시뮬레이션(`toolkit/cl_sim` 방식, 실제 acados `LongitudinalMpc`, 이상적 레이더, 1차 플랜트, tf 1.45, 정지 판정은 v<0.1).** 로그 유사(앞차 8 m/s -> 0, 110 m, 자차 17.8 m/s): 정차 간격 수정 전 12.31 m, 수정 후 8.68 m, 거리 기억을 끈 경우 8.01 m, 최대 margin 18.98 -> 1.38. 앞차가 처음부터 정지한 3개 장면은 수정 전후 같다(거리 기억 비작동, 첫 정지 8.38/7.82/5.58 m). 앞차가 정지로 감속하는 추종 4개는 수정 후 0.15~1.7 m 가까워졌다(v16 4.67 -> 4.52, v12 6.77 -> 5.12, v22 5.29 -> 4.85, v8 3.95 -> 3.84, 기억 끔은 4.31/4.72/4.41/3.80). 기존 고정 시나리오 30행(tf 3종)은 13행이 바뀌었고 큰 변화는 `stop_2.0`뿐이다(tf 1.45 최소 간격 5.22 -> 4.86, 최소 TTC 3.8 -> 3.4 s, tf 2.0 8.76 -> 6.67), 충돌 플래그와 solver 이상 변화 없음(`hard_5.0_hwy`와 `cutin_close`의 충돌 플래그는 수정 전에도 있다). 시뮬레이션의 로그 유사 장면은 실제(9.0 m)보다 약 3 m 멀리 멈춰 실차 값을 그대로 예측하지 못한다.
+
+6. **테스트.** 신규 포함 `test_longitudinal_braking_gap.py` 22 passed. 변이 2종(상한 적용 줄 제거: 2건 실패, 예측 쪽 인자 제거: 1건 실패)을 잡고 원복 뒤 22 passed. 관련 기존 테스트 `test_cpu_cost_cache`, `test_longitudinal_gap_recovery`, `test_cutout_mpc_integration`와 `test_cruise_coasting` 등 8개 파일 합 593 passed. `longitudinal_maneuvers/test_longitudinal.py`는 수정 전후 모두 7 failed/1 passed로 실패 목록이 같다(기준선 실패, 원인 미조사). 전체 pytest는 하지 않았다.
+
+7. **반영 확인(16절).** 사용자가 `braking_gap_stop_ceiling_v1.ps1`을 실행했고 마지막 줄 `== 완료. push된 커밋: 5339d982f224f9eef26a3c7d78bad5f84f3b4e87`을 알렸다. GitHub 직접 확인: carrot-ryu HEAD `5339d98`(부모 `007d9b9`, 2026-10-20 07:38:40 KST), numstat `1/1, 1/1, 19/4, 58/1`, 파일 4개 blob이 스크립트 post 값과 일치(`docs/user/en` 633b50c, `docs/user/ko` 315a0a8, `longitudinal_braking_gap.py` e2db394, 테스트 f4e31be), 모드 100644, 코드 파일 BOM 없음과 CR 0, 트리 5,468 그대로. 스크립트 전달 전 검증: pwsh 7.6.7 파서 오류 0건(후행 쉼표 대조군 검출), 로컬 모의 저장소 실행 일반/CRLF 재현(`GIT_CONFIG_*` `core.eol=crlf`) 둘 다 성공(작업 트리가 실제로 CRLF가 됐는지는 출력으로 확인하지 못했다). Windows PowerShell 5.1 실제 실행은 아니다. 중간에 `Get-PythonCmd`가 단일 원소 명령에서 인자 슬라이스가 틀려 구문 검사를 건너뛰던 버그를 모의 실행에서 발견해 고쳤다.
+
+8. **하지 않은 것과 한계.** 실차 검증(기기 설치 커밋 포함), 영상 대조, 시뮬레이터의 실제 정차 간격 과대(약 3 m) 보정, 앞차가 처음부터 정지한 장면의 첫 정지가 8 m 안팎인 현상(거리 기억을 꺼도 같음, 정지 접근 자체의 동작)의 원인 조사, 정지한 뒤 서행으로 더 붙는 시뮬레이션 동작(실차는 정지 유지 상태라 다를 수 있다) 확인, 전체 pytest. 정차 간격이 6 m보다 짧게 끝나는 추종 장면이 늘었는지는 실차 로그가 필요하다. 상한 계수 2.5초는 캡처 식의 기존 값을 그대로 썼고 다른 값은 시험하지 않았다.
+
 ## 302cha (코드 변경 없음, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `b82f4a8..12da1a1` 신규 20건 점검과 사용자의 전체 제외 확정, 체크포인트 `b82f4a8` -> `12da1a1`
 
 **배경.** 사용자가 세션 시작 지침(`PROJECT_INSTRUCTIONS_carrot-ryu.md` 조회)을 주고 "최신커밋 분석"이라고만 요청했다. 297cha, 299cha의 같은 요청처럼 carrot-ms 신규 커밋 점검(2절)으로 해석했고 사용자가 이의를 달지 않았다. 사용자의 결정은 "hud를 안씀. 모두 제외"다. carrot-ryu 반영은 없고 코드 변경도 없다.
