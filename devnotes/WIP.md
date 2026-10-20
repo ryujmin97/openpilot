@@ -1,5 +1,19 @@
 # WIP
 
+## 308cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 307cha 뒤 6건 제외 확정과 체크포인트 전진
+
+**배경.** 307cha devnotes(note `8fb7152`) 반영 확인 뒤 사용자가 "6건 제외 확정"이라고 답했다. 307cha에서 승인 뒤에 분석한 6건(`2a10514`, `85fc0b9`, `bf36c99`, `d71f258`, `1317b2f`, `632e8bc`)의 제외 확정이다. 코드 변경은 없고 devnotes 1회 반영(PC PowerShell)이다.
+
+**절차 기록.** `git ls-remote`로 note HEAD `8fb7152`(`8fb7152cd501dcba05de136ac094da3f7317878d`)를 얻고 SHA 고정본 지침 문서(49,324바이트)를 받아 이전 본과 `cmp`로 일치를 확인했다. 지침 확인 보고는 첫 문장에서 했다. 받은 WIP/HANDOFF/WIP_SYNC가 307cha 기대본과 `cmp` 바이트 일치. carrot-ryu HEAD `5339d98`은 HANDOFF와 같았다. carrot-ms HEAD는 `git ls-remote`로 다시 확인해 `632e8bc` 그대로였다(확정 대상 6건 뒤에 새 커밋 없음).
+
+1. **결과.** 6건 제외 확정(근거는 WIP_SYNC.md 307차: `2a10514`는 삭제 대상 S3 파일이 carrot-ryu에 없고 공용 파일에 wifi/jetson 계열 0건, `bf36c99`는 carrot-ryu에 없는 `signal_display.py`를 monkeypatch, 나머지 4건은 문서와 설정 설명 문구). 앞 3건은 307cha에서 "승인"으로 확정이라 `12da1a1..632e8bc` 9건 전부 제외 확정이다.
+
+2. **체크포인트.** `2353af8` -> `632e8bc`로 올린다(WIP_SYNC.md 308차, HANDOFF). 다음 점검은 `git cat-file -t 632e8bc`로 존재부터 확인한다.
+
+3. **정정/사고.** 없음. 새 분석을 하지 않았고 307차 기록을 확정만 했다.
+
+4. **하지 않은 것.** `2353af8` 한 줄 방어 변환 이식(사용자 요청 없음), 5339d98 설치 뒤 로그, proclogd 수정 전 기준선, 8 m 한도 옆 차선 재생. 코드 변경 없음. 실차 검증: 미실시.
+
 ## 307cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `12da1a1` 이후 신규 커밋 점검(2절)
 
 **배경.** 사용자가 306cha 마무리 뒤 "carrot-ms `12da1a1` 이후 신규 커밋을 점검"을 요청했다(306cha 다음 작업 (d)). 점검 결과(제외 제안 3건)를 보고하며 "devnotes 기록과 체크포인트 전진" 또는 `2353af8` 한 줄 이식 중 선택을 물었고, 약 5시간 뒤 사용자가 "승인"만 답했다. 첫 갈래(제외 기록)로 해석했다. 코드 변경은 없고 devnotes 1회 반영(PC PowerShell)이다. 이 응답 사이에 시간이 지나 carrot-ms HEAD가 올라가 있었다(아래 1번).
