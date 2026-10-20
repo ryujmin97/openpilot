@@ -1,5 +1,23 @@
 # WIP
 
+## 307cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `12da1a1` 이후 신규 커밋 점검(2절)
+
+**배경.** 사용자가 306cha 마무리 뒤 "carrot-ms `12da1a1` 이후 신규 커밋을 점검"을 요청했다(306cha 다음 작업 (d)). 점검 결과(제외 제안 3건)를 보고하며 "devnotes 기록과 체크포인트 전진" 또는 `2353af8` 한 줄 이식 중 선택을 물었고, 약 5시간 뒤 사용자가 "승인"만 답했다. 첫 갈래(제외 기록)로 해석했다. 코드 변경은 없고 devnotes 1회 반영(PC PowerShell)이다. 이 응답 사이에 시간이 지나 carrot-ms HEAD가 올라가 있었다(아래 1번).
+
+**절차 기록.** 이 회차의 첫 응답(점검)에서는 4절 0단계를 하지 않았다: 지침 문서는 앞 회차(306cha)에서 받은 SHA 고정본(49,324바이트, note `70aa443` 시점)을 그대로 쓴 상태였고 새 조회는 하지 않았으며 "지침 확인함" 보고도 하지 않았다(4절 위반). 승인 뒤 응답에서는 `git ls-remote`로 note HEAD `18581c0`(`18581c085594993c58d83f5c49c178cc3f83226d`, 306cha devnotes 반영본)을 얻고 SHA 고정본(49,324바이트)을 받아 `cmp`로 앞 회차 본과 바이트 일치를 확인했다. carrot-ryu HEAD `5339d98`은 HANDOFF와 같았다. carrot-ms는 blobless fetch로 읽었고 `git grep`을 blobless 저장소에서 돌리다 gc 오류와 지연이 났다(이후 파일 단위 raw 조회로 전환, 결과에는 영향 없음). 작업 목록(TaskCreate)은 점검 첫 응답에서 만들었다.
+
+1. **점검 범위.** `12da1a1`은 존재하고 점검 시작 때 carrot-ms HEAD는 `2353af8`이었다(`12da1a1..2353af8` 3건: `37af1fb`, `0e8e9bc`, `2353af8`). 승인 뒤 `git ls-remote`에서 HEAD `632e8bc`(`632e8bc84223fa79ebe9f5b7543c27cc7cc3e0d4`, 2026-10-20 13:32 KST)였고 `2353af8..632e8bc` 6건(`2a10514`, `85fc0b9`, `bf36c99`, `d71f258`, `1317b2f`, `632e8bc`)이 추가됐다. `2353af8`은 조상이다. 총 9건(ajouatom). 분류표와 근거는 WIP_SYNC.md 307차.
+
+2. **결과.** 이식 권장 0건, 9건 전부 제외 제안. 앞 3건은 사용자 "승인"으로 제외 확정(해석 기준은 위 배경), 뒤 6건은 승인 뒤에 분석해 사용자 확정 전이다. 근거 요약: `37af1fb`는 `dm_preview.py`/`driver_preview.py`가 carrot-ryu에 없고 `DisableDM = 2`, `0e8e9bc`는 신호보조 파일과 `SignalAssistMode`가 carrot-ryu에 없음(270cha 제외 계열), `2353af8`은 `np.cumsum`에서 나온 `numpy.float64` 문제로 carrot-ryu `navd.py`는 일반 `sum`이라 재현되지 않는 것으로 읽힘(추정), `2a10514`는 삭제 대상 S3 파일이 carrot-ryu에 없고 공용 파일에 wifi/jetson 계열 0건, `bf36c99`는 없는 `signal_display.py`를 monkeypatch, 나머지 `85fc0b9`/`d71f258`/`1317b2f`/`632e8bc`는 문서와 설정 설명 문구뿐.
+
+3. **체크포인트.** `12da1a1` -> `2353af8`로 올린다(앞 3건 확정분). 뒤 6건은 확정 전이라 체크포인트에 넣지 않는다(280차와 같은 처리). 확정되면 `632e8bc`로 올린다.
+
+4. **정정/사고.** (가) 점검 응답에서 4절 0단계와 지침 확인 보고를 하지 않았다(절차 기록). (나) 점검 응답의 "신규 3건" 숫자는 점검 시작 시점 기준이었고 그 뒤 carrot-ms가 6건 올라온 것을 승인 뒤에야 알았다(`ls-remote` 재확인 전까지 stale). (다) 점검 응답에서 `Coordinate.distance_to`의 반환형을 못 확인했다고 적었다(`common/mapbox_utils.py` 404, 위치 미조사). (라) 첫 `grep` 집계에 sed 문법 실수로 건수가 출력되지 않아 다시 집계했다.
+
+5. **도구와 한계.** `git ls-remote`, blobless `git fetch`(`--shallow-since`)와 `git show`, `raw.githubusercontent.com` SHA 고정 조회. 저장한 새 도구 없음. 한계: 뒤 6건의 문서 3건과 대량 삭제 목록은 stat만, `2a10514`/`85fc0b9`는 설정 JSON과 일부 hunk만 읽음, 실행하거나 `git apply --check`를 한 것은 없음, carrot-ryu 대조는 파일 존재(raw 200/404)와 문자열 건수 기준.
+
+6. **하지 않은 것.** `2353af8` 한 줄 방어 변환 이식(선택지로만 제시, 사용자 답이 "승인"뿐), `2a10514` 공용 파일 hunk의 `git apply --check`, `bf36c99` 테스트 실행, 문서 3건의 diff 본문, 5339d98 설치 뒤 로그, proclogd 수정 전 기준선. 코드 변경 없음. 실차 검증: 미실시.
+
 ## 306cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 305cha 후속: 8 m 한도 변형 재생과 proclogd 수정 전 기준선 확인
 
 **배경.** 사용자가 세션 시작 지침과 함께 305cha와 같은 로그 zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20261019_180500.zip`, route 000004b7 세그먼트 3)을 올리고, 305cha 마지막 응답 본문(devnotes 확인 보고와 다음 작업 목록)을 붙여넣은 뒤 "8 m 한도 변형을 같은 도구로 재생. 수정 전 기준선과 proclogd CPU를 비교 진행"을 요청했다. 앞 응답 끝에 내가 다음 선택지를 제시하자 사용자가 "너의 판단대로 진행"이라고 해서 이 회차 devnotes 기록(PC PowerShell 스크립트 1회)까지 진행한다. 코드 변경은 없다.

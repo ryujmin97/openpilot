@@ -1,5 +1,21 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-20 (307차) -- carrot-ms `12da1a1` 이후 신규 9건 점검, 제외 제안 9건(앞 3건 사용자 승인), 체크포인트 `12da1a1` -> `2353af8`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) 점검 시작 때 HEAD `2353af8`(`2353af89926417fe3f51f4a81c5c9a7180f6a94c`, 2026-10-19 19:27 KST). `12da1a1`은 조상이고 `12da1a1..2353af8` 신규 3건이다(`git cat-file -t 12da1a1`로 존재 확인). 승인을 받은 뒤 `git ls-remote`를 다시 하니 HEAD가 `632e8bc`(2026-10-20 13:32 KST)로 올라와 있었고 `2353af8..632e8bc` 6건이 더 있었다(ajouatom 6건, `2353af8`은 조상). 총 9건이다. 상세는 WIP.md 307cha.
+- 사용자 승인의 범위: 앞 3건(`37af1fb`, `0e8e9bc`, `2353af8`)을 제외로 제안하고 "devnotes 기록 + 체크포인트 `12da1a1` -> `2353af8`" 또는 `2353af8`만 한 줄 방어 변환으로 이식하는 두 갈래를 물었는데 사용자는 "승인"만 답했다. 첫 갈래(제외 기록)로 해석했고 `2353af8` 이식은 하지 않았다(해석이 틀렸으면 알려 달라고 보고서에 적음). 뒤 6건은 승인 뒤에 분석한 것이라 사용자 확정 전이다. 그래서 체크포인트는 `2353af8`까지만 올리고 뒤 6건은 "점검했고 제외 제안, 사용자 확정 대기"로 둔다.
+- 앞 3건(제외, 사용자 승인):
+  - `37af1fb`(2026-10-19, 온로드 DM 카메라 창을 진주색 눈 애니메이션으로 교체, UI 6개 파일 +375/-207): 바꾸는 `selfdrive/ui/dm_preview.py`, `ui/onroad/driver_preview.py`가 carrot-ryu `5339d98`에 없다(raw 404). 기기 `DisableDM = 2`는 208cha에 사용자가 의도한 설정이라고 확인함.
+  - `0e8e9bc`(2026-10-19, 신호보조의 정차 적색 기억을 5 km/h 초과 시 해제, 12개 파일 +226/-11): 고치는 `signal_assist.py`, `signal_start_guard.py`가 carrot-ryu에 없고 `carrot_settings.json`에 `SignalAssistMode`가 0건, `carrot_functions.py`에 `signal_assist`/`signal_start_guard`/`_signal_stop_owned`가 0건이다. 270cha에 제외로 확정한 신호등 정지 준비 계열의 후속이다.
+  - `2353af8`(2026-10-19, Mapbox 안내 `allManeuvers` 거리를 `float()`로 변환, 4개 파일 +106/-1): 증상은 carrot-ms nav 브랜치의 `np.cumsum`이 만든 `numpy.float64`를 cereal list-of-struct 변환이 거부하는 것이다. carrot-ryu `navd.py`는 같은 자리에 일반 `sum`을 쓰고 `cumsum`이 없으며 `distance_along_geometry`(`helpers.py`)도 `0.0`에서 시작하는 합과 `Coordinate.distance_to`의 합이다. 작성자도 wip 쪽은 변환 전에 재현되지 않았다고 문서에 적었다. `Coordinate.distance_to`가 일반 float를 돌려주는지는 파일을 못 받아(`common/mapbox_utils.py` 404) 확인하지 못했으므로 "carrot-ryu에서 재현되지 않는다"는 코드 읽기에 의한 추정이다. 이식하려면 `navd.py` 277행 부근 `maneuver = {'distance': distance_to_maneuver}`를 `float(...)`로 한 줄 바꾸고 테스트를 추가하면 된다(하지 않음).
+- 뒤 6건(제외 제안, 사용자 확정 전):
+  - `2a10514`(2026-10-20 11:36, ESP32-S3 디스플레이 지원 제거와 Jetson USB 패널 유지, 삭제 다수 + `cluster_h264_pipeline.py` 4줄, `main.py` 33, `cluster_autorun.py` 77, `viewer.py` 43 등): 삭제 대상 `cluster_wifi_display.py`, `cluster_wifi_protocol.py`, `tools/esp32s3_display/`가 carrot-ryu에 없다(404). 공용 파일 `cluster_h264_pipeline.py`, `cluster/main.py`, `cluster_autorun.py`, `tools/carrot_route_vault/viewer.py`, `test_cluster_autorun.py`는 carrot-ryu에서 wifi/esp32/jetson/jetlink/cluster_wifi 계열이 0건이라 hunk 적용 대상이 없다. `test_cluster_gc_lifecycle.py`, `test_cluster_retry_logging.py`는 carrot-ryu에 없다(404). `cluster_h264_pipeline.py`의 두 줄은 오류 문구("S3 ..." -> "Display ...")만 바꾸는 것이고 carrot-ryu 파일에 그 문구가 있는지는 보지 않았다. 302차 제외(S3 Wi-Fi HUD 7건)의 마무리 커밋이다.
+  - `85fc0b9`(2026-10-20 11:44, S3 퇴역과 브랜치별 Jetson 런타임 기록): 문서와 `carrot_settings.json` 6줄(HUD 설명 문구, carrot-nav Jetson 안내), `docs/user/{en,ko}/settings.md` 2줄이다. 문구만이고 기능 변경이 없다.
+  - `bf36c99`(2026-10-20 11:12, `test_cluster_scene.py`를 기기 신호 설정에서 분리): 테스트에 `openpilot.selfdrive.carrot.signal_display.display_requested`를 monkeypatch하는 줄을 넣는다. carrot-ryu에 `signal_display.py`가 없어(404) 이식하면 대상이 없는 monkeypatch가 될 것이다(추정, 실행하지 않음).
+  - `d71f258`, `1317b2f`, `632e8bc`(2026-10-20 12:40, 13:18, 13:32): carrot-nav Jetson 하드웨어/N16 배포/업데이트 정책 문서(`AGENTS.md`, `docs/jetson_*`, `docs/INSTALL-WINDOWS-KO.md`, `docs/jetlink_updates.md`)만이고 코드 변경이 없다(stat만 봤다).
+- 읽은 범위: 9건 모두 커밋 메시지와 `git show --stat`, 앞 3건은 diff 본문(`0e8e9bc`는 5개 코드 파일과 설정 JSON, `2353af8`는 `navd.py`와 문서), `2a10514`는 설정 JSON과 `cluster_h264_pipeline.py` hunk만, `bf36c99`는 diff 전체, `85fc0b9`는 설정 JSON hunk, 문서 3건과 `2a10514`의 삭제 목록(펌웨어, 테스트, 문서)은 stat만. 실차 검증: 미실시.
+- 체크포인트: `12da1a1` -> `2353af8`(앞 3건 확정). 뒤 6건(`2a10514`, `85fc0b9`, `bf36c99`, `d71f258`, `1317b2f`, `632e8bc`)은 사용자가 제외로 확정하면 체크포인트를 `632e8bc`로 올린다. 다음 점검은 `git cat-file -t 2353af8`로 존재부터 확인하고 `2353af8` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-19 (302차) -- carrot-ms `b82f4a8..12da1a1` 신규 20건 점검, 전체 제외 확정, 체크포인트 `b82f4a8` -> `12da1a1`
 
 - 점검 범위: carrot-ms HEAD `12da1a1`(`12da1a10ce32c61a653a3c4f8b371e04bbaa1940`, 2026-10-19 13:09 KST, depth 60 blobless fetch), `b82f4a8`은 조상이고 `b82f4a8..12da1a1` 신규 20건(ajouatom 19건, Hermes Agent 1건). 사용자가 "hud를 안씀. 모두 제외"로 답했다. carrot-ryu 반영 없음, 코드 변경 없음. 상세는 WIP.md 302cha.
