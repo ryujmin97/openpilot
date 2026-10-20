@@ -1,5 +1,36 @@
 # WIP
 
+## 304cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 303cha 로그(route 000004b7 세그먼트 3)로 HANDOFF 미완료 검증
+
+**배경.** 사용자가 세션 시작 지침과 함께 로그 zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20261019_180500.zip`)을 올리고 "실차로그 미완료 검증 진행"을 요청했다. 이 zip은 303cha가 이미 분석한 로그와 같은 것이다(route 000004b7 세그먼트 3 한 개, 60초, `rlog.zst`와 `qcamera.ts`). 앞 응답이 도구 사용 한도로 분석 중간에 끊겨 사용자가 "이어서 계속"으로 이어 갔고, 이 회차는 두 응답에 걸친 한 회차다. 코드 변경은 없고 devnotes 1회 반영(PC PowerShell)이다.
+
+**절차 기록.** 앞 응답은 4절 0단계를 브랜치 URL본을 먼저 받고 `git ls-remote` SHA 고정본을 뒤에 받았다(지침 순서와 반대, 두 본은 `cmp` 바이트 일치 49,324바이트). "지침 문서 확인함" 보고는 첫 응답이 아니라 앞 응답의 마지막 문장에서 했다(4절 4번 위반). 이어받은 응답은 `git ls-remote`로 SHA(note `c411dae`)를 먼저 얻고 SHA 고정본(49,324바이트)을 받았다. carrot-ryu HEAD `5339d98`은 HANDOFF와 같았고 note HEAD `c411dae`는 303cha devnotes 반영본이다(부모 `3f56345`, 2026-10-20 07:44:31 KST, `git log`로 확인). 이어받은 응답에서 샌드박스가 초기화돼 스키마와 도구를 다시 구성했다.
+
+1. **로그가 303cha와 같은 로그임.** initData: 기록 커밋 `007d9b9`(`dirty` False, carrot-ryu, 기기 tizi, 버전 0.11.1). 그래서 5339d98 수정은 이 로그에 들어 있지 않고, 303cha 미완료 (a)(b)(수정 뒤 정차 간격)는 이 로그로 확인할 수 없다. 5339d98의 실차 검증은 미실시다.
+
+2. **설정값(initData에서 키 이름으로 골라 읽음, 시크릿은 읽지 않음).** `ClusterHud` 0, `EnableRadarTracks` 0, `JerkCostEgo` 12, `ShowPathEnd` 1, `AlwaysLateral` 1, `LeadAccelResponse` 0, `StopDistanceCarrot` 600, `LongitudinalPersonality` 3, `MapTurnSpeedFactor` 140, `SteerActuatorDelay` 0, `TrafficLightDetectMode` 2, `VEgoStopping` 5. `ClusterHud` 0은 302cha의 사용자 진술(HUD를 안 씀)과 일치한다(진술을 params로 확인). `ShowPathEnd`는 설정값만 봤고 화면 표시는 보지 못했다.
+
+3. **303cha 원인 가정을 로그 프레임으로 재생.** 303cha는 레이더 앞차 여부와 추적 프레임 조건을 가정하고 재생했다. 이번에는 프레임마다 `radarState.leadOne`의 `status`/`radar`/`radarTrackId`와 추적 프레임 수(3 이상), `aLeadK`, `vRel`, `carState.vEgo`/`aEgo`, `longitudinalPlan.tFollow`를 실제 `BrakingGapState`(007d9b9, 5339d98의 `longitudinal_braking_gap.py`도 같은 입력)에 넣었다. 기본 거리는 `v^2/(2*2.5) + tFollow*v + 6.0 - vLead^2/(2*2.5)` 근사다(comfort_brake 2.5와 stop_distance 6.0은 `COMFORT_BRAKE`, 기본값과 `StopDistanceCarrot` 600 기준, 모드별 계수는 보지 않았다). `LeadAccelResponse`가 0이라 시작 간격 기억은 꺼져 있고 거리 기억만 작동한다.
+   - 007d9b9 재생: 정차(58~59초)에 floor가 16.81 m로 동결, margin이 1 m/s로 올라 59.64초 10.1 m. 로그의 `desiredDistance`에서 위 기본 거리를 뺀 값은 10.12 m다. 54.03초 4.50 대 4.28, 55.04초 5.50 대 5.28, 56.04초 6.50 대 6.18, 57.04초 7.50 대 7.23, 58.04초 8.50 대 8.42로 0.1~0.3 m 안쪽에서 따라간다(표 본문의 값, 평균 요약 두 줄은 스크립트 인덱스 오류로 출력되지 않았다).
+   - 5339d98 열린 루프 재생(입력 고정): 같은 시각에 floor 6.76 m(정차 후), margin 최대 0.79 m(54.03초), 59.64초 0.72 m.
+   - 캡처 시각: 303cha는 46.5초 캡처로 적었다. 재생 출력은 46.54초 행에서는 floor가 없고 47.03초 행에서 36.84 m(5339d98 쪽 36.16 m)다. 캡처 프레임은 46.54~47.03초 사이로 보이나 정확한 프레임은 확정하지 못했다(결론인 "동결된 먼 floor"는 바뀌지 않는다). 재생 출력의 첫 non-NaN floor는 4.21초(44.1 m)로 이 로그의 앞선 다른 제동 장면이며 이번 정차와의 관계는 보지 않았다.
+   - 한계: 기본 거리는 근사, 수정본 결과는 입력을 고정한 열린 루프라 실제 정차 간격 예측이 아니다(303cha 5번 시뮬레이션이 정차 간격을 약 3 m 과대 예측한 것과 별개로 이 재생은 자차 응답을 모사하지 않는다).
+
+4. **앞차 레이더 플래그.** 43.93~46.2초에 `leadOne.radar`가 0/1로 깜빡였고(`radarTrackId` -1과 0 반복) 46.24초부터 연속 레이더 추적(id 0)이었다. 원인(레이더/비전 후보 선택)은 보지 않았다. 같은 구간 앞차 dRel은 비전 값이 60~100 m 범위에서 흔들렸다.
+
+5. **상태 확인(건수 중심, 개선 검증 아님).**
+   - `carState`: `canValid` False 0프레임, `canTimeout` 0, `canErrorCounter` 최대 0(6,000프레임).
+   - `managerState`(113건): 프로세스 pid 변화 없음, `exitCode`가 0이 아닌 것 없음, `shouldBeRunning`인데 실행 중이 아닌 프로세스 없음. `proclogd`와 `carrot_man` 실행 중. `carrot_server`, `carrot_cluster`는 실행 대상이 아니었다. 이 세그먼트에서 `carrot_man` 크래시와 재시작(290cha a·b)은 일어나지 않았다.
+   - `onroadEvents`: steerOverride(19.30, 19.55초), preLaneChangeRight/laneChange(27.59~33.69초, `laneChangeState` 27.59 preLaneChange, 27.64 laneChangeStarting left, 32.68 laneChangeFinishing, 33.68 off), trafficStopping(42.19초). `logMessage`는 경고 이상이 `rotated to ...` 1건뿐.
+   - 요약 도구 3종(`summary1~3.py`, 기존 `toolkit/rlog_summary/`): 활성 100%(enabled 5,983, overriding 16), 최고 65.5 km/h, panda 폴트/carfault 없음, CPU 평균 57.4%(최대 59.4), 메모리 최대 68%, 온도 green, 저장공간 여유 30.0%, 레이더 앞차 감지율 80.4%/최근접 9.0 m, gps 60건. 주의: `summary1.py`의 `dur_s` 241.7은 실제 60초(carState 6,000건)와 달라 신뢰하지 않는다(계산 방식 미조사).
+   - `procLog`: 29건/60초, 각 593 프로세스. 이름 필터가 맞지 않아(`proclogd` 이름으로 찾지 못함) 301cha의 프로세스 메타데이터 캐시 동작과 메모리는 확인하지 못했다.
+
+6. **런타임 타이밍(`logMessage` runtimeTiming, 285cha 기준선 대비, 주행 조건이 달라 원인을 가르지 못함).** ui fps 19.80(285cha 19.94), ui work 평균 26.4 ms(24.3, 최대 51.4 ms로 20 fps 프레임 예산 50 ms를 넘는 구간 있음), ui `hud_ms` 17.7 ms(16.9), `model_ms` 4.96 ms, `uiHud` work 17.4 ms 중 `plot_ms` 평균 12.5 ms(최대 39.2), `uiModel` work 4.0 ms, plannerd work 7.86 ms(7.3), longitudinal 4.95 ms(4.44), modeld inference 26.4 ms(전부 20.00 fps, dropped_frames 0). 1728400 UI 이식 재결정(282cha a)의 참고 자료일 뿐 결정 근거로는 부족하다(`plot_ms`가 HUD의 큰 부분을 차지한다는 관찰만).
+
+7. **영상 대조(`qcamera.ts`, 526x330, 20 fps, 눈대중).** 52~60초 컨택트시트(ffmpeg `-ss 52 -t 9`, 1 fps, 3x3): 적신호 앞에 자차가 정차해 있고 앞차가 같은 차선에서 정지해 있다. 간격은 앞차가 가깝게 보이지만 눈대중이며 로그의 9.0 m와 모순되지 않는다. 영상과 로그의 시각 정렬 오차는 확인하지 않았다.
+
+8. **하지 않은 것.** 5339d98 설치 뒤 주행 로그(없음), `procLog` 안 `proclogd`의 메모리·캐시 확인, 43.9~46.2초 radar 깜빡임 원인, 영상 프레임별 거리 대조, 앞차가 처음부터 정지한 장면의 첫 정지 조사(303cha (c)), 294cha 출발 지연(해당 장면 없음), 시동 직후·고속도로 램프(해당 장면 없음). 코드 변경 제안 없음. 실차 검증: 미실시.
+
 ## 303cha (코드 변경 있음 5339d98, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 신호정지 때 앞차와 너무 멀리서 정차하는 증상: 거리 기억 상한을 주행 중에도 적용
 
 **배경.** 사용자가 세션 시작 지침을 주고 로그 zip(`HYUNDAI_GENESIS_541384155f4f8ca5_20261019_180500.zip`, route 000004b7 세그먼트 3 한 개)과 함께 "신호정지시 앞차와의 거리가 너무 멀리서 정차함. 수정코딩"이라고 요청했다.
