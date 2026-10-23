@@ -368,3 +368,19 @@ route 단위로 rlog.zst를 읽어 오류, 활성 비율, 속도, 제어 품질,
 292차 `steer_win.py`의 짝으로, 조향 토크 구간이 차선 변경이나 차선 중앙 이동과 겹치는지 보는 읽기 전용 도구다. 293cha(route 000004a6, 기록 커밋 0255dc6)에서 만들었고 앞 대화 원본이 사라져 이 사양대로 다시 썼다(실제 로그로 재실행). 실차 검증 아님(로그 확인). `load.py`와 같은 폴더에 두고 `SCHEMA_DIR`을 지정한다(0255dc6 기준 스키마는 `openpilot/cereal/{log,deprecated,custom}.capnp`, `include/c++.capnp`, `opendbc_repo/opendbc/car/car.capnp`를 한 폴더에 모으고 `include/c++.capnp`는 그 폴더 아래 `include/`에 둔다).
 | `rlog_summary/lane_win.py` | `<rlog.zst> <t_from> <t_to> [step_s]`: `modelV2`의 `laneChangeState`/`Direction`, `laneWidthLeft/Right`(wL/wR), `laneChangeAvailableLeft/Right`(AL/AR), `laneLines` 안쪽 두 줄(index 1, 2)의 첫 점 y(yL/yR)와 `laneLineProbs`(pL/pR), 중간값 mid=(yL+yR)/2를 step 간격(기본 0.5초)으로 출력. 시각은 그 rlog의 첫 carState 기준 초 |
 한계: 그 시각 이후 가장 가까운 `modelV2` 표본만 찍는다(step이 크면 `laneChangeState` 전이 시각을 놓친다, 전이는 step 0.01~0.05로 돌린다). `laneChangeState`는 세그먼트 경계를 넘어 이어질 수 있어 앞뒤 세그먼트를 같이 본다. y 부호(왼쪽 선 음수로 읽힘)와 mid 양수의 의미는 이 로그에서 읽은 것이고 좌표계 정의를 확인하지 않았다. 차선 변경 시작이 운전자인지 시스템인지는 이 도구가 가르지 못한다(`carrotMan` 필드 안 읽음).
+
+### 311차 추가 (lead_replay/scene76_plan.py, extract_plan_ext.py: 실제 플래너 호출부를 따르는 재생)
+
+311cha(WIP.md 311cha)에서 route 000004bf 세그먼트 76의 신호정지 2.7 m 장면을 재생하려고 만든 도구다. `cl_replay.py`/`ol_replay.py`는 MPC에 측정 자차 상태를 넣고 `a_solution[0.05초]`를 명령으로 읽는데, 실제 `longitudinal_planner.py`(5339d98)는 그렇지 않아서 노출 뒤 반응이 로그보다 약 0.5초 늦게 재생됐다. 이 도구는 플래너의 MPC 호출부를 따른다. 실차 검증 아님.
+
+| 파일 | 역할 |
+|---|---|
+| `extract_plan_ext.py <schema> <segs> <out.pkl> [t_from t_to]` | `longitudinalPlan`의 `aTarget`, `aTargetBase`, `longitudinalPlanSource`, `leadPreviewAccel`, `aChangeCost`, `vTargetNow`, `jTargetNow`, `hasLead`, `shouldStop`을 첫 carState 기준 초로 뽑는다(기본 150~215초). `python3 -I`로 실행, initData는 읽지 않는다 |
+| `scene76_plan.py ol` | 열린 루프: 로그 vEgo/aEgo/앞차 입력으로 플래너 MPC를 돌려 `a_target_base`를 로그 `aTargetBase`와 비교(183.3~190초 RMSE 0.006, 최대 0.015) |
+| `scene76_plan.py cl [런 이름...]` | 폐루프 8런(로그 입력, 이상적 정지 차량, 게이트 끔, `StopDistanceCarrot` 6/8 m, 노출 0.5/1.0/2.0초 일찍): 노출 전 자차는 로그 상태, 노출부터 cmd = `a_target_base`를 1차 플랜트로 따른다. 약 1.5분이라 `setsid nohup ... < /dev/null &` |
+
+플래너 호출부를 따른 점: MPC 시작 상태 `(v_desired_filter.x, a_desired)`(`FirstOrderFilter` rc 2.0이 vEgo로 당기고 계획 가속도를 적분), 명령 `get_accel_from_plan(v_traj, a_traj, CONTROL_N_T_IDX, action_t = LongActuatorDelay x 0.01 + 0.05, vEgoStopping)`, `a_change_cost_starting` = 로그 `AChangeCostStarting`(150), 가속 하한 `min(A_CRUISE_MIN -2.0, a_desired + 0.05)`.
+
+사전 준비: `pytest_ci_setup.sh` -> `cl_sim/prep_base.sh HEAD`(`cl_sim.py`가 기준선 모듈을 임포트한다, 쓴 뒤 `long_mpc_base110.py` 삭제) -> 스키마를 로그 기록 커밋 기준으로 모으고(sh가 아니라 bash로 복사) `extract_log.py`(log_lead.pkl)와 `extract_plan_ext.py`(lp_ext.pkl) -> `export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo LR_PKL=<log_lead.pkl> LP_PKL=<lp_ext.pkl>`. `cl_sim` 폴더는 `../cl_sim`이 기본이고 `CL_SIM_DIR`로 바꾼다.
+
+주의: `scene76_plan.py`의 값 중 route 000004bf 세그먼트 76 전용이 있다(`T_SW` 183.355954초 = 레이더가 정지 차량을 처음 잡은 프레임, `A_CHANGE_COST_STARTING` 150, `LongActuatorDelay` 20, `VEgoStopping` 5, 정지 거리 7.0, 플랜트 tau 0.35, 설정속도 15 m/s 가정). 다른 로그에는 이 값(initData 키는 `AChangeCostStarting`, `LongActuatorDelay`, `VEgoStopping`, `StopDistanceCarrot`만 골라 읽는다)부터 바꾼다. 한계: 앞차 위치는 `xego_log + dRel`에서 만든 추정이고 레이더 `dRel` 오프셋을 모른다(이 로그에서 속도 적분 이동거리와 레이더 거리 감소가 2.2 m 달랐다), 모델 궤적(x, v, a, j)은 0, lead preview와 controlsd 한계는 없다, 센서 지연과 노이즈 없음. 저장판은 열린 루프만 폴더를 옮긴 사본에서 다시 돌려 RMSE 0.006을 확인했고 폐루프 8런은 경로 하드코딩판으로 돌렸다. 처음 두 판(`scene76_replay.py`, 측정 자차 상태와 `a_solution[0.05초]` 사용)은 틀려서 저장하지 않았다. 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).
