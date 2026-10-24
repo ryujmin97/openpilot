@@ -384,3 +384,19 @@ route 단위로 rlog.zst를 읽어 오류, 활성 비율, 속도, 제어 품질,
 사전 준비: `pytest_ci_setup.sh` -> `cl_sim/prep_base.sh HEAD`(`cl_sim.py`가 기준선 모듈을 임포트한다, 쓴 뒤 `long_mpc_base110.py` 삭제) -> 스키마를 로그 기록 커밋 기준으로 모으고(sh가 아니라 bash로 복사) `extract_log.py`(log_lead.pkl)와 `extract_plan_ext.py`(lp_ext.pkl) -> `export PYTHONPATH=/home/claude/repo:/home/claude/repo/opendbc_repo LR_PKL=<log_lead.pkl> LP_PKL=<lp_ext.pkl>`. `cl_sim` 폴더는 `../cl_sim`이 기본이고 `CL_SIM_DIR`로 바꾼다.
 
 주의: `scene76_plan.py`의 값 중 route 000004bf 세그먼트 76 전용이 있다(`T_SW` 183.355954초 = 레이더가 정지 차량을 처음 잡은 프레임, `A_CHANGE_COST_STARTING` 150, `LongActuatorDelay` 20, `VEgoStopping` 5, 정지 거리 7.0, 플랜트 tau 0.35, 설정속도 15 m/s 가정). 다른 로그에는 이 값(initData 키는 `AChangeCostStarting`, `LongActuatorDelay`, `VEgoStopping`, `StopDistanceCarrot`만 골라 읽는다)부터 바꾼다. 한계: 앞차 위치는 `xego_log + dRel`에서 만든 추정이고 레이더 `dRel` 오프셋을 모른다(이 로그에서 속도 적분 이동거리와 레이더 거리 감소가 2.2 m 달랐다), 모델 궤적(x, v, a, j)은 0, lead preview와 controlsd 한계는 없다, 센서 지연과 노이즈 없음. 저장판은 열린 루프만 폴더를 옮긴 사본에서 다시 돌려 RMSE 0.006을 확인했고 폐루프 8런은 경로 하드코딩판으로 돌렸다. 처음 두 판(`scene76_replay.py`, 측정 자차 상태와 `a_solution[0.05초]` 사용)은 틀려서 저장하지 않았다. 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).
+
+### 311차 후속 추가 (lead_replay/start_replay.py: 앞차 따라 출발 재생)
+
+311cha 후속에서 route 000004bf 세그먼트 77의 정지 후 출발(238초)을 재생하려고 만든 도구다. `scene76_plan.py`(같은 폴더)의 `Plan`(플래너 MPC 호출부 사본)을 그대로 쓰고 앞차는 로그 `leadOne`(vLead/aLeadK, 위치 = `xego_log + dRel`)이다. 실차 검증 아님.
+
+| 모드(`python3 start_replay.py <모드>`) | 내용 |
+|---|---|
+| `ol` | 열린 루프(233~241초): 로그 자차 상태로 플래너 MPC를 돌려 로그 `aTargetBase`와 RMSE(0.009)를 보고, 설정 변형(JerkCostEgo, `a_change_cost_starting`, tFollow, 정지 거리, `LeadAccelResponse` 5)별 `shouldStop` 해제 시각과 0.2/0.4/0.6 m/s² 도달 시각을 비교 |
+| `cl` | 폐루프(235~262초, 자차 1차 플랜트 tau 0.35, 지연 0.15): 변형 런별 속도(240/243/246/250초), 평균 가속, 간격 |
+| `lar` | 폐루프, `LeadAccelResponse` 레벨 0/1/2/3/5 |
+| `gap` | 폐루프, 정차 간격 가정(자차를 로그 위치에서 `off`만큼 뒤에 세움) 2.7/5/7 m |
+| `combo` | 폐루프, `LeadAccelResponse` 4/5와 tFollow 1.4/1.2 조합 |
+
+사전 준비와 환경변수는 `scene76_plan.py`와 같다. 단 `LP_PKL`은 `extract_plan_ext.py <schema> <segs> <out.pkl> 150 300`으로 뽑는다(기본 구간 150~215초는 출발 구간을 포함하지 않아 `IndexError`가 난다). `scene76_plan.py`에 `Plan.lar`(LeadAccelResponse 레벨, 기본 0)와 `Plan.ss`(`get_accel_from_plan`의 should_stop)를 추가했다. 기본값은 311차 판과 같아 `scene76_plan.py ol/cl` 결과는 달라지지 않는다. `cl_sim`의 `mk_carrot` 객체에 `jerkCostEgo`, `jerk_factor`, `leadAccelResponse`를 덧씌우고 끝나면 되돌린다.
+
+한계: 로그의 출발 한 건이다. 플랜트는 1차 지연이라 차가 움직이기 시작하는 문턱(명령 약 0.4 m/s²)을 재현하지 못한다(재생 v240 0.87 대 로그 1.44 m/s, v250 7.25 대 6.98). 설정속도는 15 m/s 가정, 모델 궤적(x, v, a, j)은 0, lead preview와 controlsd 한계는 없다. 앞차 위치는 로그 거리에서 만든 추정이고 레이더 `dRel` 오프셋을 모른다. 변형 런은 한 번씩이다. 저장판은 `ol`, `gap`, `combo`, `lar`를 저장 레이아웃 사본에서 다시 돌려 확인했고 `cl`은 저장판으로 다시 돌리지 않았다. 이 파일들은 Windows PowerShell 5.1에서 실행하는 도구가 아니다(샌드박스 전용).

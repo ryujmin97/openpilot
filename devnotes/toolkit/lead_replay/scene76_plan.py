@@ -4,6 +4,7 @@ scene76_replay.py와 다른 점(실제 플래너 코드 longitudinal_planner.py 
   - MPC 시작 상태는 측정값이 아니라 (v_desired_filter.x, a_desired): v_desired_filter는 FirstOrderFilter(rc 2.0)가 v_ego로 당기고 매 사이클 계획 가속도를 적분한다.
   - 명령은 a_solution[0.05초]가 아니라 `get_accel_from_plan(v_traj, a_traj, CONTROL_N_T_IDX, action_t=LongActuatorDelay*0.01+DT_MDL)`의 a_target_base(로그 aTargetBase). 로그 LongActuatorDelay=20 -> 0.25초.
   - a_change_cost_starting은 로그 AChangeCostStarting=150(재생 도구 기본 10이 아니다), accel 하한 min(A_CRUISE_MIN -2.0, a_desired+0.05).
+311cha 후속: Plan.lar(LeadAccelResponse 레벨, 기본 0 = 로그 설정)와 Plan.ss(get_accel_from_plan의 should_stop)를 start_replay.py가 쓴다(기본 동작은 그대로).
 모드: ol(열린 루프: 로그 vEgo/aEgo/앞차 입력, aTargetBase와 비교) / cl(폐루프: 정지 차량 노출 TR부터 자차는 1차 플랜트).
 한계: 모델 궤적(x,v,a,j)은 0, lead preview(aTarget-aTargetBase, 최대 약 -0.2 m/s^2)와 controlsd 한계는 없음, 앞차 위치는 로그 거리에서 만든 추정, 센서 지연/노이즈 없음, 설정속도는 가정.
 사전 준비: pytest_ci_setup.sh -> cl_sim/prep_base.sh HEAD(cl_sim이 기준선 모듈을 임포트, 쓴 뒤 long_mpc_base110.py 삭제) -> extract_log.py(log_lead.pkl) + extract_plan_ext.py(lp_ext.pkl).
@@ -62,12 +63,12 @@ class Plan:
         self.mpc.set_accel_limits(lim0, 1.5); self.mpc.set_cur_state(self.vf.x, self.a_des)
         rsx = NS(leadOne=l1, leadTwo=cl_sim.lead_ns(False, 0, 0, v_ego, 0, -1))
         self.mpc.update(carrot, False, rsx, self.vset, z(), z(), z(), z(), prev_accel_constraint=not standstill, jerk_factor=1.,
-                        a_change_cost_starting=self.a_chg, lead_accel_response_enabled=False, lead_gap_enabled=True,
+                        a_change_cost_starting=self.a_chg, lead_accel_response_enabled=(getattr(self, 'lar', 0) > 0), lead_gap_enabled=True,
                         lead_track_frames=(self.lt, 0), measured_a_ego=a_ego, cutout_relief_enabled=True)
         v_tr = np.interp(CONTROL_N_T_IDX, M.T_IDXS, self.mpc.v_solution); a_tr = np.interp(CONTROL_N_T_IDX, M.T_IDXS, self.mpc.a_solution)
         a_prev = self.a_des; self.a_des = float(np.interp(DT, CONTROL_N_T_IDX, a_tr))
         self.vf.x = self.vf.x + DT * (self.a_des + a_prev) / 2.0
-        a_base, _, _, _ = get_accel_from_plan(v_tr, a_tr, CONTROL_N_T_IDX, action_t=ACTION_T, vEgoStopping=V_EGO_STOPPING)
+        a_base, self.ss, _, _ = get_accel_from_plan(v_tr, a_tr, CONTROL_N_T_IDX, action_t=ACTION_T, vEgoStopping=V_EGO_STOPPING)
         return a_base, self.a_des, float(self.mpc.desired_distance), self.mpc
 
 

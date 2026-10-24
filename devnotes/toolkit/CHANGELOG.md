@@ -1,5 +1,8 @@
 # Toolkit CHANGELOG
 
+## 2026-10-23 (311차 후속)
+- `lead_replay/start_replay.py` 신규(311cha 후속, route 000004bf 세그먼트 77 정지 후 앞차 따라 출발 재생용): `scene76_plan.py`의 `Plan`으로 열린 루프(로그 `aTargetBase`와 RMSE 0.009)와 폐루프(변형 런, `LeadAccelResponse` 레벨, 정차 간격 가정, 조합)를 돌린다. `scene76_plan.py` 수정: `Plan.lar`(기본 0)와 `Plan.ss` 추가(기본 동작은 그대로). 저장 전 `py_compile` 통과, `ol`/`gap`/`combo`/`lar`는 저장 레이아웃 사본에서 재실행해 값 확인(`cl` 제외). README에 311차 후속 추가.
+
 ## 2026-10-23 (311차)
 - `lead_replay/scene76_plan.py`, `lead_replay/extract_plan_ext.py` 신규(311cha, route 000004bf 세그먼트 76 신호정지 2.7 m 재생용): `longitudinal_planner.py`의 MPC 호출부(계획 상태 `(v_desired_filter.x, a_desired)`, `get_accel_from_plan` 명령, `AChangeCostStarting` 150)를 따라 열린 루프(로그 `aTargetBase`와 RMSE 0.006)와 폐루프를 돌린다. `extract_plan_ext.py`는 `longitudinalPlan` 플래너 필드를 pkl로 뽑는다. 저장 전 `py_compile` 통과, `extract_plan_ext.py`는 실제 로그 1,300행으로 재현, `scene76_plan.py ol`은 폴더를 옮긴 사본에서 재현. README에 311차 추가.
 
