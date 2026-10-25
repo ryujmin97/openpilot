@@ -1,5 +1,26 @@
 # WIP
 
+## 312cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `632e8bc..9b5e12f` 신규 46건 점검, 전부 제외 확정, 체크포인트 `632e8bc` -> `9b5e12f`
+
+**배경.** 사용자가 새 세션에서 "최신 커밋 분석"을 요청했다(2절). 4절 0단계로 지침(v2)을 note `fe6a2b2` SHA 고정본으로 읽었고(브랜치 URL본과 `cmp` 바이트 일치) HANDOFF.md를 읽었다. 체크포인트 `632e8bc`가 carrot-ms에 존재함(`git cat-file -t` = commit)을 확인했고 carrot-ms HEAD는 `9b5e12f`(`9b5e12fe53067f55eda2e8e8a00def654b11d403`, 2026-10-24)였다. 신규는 46건(전부 ajouatom, 2026-10-20~24)이다. carrot-ryu HEAD는 `git ls-remote`로 `5339d98` 그대로임을 확인했다.
+
+**범위와 방법.** depth 80 blobless fetch로 `git rev-list`와 `diff-tree --numstat`을 써서 커밋별 변경 파일을 뽑고 carrot-ryu `5339d98` 트리 목록(5,468개 파일)과 대조했다. diff 본문을 읽은 것: `fd834a3`, `e70a357`, `822f9b3`, `4e5d9d4`의 modeld 3개 파일, `5fb1021`(`xiaoge_data.py` 중간까지, 그 뒤 일부와 웹 쪽 변경은 읽지 않음). 나머지는 파일 목록과 커밋 제목으로 분류했고 문서는 `e70a357`의 `docs/jetson_regression_isolation_20261024.md`와 `9b5e12f`의 AGENTS.md 추가분만 읽었다. `b297075`와 `2d279e8`의 diff 본문은 읽지 않았다. blobless 저장소에서 `git grep`은 시간 초과라 쓰지 않았고 필요한 ryu 파일은 raw URL(SHA 고정)로 받았다. 정적 분석이고 실차 검증은 하지 않았다.
+
+**분류(46건 전부 제외).**
+- Jetlink/Jetson USB·NAV 코드 20건: `4e5d9d4`, `9741700`, `c39bc3b`, `3ba28f1`, `c78783c`, `3a2a000`, `d1c9855`, `b775c4f`, `ceef4eb`, `e0068bb`, `e4eb0ae`, `e2e50b0`, `16c6aed`, `ce812a3`, `d74dce9`, `5eac67b`, `f05c47c`, `627223d`, `b1aa417`, `4ed087f`. 바꾸는 파일(`third_party/jetlink/`, `tools/jetlink/`, `openpilot/selfdrive/modeld/jetlink/`, `jetlink_status.py`, `camera_gap.py`)이 carrot-ryu에 없다. `4e5d9d4`의 modeld 변경은 카메라 끊김 로그 추가(`CameraGapTrace`)뿐이다(진단 전용).
+- 모델셀렉터 미러 1건 `2d279e8`: `4e5d9d4`의 camera gap 로그를 `carrot_modeld.py`에 맞춘 것이라 같이 제외.
+- 문서 전용 17건: `75de146`, `6ad43ba`, `e3c595f`, `789f832`, `7db308f`, `2a78523`, `3a78e5b`, `7305cbe`, `cc39b88`, `710797a`, `8f6fe60`, `dde2fc4`, `902a378`, `8258059`, `d980cb6`, `6fff296`, `9b5e12f` (AGENTS.md와 docs만 바꿈).
+- CI 전용 3건: `7282dea`, `a632c91`, `a3e2bae` (`.github/workflows/jetlink-checks.yaml` 한 줄씩).
+- `fd834a3`(Hyundai CAN-FD 무전방 정차 시 `HUD_LEAD_INFO`=2 시험): `hyundaicanfd.py`는 CAN-FD 전용이다. 제네시스 DH 2015와 무관.
+- `822f9b3`(`RuntimeDiagnostics`에 `peak_metric` 옵션): 옵션을 쓰는 곳이 Jetlink 데몬뿐이다. carrot-ryu의 modeld와 `carrot_modeld.py`는 옵션 없이 호출한다.
+- `b297075`(HUD 소프트웨어 인코더 스레드 예산 옵션): HUD 관련이다. 302cha에서 사용자가 "hud를 안씀"으로 확정한 범위와 같다.
+- `5fb1021`(카메라 BSD 수명주기, navipilot PR #559): 새 설정 `OnnxBsdEnabled`가 기본 꺼짐이라 기존 `ShareData=1`에서도 BSD가 꺼지고 TCP 7711 텔레메트리 대부분이 빠진다. carrot-ryu에도 `ShareData`(ONNX 차선·BSD, 기본 0)가 있지만 사용자가 쓰는지는 확인하지 못했다(263차에도 미확인). carrot-ryu `OnnxBsdThreshold` 기본값은 45이고 ms는 94라 이미 갈라져 있다. 적용 가능 여부(앵커)는 확인하지 않았다. 사용자가 "제외"로 답해 제외 확정. ShareData를 쓰는 것으로 밝혀지면 다시 본다.
+- `e70a357`(UI 종료 시 카메라 EGL 이미지 해제, SIGTERM/SIGHUP도 같은 종료 경로): carrot-ryu `egl.py`와 `application.py`에 같은 구조(`destroy_egl_image`, `close()`, SIGINT 핸들러만 있음)가 있어 적용은 가능해 보인다. 근거는 Jetson C4에서 UI를 반복 재시작할 때 고아 ION 메모리가 재시작당 약 43 MiB 쌓인 관측이고, 작성자가 "검증된 수정이라 부르지 말라"고 적었다. C3에서 증상이 있는지는 모르고 최소 변경 원칙에 따라 제외. UI 재시작 뒤 메모리 누적 증상이 확인되면 후보로 다시 본다.
+
+**정정.** 보고서의 "제외 제안 (45건)"은 틀린 합계였고 맞는 수는 44건(Jetlink 20 + 미러 1 + 문서 17 + CI 3 + `fd834a3`/`822f9b3`/`b297075`)이다. 거기에 확인이 필요하다고 따로 적은 2건(`5fb1021`, `e70a357`)을 더해 46건이고, 사용자의 "제외"는 그 질문(전부 제외, 체크포인트 이동) 전체에 대한 답으로 받았다.
+
+**사용자 확정.** "제외"(전체 46건 제외, 체크포인트 `632e8bc` -> `9b5e12f`). carrot-ryu 반영 없음, 코드 변경 없음. 실차 검증 미실시. 다음 점검은 `git cat-file -t 9b5e12f`로 존재부터 확인하고 `9b5e12f` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 311cha 후속 (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 정지 후 앞차 따라 출발 가속이 느린 느낌(route 000004bf 세그먼트 77, 출발 238초)
 
 **배경.** 311cha devnotes 반영(`5172232`) 뒤 사용자가 "정지후 출발시 내차의 출발 가속도가 좀 느린 느낌이 듦."이라고 알렸다. 앞차를 따라 출발하는 경우인지 앞차 없이 출발하는 경우인지 물었고 "앞차 따라 출발"이라고 답했다. 설정 조합 비교 뒤 "기록"을 골랐다. 이 로그에는 정차 한 번(192.2초)과 출발 한 번(238.1초)뿐이다. 코드 변경은 없고 devnotes 1회 반영이다(이번에는 Termux Python 스크립트).
