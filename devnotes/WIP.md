@@ -1,5 +1,29 @@
 # WIP
 
+## 313cha (carrot-ryu 코드 반영 2건 `7ff0004`, `d312547`, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `9b5e12f..d878b51` 신규 10건 점검: 3건 이식, 7건 제외 확정, 체크포인트 `9b5e12f` -> `d878b51`
+
+**배경.** 사용자가 새 세션에서 carrot-ms 신규 커밋 점검과 이식을 이어갔다(2절). 4절 0단계로 지침(v2)을 note `5ac4df2` SHA 고정본으로 읽었다. 이 devnotes 반영 직전 note HEAD는 `5ac4df2`(`5ac4df20ab39ed64f175722452dd962cfd06d387`, 312cha 반영본)이고 carrot-ms HEAD는 `d878b51`(`d878b51e10576f5903e5d9f9cdddf892957201f6`, 2026-10-29)이다. 체크포인트 `9b5e12f` 이후 신규는 10건이다.
+
+**이식 2건(carrot-ryu 반영, 사용자가 PowerShell로 push, GitHub에서 직접 재확인).**
+- `7ff0004`(`7ff00048cfa0d2283d1c7160f5dac9a9ba2d4c1e`, 부모 `5339d98`, 2026-10-29 11:06 KST): carrot-ms `43182b1`(2026-10-26, `qcomgpsd`를 `PythonProcess spawn=True`로 시작해 GPS 재시작이 manager IPC 상태를 물려받지 않게 함)의 이식. 3개 파일 +14 -10(`process_config.py`, `process_lifecycle_probe.py`, `test_python_process_spawn.py`).
+- `d312547`(`d312547519bb343210038931752965220ac1a043`, 부모 `7ff0004`, 2026-10-29 13:10 KST): carrot-ms `0131669`(무게중심 비율 조정 추가)와 `d878b51`(실시간 적용, 차량 기본값 0) 최종 형태의 이식. 새 설정 `CenterToFrontRatio`(`params_keys.h` 등록, 설정 JSON 범위 0~69, 기본 0 = 차량 기본값, 유효 입력은 31~69%). `log.capnp`의 `liveParameters`에 `centerToFrontRatio @21 :Float32` 필드가 추가됐으므로 기기에서는 재빌드가 필요하다. 18개 파일(신규 2, 수정 16) +384 -32. 신규 `lateral_geometry.py`, `test_lateral_geometry.py`는 모드 100644이고 수정 파일 `vehicle_model.py`의 100755는 유지됐다. 이식하지 않은 것: 폐기된 스위치 마이그레이션과 `lane_model_speed` 테스트(커밋 제목에 명시).
+- 이 세션에서 GitHub를 다시 조회해 확인한 것: `d312547`의 부모가 `7ff0004`, 18개 파일, +384 -32, 신규 2 + 수정 16(권한 100755 1개 유지), `7ff0004`의 부모 `5339d98`. 앞 세션에서는 18개 파일의 blob 해시를 스크립트 기대값과 비교해 불일치 0이었고 note 브랜치가 섞이지 않았음을 확인했다.
+
+**제외 7건(사용자 "확정").** 전부 코드와 diff를 읽은 정적 확인이며 실행은 하지 않았다.
+- `73fce49`: AGENTS.md, docs 1개 (문서만).
+- `1b34d6e`: CI(`tests.yaml`), docs, AGENTS.md (기기 동작과 무관).
+- `57b1511`: `tests.yaml` 6줄 (CI만).
+- `5051093`: Tesla 자동 깜박이를 `carrot_modeld`에 미러. carrot-ryu `DesireHelper.__init__`에 해당 인자가 없고 `TeslaFlags.AUTO_TURN_SIGNALS`와 `log.capnp`의 `autoTurnSignal` 필드가 없어, 단독 적용하면 시작 시 `TypeError`가 날 것으로 읽힌다(정적 판단).
+- `379225b`: ATC 모드 4를 별도 토글로 분리. carrot-ryu `AutoTurnControl`은 최대 3이고 모드 4 문구와 새 키가 없어 이전할 대상이 없다. 설명문에 Ioniq 5 PE USB2CAN 필요가 명시돼 있다.
+- `694d24c`: 운전자 모니터링 사용자 문서 2개. 정차 중 모니터링 일시정지(신호 정차, 정지한 앞차 뒤 정차) 기능은 새 DM 디스패처 `dm2d.py`에 있다. carrot-ryu는 기존 `dmonitoringd`를 쓰고 `dmonitoringd.py`와 `policy.py`에 SoftHold 언급이 0건이라 적용할 수 없다.
+- `e7d9e53`: 352개 파일(비문서 309 + docs 43)을 한 커밋에 모은 것(병합이 아니라 부모 1개). 확장 대부분이 `tesla_auto_signals`(기본 False) 뒤에 있고, Hyundai 변경은 전부 CAN-FD 경로, 모델 계열은 eGPU 빅모델과 NAV 입력, `navd`는 새 `navigation/` 렌더러로 교체, `carrot_man.py`는 carrot navi 경로 처리를 RouteSource 방식으로 교체, `mapsd` 프로세스 추가와 `launch_chffrplus.sh`의 `|| exit 1` 부팅 단계 추가가 있다. 추가되는 설정 키는 Tesla, CAN-FD, AutoBlinker 관련 4개뿐이다. 파일 끝의 `auto_turn_signal` 계산은 플래그 없이 모든 차에서 돌지만 소비처로 확인한 것은 Tesla 신호 모듈뿐이다.
+
+**읽지 못한 것.** `e7d9e53`의 `tools/jetlink` 107개, `third_party/jetlink`, 테스트, docs는 줄 단위로 읽지 않고 경로와 커밋 제목으로 분류했다. carrot-ryu 전체에서 ATC 모드 4 사용 흔적을 찾는 grep은 시간 초과로 끝나서 "흔적 없음"이라고 말할 수 없다. Windows PowerShell 5.1에서의 실제 실행, 기기 설치, 실차 동작은 확인하지 못했다. 실차 검증: 미실시.
+
+**열린 항목.** carrot-ryu에 DM2 스택(`dm2d.py`)을 도입할지는 이번 점검과 별개의 결정이다. 신호 정차 때 운전자 모니터링이 쉬는 기능이 필요하면 따로 안건으로 올린다. 사용자 결정은 아직 없다.
+
+**체크포인트.** `9b5e12f` -> `d878b51`. 다음 점검은 `git cat-file -t d878b51`로 존재부터 확인하고 `d878b51` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 312cha (코드 변경 없음, carrot-ryu 5339d98 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `632e8bc..9b5e12f` 신규 46건 점검, 전부 제외 확정, 체크포인트 `632e8bc` -> `9b5e12f`
 
 **배경.** 사용자가 새 세션에서 "최신 커밋 분석"을 요청했다(2절). 4절 0단계로 지침(v2)을 note `fe6a2b2` SHA 고정본으로 읽었고(브랜치 URL본과 `cmp` 바이트 일치) HANDOFF.md를 읽었다. 체크포인트 `632e8bc`가 carrot-ms에 존재함(`git cat-file -t` = commit)을 확인했고 carrot-ms HEAD는 `9b5e12f`(`9b5e12fe53067f55eda2e8e8a00def654b11d403`, 2026-10-24)였다. 신규는 46건(전부 ajouatom, 2026-10-20~24)이다. carrot-ryu HEAD는 `git ls-remote`로 `5339d98` 그대로임을 확인했다.

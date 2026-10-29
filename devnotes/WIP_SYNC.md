@@ -1,5 +1,13 @@
 # WIP SYNC
 
+## 중간 기록: 2026-10-29 (313차) -- carrot-ms `9b5e12f..d878b51` 신규 10건 점검, 3건 이식(carrot-ryu `7ff0004`, `d312547`), 7건 제외 확정, 체크포인트 `9b5e12f` -> `d878b51`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `d878b51`(`d878b51e10576f5903e5d9f9cdddf892957201f6`, 2026-10-29). 체크포인트 `9b5e12f` 이후 신규 10건.
+- 이식 3건(carrot-ryu 2커밋): `43182b1`(GPS 재시작을 spawn으로, 2026-10-26) -> carrot-ryu `7ff0004`(3개 파일 +14 -10). `0131669`와 `d878b51`(무게중심 비율 `CenterToFrontRatio`, 둘 다 2026-10-29)은 `d878b51` 최종 형태로 합쳐 carrot-ryu `d312547`(18개 파일 +384 -32). 폐기된 스위치 마이그레이션과 `lane_model_speed` 테스트는 이식하지 않았다. `log.capnp` 필드가 추가돼 기기에서 재빌드가 필요하다.
+- 제외 7건(사용자 "확정"): `73fce49`(문서), `1b34d6e`(CI, 문서), `57b1511`(CI), `5051093`(Tesla 자동 깜박이 미러, 이식 대상 인자와 필드가 carrot-ryu에 없음), `379225b`(ATC 모드 4 토글, carrot-ryu는 모드 3까지), `694d24c`(DM2 정차 중 일시정지 문서, carrot-ryu에 `dm2d.py` 없음), `e7d9e53`(352개 파일을 모은 Tesla, CAN-FD, eGPU NAV, Jetlink 묶음). `694d24c`는 DM2 스택 도입 여부가 열린 항목으로 남았다.
+- 읽은 범위: 코드와 diff를 읽은 정적 확인이며 실행하지 않았다. `e7d9e53`의 jetlink, third_party, 테스트, docs는 경로와 제목으로 분류했고, 모드 4 흔적 grep은 시간 초과였다. 실차 검증: 미실시.
+- 체크포인트: `9b5e12f` -> `d878b51`. 다음 점검은 `git cat-file -t d878b51`로 존재부터 확인하고 `d878b51` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-25 (312차) -- carrot-ms `632e8bc..9b5e12f` 신규 46건 점검, 전부 제외 확정, 체크포인트 `632e8bc` -> `9b5e12f`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `9b5e12f`(`9b5e12fe53067f55eda2e8e8a00def654b11d403`, 2026-10-24). `632e8bc`는 존재했다(`git cat-file -t` = commit). `632e8bc..9b5e12f` 신규 46건(ajouatom, 2026-10-20~24). 변경 파일을 carrot-ryu `5339d98` 트리(5,468개 파일)와 대조했고 `fd834a3`, `e70a357`, `822f9b3`, `4e5d9d4`의 modeld 3개 파일, `5fb1021`의 앞부분은 diff 본문을 읽었다. 나머지는 파일 목록과 커밋 제목 기준이다. 정적 분석, 실차 검증 미실시. 상세는 WIP.md 312cha.
