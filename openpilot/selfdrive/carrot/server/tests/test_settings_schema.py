@@ -553,3 +553,34 @@ def test_cruise_coasting_percent_is_exposed_in_carrot_cruise_group(settings, par
 
   params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
   assert '{"CruiseCoastingPercent", {PERSISTENT, INT, "0"}}' in params_keys
+
+
+def test_live_geometry_has_zero_default_and_no_enable_switch(settings, params):
+  from openpilot.selfdrive.carrot.server.services.params import clamp_numeric
+  by_name = {p['name']: p for p in params}
+  assert 'CenterToFrontRatioEnabled' not in by_name
+  ratio = by_name['CenterToFrontRatio']
+  assert (ratio['min'], ratio['nonzero_min'], ratio['max'], ratio['default'], ratio['unit']) == (0, 31, 69, 0, 1)
+  assert ratio['display_unit'] == 'percent'
+  assert not ratio.get('detail_parent') and not ratio.get('hidden_brands')
+  assert ratio['risk'] == 'high'
+  keys = PARAMS_KEYS_PATH.read_text(encoding='utf-8')
+  assert '{"CenterToFrontRatio", {PERSISTENT, INT, "0"}}' in keys
+  categories = build_menu_categories(settings, by_name)
+  section = next(section for category in categories for group in category['groups'] for section in group['sections']
+                 if 'SteerActuatorDelay' in section['items'])
+  assert section['items'].index(ratio['name']) == section['items'].index('SteerActuatorDelay') + 1
+  for raw, expected in ((0, 0), (1, 31), (30, 31), (40, 40), (60, 60), (99, 69)):
+    assert clamp_numeric(raw, ratio) == expected
+  assert clamp_numeric(1, by_name['SteerActuatorDelay']) == 1
+  assert '재시작 없이' in ratio['descr']
+  assert 'without restarting' in ratio['edescr']
+  assert set(ratio['zero_label']) == {'ko', 'en', 'zh'}
+
+
+def test_declared_nonzero_min_and_zero_labels_are_well_formed(params):
+  for item in params:
+    if 'nonzero_min' in item:
+      assert item['min'] == item['default'] == 0
+      assert 0 < item['nonzero_min'] <= item['max']
+      assert set(item['zero_label']) == {'ko', 'en', 'zh'}

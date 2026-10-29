@@ -93,3 +93,29 @@ test("search detail returns to results with its query, then to the settings root
   assert.equal(view.history.state.screen, "groups");
   assert.equal(view.calls.some((call) => call[0] === "browserBack"), false);
 });
+
+
+test("geometry numeric entry and step buttons skip the unsupported gap in both directions", () => {
+  const context = vm.createContext({});
+  vm.runInContext(functionSource(settings, "normalizeSettingNumericValue"), context);
+  const normalize = context.normalizeSettingNumericValue;
+  const p = { min: 0, max: 69, nonzero_min: 31 };
+  assert.equal(normalize(1, p, 0), 31);
+  assert.equal(normalize(30, p, 31), 0);
+  assert.equal(normalize(30, p), 31);
+  assert.equal(normalize(0, p), 0);
+  assert.equal(normalize(60, p), 60);
+  assert.equal(normalize(100, p), 69);
+  assert.equal(normalize(-10, p), 0);
+  assert.equal(normalize("bad", p), null);
+  assert.equal(normalize("", p), null);
+  assert.equal(normalize(1, { min: 0, max: 300 }), 1);
+});
+
+test("geometry zero label shows vehicle default without a misleading percent suffix", () => {
+  const context = vm.createContext({ LANG: "ko", getDeclaredSettingOptionLabel: () => null, getSettingDisplayUnit: () => "%" });
+  vm.runInContext(functionSource(settings, "formatSettingDisplayValue"), context);
+  const p = { name: "CenterToFrontRatio", zero_label: { ko: "0 · 차량 기본", en: "0 · Vehicle default" } };
+  assert.equal(context.formatSettingDisplayValue(p, 0), "0 · 차량 기본");
+  assert.equal(context.formatSettingDisplayValue(p, 60), "60%");
+});

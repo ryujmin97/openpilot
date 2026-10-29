@@ -158,6 +158,8 @@ The result depends heavily on whether the car uses stock SCC and which button me
 
 A larger `SteerActuatorDelay` compensates by commanding earlier. A larger `LatSmoothSec` is smoother but may respond more slowly. Changing both together makes diagnosis difficult.
 
+`CenterToFrontRatio` is the **center of gravity ratio for all brands**. `0` uses the vehicle default; `31–69%` selects a ratio. Changes apply smoothly without restarting. Defaults: Hyundai/Kia/Genesis `40%`, Toyota/Lexus `44%`, Mazda `41%`, Volkswagen `45%`; Honda varies by model. Compare a small increase for late entry or a decrease for cutting inside; effects depend on lane mode and vehicle. Keep SAD and SR unchanged. Revert to the previous value or `0` if worse. Actual wheelbase stays unchanged; the input range is not a road-validated range.
+
 The default `SteerRatioRate` of `100%` applies the learned steering ratio without scaling. It is used when `CustomSR=0`; a stored rate outside the allowed range (`30–200%`) safely falls back to `100%`.
 
 `LateralTorqueCustom` and `CustomSteer*` are advanced settings that can affect the vehicle tune and safety limits. Do not alter them without a vehicle-specific validated baseline and a recovery path.
