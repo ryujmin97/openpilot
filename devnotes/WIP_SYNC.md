@@ -1,5 +1,14 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-03 (314차) -- carrot-ms `d878b51..8155cf1` 신규 36건 점검, 이식 2건·제외 34건 확정, 체크포인트 `d878b51` -> `8155cf1`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `8155cf1`(`8155cf188872494b868ad7ddf8631112b09082c3`). 체크포인트 `d878b51`은 commit이고 조상이다. `d878b51..89529f8` 30건(ajouatom 2026-10-30~11-01, Hermes Agent 4건 포함)을 먼저 점검했고, 같은 세션에서 `89529f8..8155cf1` 6건(ajouatom 5, Hermes Agent 1)을 추가 점검했다.
+- 이식 2건: `c3c9cc9`(modeld action-head 곡률 변환 저속 하한 1.0 -> 2.5 m/s)와 `8155cf1`(모델셀렉터 baseline 미러 1줄) -> carrot-ryu `d797221`(`d79722106236c28552c8bfcbce711cf2d59c65d9`, 부모 `d312547`), `modeld.py`와 `modeld.py.baseline` 각 +1 -1. 테스트 `test_action_curvature.py`, CI yaml, AGENTS.md는 이식하지 않았다. 효과는 `'action'` 출력 모델에서 9km/h 아래에만 해당하며 사용 모델 여부는 미확인, 실차 검증 미실시.
+- 제외 34건(사용자 확정): 방향지시등 자동·수동 계열 16(`4417d93`, `5608646`, `193942d`, `3b655e9`, `6168b02`, `348fc87`, `9ca2396`, `b0d6eb7`, `6636e89`, `3207b7f`, `a6e83a3`, `1d34ba3`, `cfd8a92`, `8d57a0d`, `746f0b2`, `89529f8`), 모델셀렉터 미러 4(`f386595`, `554cb48`, `c0b861e`, `02f9ed1`), 표시등 HUD 런타임 고정 3(`e0b2585`, `10c25db`, `d282ca9`), Light speed 모델 5(`002c942`, `5984934`, `223c80a`, `5f485e8`, `d85bf9f`), eGPU 2(`593a0b2`, `7fe334d`), TBT/ATC 4(`2d1a2a4`, `66c5dc6`, `aba1690`, `30e607b`).
+- 사유: 지시등·TBT/ATC 계열은 Ioniq 5 PE Jetson USB2CAN 경로(`AutoBlinkerControl` 1/2)가 전제이고 carrot-ryu에 `tools/jetlink/*`, `selfdrive/carrot/bluetooth/`, `boundary_indicator.py`, `indicator_observer.py`, `rear_gap.py`, `lane_line_time.py`, `indicator_display.py`, `AutoTurnControl*` 키가 없다. 미러 4건은 `modeld.py` 변경의 복사본이라 본체를 제외하면 필요 없다(원본 짝은 제목과 시각으로 맞춘 것). Light speed와 eGPU는 eGPU/Jetson 전제(내 차량에서 쓰지 않는다는 이전 회차 전제, 기기 미확인). 상세는 WIP.md 314cha.
+- 읽은 범위: 36건 전체 목록과 numstat, 공용 파일 diff 본문 일부(`desire_helper.py`, hyundai `carstate.py`, `precompiled_model.py`, `precompiled_worker.py`, `egpu_model.js`, HUD 렌더러 2개, `c3c9cc9`의 `modeld.py`와 테스트, `aba1690`의 `params_keys.h`와 설정). 첫 구간 `modeld.py` diff 본문, Jetlink 신규 파일 본문, Light speed 문서, 두 번째 구간 문서와 Jetlink 테스트 본문은 읽지 않았고 `git apply --check`는 하지 않았다. 정적 분석, 실차 검증 미실시.
+- 체크포인트: `d878b51` -> `8155cf1`. 다음 점검은 `git cat-file -t 8155cf1`로 존재부터 확인하고 `8155cf1` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-10-29 (313차) -- carrot-ms `9b5e12f..d878b51` 신규 10건 점검, 3건 이식(carrot-ryu `7ff0004`, `d312547`), 7건 제외 확정, 체크포인트 `9b5e12f` -> `d878b51`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `d878b51`(`d878b51e10576f5903e5d9f9cdddf892957201f6`, 2026-10-29). 체크포인트 `9b5e12f` 이후 신규 10건.

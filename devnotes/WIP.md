@@ -1,5 +1,41 @@
 # WIP
 
+## 314cha (코드 반영 1건 `d797221`, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `d878b51..8155cf1` 신규 36건 점검, 이식 2건(`c3c9cc9`, `8155cf1`) 반영·나머지 34건 제외, 체크포인트 `d878b51` -> `8155cf1`
+
+**배경.** 사용자가 새 세션에서 "최신커밋분석"을 요청했다(carrot-ms 신규 커밋 점검, 2절). 4절 0단계로 지침(v2)을 note `f73c1fa`(`f73c1fa4038a69d7b5092f24596c323e11e47e7c`) SHA 고정본으로 읽었다(브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였고 두 본 `cmp` 일치, 49,324바이트). HANDOFF.md도 같은 SHA에서 읽었다. carrot-ryu HEAD는 `git ls-remote`로 `d312547` 그대로였다. 점검은 두 번에 걸쳤다. (1) carrot-ms HEAD `89529f8`(`89529f8ed9d341384440f1cd32c2e3b30d3080e0`)일 때 `d878b51..89529f8` 30건(ajouatom 2026-10-30~11-01, Hermes Agent 미러 4건 포함)을 점검해 이식 권장 0건으로 보고했고 사용자가 "모두제외확정"으로 확정했다. (2) 같은 세션에서 사용자가 "최신커밋분석"을 다시 요청했을 때 carrot-ms HEAD가 `8155cf1`(`8155cf188872494b868ad7ddf8631112b09082c3`)로 올라 있어 `89529f8..8155cf1` 6건(ajouatom 4+1, Hermes Agent 1)을 추가 점검했다. 사용자가 "`c3c9cc9`(+`8155cf1`)를 이식하고 나머지는 모두 제외"로 확정했다. `d878b51`은 commit이며 `8155cf1`의 조상이다(depth 120/150 blobless bare fetch).
+
+**분류(36건: 이식 2, 제외 34).**
+- 이식 2건: `c3c9cc9`(modeld: action-head 곡률 변환의 저속 하한 1.0 -> 2.5 m/s), `8155cf1`(Hermes Agent, 모델셀렉터 baseline 미러 1줄).
+- 제외 34건 중 방향지시등 자동·수동 계열 16건: `4417d93`, `5608646`, `193942d`, `3b655e9`, `6168b02`, `348fc87`, `9ca2396`, `b0d6eb7`, `6636e89`, `3207b7f`, `a6e83a3`, `1d34ba3`, `cfd8a92`, `8d57a0d`, `746f0b2`, `89529f8`. 이 중 `5608646`(CI와 문서), `cfd8a92`, `89529f8`(문서)은 기록 위주다.
+- 제외: 모델셀렉터 미러 4건(Hermes Agent) `f386595`, `554cb48`, `c0b861e`, `02f9ed1`.
+- 제외: 표시등 HUD 런타임 고정(Jetson) 3건 `e0b2585`, `10c25db`, `d282ca9`.
+- 제외: Light speed 모델 추가와 문서 5건 `002c942`, `5984934`, `223c80a`, `5f485e8`, `d85bf9f`.
+- 제외: eGPU 전송 컴파일과 TLB 오분류 복구 2건 `593a0b2`, `7fe334d`.
+- 제외: 두 번째 점검의 TBT/ATC 4건 `2d1a2a4`, `66c5dc6`, `aba1690`, `30e607b`.
+
+**제외 근거(전부 정적 확인).**
+- 방향지시등: `3b655e9`의 `docs/manual_lane_indicator_restore_20261030.md`가 Ioniq 5 PE의 Jetson USB2CAN 경로(`AutoBlinkerControl` 1/2)를 전제로 쓴다. `desire_helper.py` diff는 `boundary_indicator_supported`, `selfdrive.carrot.bluetooth.physical`(`HOLD_PATH`), `desire_lib/boundary_indicator.py`, `desire_lib/indicator_observer.py`에 기대고 `CanfdBlinkerControl`이 켜져 있으면 꺼진다. carrot-ryu `d312547` 트리(5,470개 파일)에는 `tools/jetlink/*`, `desire_lib/boundary_*.py`, `indicator_*.py`가 없고 `selfdrive/carrot/bluetooth/` 경로 grep도 0줄이었다. carrot-ryu의 `DesireHelper`는 `tesla_auto_signals` 인자도 `CommandReader`도 없는 다른 구조다.
+- hyundai `carstate.py` 변경(`348fc87`, `3207b7f`)은 `rear_gap.py`(`tbt_bsd_inputs`)와 `lane_line_time.py`를 import하는데 둘 다 carrot-ryu에 없고, carrot-ryu `carstate.py`에는 `rear_gap`, `tbtRear`, `tbtRight`, `laneLineInfo` 참조가 grep 0줄이다.
+- 표시등 HUD(`8d57a0d`): C3 `ui/onroad/hud_renderer.py`와 `carrot/cluster/cluster_renderer.py` diff를 읽었다. 둘 다 `openpilot.common.indicator_display.draw` 호출만 더한다. 이 모듈은 신규 파일이고 값을 만드는 쪽도 carrot-ryu에 없다. `ui/mici/onroad/hud_renderer.py`는 같은 +4줄이라는 numstat만 봤다.
+- HUD 런타임 고정 3건: `host_release.json`, `md-v3-release.json`, `light-speed-release.json`(Jetson 호스트 패키지 고정값)이 바뀌며 carrot-ryu에 이 파일들이 없다.
+- 첫 구간 Hermes 미러 4건: `carrot/model_selector/carrot_modeld.py`와 `upstream_baseline/modeld.py.baseline`에 `modeld.py` 변경을 따라 쓴 것이다. 원본 지시등 변경을 가져오지 않으므로 필요 없다. 원본 짝은 커밋 제목과 시각으로 맞춘 것이고 미러 diff 본문은 읽지 않았다. 사용자가 초보용 설명을 요청해 답했다.
+- Light speed 5건과 eGPU 2건: eGPU(USB GPU)와 Jetson 모델 전제다. `593a0b2`의 `precompiled_model.py`, `precompiled_worker.py` diff를 읽었다(flush_tlb 시간초과를 모델 불량이 아니라 일시 실패로 분류, worker는 carrot-ryu에 없는 `generic_model_runtime.use_compiled_copies`를 import). `002c942`의 `egpu_model.js` 한 줄은 표시 이름 `Light speed` 추가이고 web 번들 재생성이 필요한 변경이다. carrot-ryu `modeld.py`에는 eGPU 코드가 있으나 이 판단은 "내 차량에서 eGPU를 쓰지 않는다"는 이전 회차(289cha, 297cha) 전제를 따른 것이고 기기에서 확인하지 않았다.
+- 두 번째 구간 TBT/ATC 4건(`2d1a2a4`, `66c5dc6`, `aba1690`, `30e607b`): 전부 Jetlink TBT·ATC 방향지시등 계열(`tools/jetlink/*`, `atc_params.py`)이다. `aba1690`이 바꾸는 설정 `AutoTurnControlRightLaneChange`의 설명이 Ioniq 5 PE USB2CAN과 `AutoBlinkerControl=2`를 요구하고, carrot-ryu `params_keys.h`에는 `AutoTurnControl*` 키가 하나도 없다. 문서 2개, Jetlink 테스트 본문, `30e607b`의 웹 테스트 diff는 읽지 않았다.
+
+**이식: carrot-ryu `d797221`(`d79722106236c28552c8bfcbce711cf2d59c65d9`, 부모 `d312547`).**
+- 변경: `openpilot/selfdrive/modeld/modeld.py`(100755)와 `carrot/model_selector/upstream_baseline/modeld.py.baseline`(100644) 각 1줄, `desired_curvature = model_output['action'][0,0] / (max(1.0, v_ego))**2`의 `1.0`을 `2.5`로. 두 파일 blob 모두 `b90699ec8fb7b44921f50f76d074925c6ed11574`. 이식하지 않은 것: 테스트 `test_action_curvature.py`, `mdm-model.yaml`, AGENTS.md.
+- 의미: `'action'` 출력 헤드를 내는 모델에서만 쓰이는 분기(plan 기반 모델은 `get_curvature_from_plan`이라 무관)이며, 9km/h 아래에서 같은 모델 출력이 더 작은 곡률로 바뀌어 저속 조향이 약해진다. ajouatom 기록에는 저속 과보정은 줄 수 있으나 급커브 곡률도 줄고 실차 검증은 하지 않았다고 적혀 있다.
+- 전달 전 검증: carrot-ryu 원본에 변경을 적용하고 ajouatom 테스트 76개를 돌렸다(원본 24 실패/52 통과, 변경 후 76 통과, 합성 입력으로 `get_action_from_model`만 실행). 스크립트는 `pwsh` 7.6.9 파서 오류 0건, 로컬 bare 저장소 모의 실행(일반/CRLF 체크아웃) 두 모드 모두 numstat 2파일 +1 -1, 기반 변경 시 사전 blob 불일치로 안전 중단되는 대조군을 확인했다. Windows PowerShell 5.1 실제 실행은 아니다.
+- push 후 재확인(16절): `git ls-remote` carrot-ryu = `d797221`, 부모 `d312547`, SHA 고정 `git show --numstat` 두 파일 +1 -1, ls-tree blob 두 파일 `b90699e`와 모드 100755/100644, raw 두 파일 107행이 `max(2.5, v_ego)`, raw `modeld.py`가 기대본과 `cmp` 일치.
+
+**읽은 범위와 한계.** 첫 구간 30건은 커밋 목록, `--numstat`, 변경 파일의 carrot-ryu `d312547` 트리 대조, 공용 파일 diff 본문(`desire_helper.py`, hyundai `carstate.py`, `rear_gap.py`와 `lane_line_time.py` 전문, `precompiled_model.py`, `precompiled_worker.py`, `egpu_model.js`, `ui/onroad/hud_renderer.py`, `cluster_renderer.py`)과 문서(`manual_lane_indicator_restore_20261030.md`, `indicator_display_20261101.md`, `3b655e9`의 `docs/user/ko/lane-change.md` 끝부분)를 읽었다. 읽지 않은 것: 첫 구간의 `modeld.py` diff 본문, `boundary_indicator.py`와 `indicator_observer.py` 등 신규 파일 본문, `tools/jetlink/*` 본문, Light speed 문서(`light_speed_model_20261030.md`, `light_speed_locationd_review_20261031.md`), `carrot_settings.json`, `params_keys.h`, `log.capnp` diff 본문, CI 워크플로. 두 번째 구간 6건은 목록, numstat, `c3c9cc9`의 `modeld.py`와 테스트 전문, `aba1690`의 `params_keys.h`와 설정 diff, carrot-ryu `modeld.py` 분기 구조를 읽었다. 이식 후보의 효과 조건인 "사용 모델이 `'action'` 출력을 내는지"는 확인하지 못했다. 모델 입력 쪽 `carrot_modeld.py`의 `max(1.0, v_ego)**2`(581행)는 ajouatom 커밋에서도 바뀌지 않았고 upstream이 그쪽도 바꿨는지는 확인하지 않았다. 정적 분석과 합성 입력 테스트이며 실차 검증은 미실시다.
+
+**사용자 결정.** 보고 뒤 사용자가 미러 4건의 초보 설명을 요청했고 "모두제외확정. Termux"로 첫 구간 30건 제외를 확정했다. 두 번째 점검 뒤 "`c3c9cc9`(+`8155cf1`)를 이식하고 나머지는 모두 제외. 파워쉘 명령"으로 확정했고, 코드 스크립트 실행 로그 `DONE: pushed d79722106236c28552c8bfcbce711cf2d59c65d9`를 전달했다. devnotes도 PowerShell로 요청했다.
+
+**재검토 조건.** Ioniq 5 PE/Jetson USB2CAN 방향지시등 계열이나 `tools/jetlink`를 도입하기로 하면 지시등 16, 미러 4, HUD 고정 3, TBT/ATC 4건을 함께 다시 본다. eGPU나 Light speed를 쓰게 되면 7건(Light speed 5, eGPU 2)을 다시 본다.
+
+**하지 않은 것.** 위 읽지 않은 것 전부, 기기 설치 커밋 확인, 이식분의 실차 검증. 정정/사고: 없음(4절 0단계 조회 순서만 위에 적은 대로 지침과 반대였다).
+
 ## 313cha (carrot-ryu 코드 반영 2건 `7ff0004`, `d312547`, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `9b5e12f..d878b51` 신규 10건 점검: 3건 이식, 7건 제외 확정, 체크포인트 `9b5e12f` -> `d878b51`
 
 **배경.** 사용자가 새 세션에서 carrot-ms 신규 커밋 점검과 이식을 이어갔다(2절). 4절 0단계로 지침(v2)을 note `5ac4df2` SHA 고정본으로 읽었다. 이 devnotes 반영 직전 note HEAD는 `5ac4df2`(`5ac4df20ab39ed64f175722452dd962cfd06d387`, 312cha 반영본)이고 carrot-ms HEAD는 `d878b51`(`d878b51e10576f5903e5d9f9cdddf892957201f6`, 2026-10-29)이다. 체크포인트 `9b5e12f` 이후 신규는 10건이다.
