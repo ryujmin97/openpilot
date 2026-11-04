@@ -1,5 +1,11 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-03 (314차 후속) -- `c3c9cc9`+`8155cf1` 이식 원복, 아카이브 `carrot-ryu-v4`
+
+- 314차에서 이식한 `c3c9cc9`+`8155cf1`(carrot-ryu `d797221`)을 사용자 지시("원복하고 ryu-v4로 저장")로 되돌렸다. `carrot-ryu` HEAD = `2bb1e79`(`2bb1e79d439e1cc9af08e68d42b822e5d759df89`, `d797221`의 revert, 트리가 `d312547`과 같음)이고 `carrot-ryu-v4`가 같은 SHA를 가리킨다(GitHub에서 SHA 고정으로 재확인).
+- 결과적으로 `d878b51..8155cf1` 36건의 carrot-ryu 반영은 0건이다(이식 2건은 원복, 제외 34건 그대로). 체크포인트는 `8155cf1` 그대로다. 원복 사유는 확인하지 못했다. 상세는 WIP.md 314cha 후속.
+- carrot-ms HEAD가 `5f15697`까지 올라간 것을 `git ls-remote`로만 확인했고 점검하지 않았다.
+
 ## 중간 기록: 2026-11-03 (314차) -- carrot-ms `d878b51..8155cf1` 신규 36건 점검, 이식 2건·제외 34건 확정, 체크포인트 `d878b51` -> `8155cf1`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `8155cf1`(`8155cf188872494b868ad7ddf8631112b09082c3`). 체크포인트 `d878b51`은 commit이고 조상이다. `d878b51..89529f8` 30건(ajouatom 2026-10-30~11-01, Hermes Agent 4건 포함)을 먼저 점검했고, 같은 세션에서 `89529f8..8155cf1` 6건(ajouatom 5, Hermes Agent 1)을 추가 점검했다.

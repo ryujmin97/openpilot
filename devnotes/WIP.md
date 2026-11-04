@@ -1,5 +1,21 @@
 # WIP
 
+## 314cha 후속 (코드 변경 1건 `2bb1e79`(`d797221` revert), 아카이브 `carrot-ryu-v4` 생성, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `c3c9cc9`+`8155cf1` 이식 원복
+
+**지시.** 아래 314cha에서 `c3c9cc9`+`8155cf1`을 carrot-ryu `d797221`로 이식했는데, 사용자가 "`c3c9cc9`(+`8155cf1`)를 이식한거 다시 원복하고 ryu-v4로 저장"을 지시했다. 원복 사유는 말하지 않았고 묻지 않았다. v4는 "원복한 뒤의 carrot-ryu HEAD"로 해석한다고 응답에서 밝혔고(이식 전 상태 `d797221`을 보존하려는 뜻이면 알려 달라고 함), 사용자는 이의 없이 스크립트를 실행했다(명시적 확인은 없었다). 20절 1번(보존 시점은 사용자 지정)은 이 지시로 충족된 것으로 본다.
+
+**방법.** Termux bash 스크립트 `ryu_revert_v4_termux.sh`(git만 사용). 현재 `carrot-ryu` HEAD가 `d797221`이고 부모가 `d312547`이며 `d797221`이 바꾼 파일이 `modeld.py`와 `modeld.py.baseline` 2개뿐일 때만 진행하고, `git revert --no-commit` 결과 트리가 `d312547`의 트리와 같을 때만 커밋하며, `carrot-ryu-v4`가 이미 있으면 중단한다. `carrot-ryu`와 `carrot-ryu-v4`를 같은 revert 커밋으로 `--atomic` push한다(force 없음, `d797221`은 히스토리에 그대로 남는다). 첫 실행은 `~/storage/downloads` 경로에 파일이 없어 실패했고(저장소 접근 권한과 저장 위치 확인을 안내), 이후 사용자가 `완료: carrot-ryu 와 carrot-ryu-v4 모두 2bb1e79d439e1cc9af08e68d42b822e5d759df89` 로그를 전달했다.
+
+**결과(16절, GitHub에서 SHA 고정으로 직접 재확인).**
+- `git ls-remote`: `carrot-ryu` = `carrot-ryu-v4` = `2bb1e79d439e1cc9af08e68d42b822e5d759df89`. 노트 `4dbd324`, v1 `6df4268`, v2 `3ddf849`, v3 `f295c96`은 그대로다.
+- `2bb1e79`의 부모는 `d797221`이고 `git show --numstat`은 두 파일 각 +1 -1이다. 트리는 `002715fae99bbfab1bab38a304978ca50263d729`로 `d312547`의 트리와 같다.
+- ls-tree blob은 두 파일 모두 `2ebe83365471da975dfb005b986ead5b7baa0dad`(`d312547`과 같음), 모드 100755(`modeld.py`)/100644(baseline). raw 두 파일의 107행이 `max(1.0, v_ego)`다.
+- 따라서 carrot-ryu의 현재 내용은 `d312547`과 같다. 아래 314cha 기록의 "이식 2건 반영"은 당시 사실이고 이 후속이 이후 상태를 정정한다. 체크포인트 `8155cf1`과 제외 34건 결정은 그대로다(이식 여부와 무관하게 점검은 끝났다).
+
+**전달 전 검증.** 스크립트는 `bash -n`과 로컬 bare 모의 저장소(`file://`)의 정상 실행, HEAD 불일치와 v4 이미 존재 대조군으로 확인했다(실제 Termux 실행은 사용자 환경이다). 이 devnotes 스크립트도 같은 방식으로 모의 실행했다.
+
+**한계/하지 않은 것.** 기기에 설치된 커밋은 보지 않았다. 기기가 `d797221`을 이미 받았다면 `2bb1e79`로 갱신해야 한다. 원복 사유 확인, 이식분의 실차 검증, 사용 모델이 `'action'` 출력을 내는지 확인은 하지 않았다. v4 생성 시각은 확인하지 못했다. carrot-ms HEAD가 그 사이 `5f15697`까지 올라간 것을 `git ls-remote`로만 보았고 점검하지 않았다. 정정/사고: 없음.
+
 ## 314cha (코드 반영 1건 `d797221`, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `d878b51..8155cf1` 신규 36건 점검, 이식 2건(`c3c9cc9`, `8155cf1`) 반영·나머지 34건 제외, 체크포인트 `d878b51` -> `8155cf1`
 
 **배경.** 사용자가 새 세션에서 "최신커밋분석"을 요청했다(carrot-ms 신규 커밋 점검, 2절). 4절 0단계로 지침(v2)을 note `f73c1fa`(`f73c1fa4038a69d7b5092f24596c323e11e47e7c`) SHA 고정본으로 읽었다(브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였고 두 본 `cmp` 일치, 49,324바이트). HANDOFF.md도 같은 SHA에서 읽었다. carrot-ryu HEAD는 `git ls-remote`로 `d312547` 그대로였다. 점검은 두 번에 걸쳤다. (1) carrot-ms HEAD `89529f8`(`89529f8ed9d341384440f1cd32c2e3b30d3080e0`)일 때 `d878b51..89529f8` 30건(ajouatom 2026-10-30~11-01, Hermes Agent 미러 4건 포함)을 점검해 이식 권장 0건으로 보고했고 사용자가 "모두제외확정"으로 확정했다. (2) 같은 세션에서 사용자가 "최신커밋분석"을 다시 요청했을 때 carrot-ms HEAD가 `8155cf1`(`8155cf188872494b868ad7ddf8631112b09082c3`)로 올라 있어 `89529f8..8155cf1` 6건(ajouatom 4+1, Hermes Agent 1)을 추가 점검했다. 사용자가 "`c3c9cc9`(+`8155cf1`)를 이식하고 나머지는 모두 제외"로 확정했다. `d878b51`은 commit이며 `8155cf1`의 조상이다(depth 120/150 blobless bare fetch).
