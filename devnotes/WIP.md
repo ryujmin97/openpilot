@@ -1,5 +1,32 @@
 # WIP
 
+## 315cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `8155cf1..00fd31c` 신규 77건 점검, 전부 제외 확정, 체크포인트 `8155cf1` -> `00fd31c`
+
+**배경.** 사용자가 새 세션에서 "최신커밋분석"을 요청했다(2절). 4절 0단계로 지침(v2, 49,324바이트)을 note `7877969` SHA 고정본으로 읽었고(브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침과 반대 순서였으며 두 본 `cmp` 일치) HANDOFF.md(338,546바이트, 314cha 후속)를 읽었다. 체크포인트 `8155cf1`이 carrot-ms에 존재함(`git cat-file -t` = commit)을 확인했다. 점검 시작 때 carrot-ms HEAD는 `00fd31c`(`00fd31ccf4794aaf0152be7f49375b52753877bf`, 2026-11-06)였고 신규는 77건(ajouatom 외 Codex, Hermes Agent, NanoMetere, dongho74s, 2026-10-26~11-06)이다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79` 그대로임을 확인했다.
+
+**범위와 방법.** GitHub API compare가 rate limit으로 실패해 `git clone --bare --filter=blob:none --single-branch`로 carrot-ms와 carrot-ryu를 받아 `git log 8155cf1..carrot-ms`와 `diff-tree --name-status`로 커밋별 변경 파일을 뽑고 carrot-ryu `2bb1e79` 트리 목록(5,470개 파일)과 대조했다. diff 본문을 읽은 것: `af118b33`(`controller.py` 전체), `5f156971`(`trajectory_cutin.py`), `a0572da8`, `db6a1ff7`의 modeld 쪽 파일, `f5baed5c`의 `cruise.py`(앞 80줄), `94e6e9ad`(`carstate.py`), `62a10da5`(커밋 메시지와 적용 검사), `7c127331`의 `carrot_settings.json`. 나머지는 파일 목록과 커밋 제목, 일부 커밋 메시지 기준이다. `git apply --check`(carrot-ryu `2bb1e79` 파일 대상): `af118b33`의 `controller.py`는 실패(`__init__` 문맥이 달라 hunk 1 실패), `5f156971`의 `trajectory_cutin.py`는 4개 hunk 모두 성공(offset -21, 테스트 파일 결과는 출력이 잘려 보지 못함), `62a10da5`의 `application.py`는 실패(offset 44줄 차이, 나머지 파일은 성공 표시). 정적 분석이고 실차 검증은 하지 않았다.
+
+**분류(77건 전부 제외).**
+- Jetson/CANable/B1 BLE 방향지시등·eGPU·Light speed·USB·C4 S3 표시 29건: `ce28269`, `4bd6861`, `663486e`, `fdcbb0c`, `be9539a`, `39a653c`, `2d788c2`, `dcdc5d8`, `95ad438`, `e8ba1a4`, `fd2f319`, `6b4849e`, `8731d73`, `528bc56`, `db6a1ff`, `eb0a630`, `a7e7267`, `9682baa`, `f32b6bd`, `ab9fe96`, `c13e880`, `174113e`, `d82a7d5`, `e4f31da`, `3c027cc`, `6fc890f`, `f09d57a`, `e624a28`, `4fc7545`.
+- CarrotAssist(ChatGPT 음성·OAuth·안드로이드 앱·Carrot Web 연동) 25건: `8674165`, `4c1c377`, `5b6409b`, `0f60512`, `c7cc8df`, `5185ae1`, `ed67e3c`, `59353dc`, `78ae6e7`, `5340949`, `f933e93`, `11cda0a`, `7725b47`, `703a7c5`, `dbcb336`, `2a95aa4`, `91d57eb`, `3ce730e`, `bb12e9a`, `f028543`, `f5baed5`, `66fedc8`, `3db1a90`, `01d8715`, `00fd31c`.
+- Comma Pedal / Kia Ray EV 11건: `ade8409`, `ab66d98`, `e4aaa2b`, `7c12733`, `9eb0f76`, `ce9425b`, `02994a6`, `af152a7`, `718af36`, `51274b0`, `cfe0f38`.
+- CAN-FD·CameraSCC·ALT2 테스트 3건: `c526211`, `94e6e9a`, `390e779`.
+- Hermes Agent "linear sync 복구" 4건(UI 한글 폰트 폴백, UI 테스트, tesla·settings 문서, AGENTS.md): `daa8fcd`, `2f5fd89`, `62a10da`, `305833b`.
+- Mapbox 임시 지오코딩·임시 내비 목적지 2건: `a9ac52e`, `7e25eda`.
+- 레이더 앞차·끼어들기 2건: `5f15697`, `af118b3`.
+- 모델셀렉터 미러 1건: `a0572da`.
+
+**근거(핵심).**
+- `af118b33`(비전 대체가 0.20초 일관될 때까지 레이더 앞차 유지)은 `_confirm_vision_transition`이 `enable_radar_tracks <= 0`이면 입력을 그대로 반환한다. 사용자는 `EnableRadarTracks` 0을 계속 쓰기로 했으므로(228cha) 이 로직은 작동하지 않는다. 그 밖의 바뀐 부분은 `lead_one` 대입 재구성(같은 의미)뿐이다.
+- `5f156971`(코너 레이더 쌍으로 근접 끼어들기 인식)은 코너 레이더(`cross_sensor_point`) 전제의 감지 로직이다. 제네시스 DH 2015는 SCC 레이더만 쓰므로 모드 0에서 쓰이지 않는 쪽으로 읽었으나 호출 경로 전체는 확인하지 않았다.
+- `a0572da8`은 `carrot_modeld.py`의 `DH.update`에 `assistant_valid`를 넘기는 변경이고, `DesireHelper.update`에 그 인자를 추가한 CarrotAssist 커밋(`f5baed5c` 계열)이 전제다. 단독 이식은 `TypeError` 위험이다.
+- `62a10da5`는 한글일 때만 DISPLAY 폰트로 바꾸는 UI 폰트 폴백이다. carrot-ryu `font_fallback`은 `multilang.requires_unifont()`일 때만 DISPLAY 폰트를 쓰며 적용 검사가 실패했고, UI 텍스트 경로의 fps 이력(미완료 29번)이 있어 제외했다.
+- `94e6e9ad`는 `HyundaiFlags.CAMERA_SCC`일 때만 MAIN 가져오기를 막는 변경이다(DH 2015는 해당 없음으로 읽음). `c5262114`는 CAN-FD 전용이다. Comma Pedal 11건은 ACC 없는 차량(Kia Ray EV)용이다. Jetson/eGPU/B1/Light speed 29건과 CarrotAssist 25건은 carrot-ryu에 없는 파일·모듈이 전제이고 HUD는 쓰지 않는다(302cha).
+
+**사용자 확정.** "제외승인"(77건 전부 제외, 체크포인트 `8155cf1` -> `00fd31c`). carrot-ryu 반영 없음, 코드 변경 없음. devnotes 스크립트는 PowerShell 대신 Termux로 요청했다. 실차 검증 미실시.
+
+**하지 않은 것/남은 것.** 위에 적은 일부 커밋 외에는 diff 본문을 읽지 않았다. 점검을 마친 뒤 `git ls-remote`로 carrot-ms HEAD가 `533758b`(`533758b39d64f39cc8004fea1a12e914ea9f3de6`)로 올라간 것을 보았고 `00fd31c..533758b` 신규 16건(2026-11-07, 제목이 CarrotAssist 음성·Ioniq 5 PE 방향지시등·Hermes `carrot_modeld.py` 미러 중심)은 점검하지 않았다. 다음 점검은 `git cat-file -t 00fd31c`로 존재부터 확인하고 `00fd31c` 이후를 본다(carrot-ms는 재생성되므로). `EnableRadarTracks`를 0이 아닌 값으로 바꾸면 `af118b33`과 `5f156971`을, UI 한글 폰트 표시 문제가 확인되면 `62a10da5`를 다시 본다.
+
 ## 314cha 후속 (코드 변경 1건 `2bb1e79`(`d797221` revert), 아카이브 `carrot-ryu-v4` 생성, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `c3c9cc9`+`8155cf1` 이식 원복
 
 **지시.** 아래 314cha에서 `c3c9cc9`+`8155cf1`을 carrot-ryu `d797221`로 이식했는데, 사용자가 "`c3c9cc9`(+`8155cf1`)를 이식한거 다시 원복하고 ryu-v4로 저장"을 지시했다. 원복 사유는 말하지 않았고 묻지 않았다. v4는 "원복한 뒤의 carrot-ryu HEAD"로 해석한다고 응답에서 밝혔고(이식 전 상태 `d797221`을 보존하려는 뜻이면 알려 달라고 함), 사용자는 이의 없이 스크립트를 실행했다(명시적 확인은 없었다). 20절 1번(보존 시점은 사용자 지정)은 이 지시로 충족된 것으로 본다.

@@ -1,5 +1,12 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-08 (315차) -- carrot-ms `8155cf1..00fd31c` 신규 77건 점검, 전부 제외 확정, 체크포인트 `8155cf1` -> `00fd31c`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `00fd31c`(`00fd31ccf4794aaf0152be7f49375b52753877bf`, 2026-11-06). `8155cf1`은 존재했다(`git cat-file -t` = commit). `8155cf1..00fd31c` 신규 77건(2026-10-26~11-06). 변경 파일을 carrot-ryu `2bb1e79` 트리(5,470개 파일)와 대조했고 `af118b33`, `5f156971`, `a0572da8`, `db6a1ff7`(modeld 쪽), `f5baed5c`(`cruise.py` 앞부분), `94e6e9ad`, `7c127331`(설정 json)은 diff 본문을, `62a10da5`는 메시지와 적용 검사를 읽었다. 나머지는 파일 목록과 커밋 제목 기준이다. 정적 분석, 실차 검증 미실시. 상세는 WIP.md 315cha.
+- 제외 77건 요약: Jetson/CANable/B1 BLE/eGPU/Light speed/USB/C4 S3 29건, CarrotAssist(ChatGPT 음성·OAuth·안드로이드) 25건, Comma Pedal / Kia Ray EV 11건, CAN-FD·CameraSCC·ALT2 3건(`c5262114`, `94e6e9ad`, `390e7793`), Hermes Agent linear sync 복구 4건(`daa8fcd`, `2f5fd89`, `62a10da`, `305833b`), Mapbox 임시 지오코딩 2건(`a9ac52e`, `7e25eda`), 레이더 2건(`af118b3`은 `EnableRadarTracks <= 0`이면 입력을 그대로 반환해 작동 안 함, `5f156971`은 코너 레이더 전제), 모델셀렉터 미러 `a0572da`(CarrotAssist의 `DesireHelper` 인자 변경이 전제). 커밋별 목록은 WIP.md 315cha.
+- 사용자 결정: "제외승인"(77건 전부 제외, 체크포인트 이동). 이식 0건, carrot-ryu 반영 없음. `EnableRadarTracks`를 0이 아닌 값으로 바꾸면 `af118b33`과 `5f156971`을, UI 한글 폰트 문제가 확인되면 `62a10da5`를 다시 본다.
+- 체크포인트: `8155cf1` -> `00fd31c`. 점검 뒤 `git ls-remote`로 carrot-ms HEAD가 `533758b`로 올라간 것(`00fd31c..533758b` 신규 16건)만 확인했고 점검하지 않았다. 다음 점검은 `git cat-file -t 00fd31c`로 존재부터 확인하고 `00fd31c` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-11-03 (314차 후속) -- `c3c9cc9`+`8155cf1` 이식 원복, 아카이브 `carrot-ryu-v4`
 
 - 314차에서 이식한 `c3c9cc9`+`8155cf1`(carrot-ryu `d797221`)을 사용자 지시("원복하고 ryu-v4로 저장")로 되돌렸다. `carrot-ryu` HEAD = `2bb1e79`(`2bb1e79d439e1cc9af08e68d42b822e5d759df89`, `d797221`의 revert, 트리가 `d312547`과 같음)이고 `carrot-ryu-v4`가 같은 SHA를 가리킨다(GitHub에서 SHA 고정으로 재확인).
