@@ -1,5 +1,12 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-10 (317차) -- carrot-ms `2545c15b..f69062b` 신규 4건 점검, 전부 제외 확정, 체크포인트 `2545c15b` -> `f69062b`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `f69062b`(`f69062beaed14edccff8bb2549b21918ef731acd`, 2026-11-09 21:44 KST). `2545c15b`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). `2545c15b..f69062b` 신규 4건(ajouatom 3, young 1, 2026-11-09). 변경 파일을 carrot-ryu `2bb1e79` 트리와 `git cat-file -e`로 대조했고 `42e2290`의 `controlsd.py`, `e30bd3c`의 `tools/__init__.py`, `92b5f4c`의 공용 파일 5개, `f69062b`의 설정·문서 diff는 본문을 읽었다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 317cha.
+- 제외 4건: `42e2290`(controlsd publish 크래시 수정, carrot-ryu `controlsd.py`에 `signalStopObject` 호출부가 없어 같은 버그 없음), `e30bd3c`(Bluetooth import 경로, carrot-ryu에 `selfdrive/carrot/bluetooth/` 없음), `92b5f4c`(full GC·private dirty 메모리 rlog 진단, carrot-ryu에 `memory_trace.py`·`proclog_smaps.py`·`SmapsSampler`·`memPssMonoTime @20` 없음, 진단 전용), `f69062b`(외부 HUD P/R 기어 화면, EV6 제원·날씨 조회, 302차 "hud를 안씀" 결정과 같은 범위).
+- 사용자 결정: "제외 확정"(4건 전부 제외, 체크포인트 이동). 이식 0건, carrot-ryu 반영 없음. 외부 HUD를 다시 쓰면 `f69062b`를, 프로세스 메모리 증가가 관측되면 `92b5f4c`를 다시 본다.
+- 체크포인트: `2545c15b` -> `f69062b`. 점검 시작 때 HEAD가 `f69062b`였고 이후 올라갔을 수 있다. 다음 점검은 `git cat-file -t f69062b`로 존재부터 확인하고 `f69062b` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-11-09 (316차) -- carrot-ms `00fd31c..2545c15b` 신규 35건 점검, 전부 제외 확정, 체크포인트 `00fd31c` -> `2545c15b`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `2545c15b`(`2545c15b923984b560766b3d6e2895eff2108722`, 2026-11-09). `00fd31c`는 존재했고 조상이다. `00fd31c..2545c15b` 신규 35건(2026-11-07~11-09, 315차에서 `git ls-remote`로만 본 앞 16건 `00fd31c..533758b3` 포함). 변경 파일을 carrot-ryu `2bb1e79` 트리와 `git ls-tree`로 대조했고 `194b8ea6`, `0e4e5853`의 `long_mpc.py`·`longitudinal_planner.py`(앞부분), `53f351f5`의 `vehicle_faults.py`와 호출부 diff는 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 316cha.
