@@ -1,5 +1,12 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-09 (316차) -- carrot-ms `00fd31c..2545c15b` 신규 35건 점검, 전부 제외 확정, 체크포인트 `00fd31c` -> `2545c15b`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `2545c15b`(`2545c15b923984b560766b3d6e2895eff2108722`, 2026-11-09). `00fd31c`는 존재했고 조상이다. `00fd31c..2545c15b` 신규 35건(2026-11-07~11-09, 315차에서 `git ls-remote`로만 본 앞 16건 `00fd31c..533758b3` 포함). 변경 파일을 carrot-ryu `2bb1e79` 트리와 `git ls-tree`로 대조했고 `194b8ea6`, `0e4e5853`의 `long_mpc.py`·`longitudinal_planner.py`(앞부분), `53f351f5`의 `vehicle_faults.py`와 호출부 diff는 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 316cha.
+- 제외 35건 요약: CarrotAssist 17건, 음성 차선변경·방향지시등(Ioniq 5 PE/Jetlink) 4건(`c34fff19`, `4f24cf8e`, `533758b3`, `eadaa826`), 수동 방향지시등 opt-in 3건(`76ec0310`, `2a705ef4`, `27d43f1e`), Tesla 4건(`0e4e5853`, `c98eaed2`, `a86bcf02`, `bbfde637`), 모델셀렉터 미러 3건(`86fc8d58`, `05bfcf06`, `eb28ffa5`, `modeld.py`가 음성 지시등·Tesla 입력을 받지 않아 불일치), VW Golf `194b8ea6`, CAN-FD·Casper 3건(`53f351f5`, `ce5a025b`, `2545c15b`). 커밋별 목록은 WIP.md 316cha.
+- 사용자 결정: "제외 확정"(35건 전부 제외, 체크포인트 이동). 이식 0건, carrot-ryu 반영 없음. 보류 후보 `pandaCanFault`(`53f351f5` 안의 범용 Panda CAN 오류 즉시 해제)는 관측된 문제가 없어 제외했고, Panda CAN 오류가 로그에서 관측되면 다시 본다.
+- 체크포인트: `00fd31c` -> `2545c15b`. 다음 점검은 `git cat-file -t 2545c15b`로 존재부터 확인하고 `2545c15b` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-11-08 (315차) -- carrot-ms `8155cf1..00fd31c` 신규 77건 점검, 전부 제외 확정, 체크포인트 `8155cf1` -> `00fd31c`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `00fd31c`(`00fd31ccf4794aaf0152be7f49375b52753877bf`, 2026-11-06). `8155cf1`은 존재했다(`git cat-file -t` = commit). `8155cf1..00fd31c` 신규 77건(2026-10-26~11-06). 변경 파일을 carrot-ryu `2bb1e79` 트리(5,470개 파일)와 대조했고 `af118b33`, `5f156971`, `a0572da8`, `db6a1ff7`(modeld 쪽), `f5baed5c`(`cruise.py` 앞부분), `94e6e9ad`, `7c127331`(설정 json)은 diff 본문을, `62a10da5`는 메시지와 적용 검사를 읽었다. 나머지는 파일 목록과 커밋 제목 기준이다. 정적 분석, 실차 검증 미실시. 상세는 WIP.md 315cha.

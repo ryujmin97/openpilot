@@ -1,5 +1,29 @@
 # WIP
 
+## 316cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `00fd31c..2545c15b` 신규 35건 점검, 전부 제외 확정, 체크포인트 `00fd31c` -> `2545c15b`
+
+**배경.** 사용자가 새 세션에서 "최신커밋분석"을 요청했다(2절). 4절 0단계로 지침(v2, 49,324바이트)을 note `471e8b1`(`471e8b1391869686c99b672ebe2bcc845ceed463`) SHA 고정본으로 읽었다(브랜치 URL본을 캐시 방지 쿼리를 붙여 먼저 받고 SHA 고정본을 뒤에 받아 지침과 반대 순서였으며 두 본 `cmp` 일치). HANDOFF.md(342,161바이트, 315cha), WIP.md 최상단, WIP_SYNC.md 최상단을 읽었다. 체크포인트 `00fd31c`가 carrot-ms에 존재하고 HEAD의 조상임을 확인했다(`git cat-file -t` = commit, `git merge-base --is-ancestor`). 점검 시작 때 carrot-ms HEAD는 `2545c15b`(`2545c15b923984b560766b3d6e2895eff2108722`, 2026-11-09)였고 신규는 35건(ajouatom 32, Hermes Agent 3, 2026-11-07~11-09)이다. 315cha에서 `git ls-remote`로만 보았던 `00fd31c..533758b`(16건)가 이 35건의 앞 16건이다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79` 그대로임을 확인했다.
+
+**범위와 방법.** GitHub API compare가 403(rate limit)이라 `git clone --filter=blob:none --no-checkout --single-branch`로 carrot-ms를 받아 `git log --reverse 00fd31c..HEAD`와 `--numstat`으로 커밋별 변경 파일을 뽑았다. carrot-ryu는 같은 방식의 blobless clone에서 `git ls-tree HEAD -- <경로>`로 경로 존재만 확인했다(처음 시도한 `git grep`은 blob 전체를 받으려 해 300초 제한으로 중단됐고 데이터 영향은 없었다). diff 본문을 읽은 것: `194b8ea6`(`volkswagen/carstate.py`), `0e4e5853`의 `long_mpc.py`와 `longitudinal_planner.py`(출력이 170줄에서 잘려 뒷부분은 못 봄)와 `tesla_traffic_stop.py`의 `create_tesla_traffic_stop`, `53f351f5`의 `vehicle_faults.py` 전체와 `controlsd.py`, `selfdrived.py`, `events.py`, `car.capnp`, `log.capnp`, hyundai `carstate.py`와 `carcontroller.py` diff. 나머지는 변경 파일 목록과 커밋 제목 기준이다. `git apply --check`는 하지 않았다. 정적 분석이고 실차 검증은 하지 않았다.
+
+**분류(35건 전부 제외).**
+- CarrotAssist(ChatGPT 음성·안드로이드 앱·폰 음성 설정·문서·AGENTS.md) 17건: `3de987d6`, `b74de289`, `26185f12`, `cbca61d0`, `84979503`, `691292e4`, `924ea2b2`, `d8933da9`, `fc13442a`, `bd090628`, `71d96319`, `965411f2`, `a1b77690`, `33db3ec4`, `62807a8b`, `cafc81c2`, `3d19c282`. `tools/carrot_assistant`, `tools/carrot_android`가 carrot-ryu에 없다(315cha 제외 25건과 같은 계열).
+- 음성 차선변경·방향지시등(Ioniq 5 PE, Jetlink) 4건: `c34fff19`, `4f24cf8e`, `533758b3`, `eadaa826`. `assistant_lane.py`, `voice_indicator.py`, `tools/jetlink`가 carrot-ryu에 없다. `4f24cf8e`는 `card.py`, `controlsd.py`, `hyundai_spas.py`, `car.capnp`, `log.capnp`, `modeld.py`도 건드리지만 diff 본문은 읽지 않았다.
+- 수동 방향지시등 opt-in(Ioniq 5 PE, Jetlink) 3건: `76ec0310`, `2a705ef4`, `27d43f1e`. `manual_turn_indicator.py`와 `tools/jetlink`가 carrot-ryu에 없다(314cha 방향지시등 16건 제외와 같은 계열).
+- Tesla 4건: `0e4e5853`(PR #572 병합, Tesla 방향지시등과 CAN 교통 정지), `c98eaed2`, `a86bcf02`, `bbfde637`(테스트와 `modeld.py` 2줄). 아래 확인 참고.
+- 모델셀렉터 미러(Hermes Agent) 3건: `86fc8d58`, `05bfcf06`, `eb28ffa5`. `carrot/model_selector/carrot_modeld.py`는 carrot-ryu에 있지만 미러 대상인 `modeld.py`가 음성 지시등·Tesla 입력을 아직 받지 않는다(`git show`로 읽어 `assistantLane`, `manual_turn`, `tesla_turn`, `voice_indicator`를 검색해 결과 없음). 미러만 가져오면 불일치가 생긴다.
+- VW Golf MK7 1건: `194b8ea6`. 제네시스 DH는 Hyundai라 무관하다. carrot-ryu `volkswagen/carstate.py`에는 같은 줄(`np.mean` 형태)이 150행에 그대로 있다.
+- CAN-FD·Casper 정지 물체, 차량 장애 보고 3건: `53f351f5`, `ce5a025b`, `2545c15b`.
+
+**확인한 내용.**
+- `0e4e5853`: `long_mpc.py`·`longitudinal_planner.py` 변경은 `create_tesla_traffic_stop(CP)`가 `cp.brand == "tesla"`이고 `CAN_TRAFFIC_STOP` 플래그일 때만 객체를 만들고 그 외는 `None`을 반환한다. `tesla_stop_distance`도 기본 `None`이라 `mode`가 `carrot.mode` 그대로이므로 비 Tesla 차량의 동작은 바뀌지 않는다. 이식해도 득이 없다.
+- `53f351f5`: `stockSccFault`는 `HYUNDAI_CASPER_EV`(CAN-FD)에서만 켜지고 `stop_object.py`도 CAN-FD 전용이다. `controlsd.py`가 `opendbc.car.hyundai.stop_object`를 import하고 `car.capnp`, `log.capnp` 변경이 얽혀 있어 부분 이식에는 추출 작업이 필요하다.
+- 보류 후보 1개(이식 권장 아님): `53f351f5` 안의 `pandaCanFault`(`vehicle_faults.py`의 `VehicleFaultMonitor.update_pandas`와 `inhibit_faulted_controls`)는 범용이다. Panda CAN 오류율 100/s 이상과 errorPassive/busOff와 `interruptRateCan` 폴트가 0.5초 이상 겹치면 즉시 해제(`IMMEDIATE_DISABLE`)한다. DH 2015에도 적용되지만 관측된 문제가 없고(최근 실차 로그의 panda 폴트 0건, 310cha 기록) 얽힌 변경이 커서 제외했다.
+
+**사용자 확정.** "제외 확정"(35건 전부 제외, 체크포인트 `00fd31c` -> `2545c15b`). devnotes 스크립트는 PowerShell로 요청했다. carrot-ryu 반영 없음, 코드 변경 없음. 실차 검증 미실시.
+
+**하지 않은 것/남은 것.** 위에 적은 일부 커밋 외에는 diff 본문을 읽지 않았다(`4f24cf8e`, `76ec0310`, 앱·웹 쪽 커밋 대부분). `git apply --check`와 기기 설치 커밋 확인은 하지 않았다. carrot-ms HEAD는 점검 시작 때 `2545c15b`였고 이후 올라갔을 수 있다. 다음 점검은 `git cat-file -t 2545c15b`로 존재부터 확인하고 `2545c15b` 이후를 본다(carrot-ms는 재생성되므로). Panda CAN 오류가 로그에서 관측되면 `pandaCanFault`를 다시 본다. 정정/사고: 없음(위 `git grep` 시간 초과 외).
+
 ## 315cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `8155cf1..00fd31c` 신규 77건 점검, 전부 제외 확정, 체크포인트 `8155cf1` -> `00fd31c`
 
 **배경.** 사용자가 새 세션에서 "최신커밋분석"을 요청했다(2절). 4절 0단계로 지침(v2, 49,324바이트)을 note `7877969` SHA 고정본으로 읽었고(브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침과 반대 순서였으며 두 본 `cmp` 일치) HANDOFF.md(338,546바이트, 314cha 후속)를 읽었다. 체크포인트 `8155cf1`이 carrot-ms에 존재함(`git cat-file -t` = commit)을 확인했다. 점검 시작 때 carrot-ms HEAD는 `00fd31c`(`00fd31ccf4794aaf0152be7f49375b52753877bf`, 2026-11-06)였고 신규는 77건(ajouatom 외 Codex, Hermes Agent, NanoMetere, dongho74s, 2026-10-26~11-06)이다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79` 그대로임을 확인했다.
