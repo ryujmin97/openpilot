@@ -1,5 +1,11 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-11 (318차) -- carrot-ms `f69062b..9dc26ad` 신규 13건 점검, 전부 제외 확정, 체크포인트 `f69062b` -> `9dc26ad`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `9dc26ad`(`9dc26ad05fc41f266efdfed9df2d44e8cec2e8f5`). `f69062b`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). `f69062b..9dc26ad` 신규 13건(전부 ajouatom, 2026-11-10~11). 변경 파일을 carrot-ryu `2bb1e79` 트리(5,470개)와 `git ls-tree`로 대조했고 `bb2518f`의 공용 파일 4개, `ceeaf2b`의 `hyundaicanfd.py`와 설계 문서 앞부분은 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 318cha.
+- 제외 13건: 방향지시등 자동·모델 표시 2건(`bb2518f`, `aaa4a02`, 전제 `indicator_observer.py`·`tesla_turn_signals.py`·`boundary_indicator`·`model_indicator`가 carrot-ryu에 없고 `cruiseCancelState`도 없음, `car.capnp` 변경으로 재빌드 필요), CAN-FD 최종 정차 1건(`ceeaf2b`, carrot-ryu에 `stop_controller`·`apply_canfd_stopping` 없음), Casper·Ray EV 조사 문서 4건(`b789b62`, `3c5b170`, `55b3980`, `e864301`), Jetson/Jetlink 진단·배포 6건(`66ecab7`, `60dc0fb`, `fb9a78a`, `d6ff8f6`, `cf177cd`, `9dc26ad`, `tools/jetlink/*`·`modeld/jetlink/*` 없음).
+- 사용자 결정: "전부제외"(13건 전부 제외, 체크포인트 이동). 이식 0건, carrot-ryu 반영 없음. Jetson/지시등 계열을 도입하면 해당 건들을, CAN-FD 차량을 다루게 되면 `ceeaf2b`를 다시 본다.
+- 체크포인트: `f69062b` -> `9dc26ad`. 점검 시작 때 HEAD가 `9dc26ad`였고 이후 올라갔을 수 있다. 다음 점검은 `git cat-file -t 9dc26ad`로 존재부터 확인하고 `9dc26ad` 이후를 본다(carrot-ms는 재생성되므로).
 ## 중간 기록: 2026-11-10 (317차) -- carrot-ms `2545c15b..f69062b` 신규 4건 점검, 전부 제외 확정, 체크포인트 `2545c15b` -> `f69062b`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `f69062b`(`f69062beaed14edccff8bb2549b21918ef731acd`, 2026-11-09 21:44 KST). `2545c15b`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). `2545c15b..f69062b` 신규 4건(ajouatom 3, young 1, 2026-11-09). 변경 파일을 carrot-ryu `2bb1e79` 트리와 `git cat-file -e`로 대조했고 `42e2290`의 `controlsd.py`, `e30bd3c`의 `tools/__init__.py`, `92b5f4c`의 공용 파일 5개, `f69062b`의 설정·문서 diff는 본문을 읽었다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 317cha.

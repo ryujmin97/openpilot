@@ -1,5 +1,20 @@
 # WIP
 
+## 318cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `f69062b..9dc26ad` 신규 13건 점검, 전부 제외 확정, 체크포인트 `f69062b` -> `9dc26ad`
+
+**배경.** 사용자가 세션 시작 지침(GitHub의 PROJECT_INSTRUCTIONS 먼저 읽기)을 주고 "최신 커밋 분석"을 요청했다(2절). 4절 0단계로 지침(v2, 49,324바이트)을 읽었다. 브랜치 URL본을 `curl`로 먼저 받고 `git ls-remote`로 얻은 note `332b718`(`332b718b7f4a5c819e16ebbf000b803ac8535b5e`) SHA 고정본을 뒤에 받아 지침과 반대 순서였으며 두 본 `cmp` 일치, 확인 보고는 첫 응답이 아니라 점검 보고 응답에서 했다. HANDOFF.md(317cha)는 SHA 고정본으로 읽었고 WIP.md·WIP_SYNC.md는 이 반영 스크립트를 만들 때 읽었다. 체크포인트 `f69062b`가 carrot-ms에 존재하고 HEAD의 조상임을 확인했다(`git cat-file -t` = commit, `git merge-base --is-ancestor`). 점검 시작 때 carrot-ms HEAD는 `9dc26ad`(`9dc26ad05fc41f266efdfed9df2d44e8cec2e8f5`)였고 신규는 13건(전부 ajouatom, 2026-11-10 2건, 2026-11-11 11건)이다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79` 그대로임을 확인했다.
+
+**범위와 방법.** `git fetch --filter=blob:none --depth=150`으로 carrot-ms를 받아 `git log --reverse f69062b..FETCH_HEAD`와 `git show --numstat`으로 커밋별 변경 파일을 뽑았다. carrot-ryu `2bb1e79`는 같은 방식(depth 1)으로 받아 `git ls-tree`(5,470개)로 변경 파일의 존재를, `git show`로 받은 3개 파일(`desire_helper.py`, `card.py`, `hyundaicanfd.py`)에서 전제 심볼의 개수를 확인했다. diff 본문을 읽은 것: `bb2518f`의 `car.capnp`·`hyundaicanfd.py`·`card.py`·`desire_helper.py`, `ceeaf2b`의 `hyundaicanfd.py`와 `docs/canfd_signal_stop_object_20261109.md` 앞부분(40줄), `66ecab7`·`9dc26ad`의 커밋 메시지. 13건 전체의 커밋 메시지와 numstat은 읽었다. 읽지 않은 것: `aaa4a02`의 `indicator_observer.py` 본문, Jetlink·문서·테스트 파일 본문, `bb2518f`의 나머지 파일. `git apply --check`는 하지 않았다. 정적 분석이고 실차 검증은 하지 않았다.
+
+**분류(13건 전부 제외).**
+- 방향지시등 자동·모델 표시 2건: `bb2518f`(크루즈 취소 때 자동 지시등 일시정지, 예측 차선 변경 신호 확정)와 `aaa4a02`(갈라지는 분기에서 모델 지시등 유지). 전제 파일 `desire_lib/indicator_observer.py`, `car/tesla_turn_signals.py`, `tools/jetlink/blink_source.py`가 carrot-ryu에 없다. carrot-ryu `desire_helper.py`, `card.py`에서 `boundary_indicator`, `model_indicator`, `tesla_signals`, `cruiseCancelState`, `_cruise_cancel_state`를 센 값이 모두 0이다. `bb2518f`는 `car.capnp`에 `cruiseCancelState @115`를 추가하므로 가져오면 기기 재빌드가 필요하다. 314cha~316cha에서 제외한 지시등 묶음과 같은 범위다.
+- CAN-FD 최종 정차 1건: `ceeaf2b`(`hyundaicanfd.py`의 `create_acc_control_scc2`에서 `HUD_LEAD_INFO` 0뿐 아니라 1(멀어지는 실제 앞차)도 2로 올림). carrot-ryu `hyundaicanfd.py`에 `create_acc_control_scc2`는 있으나(346행) `stop_controller`와 `apply_canfd_stopping`이 0건이라 패치 대상 코드가 없다. 문서와 테스트 `test_stopping.py`도 carrot-ryu에 없다. 제네시스 DH 2015가 CAN-FD가 아니라는 것은 가정이다.
+- Casper·Ray EV 조사 문서 4건: `b789b62`, `3c5b170`, `55b3980`(`docs/casper_scc_input_20261109.md`), `e864301`(`docs/comma_pedal.md`와 AGENTS.md). 문서만 바뀌고 두 문서 파일은 carrot-ryu에 없다.
+- Jetson/Jetlink 진단·배포 6건: `66ecab7`, `60dc0fb`, `fb9a78a`, `d6ff8f6`, `cf177cd`, `9dc26ad`. `tools/jetlink/*`, `openpilot/selfdrive/modeld/jetlink/*`가 carrot-ryu에 없고 Jetson USB 전제다(312cha, 315cha 제외와 같은 범위).
+
+**사용자 확정.** "전부제외"(13건 전부 제외, 체크포인트 `f69062b` -> `9dc26ad`). devnotes 스크립트는 PowerShell이다. carrot-ryu 반영 없음, 코드 변경 없음. 실차 검증 미실시.
+
+**하지 않은 것/남은 것.** 위 "읽지 않은 것"과 `git apply --check`, 기기 설치 커밋 확인. carrot-ms HEAD는 점검 시작 때 `9dc26ad`였고 이후 올라갔을 수 있다. 다음 점검은 `git cat-file -t 9dc26ad`로 존재부터 확인하고 `9dc26ad` 이후를 본다(carrot-ms는 재생성되므로). 재검토 조건: Ioniq 5 PE/Jetson USB2CAN 지시등이나 `tools/jetlink`를 도입하면 `bb2518f`, `aaa4a02`와 Jetlink 6건을, CAN-FD 차량을 다루게 되면 `ceeaf2b`를 함께 다시 본다. 정정/사고: 없음.
 ## 317cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `2545c15b..f69062b` 신규 4건 점검, 전부 제외 확정, 체크포인트 `2545c15b` -> `f69062b`
 
 **배경.** 사용자가 세션 시작 지침(GitHub의 PROJECT_INSTRUCTIONS 먼저 읽기)을 주고 "최신커밋분석"을 요청했다(2절). 4절 0단계로 지침(v2, 49,324바이트)을 읽었다. 브랜치 URL본을 `curl`로 먼저 받고 `git ls-remote`로 얻은 note `bfd24ff`(`bfd24ffc35b72864ed206eb83c3bea75e90f63ca`) SHA 고정본을 뒤에 받아 지침과 반대 순서였으며 두 본 `cmp` 일치. HANDOFF.md(316cha), WIP_SYNC.md 최상단, LAST_ANALYZED.md, WIP.md 최상단은 SHA 고정본으로 읽었다. 체크포인트 `2545c15b`가 carrot-ms에 존재하고 HEAD의 조상임을 확인했다(`git cat-file -t` = commit, `git merge-base --is-ancestor`). 점검 시작 때 carrot-ms HEAD는 `f69062b`(`f69062beaed14edccff8bb2549b21918ef731acd`, 2026-11-09 21:44 KST)였고 신규는 4건(ajouatom 3, young 1)이다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79` 그대로임을 확인했다.
