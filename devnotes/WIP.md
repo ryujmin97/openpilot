@@ -1,5 +1,23 @@
 # WIP
 
+## 320cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `6ab0ca9..4bd6cd7` 신규 12건 점검, 전부 제외 확정, 체크포인트 `6ab0ca9` -> `4bd6cd7`
+
+**배경.** 사용자가 새 대화 시작 지침(브랜치 `carrot-ryu-note`의 지침 문서를 먼저 읽기)을 주고 "최신커밋분석"을 요청했다(2절). 4절 0단계: 지침 v2는 note `1afdb43`(`1afdb430bf13e403d7d4d392ea0258e2ecc0d055`) SHA 고정본 49,324바이트로 확인했고 브랜치 URL본과 `cmp` 일치다. 브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였고, "지침 문서 확인함" 보고는 첫 문장이 아니라 점검 보고 응답에서 했다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79`(HANDOFF와 같음)였다.
+
+**점검 범위.** carrot-ms(`happymaj11r/openpilot`) HEAD `4bd6cd7`(`4bd6cd7ebc1a813d0efffce891103dcc513589c2`). 체크포인트 `6ab0ca9`는 commit이고 HEAD의 조상이다(depth 120 blobless fetch). `6ab0ca9..4bd6cd7` 신규 12건(전부 ajouatom, 2026-11-12). 변경 파일 28개를 carrot-ryu `2bb1e79` 트리(5,470개)와 대조했다.
+
+**분류(전부 Jetson Orin Nano Super 계열, 이식 권장 0건).**
+- Super 전원 모드 자동 설정·검증 4건: `01a7e75`, `44b0563`, `57a8256`, `2112371` (`tools/jetlink/power_setup.py`, `host_release.json`)
+- SD 첫 부팅 Super 펌웨어 자동 설치·이미지 검증 4건: `acce122`, `e892d25`, `a30391b`, `15d3763` (`super_bootstrap.py`, `refresh_protected_image.py`, CI 워크플로)
+- Windows 설치기·펌웨어 진단 게시 1건: `22aea48`
+- 문서·AGENTS 기록 3건: `e5f075f`, `ae8b79c`, `4bd6cd7`
+
+**근거.** 28개 중 25개는 carrot-ryu에 없다(`tools/jetlink/*`, `modeld/jetlink/*`, `docs/jetlink_*`, `.github/workflows/jetson-sd-image.yaml`). 있는 3개(`AGENTS.md`, `docs/user/en/carrot-web.md`, `docs/user/ko/carrot-web.md`)는 diff 본문(영문 문서와 AGENTS.md)을 읽었고 Jetson 설치 안내와 작업 기록 추가뿐이다. carrot-ryu에는 Jetlink 파일이 하나도 없고 코드·동작 변경이 없다.
+
+**읽지 않은 것.** 3개 공용 문서 외 diff 본문(`tools/jetlink/*` 등)은 읽지 않았고 파일 목록과 제목 기준이다. 한국어 `carrot-web.md`는 영문과 같은 추가로 보고 본문을 읽지 않았다. `git apply --check` 미실시, 기기 확인 없음. 정적 분석이고 실차 검증 미실시.
+
+**사용자 결정.** "제외 확정.termux"(12건 전부 제외, devnotes 스크립트는 Termux bash). 이식 0건, carrot-ryu 반영 없음. 체크포인트 `6ab0ca9` -> `4bd6cd7`. 점검 시작 때 HEAD가 `4bd6cd7`였고 이후 올라갔을 수 있다. Jetson/Jetlink 계열을 도입하면 이 12건과 이전 Jetlink 제외 건들을 함께 다시 본다.
+
 ## 319cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `9dc26ad..6ab0ca9` 신규 2건 점검, 전부 제외(사용자가 "파워쉘"로 답해 제외 제안을 진행), 체크포인트 `9dc26ad` -> `6ab0ca9`
 
 **배경.** 사용자가 "최신커밋분석"을 다시 요청했다(2절). 같은 대화 안에서 이어진 요청이라 지침(v2)은 대화 초반 note `332b718` 때 읽은 것이고, 이 점검에서는 지침 문서를 다시 읽지 않았다(그 사이 note에는 318cha 커밋만 올라간 것으로 확인했으나 지침 파일 자체의 변경 여부는 보지 않았다). 점검 전에 `git ls-remote`로 note HEAD `7c6fa06`(`7c6fa06bd110b28d2a3f259bd6295c452c55e1b0`, 부모 `332b718`, 커밋 메시지가 318cha 반영)과 HANDOFF.md의 체크포인트 `9dc26ad`를 확인했다. 체크포인트 `9dc26ad`가 carrot-ms에 존재하고 HEAD의 조상임을 확인했다(`git cat-file -t` = commit, `git merge-base --is-ancestor`). 점검 시작 때 carrot-ms HEAD는 `6ab0ca9`(`6ab0ca9fb38a2b458d75f63daed159ce6d1ebe69`)였고 신규는 2건이다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79` 그대로임을 확인했다.

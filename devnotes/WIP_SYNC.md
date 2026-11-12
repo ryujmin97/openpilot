@@ -1,5 +1,11 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-13 (320차) -- carrot-ms `6ab0ca9..4bd6cd7` 신규 12건 점검, 전부 제외 확정, 체크포인트 `6ab0ca9` -> `4bd6cd7`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `4bd6cd7`(`4bd6cd7ebc1a813d0efffce891103dcc513589c2`). `6ab0ca9`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). `6ab0ca9..4bd6cd7` 신규 12건(전부 ajouatom, 2026-11-12). 변경 파일 28개를 carrot-ryu `2bb1e79` 트리(5,470개)와 대조했고 공용 3개 파일(`AGENTS.md`, `docs/user/en/carrot-web.md` 등)의 diff만 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 320cha.
+- 제외 12건: Super 전원 모드 자동 설정·검증 4건(`01a7e75`, `44b0563`, `57a8256`, `2112371`), SD 첫 부팅 Super 펌웨어 자동 설치·이미지 검증 4건(`acce122`, `e892d25`, `a30391b`, `15d3763`), Windows 설치기·펌웨어 진단 게시 1건(`22aea48`), 문서·AGENTS 기록 3건(`e5f075f`, `ae8b79c`, `4bd6cd7`). 근거: 변경 파일 28개 중 25개가 carrot-ryu에 없고(`tools/jetlink/*`, `modeld/jetlink/*`, `docs/jetlink_*`, jetson-sd-image 워크플로), 있는 3개는 Jetson 안내·기록 추가뿐이다.
+- 사용자 결정: "제외 확정.termux"(12건 전부 제외, 체크포인트 이동). 이식 0건, carrot-ryu 반영 없음. Jetson/Jetlink 계열을 도입하면 다시 본다.
+- 체크포인트: `6ab0ca9` -> `4bd6cd7`. 점검 시작 때 HEAD가 `4bd6cd7`였고 이후 올라갔을 수 있다. 다음 점검은 `git cat-file -t 4bd6cd7`로 존재부터 확인하고 `4bd6cd7` 이후를 본다(carrot-ms는 재생성되므로).
 ## 중간 기록: 2026-11-12 (319차) -- carrot-ms `9dc26ad..6ab0ca9` 신규 2건 점검, 전부 제외, 체크포인트 `9dc26ad` -> `6ab0ca9`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `6ab0ca9`(`6ab0ca9fb38a2b458d75f63daed159ce6d1ebe69`). `9dc26ad`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). 점검 전에 note HEAD `7c6fa06`(부모 `332b718`, 318cha 반영)과 HANDOFF 체크포인트 `9dc26ad`를 확인했다. `9dc26ad..6ab0ca9` 신규 2건(2026-11-11, ajouatom 1, jixiexiaoge 1). 변경 파일을 carrot-ryu `2bb1e79` 트리(5,470개)와 `git ls-tree`로 대조했고 `84841eb`의 `values.py`·`longcontrol.py`, `6ab0ca9`의 `interface.py`·`params_keys.h` diff는 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 이 점검에서는 지침 문서를 다시 읽지 않았다. 상세는 WIP.md 319cha.
