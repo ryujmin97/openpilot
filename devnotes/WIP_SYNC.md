@@ -1,5 +1,11 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-12 (319차) -- carrot-ms `9dc26ad..6ab0ca9` 신규 2건 점검, 전부 제외, 체크포인트 `9dc26ad` -> `6ab0ca9`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `6ab0ca9`(`6ab0ca9fb38a2b458d75f63daed159ce6d1ebe69`). `9dc26ad`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). 점검 전에 note HEAD `7c6fa06`(부모 `332b718`, 318cha 반영)과 HANDOFF 체크포인트 `9dc26ad`를 확인했다. `9dc26ad..6ab0ca9` 신규 2건(2026-11-11, ajouatom 1, jixiexiaoge 1). 변경 파일을 carrot-ryu `2bb1e79` 트리(5,470개)와 `git ls-tree`로 대조했고 `84841eb`의 `values.py`·`longcontrol.py`, `6ab0ca9`의 `interface.py`·`params_keys.h` diff는 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 이 점검에서는 지침 문서를 다시 읽지 않았다. 상세는 WIP.md 319cha.
+- 제외 2건: `84841eb`(Ray Comma Pedal 속도 PID 게인, carrot-ryu에 `comma_pedal.md`·`pedal_interceptor.py`·`get_pedal_interceptor_params` 없음, Ray EV 전용이나 `longcontrol.py`의 Hyundai 고정 튜닝 분기를 바꿈), `6ab0ca9`(Tesla 자동 속도 휠 옵트인, carrot-ryu `params_keys.h`에 Tesla 키 0건).
+- 사용자 결정: 제외 제안에 "파워쉘"로만 답했고 Claude가 이를 제외 제안을 진행하라는 뜻으로 해석했다(제외에 대한 별도 답 없음). 이식 0건, carrot-ryu 반영 없음. Ray EV 페달이나 Tesla를 도입하면 다시 본다.
+- 체크포인트: `9dc26ad` -> `6ab0ca9`. 점검 시작 때 HEAD가 `6ab0ca9`였고 이후 올라갔을 수 있다. 다음 점검은 `git cat-file -t 6ab0ca9`로 존재부터 확인하고 `6ab0ca9` 이후를 본다(carrot-ms는 재생성되므로).
 ## 중간 기록: 2026-11-11 (318차) -- carrot-ms `f69062b..9dc26ad` 신규 13건 점검, 전부 제외 확정, 체크포인트 `f69062b` -> `9dc26ad`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) HEAD `9dc26ad`(`9dc26ad05fc41f266efdfed9df2d44e8cec2e8f5`). `f69062b`는 존재했고 조상이다(`git cat-file -t`, `git merge-base --is-ancestor`). `f69062b..9dc26ad` 신규 13건(전부 ajouatom, 2026-11-10~11). 변경 파일을 carrot-ryu `2bb1e79` 트리(5,470개)와 `git ls-tree`로 대조했고 `bb2518f`의 공용 파일 4개, `ceeaf2b`의 `hyundaicanfd.py`와 설계 문서 앞부분은 본문을 읽었다. 나머지는 파일 목록과 제목 기준이다. 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 318cha.
