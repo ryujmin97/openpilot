@@ -1,5 +1,59 @@
 # WIP
 
+## 322cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 주행 모델 가중치 계보 분석 기록(앞 대화 사본), carrot-ms 점검 없음
+
+**배경.** 사용자가 새 대화 시작 지침(브랜치 `carrot-ryu-note`의 지침 문서를 먼저 읽기)을 주고, 앞 대화의 마지막 응답 사본(작성한 세션은 확인하지 못했다)을 붙여넣은 뒤 "기록"이라고만 했다. 셸은 지정하지 않았고, 321cha와 사본 끝의 "PowerShell 스크립트로 기록하겠습니다"에 따라 PowerShell로 전달한다. 이 사본은 321cha가 기록한 같은 앞 대화(모델 설치 가능 여부 조사)의 뒷부분으로 읽었다(사본에 "앞서 제가 추천한 TSFDO, RDFv6, ..."라는 문장이 있다). 회차 번호 322cha는 이 세션이 정했다. 4절 0단계: 지침 v2는 note `c0f8360`(`c0f8360d5416c24a562c353fb8d152be067b51ae`) SHA 고정본 588줄 49,324바이트로 읽었고 브랜치 URL본과 `cmp` 일치를 확인했다. 브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였다. HANDOFF.md(321cha)도 같은 SHA에서 읽었다.
+
+**이 세션에서 직접 확인한 것(GitHub).**
+- `git ls-remote`: carrot-ryu HEAD `2bb1e79`(전체 SHA `2bb1e79d439e1cc9af08e68d42b822e5d759df89`, HANDOFF와 같음), note HEAD `c0f8360`.
+- note `c0f8360`은 depth 3 clone의 `git log`로 321cha devnotes 반영본(부모 `17fd033`, 2026-11-13 10:10:33 KST, 메시지 `devnotes: 321cha - record driving-model install investigation (selector v5 = Gen C), no code change`)임을 확인했다. HANDOFF의 Note Branch base `17fd033`은 그 반영 직전 base라 괴리가 아니다(16절).
+- carrot-ms, `genc-support`, carrot-ryu 코드 파일은 이 세션에서 조회하지 않았다.
+
+**앞 대화 사본에만 있고 이 세션에서 재확인하지 않은 내용(3절: 붙여넣은 사본은 기준이 아니다).** 모델 파일, 카탈로그, 분석 스크립트와 그 출력은 이 세션에 없다. 아래 수치와 판단은 전부 사본에서 옮긴 것이다.
+
+방법과 범위(사본 기준):
+- 2026년에 추가된 69개 모델(중복을 빼면 고유 파일 114개, 4.3GB)을 모두 받아 분석했고 카탈로그의 sha256은 전부 일치했다. 처음에는 60개가 URL에 공백(`Divided Rl`, `Full RLv7` 등)이 있어 받기에 실패했고 인코딩을 고쳐 다시 받았다. 이름만 다른 모델, 약간 수정한 모델, 완전히 다른 모델이 모두 있었다.
+- 비교한 것은 ONNX 구조와 가중치 값뿐이다. 승차감과 주행 품질은 보지 못했고 ONNX를 실제로 추론해 보지도 않았다. 아래 "파생" 해석은 가중치 일치도에서 나온 추정이며 실제 학습 이력 문서는 확인하지 못했다고 사본이 밝힌다.
+- 지표: "동일"은 비트까지 같다는 뜻이고 "거리"는 상대 가중치 변화량이다(0.05면 5% 수정, 1.0이면 사실상 따로 학습). 구조가 이름과 다른 경우가 있다(예: Onnx Model History v1/v2/v3가 서로 다른 구조). `val_*` 같은 익명 텐서가 많아 모듈 단위로 요약했다.
+
+**지금 설치 가능한 supercombo 모델(셀렉터 v4), 사본의 표.**
+
+| 계열 | 모델 | 관계 |
+|---|---|---|
+| Full RL | Toby Rl, Divided Rl/v2/v3, Full RLv7·v8·v10·v11, Michael Rl/v2, Full RLv9 | 한 모델. vision·off_policy·point_policy는 전부 동일하고 on_policy만 4~8% 다르다. Full RLv9는 그래프만 약간 다르다. |
+| BRH | BRH = Rebellious Hope | 두 이름이 같은 파일. Full RL과는 전 모듈이 다르다(vision 0.69, 나머지 1.0 이상). 별개 학습. |
+| RDF | RDF = RDFv2 | 이름만 다른 같은 파일. BRH에서 on_policy만 약 3% 수정했고 vision 등은 동일. |
+| RDFv3~ | RDFv3 -> RDFv4 -> RDFv5 | BRH와 vision 거리 0.64라 다시 학습한 새 베이스. v3->v4는 전체가 2~4% 수정, v4->v5는 vision·off·point가 동일. |
+| | RDFv6, Terrific Super Fantastic, TSFDO | RDFv5와 vision·off·point가 동일하고 on_policy만 2~3% 다르다. TSF와 TSFDO의 차이도 on_policy 3%. |
+| Lebowski / History | Lebowski, Onnx Model History | 큰 텐서 306개가 전부 비트 동일. 가중치는 같고 입력 방식만 다르다. |
+
+**셀렉터 v5가 필요한 모델(carrot-ryu는 `MODEL_SELECTOR_VERSION = 4`라 목록에 안 보임, 321cha 확인), 사본 기준.**
+- Onnx Model History v2·v3: v1과 가중치가 완전히 같다. v2는 입력 이름만 `warped`에서 `new_img`로 바뀌었고, v3는 SSH와 같은 입출력 형태로 내보낸 파일이다.
+- SSH, SSHv2~v4: History와 같은 백본에서 `p_policy_model`(정책부) 일부 텐서만 바뀐 모델. vision과 summarizer는 동일하다. SSH가 정책부의 16%를 바꿨고 SSHv2·v3 사이는 거의 같다(0.018). SSHv4는 0.78로 더 크게 다르다.
+- CH, CHv2: 위의 어느 계열과도 구조가 다르다. 파라미터가 40.6M으로 더 크고 LayerNorm·MatMul 중심이며 이력 큐가 132 대 100으로 더 길다. CH와 CHv2는 가중치 차이도 크다(0.42~0.93, 약간의 수정이 아님). 사본은 이 모델들을 Gen C(321cha의 `genc-support`)와 연결해 말하지 않았다.
+
+**vision + policy 방식 모델, 사본 기준.**
+- WMI 계열(MacroStiff, WMIv7~v11, SC): vision 7개가 완전히 같고 policy만 바뀌었다. MacroStiff->WMIv7만 새로 학습했고(1.4) v8~v11은 0.11~0.22의 연속 수정이다.
+- POP, POPv2: POP->POPv2는 policy가 0.075 수정, vision이 15% 변경(0.096). CD210과는 구조가 다르다.
+- Off policy v2~v11: 대부분 큰 가중치가 같고 그래프만 다시 내보낸 것이다. 실제 재학습은 v2->v3(거리 1.0~1.3)뿐이다.
+- OPv7~v12, op11 계열: OPv8, op11v3, Op model16이 재학습이고 나머지는 on_policy만 0.09~0.22 수정했거나 가중치가 완전히 같다.
+- Op model16 deep 계열, Giga 등은 `minimum_selector_version` 99라 설치할 수 없다.
+
+**비교 주행 후보 재정리(사본의 정정).** 앞 대화가 먼저 추천한 TSFDO, RDFv6, Terrific Super Fantastic, Onnx Model History 중 앞의 셋은 같은 백본의 형제(on_policy 2~3% 차이)라 서로 비교해도 정보가 적다. 설치 가능한 모델은 베이스가 사실상 네 가지이고 네 가지에서 하나씩만 비교하면 효율적이라고 했다.
+
+| 베이스 | 대표 후보 |
+|---|---|
+| Full RL | Full RLv11 |
+| BRH | RDF |
+| RDFv3 이후 | TSFDO |
+| Lebowski | Onnx Model History |
+
+앞 대화의 이전 답변 "RDFv3~v6이 같은 구조"는 부정확했다고 사본이 정정한다(RDFv3·v4·v5는 그래프가 서로 다르다). 321cha 작업 4번의 "v4 모델(TSFDO, Onnx Model History) 비교 주행" 제안은 이 사본이 네 베이스로 넓혀 정리한 것이다. 사용자의 선택은 이 세션에도 없었다.
+
+**사본이 스스로 밝힌 한계.** 개별 모델의 학습 방법(RL인지 등)은 문서가 없어 가중치 구조로만 추정했다. 가중치가 비슷하다고 주행이 비슷하다는 보장은 없고 2~3% 수정도 주행 성격을 바꿀 수 있다. 가중치가 같은 모델은 같은 입력에서 같은 출력을 내야 하지만 ONNX를 실제로 추론해 보지는 않았다.
+
+**하지 않은 것.** 사본의 수치 재현(모델 파일·카탈로그·분석 코드가 이 세션에 없다), 카탈로그와 모델 파일 확인, 사본이 말한 "Full RL"이 실제 RL로 학습됐는지 확인, 기기에 설치된 커밋과 현재 모델 확인, 모델 주행 평가, `genc-support` 확인과 carrot-ryu 이식 검토, carrot-ms 신규 커밋 점검(체크포인트 `4bd6cd7` 그대로). 코드 변경은 제안하지 않았고 이식 승인도 없었다. 정정/사고: 없음(0단계 조회 순서만 지침과 반대였고, 첫 도구 호출에 결과와 무관한 더미 `curl` 한 줄이 섞였다). 실차 검증 미실시.
+
 ## 321cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 주행 모델 설치 가능 여부 조사 기록(모델셀렉터 v5 = Gen C), carrot-ms 점검 없음
 
 **배경.** 사용자가 새 대화 시작 지침(브랜치 `carrot-ryu-note`의 지침 문서를 먼저 읽기)을 주고, 앞 대화 내용을 붙여넣은 문서(작성한 세션은 확인하지 못했다)와 함께 "기록해줘. 파워쉘"이라고 요청했다. 붙여넣은 문서는 "콤마 주행모델 중 평이 좋은 모델" -> "Jetson/eGPU 제외 최신 모델을 받고 싶다" -> "v5 지원 여부 조사"로 이어진 앞 대화다. 4절 0단계: 지침 v2는 note `17fd033`(`17fd03342e6a99338734012949f0a6c6ca316e4d`) SHA 고정본 588줄로 읽었다. 브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였고 두 본의 비교는 하지 않았다. HANDOFF.md(320cha)도 읽었다.
