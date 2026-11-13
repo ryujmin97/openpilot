@@ -1,5 +1,26 @@
 # WIP
 
+## 321cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - 주행 모델 설치 가능 여부 조사 기록(모델셀렉터 v5 = Gen C), carrot-ms 점검 없음
+
+**배경.** 사용자가 새 대화 시작 지침(브랜치 `carrot-ryu-note`의 지침 문서를 먼저 읽기)을 주고, 앞 대화 내용을 붙여넣은 문서(작성한 세션은 확인하지 못했다)와 함께 "기록해줘. 파워쉘"이라고 요청했다. 붙여넣은 문서는 "콤마 주행모델 중 평이 좋은 모델" -> "Jetson/eGPU 제외 최신 모델을 받고 싶다" -> "v5 지원 여부 조사"로 이어진 앞 대화다. 4절 0단계: 지침 v2는 note `17fd033`(`17fd03342e6a99338734012949f0a6c6ca316e4d`) SHA 고정본 588줄로 읽었다. 브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였고 두 본의 비교는 하지 않았다. HANDOFF.md(320cha)도 읽었다.
+
+**이 세션에서 직접 확인한 것(GitHub).**
+- `git ls-remote`: carrot-ryu HEAD `2bb1e79`(HANDOFF와 같음), note `17fd033`, carrot-ms HEAD `4bd6cd7`(체크포인트와 같음), happymaj11r/openpilot에 브랜치 `genc-support`(`407670670409b9f7801982cd78194cd500bdb611`)가 있다.
+- carrot-ryu `2bb1e79`의 `carrot/model_selector/keys.py` 16행: `MODEL_SELECTOR_VERSION = 4`.
+- 같은 커밋 `carrot/model_selector/manifest.py` 210~218행: 카탈로그 항목의 `minimum_selector_version`이 `MODEL_SELECTOR_VERSION`보다 크거나 읽을 수 없으면 그 항목을 건너뛴다(오류 없이 목록에서만 빠진다).
+- `genc-support` HEAD `4076706`(2026-11-03) `model_selector: Gen C (comma master state-queue supercombo) engine`, 그 아래 `177253e`(tinygrad vendoring), `dcdc5d8`. 커밋 메시지 내용: 입력 이력 큐가 ONNX 안에 있는 `driving_supercombo.onnx`(comma master, 2026-10부터)용 네 번째 엔진, `genc_modeld.py`는 "no eGPU/Jetlink/shadow", `keys`는 `MODEL_SELECTOR_VERSION 5`(Gen C 항목용 manifest 게이트), `genc/pc_check.py`는 CPU:LLVM에서 PASS, `genc/device_preflight.py`는 기기에서 vendored QCOM 런타임을 점검하는 용도, 설치기는 ONNX 입출력 이름으로 세대(A/C)를 판별하고 `modeld_runner`에 `genc_custom`을 추가한다.
+
+**앞 대화 사본에만 있고 이 세션에서 재확인하지 않은 내용.**
+- 카탈로그(`models_v4.json`) 84개 항목, 평점·후기 정보 없음, `minimum_selector_version` 99 항목은 받을 수 없음. 카탈로그 원문은 이 세션에서 읽지 않았다.
+- CH·CHv2(11-06), SSH~SSHv4(11-03), Onnx Model Historyv2·v3(09-15)는 v5 요구라 carrot-ryu에서 목록에 안 보이고, v4로 받을 수 있는 가장 최근은 TSFDO(08-16)이다. 이 모델들이 Gen C 구조인지는 앞 대화도 추정이라고 적었다(파일 미확인).
+- 사용자 화면 캡처(`1000023719.jpg`, 이 세션에서 보지 못함) 기준: 목록에 "Onnx Model History" 기본 버전(v4)과 TSFDO가 보이고, 현재 모델은 POPv2, "기본 모델 복원" 버튼이 있다(복원이 POPv2인지 공장 기본인지는 미확인).
+- `genc-support`: 261개 파일 27만 줄 이상(대부분 외부 tinygrad 코드), 실제 로직은 `genc_modeld.py`, `installer.py`, `validator.py`, `modeld_runner.py`, `keys.py`와 테스트. `modeld_runner.py`는 부팅 때 주행 모델을 고르는 부분이라 이식하면 주행 경로가 바뀐다. 브랜치는 carrot-ms 이전 시점(`dcdc5d88`) 위에 만들어졌고 carrot-ryu와의 충돌 여부는 확인하지 못했다. 실제 콤마 기기에서 돌려 본 기록은 찾지 못했다. carrot-ms에 병합되지 않았다는 것은 앞 대화의 기록이며 이 세션에서 carrot-ms `keys.py`는 읽지 않았다.
+- "평이 좋은 모델"에 대한 앞 대화 초반의 웹 검색 내용은 출처가 약하거나 추정이라 기록하지 않는다. 하나로 정해진 답은 없고 직접 비교 주행을 권했다는 결론만 옮긴다.
+
+**앞 대화의 권고(사용자 결정 아님).** 지금 `genc-support`를 이식하면 후기 없는 새 모델 몇 개를 얻는 대신 주행 경로 변경과 대규모 외부 코드 유입 위험이 있어 권하지 않는다. 당장은 v4 모델(TSFDO, Onnx Model History)로 같은 구간에서 비교 주행하고, `genc-support`가 carrot-ms에 병합되면 일반 최신커밋 분석(2절)에서 점검한다. 이 세션에서 이식 승인은 없었다(2절, 18절).
+
+**하지 않은 것.** 카탈로그·모델 파일 확인, `genc-support` 대 carrot-ryu `git apply --check`, 기기에 설치된 커밋과 모델 확인, 모델 주행 평가, carrot-ms 신규 커밋 점검(체크포인트 `4bd6cd7` 그대로). 실차 검증 미실시. 정정/사고: 없음.
+
 ## 320cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `6ab0ca9..4bd6cd7` 신규 12건 점검, 전부 제외 확정, 체크포인트 `6ab0ca9` -> `4bd6cd7`
 
 **배경.** 사용자가 새 대화 시작 지침(브랜치 `carrot-ryu-note`의 지침 문서를 먼저 읽기)을 주고 "최신커밋분석"을 요청했다(2절). 4절 0단계: 지침 v2는 note `1afdb43`(`1afdb430bf13e403d7d4d392ea0258e2ecc0d055`) SHA 고정본 49,324바이트로 확인했고 브랜치 URL본과 `cmp` 일치다. 브랜치 URL본을 먼저 받고 SHA 고정본을 뒤에 받아 지침 순서와 반대였고, "지침 문서 확인함" 보고는 첫 문장이 아니라 점검 보고 응답에서 했다. carrot-ryu HEAD는 `git ls-remote`로 `2bb1e79`(HANDOFF와 같음)였다.
