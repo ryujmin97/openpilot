@@ -449,11 +449,16 @@ async def _run_tool_job(job: Dict[str, Any]) -> None:
       return
 
     if action == "git_branch_list":
-      jobs.progress(job, message="fetch --all --prune", current=1, total=2)
-      rc_fetch = await jobs.stream_exec(job, ["git", "fetch", "--all", "--prune"], cwd=repo_dir, timeout=180)
+      # Refresh origin only. `fetch --all` also fetched the ajouatom remote, which
+      # exceeded the 180 s limit (job ended with [timeout]) so the branch picker never
+      # opened. A failed or timed-out fetch now falls back to the refs already cached.
+      jobs.progress(job, message="fetch origin --prune", current=1, total=2)
+      try:
+        rc_fetch = await jobs.stream_exec(job, ["git", "fetch", "origin", "--prune"], cwd=repo_dir, timeout=90)
+      except asyncio.TimeoutError:
+        rc_fetch = 124
       if rc_fetch != 0:
-        jobs.finish(job, ok=False, result=jobs.result_from_log(job, rc_fetch))
-        return
+        jobs.append(job, "\n[fetch failed (rc=%d); showing cached branches]\n" % rc_fetch)
 
       jobs.progress(job, message="git refs", current=2, total=2)
       rc_local, local_refs_out = await jobs.capture_exec(
