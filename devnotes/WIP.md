@@ -1,5 +1,21 @@
 # WIP
 
+## 324cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `50a9dd2..6c87a29` 신규 10건 전부 제외 확정(체크포인트 `50a9dd2` -> `6c87a29`)
+
+**배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 "최신커밋분석"만 요청했다. 점검 보고(10건 전부 제외 제안) 뒤 "Termux로 제외"라고 답했다. 10건 전부 제외 확정과 devnotes 스크립트를 Termux(bash)로 받겠다는 뜻으로 해석했다(320cha의 "제외 확정.termux"와 같은 형식). 이식 승인은 없었다.
+
+**1. 4절 0단계.** 지침 문서를 브랜치 URL로 먼저 `curl`했고(HTTP 200, 25,942자, 첫 읽기는 `head -c` 출력이 UTF-8 경계에서 깨져 Python으로 다시 읽었다) 그 뒤 `git ls-remote`로 note HEAD `21470ce`(전체 SHA `21470cee91f0df67f7a576a495e160303280c845`, 커밋 메시지는 323cha devnotes 반영본)를 얻어 SHA 고정본을 받고 `cmp`로 브랜치 URL본과 일치함을 확인했다. 지침의 순서(ls-remote 먼저)와 반대였다. HANDOFF.md(323cha)·WIP_SYNC.md·WIP.md는 SHA 고정 URL로 받았다. 확인 보고("지침 문서 확인함, v2, 커밋 21470ce")는 점검 보고 응답에서 했다.
+
+**2. 점검 범위.** carrot-ms(`happymaj11r/openpilot`) HEAD `6c87a29`(전체 SHA `6c87a295ce7eeee36a140b8a97fb8b7f3e27f9df`, 점검 시작 때와 스크립트 작성 때 `git ls-remote`로 같았다). `50a9dd2`(`50a9dd2ccf1a75a7435450916718e44c2e934cf9`)는 존재하고 `6c87a29`의 조상이며 `git rev-list --count 50a9dd2..6c87a29`는 10이다. 전부 ajouatom(git log 표시 기준 2026-11-16~17). 323차 기록의 "점검하지 않은 5건"(`13d4727`, `9791b3c`, `5619403`, `25dd879`, `0d77b23`)이 이 10건에 포함된다. `api.github.com`은 compare만 되고 커밋별 조회가 rate limit으로 실패해 `git clone --bare --filter=blob:none`으로 `git diff --stat`·`git diff`를 읽었다(blobless bare에서 `git grep`은 300초 제한으로 중단돼 raw 조회로 바꿨다). 변경 파일 44개를 carrot-ryu `2bb1e79` 트리와 `git cat-file -e`로 대조했다(있음 19, 없음 25).
+
+**3. 분류(전부 제외).**
+- 방향지시등 Kick/SPAS 7건: `13d4727`(Kick 램프 격리 중 물리 레버 요청 우선), `9791b3c`(Kick 소유권 변경 중 일반 레버 카운터 유지), `a153595`(Panda SPAS 출력에 공통 지시등 정책 적용, 설정 그룹화), `941a2a0`(SPAS 세션을 공통 요청에 묶음), `ac4644a`(카탈로그·가이드 문서), `4161db6`(수동 지시등 2초 최소 유지), `6c87a29`(수동 지시등 진입·타임스탬프 경쟁 수정). 전제인 `hyundai_kick.py`, `voice_indicator.py`, `boundary_indicator.py`, `indicator_observer.py`, `lane_crossing.py`, `stopping.py`가 carrot-ryu에 없고, carrot-ryu `carcontroller.py`에 `CanfdBlinkerKick`·`aprk_blinkers`·`lane_crossing`·`depart_jerk`·`StopGoLongAssist` 문자열이 0건이며, `carrot_settings.json`·`params_keys.h`에 `CanfdBlinkerKick`·`AutoBlinkerControl`·`ManualLaneChangeIndicator`·`ModelDesireIndicator`·`ManualTurnIndicator`·`StopGoLongAssist`가 0건이다. `desire_helper.py`·`card.py`에도 `indicator_observer`·`boundary_indicator`·`hyundai_kick`·`voice_indicator`·`cruiseCancelState`·`indicatorIsolation` 문자열이 없다. 내용 자체가 CAN-FD(Ioniq 5 계열 카메라 SCC 하니스)의 Panda/SPAS2 `BLINKER_CONTROL`과 APRK 핸드셰이크라 제네시스 DH 2015와 무관하다.
+- StopGo 3건: `25dd879`(`StopGoLongAssist`·`lead_close_brake`·`stop_go_assist.py` 제거, 원래 종방향으로 복원), `5619403`(그 기능의 한국어 가이드 문구), `0d77b23`(`test_t_follow.py` 테스트가 `update.body[:3]` 대신 `_params_update`~`leadAccelResponse` 구간을 고르게 수정). carrot-ryu `2bb1e79`의 `long_mpc.py`·`longitudinal_planner.py`·`carrot_functions.py`·`params_keys.h`에는 `StopGoLongAssist`·`stop_go_assist`·`lead_close_brake`·`stopGoAssist`·`close_extra`·`obstacle_cost_factor`가 0건이라 지울 대상이 없다. 323차에서 제외한 `StopGoLongAssist`(A)는 carrot-ms가 철회한 것이라 제외 결정과 모순되지 않는다. `0d77b23`: carrot-ryu `test_t_follow.py`는 235행에 여전히 `update.body = update.body[:3]`이고, carrot-ms 쪽 `update()`에 신호 진입 로직이 더해져 필요해진 수정으로 읽었다. carrot-ryu `CarrotPlanner.update()` 본문은 읽지 않았고 테스트도 실행하지 않았다(추정).
+
+**4. 읽지 않은 것.** `desire_helper.py` diff의 `_update_driver_blinker` 이후, `hyundai_kick.py`·`stopping.py`·`test_*` 본문, `carrot_settings.json` diff, docs diff, `tools/jetlink/*` 본문, carrot-ryu `tests.yaml`이 `test_stop_go_assist`·`test_lead_close_brake`를 참조하는지, `git apply --check`. 정적 분석이고 실차 검증은 미실시다. 점검 뒤 carrot-ms HEAD가 올라갔을 수 있다.
+
+**5. 사용자 결정과 정정.** 제외 확정(10건 전부, 이식 0건, carrot-ryu 반영 없음). 점검 보고에서 "carrot-ryu의 `update()`는 바뀐 것이 없어"라고 쓴 것은 본문을 읽지 않은 추정이었다(위 3번이 정정). 재검토 조건: 방향지시등·Kick 계열은 CAN-FD 또는 Kick 개념을 도입하면, StopGo 계열은 carrot-ryu에 같은 기능을 포팅할 때.
+
 ## 323cha (코드 변경 없음, carrot-ryu 2bb1e79 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `4bd6cd7..50a9dd2` 신규 27건 전부 제외 확정(체크포인트 `4bd6cd7` -> `50a9dd2`), 모델셀렉터 미러·구형 엔진·저속 곡률 하한 정적 확인
 
 **배경.** 사용자가 새 세션에서 지침 문서(브랜치 `carrot-ryu-note`)를 먼저 읽으라고 지시하고, 앞 대화의 사본(최신커밋분석 보고, 모델셀렉터 미러 설명과 구형 엔진 사용 여부·이식 검토 요청, 무료 사용량 한도로 중단된 마지막 도구 출력)을 붙인 뒤 "이어서 계속"이라고 했다. 이어서 곡률 하한 `max(2.5, v_ego)`의 초보 설명, "이식하기위해 살펴봐줘", "모두 제외 확정 기록" 순으로 요청했다. 셸은 지정하지 않아 기본(PowerShell)으로 전달한다.
