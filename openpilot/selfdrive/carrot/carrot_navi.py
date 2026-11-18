@@ -34,8 +34,11 @@ BIND_RETRY_COUNT = 10
 BIND_RETRY_INTERVAL_S = 0.5
 MAP_THEMES = frozenset(("auto", "dark", "light"))
 MAP_TYPES = frozenset(("normal", "satellite"))
-MAP_RENDER_WIDTH = 720
-MAP_RENDER_HEIGHT = 1280
+# Portrait for the split pane. The app's manifest sanitizer accepts width
+# 160..1280 and height 120..720 (carrot_navi_api.md); larger values are
+# clamped, so keep both inside that range (even values for H.264).
+MAP_RENDER_WIDTH = 404
+MAP_RENDER_HEIGHT = 720
 # Auto bitrate scales by pixel count relative to this reference size (the former
 # render size), independent of MAP_RENDER_WIDTH/HEIGHT.
 MAP_AUTO_BITRATE_REFERENCE_WIDTH = 960

@@ -231,15 +231,19 @@ def test_cluster_navi_map_fps_modes_and_automatic_bitrate_resolution():
   assert resolve_map_bitrate_kbps(1920, 1080, 30) == 12000
 
 
-def test_map_render_stream_is_portrait_720x1280_with_pixel_scaled_bitrate():
+def test_map_render_stream_is_portrait_404x720_with_pixel_scaled_bitrate():
   manifest = build_manifest("12345678")
   map_stream = next(stream for stream in manifest["streams"] if stream["kind"] == "render")
 
-  assert map_stream["params"]["width"] == 720
-  assert map_stream["params"]["height"] == 1280
-  assert resolve_map_bitrate_kbps(720, 1280, 5) == 2667
-  assert resolve_map_bitrate_kbps(720, 1280, 10) == 5333
-  assert resolve_map_bitrate_kbps(720, 1280, 30) == 10667
+  assert map_stream["params"]["width"] == 404
+  assert map_stream["params"]["height"] == 720
+  # Documented app range (carrot_navi_api.md): width 160..1280, height 120..720.
+  assert 160 <= map_stream["params"]["width"] <= 1280
+  assert 120 <= map_stream["params"]["height"] <= 720
+  assert map_stream["params"]["width"] % 2 == 0 and map_stream["params"]["height"] % 2 == 0
+  assert resolve_map_bitrate_kbps(404, 720, 5) == 842
+  assert resolve_map_bitrate_kbps(404, 720, 10) == 1683
+  assert resolve_map_bitrate_kbps(404, 720, 30) == 3367
 
 
 def test_receiver_logs_changed_tbt_and_sdi_values(capsys):
