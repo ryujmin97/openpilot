@@ -1,5 +1,13 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-20 (325차) -- carrot-ms `6c87a29..e1fdfafe` 신규 26건 점검, 전부 제외 확정, 체크포인트 `6c87a29` -> `e1fdfafe`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) `6c87a29`(`6c87a295ce7eeee36a140b8a97fb8b7f3e27f9df`)..`e1fdfafe`(`e1fdfafe60e090db6bfed66a16b669cfbe18d192`) 신규 26건(ajouatom 20, Hermes Agent 3, kgr·KINGBEAKSUU·MinSik Shin 각 1, git log 표시 기준 2026-11-17~20, `git rev-list --count` 26, `6c87a29`는 `e1fdfafe`의 조상). 점검 시작 때와 스크립트 작성 때 HEAD가 `e1fdfafe`였고 이후 올라갔을 수 있다. 변경 파일 78개를 carrot-ryu `7ac4438` 트리와 대조했다(있음 31, 없음 47). 정적 분석, `git apply --check`는 `706a4daa` 1건만(실패), 실차 검증 미실시. 상세는 WIP.md 325cha.
+- 제외 26건: 방향지시등·Kick/SPAS 5건(`6bbfe846` `a3094140` `b67ff9ab` `444fed2d` `6b5d9637`, `hyundai_kick.py`·`spas.py`·`indicator_observer.py`·`manual_turn_indicator.py`·`boundary_indicator.py`가 carrot-ryu에 없고 CAN-FD 경로), Cheddar 내부 모델·Jetson 14건(`3cf7e7a8` `1ed3fbc9` `bf2572f1` `73e85fc7` `350b1f3e` `012046e0` `a4f1a526` `81c16a20` `ccf6eba1` `9eda85c1` `b56e3d94` `38a676b7` `8605c910` `6ee4db8a`, `cheddar_*.py` 없음, `012046e0`은 `driving_supercombo.onnx` 교체, `b56e3d94`는 tinygrad Gather 병합으로 현재 모델에서 문제 미관측), CAN-FD vNAVI 5건(`cfae6f66` `7fa0b829` `4e88cddd` `e4744c5a` `e1fdfafe`, Kia EV4·제네시스 GV80, DH 2015 무관), 크루즈 타이밍 진단 1건(`bcb14d70`, `RuntimeDiagnostics`·`CommandReader`·`AssistantSpeed` 없음), 레이더 1건(`706a4daa`, `git apply --check` 실패, `EnableRadarTracks`=0). 점검 보고에서 `9eda85c1`을 두 분류에 넣은 것을 정정했다(Cheddar 쪽 1건).
+- 사용자 결정: "Termux 제외 확정"(점검 보고의 "26건 전부 제외로 확정할까요"에 대한 답으로 26건 전부 제외와 Termux bash 스크립트 요청으로 해석했다). 이식 0건, carrot-ryu 반영 없음. 재검토 조건은 WIP.md 325cha 6항.
+- 체크포인트: `6c87a29` -> `e1fdfafe`. 다음 점검은 `git cat-file -t e1fdfafe`로 존재부터 확인하고 `e1fdfafe` 이후를 본다(carrot-ms는 재생성되므로).
+- 별도 확인(동기화 항목 아님): carrot-ryu HEAD `7ac4438`까지 코드 커밋 2건(`015ad72`, `7ac4438`)이 devnotes에 기록돼 있지 않다. 상세는 WIP.md 325cha 4항.
+
 ## 중간 기록: 2026-11-17 (324차) -- carrot-ms `50a9dd2..6c87a29` 신규 10건 점검, 전부 제외 확정, 체크포인트 `50a9dd2` -> `6c87a29`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) `50a9dd2`(`50a9dd2ccf1a75a7435450916718e44c2e934cf9`)..`6c87a29`(`6c87a295ce7eeee36a140b8a97fb8b7f3e27f9df`) 신규 10건(전부 ajouatom, git log 표시 기준 2026-11-16~17, `git rev-list --count` 10, `50a9dd2`는 `6c87a29`의 조상). 점검 시작 때와 스크립트 작성 때 HEAD가 `6c87a29`였고 이후 올라갔을 수 있다. 323차 기록의 점검하지 않은 5건(`13d4727` `9791b3c` `5619403` `25dd879` `0d77b23`)을 포함한다. 변경 파일 44개를 carrot-ryu `2bb1e79` 트리와 대조했다(있음 19, 없음 25). 정적 분석, `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 324cha.
