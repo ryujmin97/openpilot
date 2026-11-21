@@ -1,5 +1,12 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-22 (326차) -- carrot-ms `e1fdfafe..b9d0d5d5` 신규 7건 점검, 전부 제외 확정, 체크포인트 `e1fdfafe` -> `b9d0d5d5`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) `e1fdfafe`(`e1fdfafe60e090db6bfed66a16b669cfbe18d192`)..`b9d0d5d5`(`b9d0d5d5fef502adbe32e3f535230828f8b58d3f`) 신규 7건(ajouatom 5, Hermes Agent 2, git log 표시 기준 2026-11-20~21, `git rev-list --count` 7, `e1fdfafe`는 `b9d0d5d5`의 조상). 점검 중과 스크립트 작성 때 HEAD가 `b9d0d5d5`였고 이후 올라갔을 수 있다. carrot-ryu `7ac4438` 트리와 대조했다. 정적 분석, 일부 diff만 읽음(`a439daf5`·`b9d0d5d5` 본문 미확인), `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 326cha.
+- 제외 7건: CAN-FD vNAVI 1건(`a439daf5`, GV80 0x4B8 대체 프로필, carrot-ryu `carstate.py`에 `4B8` 0건), 헬퍼 import 수명 1건(`96adc16e`, `egpu_diagnostics`·`common/reboot`·`signal_mode`·`signal_display.py`가 carrot-ryu에 없음), CAN-FD HDA2 SCC 1건(`ffe8fbc2`, CAN-FD 분기 전용), 내부 모델 CD210 복원 1건(`e0a45c07`, carrot-ryu `driving_supercombo.onnx` LFS 포인터 oid·크기가 복원본 sha256·크기와 같아 이미 동일), 모델셀렉터 미러 baseline 1건(`7f40727b`, carrot-ryu baseline에 `__new__`·`MODELD_MODELS_DIR`·`Cheddar` 이미 없음), APRK 방향지시등 2건(`457d6f20` `b9d0d5d5`, carrot-ryu `carcontroller.py`에 `APRK` 0건, `manual_turn_indicator.py` 없음).
+- 사용자 결정: "Termix"(Termux 오타로 해석)를 7건 전부 제외 확정과 Termux bash 스크립트 요청으로 해석했다. 이식 0건, carrot-ryu 반영 없음. 재검토 조건은 WIP.md 326cha 6항.
+- 체크포인트: `e1fdfafe` -> `b9d0d5d5`. 다음 점검은 `git cat-file -t b9d0d5d5`로 존재부터 확인하고 `b9d0d5d5` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-11-20 (325차) -- carrot-ms `6c87a29..e1fdfafe` 신규 26건 점검, 전부 제외 확정, 체크포인트 `6c87a29` -> `e1fdfafe`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) `6c87a29`(`6c87a295ce7eeee36a140b8a97fb8b7f3e27f9df`)..`e1fdfafe`(`e1fdfafe60e090db6bfed66a16b669cfbe18d192`) 신규 26건(ajouatom 20, Hermes Agent 3, kgr·KINGBEAKSUU·MinSik Shin 각 1, git log 표시 기준 2026-11-17~20, `git rev-list --count` 26, `6c87a29`는 `e1fdfafe`의 조상). 점검 시작 때와 스크립트 작성 때 HEAD가 `e1fdfafe`였고 이후 올라갔을 수 있다. 변경 파일 78개를 carrot-ryu `7ac4438` 트리와 대조했다(있음 31, 없음 47). 정적 분석, `git apply --check`는 `706a4daa` 1건만(실패), 실차 검증 미실시. 상세는 WIP.md 325cha.

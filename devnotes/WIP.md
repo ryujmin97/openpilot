@@ -1,5 +1,29 @@
 # WIP
 
+## 326cha (코드 변경 없음, carrot-ryu 7ac4438 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `e1fdfafe..b9d0d5d5` 신규 7건 전부 제외 확정(체크포인트 `e1fdfafe` -> `b9d0d5d5`)
+
+**배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 "최신커밋분석"만 요청했다. 점검 보고(7건 전부 제외 제안, 셸을 Termux/PowerShell 중 고르라는 질문, `015ad72`/`7ac4438` diff 본문을 같이 읽을지 묻는 질문) 뒤 사용자는 "Termix"라고만 답했다. Termux 오타로 읽었고, 7건 전부 제외 제안을 그대로 진행하며 devnotes 스크립트를 Termux(bash)로 받겠다는 뜻으로 해석했다(319cha의 "파워쉘" 답과 같은 해석 방식이며 제외 확정을 따로 말한 것은 아니다). `015ad72`/`7ac4438` diff 본문을 읽을지에 대한 답은 없어서 이번에도 읽지 않았다. 이식 승인은 없었다.
+
+**1. 4절 0단계.** 지침 문서를 브랜치 URL로 먼저 `curl`했고(49,324바이트, 첫 읽기는 `head -c` 출력이 UTF-8 경계에서 깨져 Python으로 다시 읽었다, 25,942자) 그 뒤 `git ls-remote`로 note HEAD `efc065a`(전체 SHA `efc065a2ee64d8a6267623792d1b2028687bbc43`)와 carrot-ryu HEAD `7ac4438`(전체 SHA `7ac4438f285dc530e433e406436b2148bfce7bd6`)를 얻어 SHA 고정본으로 다시 받고 `cmp`로 브랜치 URL본과 일치함을 확인했다. 지침의 순서(ls-remote 먼저)와 반대였다. HANDOFF.md(325cha)·WIP_SYNC.md·LAST_ANALYZED.md는 SHA 고정 URL로, WIP.md 머리와 toolkit README는 같은 SHA로 받았다. 확인 보고("지침 문서 확인함, v2, 커밋 efc065a")는 첫 응답에서 했다.
+
+**2. 점검 범위.** carrot-ms(`happymaj11r/openpilot`) HEAD `b9d0d5d5`(전체 SHA `b9d0d5d5fef502adbe32e3f535230828f8b58d3f`, 점검 중과 스크립트 작성 때 `git ls-remote`로 같았다). `e1fdfafe`(`e1fdfafe60e090db6bfed66a16b669cfbe18d192`)는 존재하고 `b9d0d5d5`의 조상이며 `git rev-list --count e1fdfafe..b9d0d5d5`는 7이다. 작성자는 ajouatom 5, Hermes Agent 2이고 git log 표시 기준 2026-11-20~21이다. `api.github.com`은 rate limit(403)으로 실패해 `git clone --bare --filter=blob:none`으로 `git log`·`git show`를 읽었다(blobless bare에서 `git grep`은 300초 제한으로 중단돼 `git ls-tree`·특정 파일 `git show`로 바꿨다).
+
+**3. 분류(전부 제외, 7건).**
+- `a439daf5`(Hermes, GV80 0x4B8 대체 네비 프로필 병합 복구): CAN-FD vNAVI 계열이다. carrot-ryu `carstate.py`에 `4B8`·`navi_profile_4b8`이 0건이고 `test_navi_profile_4b8.py`도 없다. 325cha에서 CAN-FD vNAVI(Kia EV4·제네시스 GV80) 5건을 제외한 것과 같은 범위다.
+- `96adc16e`(ajouatom, 재부팅·신호표시·tmux 헬퍼 import를 시작 코드에 묶음): `carrot_man.py`·`dispatcher.py`·`signal_display.py`·`hardware.py`의 함수 안 import를 모듈 최상단으로 옮기는 변경이다. 전제 모듈 `openpilot/common/egpu_diagnostics`, `common/reboot`, `selfdrive/carrot/signal_mode`, `signal_display.py`가 carrot-ryu 트리에 없다(`test_runtime_helper_imports.py`, `test_reboot_sound.py`, `test_egpu_diagnostics.py`도 없음). 같은 import 구조가 없어 같은 문제가 없다고 읽었다.
+- `ffe8fbc2`(ajouatom, 선택한 stock HDA2의 SCC 토폴로지 존중): `interface.py`의 `HyundaiFlags.CANFD` 분기 안에서 HDA2일 때 `CAMERA_SCC` 기본값을 지우는 변경이다. carrot-ryu `interface.py`에 같은 `CanfdHDA2`·`HyundaiCameraSCC` 코드는 있으나 CAN-FD 전용 경로라 제네시스 DH 2015에는 해당하지 않는다.
+- `e0a45c07`(ajouatom, 내부 모델을 CD210으로 복원): carrot-ms `driving_supercombo.onnx`가 69,671,018 -> 60,792,584바이트로 바뀌고, `e0a45c07`의 blob sha256이 `f73a9e535523d5e9acb9e642c64e33d631825dc8ba74123757d107cedd047bb5`다. carrot-ryu `7ac4438`의 같은 경로는 LFS 포인터(oid sha256 같은 값, size 60792584)여서 모델 파일은 이미 같다. `012046e0`(Cheddar 교체)을 325cha에서 제외해 carrot-ryu는 바뀐 적이 없다. `SConscript`·`modeld.py`·`model_library.py`·웹 번들 변경(Cheddar 분기 제거, 내부 모델 이름)은 carrot-ryu에 `cheddar_*.py`가 없어 되돌릴 대상이 없다고 읽었으며 carrot-ryu 쪽 해당 파일 본문은 직접 읽지 않았다.
+- `7f40727b`(Hermes, 모델셀렉터 미러 baseline 갱신): `modeld.py.baseline`에서 `ModelState.__new__`(Cheddar 분기, `MODELD_MODELS_DIR` 게이트) 10줄만 삭제한다. carrot-ryu의 `carrot/model_selector/upstream_baseline/modeld.py.baseline`에는 `__new__`·`MODELD_MODELS_DIR`·`Cheddar`가 이미 없어 변경 후 상태와 같다.
+- `457d6f20`(ajouatom, APRK 미응답 probe 60초 재사용, 수동 방향지시등 피크 복구)과 `b9d0d5d5`(출력 비활성 시 APRK probe 메모리 무효화): carrot-ryu `carcontroller.py`에 `APRK`가 0건이고 `manual_turn_indicator.py`·`test_aprk_blinkers.py`가 없다. CAN-FD/Kick 방향지시등 계열이며 이전 점검(`444fed2d` 등)에서 제외한 것과 같은 범위다.
+
+**4. 읽은 범위와 한계.** 7건 전부 커밋 메시지와 변경 파일 통계(`--stat`)를 읽었다. diff 본문은 `96adc16e`(4개 py 파일), `ffe8fbc2`(`interface.py`), `457d6f20`(`carcontroller.py`), `7f40727b`(전체), `e0a45c07`(ONNX 크기·sha256만)을 읽었고 `a439daf5`와 `b9d0d5d5`의 diff 본문, `457d6f20`의 `manual_turn_indicator.py`·테스트·문서 변경은 읽지 않았다(전제 코드가 carrot-ryu에 없다는 것으로 제외를 판단). carrot-ryu 쪽 대조는 `7ac4438` 트리 파일 목록과 `carcontroller.py`·`carstate.py`·`interface.py` 키워드 검색으로만 했다. 정적 분석이고 `git apply --check`는 하지 않았으며 실차 검증은 미실시다.
+
+**5. 사용자 결정.** "Termix"(Termux 오타로 해석)라는 답을 7건 전부 제외 확정과 Termux bash 스크립트 요청으로 해석했다. 이식 0건, carrot-ryu 반영 없음.
+
+**6. 재검토 조건.** CAN-FD HDA2 차량을 다루게 되면 `ffe8fbc2`, CAN-FD 방향지시등(Kick/APRK)을 쓰게 되면 `457d6f20`·`b9d0d5d5`, CAN-FD vNAVI를 쓰게 되면 `a439daf5`를 다시 본다. `96adc16e`는 해당 헬퍼 모듈을 carrot-ryu에 들일 때 같이 본다.
+
+**7. 미해결.** carrot-ryu `015ad72`(웹 브랜치 변경 fetch)와 `7ac4438`(네비 지도 스트림 720x1280 -> 404x720)의 diff 본문은 아직 읽지 않았다(325cha 4항에서 기록 누락만 정정). 체크포인트는 `b9d0d5d5`이고, 다음 점검은 `git cat-file -t b9d0d5d5`로 존재부터 확인한 뒤 그 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 325cha (코드 변경 없음, carrot-ryu 7ac4438 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `6c87a29..e1fdfafe` 신규 26건 전부 제외 확정(체크포인트 `6c87a29` -> `e1fdfafe`), carrot-ryu `015ad72`·`7ac4438`의 devnotes 기록 누락 확인
 
 **배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 "최신커밋분석"만 요청했다. 점검 보고(26건 전부 제외 제안, 체크포인트 전진과 `015ad72`/`7ac4438` 기록 누락을 이번 devnotes에 담겠다는 제안, 셸을 PowerShell/Termux 중 고르라는 질문) 뒤 "Termux 제외 확정"이라고 답했다. 26건 전부 제외 확정과 devnotes 스크립트를 Termux(bash)로 받겠다는 뜻으로 해석했다. 누락 기록 제안에 대한 별도 답은 없었고 같은 답에 포함된 것으로 해석했다. 이식 승인은 없었다.
