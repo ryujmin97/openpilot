@@ -1,5 +1,31 @@
 # WIP
 
+## 327cha (코드 변경 있음: carrot-ryu 7ac4438 -> 9cb1bc3, 실기기 검증 미실시) (Claude, Claude Sonnet 5.5) - 지도 스트림이 웹 화면 방향을 따르도록 변경(가로 wide 1040x720 / 세로 tall 404x720), Termux 스크립트 중단 사고(`node --test | grep`)
+
+**배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 이 코드 변경을 진행시켰다. 요청 원문은 이 세션 기록에 남아 있지 않고, 첫 응답이 "이전 대화 요약"을 언급했다(그 요약에서는 가로/세로 표기가 뒤바뀌어 보였다고 첫 응답이 적었다). 구현은 가로 화면 = wide다. carrot-ms 신규 커밋 점검은 하지 않았다.
+
+**1. 4절 0단계.** 지침 문서(v2)를 note 커밋 `fb1abd8`로 확인했고 첫 응답에서 보고했다. 코드 작업 시작 때 carrot-ryu HEAD는 `7ac4438`(404x720 고정, 325cha에 기록된 커밋) 그대로였다.
+
+**2. 변경 내용(carrot-ryu `9cb1bc3d60713a7d584f717337b0c9d8151bc66e`, 부모 `7ac4438f285dc530e433e406436b2148bfce7bd6`).** 커밋 메시지 "carrot navi: map stream follows web viewer orientation (landscape 1040x720, portrait 404x720)". 파일 11개 +335/-24.
+- 웹: `transport.js`가 `layoutProvider` 옵션으로 지도 연결(media socket) URL에 `layout=wide|tall`을 붙이고, `runtime.js`의 `mapLayout()`이 작업공간 방향이 HORIZONTAL이면 wide, 아니면 tall을 준다. `syncLayout()`은 연결된 방향과 현재 방향이 다르면 media socket을 다시 맺는다(지도가 한두 초 끊긴다). 생성 번들(`js/generated/drive.js`, `generated/asset-manifest.json`)도 재생성해 같은 커밋에 넣었다.
+- 서버: `routes.py`가 `layout` 쿼리를 읽어 `bridge.py`의 `set_media_map_wide`/`clear_media_map_wide`로 넘기고(지도 포함 media 연결만), bridge가 `CarrotNaviMapWide` 파라미터에 기록한다(여러 브라우저가 접속하면 마지막 접속자 기준). `/api/capabilities`에 `mapLayouts: [tall, wide]`가 추가됐다.
+- 기기 쪽: `params_keys.h`에 `CarrotNaviMapWide` 키 등록, `carrot_navi.py`의 `map_render_size`가 가로 1040x720 / 세로 404x720을 고르고 `_stream_params`·`build_manifest`·receiver가 이를 쓴다. `7ac4438`의 비트레이트 기대값(10667 -> 3367)이 테스트에 반영 안 돼 있던 것도 같이 고쳤다.
+
+**3. 샌드박스 검증(Termux 실행 아님).** 파이썬 테스트 26개 통과(저장소 `pyproject.toml` 설정이 샌드박스와 안 맞아 우회), 웹 신규 3개 통과, 웹 전체 793개 중 1개(`ar_projection_golden`)는 `7ac4438` 원본에서도 똑같이 실패하는 부동소수점 차이다. 브리지 테스트는 샌드박스에 `capnp`가 없어 해당 모듈을 스텁 처리했다. 반영 스크립트를 로컬 bare 저장소로 끝까지 돌려 push된 파일 11개가 작업본과 해시까지 같음을 확인했다. `git apply --check`는 쓰지 않았다(문자열 블록 치환 41곳, 7개 파일).
+
+**4. 사용자 실행과 중단 사고.** 사용자가 Termux(Node 26.3.1)에서 `carrot-navi-orientation-v1.sh`를 실행했다. 첫 실행은 5단계(웹 번들 재빌드)에서 에러 메시지 없이 끝났고 push 전이라 저장소는 바뀌지 않았다. 스크립트 804번 줄이 `node --test ... 2>&1 | grep -E "^# (pass|fail)" && node build.mjs`였다. `bash -x` 로그에서 `node --test` 다음이 곧바로 `cleanup`이라, grep이 한 줄도 못 찾아 종료코드 1로 중단된 것으로 판단한다. Termux의 Node 26은 파이프 출력도 spec 형식(`ℹ pass 3`)이라 `# pass` 줄이 없다. 근거: 사용자가 804번 줄에서 grep 파이프만 뗀 뒤 같은 스크립트가 끝까지 통과했고 출력에 `ℹ pass 3`, `ℹ fail 0`이 찍혔다. 첫 실행에서 테스트 자체가 통과했는지는 그 로그로 확인하지 못했다. 샌드박스의 로컬 bare 검증은 grep 포함 상태로 통과해 이 차이를 잡지 못했다.
+- 내가 먼저 짚은 원인(npm `allow-scripts` 경고, esbuild postinstall 미실행)은 틀렸다. 그 경고는 성공한 실행에도 그대로 나왔고 빌드는 됐다.
+- 내가 처음 준 `sed`는 패턴이 작은따옴표 기준이라 안 맞았고(`bash -x` 출력의 따옴표를 원본 줄로 착각), 사용자가 804번 줄을 지정한 `sed`를 다시 돌려 고쳤다. 사용자 기기의 `.sh`는 그 한 줄이 손으로 고쳐진 상태다.
+- 교훈: 반영 스크립트는 테스트 러너의 출력 형식을 grep으로 파싱하지 않고 종료코드만 쓴다. 샌드박스 Node와 기기 Node의 출력 형식이 다를 수 있다.
+
+**5. 결과.** 사용자 push 로그: `7ac4438..9cb1bc3  carrot-ryu -> carrot-ryu`, 커밋 `9cb1bc3d60713a7d584f717337b0c9d8151bc66e`, 변경 파일 목록과 줄 수는 위 2항과 같다.
+
+**6. 직접 확인(GitHub).** `api.github.com`은 비인증 rate limit(403, 60/60)이라 못 썼다. `git ls-remote`로 carrot-ryu HEAD = `9cb1bc3d60713a7d584f717337b0c9d8151bc66e`, shallow clone으로 부모 `7ac4438`과 `git diff --numstat`이 사용자 로그와 같음, 파이썬 3개 파일 `py_compile` 통과, `CarrotNaviMapWide`가 `params_keys.h` 1곳·`carrot_navi.py` 2곳·`bridge.py` 3곳에 있음을 확인했다. 번들 `drive.js`에는 `syncLayout`이 들어 있다(`layout=` 리터럴이 0건인 것은 소스가 `searchParams.set("layout", ...)`로 붙이기 때문이다).
+
+**7. 열린 항목(전부 실기기 미검증).** (a) 기기에서 carrot-ryu `9cb1bc3`을 받고 네이티브 빌드를 끝내야 가로 전환이 적용된다(키 등록 때문, 그 전에는 세로 크기로 동작하고 예외는 조용히 무시된다). (b) 웹에서 화면을 가로/세로로 돌렸을 때 지도 크기가 바뀌는지, 재연결 때 지도가 한두 초 끊기는 정도. (c) 가로 화면의 실제 지도 영역 비율이 1040:720과 다르면 가장자리가 잘려 보일 수 있다(크기는 `MAP_RENDER_WIDTH_WIDE`로 조정). (d) 여러 브라우저가 동시에 접속하면 마지막 접속자 기준으로 맞춰진다.
+
+**8. 하지 않은 것.** 실기기·Termux에서의 동작 확인, 네이티브 빌드, carrot-ms 신규 커밋 점검, 설정 UI 변경. HANDOFF.md 7번째 줄의 carrot-ms 체크포인트 `e1fdfafe`는 326cha에서 `b9d0d5d5`로 전진했는데 그 줄 자체는 고쳐지지 않은 상태라 이번에도 건드리지 않았다.
+
 ## 326cha (코드 변경 없음, carrot-ryu 7ac4438 그대로, 실차 검증 미실시) (Claude, Claude Sonnet 5.5) - carrot-ms `e1fdfafe..b9d0d5d5` 신규 7건 전부 제외 확정(체크포인트 `e1fdfafe` -> `b9d0d5d5`)
 
 **배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 "최신커밋분석"만 요청했다. 점검 보고(7건 전부 제외 제안, 셸을 Termux/PowerShell 중 고르라는 질문, `015ad72`/`7ac4438` diff 본문을 같이 읽을지 묻는 질문) 뒤 사용자는 "Termix"라고만 답했다. Termux 오타로 읽었고, 7건 전부 제외 제안을 그대로 진행하며 devnotes 스크립트를 Termux(bash)로 받겠다는 뜻으로 해석했다(319cha의 "파워쉘" 답과 같은 해석 방식이며 제외 확정을 따로 말한 것은 아니다). `015ad72`/`7ac4438` diff 본문을 읽을지에 대한 답은 없어서 이번에도 읽지 않았다. 이식 승인은 없었다.
