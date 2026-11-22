@@ -90,6 +90,7 @@ export function createCarrotNaviRuntime(options = {}) {
     onError: handleDecodeError,
     onConnectionChange: handleConnectionChange,
     onOwnershipBusy: handleOwnershipBusy,
+    layoutProvider: mapLayout,
   });
   if (!transport) return EMPTY_RUNTIME;
   const health = (options.createHealth || createHealth)({
@@ -135,6 +136,10 @@ function workspaceOrientation(viewport = viewportSize()) {
   return viewport.height >= viewport.width
     ? workspaceApi.ORIENTATION.VERTICAL
     : workspaceApi.ORIENTATION.HORIZONTAL;
+}
+
+function mapLayout() {
+  return workspaceOrientation() === workspaceApi.ORIENTATION.HORIZONTAL ? "wide" : "tall";
 }
 
 async function refreshStreamGate(force = false) {
@@ -549,6 +554,7 @@ function evaluateEnvironment() {
   if (runtimeEligible) {
     startRuntime();
     transport.start();
+    transport.syncLayout?.();
   } else if (environmentActive) {
     if (!canRetainRuntime()) stopRuntime("hard environment exit");
     else transport.start();

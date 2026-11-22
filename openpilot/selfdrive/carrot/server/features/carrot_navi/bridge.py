@@ -53,6 +53,8 @@ class CarrotNaviWebBridge:
     self._media_count = 0
     self._client_diagnostics: dict[str, tuple[float, dict[str, Any]]] = {}
     self._hud_map_profile_clients = 0
+    self._map_wide_clients: dict[Any, bool] = {}
+    self._map_wide = False
     self._error = ""
     self._stream_allowed = False
     self._next_stream_allowed_check = 0.0
@@ -65,6 +67,7 @@ class CarrotNaviWebBridge:
     try:
       if self._params is not None:
         self._params.put_int_nonblocking("CarrotNaviHudMapProfile", 0)
+        self._params.put_int_nonblocking("CarrotNaviMapWide", 0)
     except Exception:
       pass
 
@@ -110,6 +113,7 @@ class CarrotNaviWebBridge:
       "mediaMessages": self._media_count,
       "mapStream": media_status["mapStream"],
       "hudMapProfile": self._hud_map_profile_clients > 0,
+      "mapWide": self._map_wide,
       "clientDiagnostics": [
         {
           **diagnostic,
@@ -135,6 +139,31 @@ class CarrotNaviWebBridge:
           "CarrotNaviHudMapProfile",
           1 if self._hud_map_profile_clients > 0 else 0,
         )
+    except Exception:
+      pass
+
+  def set_media_map_wide(self, ws: Any, wide: bool) -> None:
+    self._map_wide_clients.pop(ws, None)
+    self._map_wide_clients[ws] = bool(wide)
+    self._publish_map_wide()
+
+  def clear_media_map_wide(self, ws: Any) -> None:
+    if self._map_wide_clients.pop(ws, None) is not None:
+      self._publish_map_wide()
+
+  def _publish_map_wide(self) -> None:
+    # The most recently connected viewer decides the map size. When the last
+    # viewer leaves the value is kept, so a quick reconnect with the same
+    # layout does not flap the app's map stream (a config change drops it).
+    if not self._map_wide_clients:
+      return
+    wide = next(reversed(self._map_wide_clients.values()))
+    if wide == self._map_wide:
+      return
+    self._map_wide = wide
+    try:
+      if self._params is not None:
+        self._params.put_int_nonblocking("CarrotNaviMapWide", 1 if wide else 0)
     except Exception:
       pass
 
@@ -187,9 +216,12 @@ class CarrotNaviWebBridge:
         pass
     await self._clients.stop()
     self._hud_map_profile_clients = 0
+    self._map_wide_clients.clear()
+    self._map_wide = False
     try:
       if self._params is not None:
         self._params.put_int_nonblocking("CarrotNaviHudMapProfile", 0)
+        self._params.put_int_nonblocking("CarrotNaviMapWide", 0)
     except Exception:
       pass
     self._clear_runtime_cache()

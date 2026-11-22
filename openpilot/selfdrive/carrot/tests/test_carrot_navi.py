@@ -197,7 +197,7 @@ def test_cluster_navi_map_params_and_receiver_updates_next_manifest():
     map_theme="dark", map_type="normal", map_hz=10, map_bitrate_kbps=3000,
   )
 
-  assert reader() == ("light", "satellite", 30, 10667, 0.68)
+  assert reader() == ("light", "satellite", 30, 3367, 0.68, False)
   assert receiver.set_map_config(*reader()) is True
   assert receiver.set_map_config(*reader()) is False
 
@@ -206,12 +206,12 @@ def test_cluster_navi_map_params_and_receiver_updates_next_manifest():
   assert map_stream["params"]["map_theme"] == "light"
   assert map_stream["params"]["map_type"] == "satellite"
   assert map_stream["params"]["fps"] == 30
-  assert map_stream["params"]["h264_bitrate_kbps"] == 10667
+  assert map_stream["params"]["h264_bitrate_kbps"] == 3367
   assert map_stream["params"]["screen_center_y_ratio"] == 0.68
   assert receiver.health()["map_theme"] == "light"
   assert receiver.health()["map_type"] == "satellite"
   assert receiver.health()["map_hz"] == 30
-  assert receiver.health()["map_bitrate_kbps"] == 10667
+  assert receiver.health()["map_bitrate_kbps"] == 3367
   assert receiver.health()["screen_center_y_ratio"] == 0.68
 
 
@@ -445,6 +445,59 @@ def test_map_param_change_reconnects_websocket_with_new_manifest():
       await client.close()
 
   asyncio.run(scenario())
+
+
+def test_map_render_stream_is_wide_1040x720_for_landscape_viewer():
+  manifest = build_manifest("12345678", map_wide=True)
+  map_stream = next(stream for stream in manifest["streams"] if stream["kind"] == "render")
+
+  assert map_stream["params"]["width"] == 1040
+  assert map_stream["params"]["height"] == 720
+  assert 160 <= map_stream["params"]["width"] <= 1280
+  assert 120 <= map_stream["params"]["height"] <= 720
+  assert map_stream["params"]["width"] % 2 == 0 and map_stream["params"]["height"] % 2 == 0
+  assert resolve_map_bitrate_kbps(1040, 720, 10) == 4333
+  assert resolve_map_bitrate_kbps(1040, 720, 30) == 8667
+
+
+def test_cluster_navi_map_wide_param_switches_size_and_receiver_manifest():
+  class FakeParams:
+    values = {
+      "ClusterNaviMapTheme": 1,
+      "ClusterNaviMapType": 0,
+      "ClusterNaviMapFps": 1,
+      "CarrotNaviMapWide": 1,
+    }
+
+    def get_int(self, key):
+      return self.values[key]
+
+  params = FakeParams()
+  reader = ClusterNaviMapParamReader(params)
+  receiver = CarrotNaviReceiver()
+
+  assert reader() == ("dark", "normal", 10, 4333, 0.8, True)
+  assert receiver.set_map_config(*reader()) is True
+  assert receiver.set_map_config(*reader()) is False
+  assert receiver.health()["map_wide"] is True
+  manifest = receiver.negotiate(requirements_query(), "test-app")
+  map_stream = next(stream for stream in manifest["streams"] if stream["kind"] == "render")
+  assert (map_stream["params"]["width"], map_stream["params"]["height"]) == (1040, 720)
+  assert map_stream["params"]["h264_bitrate_kbps"] == 4333
+
+  params.values["CarrotNaviMapWide"] = 0
+  assert receiver.set_map_config(*reader()) is True
+  assert receiver.health()["map_wide"] is False
+  manifest = receiver.negotiate(requirements_query(), "test-app")
+  map_stream = next(stream for stream in manifest["streams"] if stream["kind"] == "render")
+  assert (map_stream["params"]["width"], map_stream["params"]["height"]) == (404, 720)
+
+
+def test_map_config_watcher_accepts_five_value_readers_as_portrait():
+  receiver = CarrotNaviReceiver(map_wide=True)
+
+  assert receiver.set_map_config("auto", "normal", 10, 3000, 0.8) is True
+  assert receiver.health()["map_wide"] is False
 
 
 def test_parse_binary_packet_validates_cn_v2_payload():

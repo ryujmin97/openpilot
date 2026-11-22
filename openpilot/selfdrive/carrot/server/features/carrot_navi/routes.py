@@ -45,6 +45,7 @@ async def api_capabilities(_request: web.Request) -> web.Response:
     "sessionTakeoverChannel": "state",
     "sessionBusyCode": SESSION_BUSY_CODE,
     "mapProfiles": ["default", "cavdy_hud"],
+    "mapLayouts": ["tall", "wide"],
   })
 
 
@@ -81,6 +82,7 @@ async def _serve_ws(request: web.Request, media: bool) -> web.WebSocketResponse:
       raw_client_id == "cavdy-navdy"
       and request.query.get("profile", "").strip().lower() == "cavdy_hud"
     )
+    map_layout_wide = request.query.get("layout", "").strip().lower() == "wide"
     registered = await bridge.register_media(ws, client_id, include_map=include_map)
   else:
     registered = await bridge.register_state(ws, client_id, takeover=takeover)
@@ -88,6 +90,8 @@ async def _serve_ws(request: web.Request, media: bool) -> web.WebSocketResponse:
     return ws
   if media and hud_map_profile:
     bridge.set_hud_map_profile(True)
+  if media and include_map:
+    bridge.set_media_map_wide(ws, map_layout_wide)
   try:
     async for message in ws:
       if message.type in (WSMsgType.CLOSE, WSMsgType.CLOSING, WSMsgType.ERROR):
@@ -96,6 +100,8 @@ async def _serve_ws(request: web.Request, media: bool) -> web.WebSocketResponse:
     await bridge.unregister(ws)
     if media and hud_map_profile:
       bridge.set_hud_map_profile(False)
+    if media and include_map:
+      bridge.clear_media_map_wide(ws)
   return ws
 
 

@@ -20,6 +20,7 @@ export function createTransport(options = {}) {
   const mediaPath = String(options.mediaPath || "/ws/carrot_navi/media");
   const workerUrl = resolveNavigationWorkerUrl(options, target);
   const reconnectMs = Math.max(100, Number(options.reconnectMs) || 500);
+  const layoutProvider = typeof options.layoutProvider === "function" ? options.layoutProvider : null;
   const clientId = String(target.CarrotStreamIdentity?.clientId
     || `carrot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
   let active = false;
@@ -31,12 +32,23 @@ export function createTransport(options = {}) {
   let mediaSocket = null;
   let worker = null;
   let reconnectTimer = 0;
+  let mediaLayout = "";
 
-  function websocketUrl(path, takeover = false) {
+  function currentLayout() {
+    if (!layoutProvider) return "";
+    try {
+      return layoutProvider() === "wide" ? "wide" : "tall";
+    } catch (_) {
+      return "tall";
+    }
+  }
+
+  function websocketUrl(path, takeover = false, layout = "") {
     const url = new target.URL(path, target.location.href);
     url.protocol = target.location.protocol === "https:" ? "wss:" : "ws:";
     url.searchParams.set("client_id", clientId);
     if (takeover) url.searchParams.set("takeover", "1");
+    if (layout) url.searchParams.set("layout", layout);
     return url.href;
   }
 
@@ -170,7 +182,8 @@ export function createTransport(options = {}) {
   function connectMedia() {
     if (!active || ownershipBlocked || !stateAccepted || mediaSocket) return;
     const decoderWorker = ensureWorker();
-    const socket = new target.WebSocket(websocketUrl(mediaPath, false));
+    mediaLayout = currentLayout();
+    const socket = new target.WebSocket(websocketUrl(mediaPath, false, mediaLayout));
     socket.binaryType = "arraybuffer";
     mediaSocket = socket;
     socket.addEventListener("open", () => {
@@ -206,6 +219,13 @@ export function createTransport(options = {}) {
     worker?.postMessage({ type: "reset-media" });
     scheduleReconnect();
     notifyConnection();
+  }
+
+  function syncLayout() {
+    if (!layoutProvider || !active || ownershipBlocked || !mediaSocket) return false;
+    if (mediaLayout === currentLayout()) return false;
+    recoverMedia();
+    return true;
   }
 
   function requestOwnershipTakeover() {
@@ -247,7 +267,7 @@ export function createTransport(options = {}) {
     notifyConnection();
   }
 
-  return Object.freeze({ start, stop, recoverMedia, requestOwnershipTakeover, snapshot });
+  return Object.freeze({ start, stop, recoverMedia, syncLayout, requestOwnershipTakeover, snapshot });
 }
 
 export const CarrotNaviTransport = Object.freeze({
