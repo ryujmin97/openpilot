@@ -139,7 +139,9 @@ function workspaceOrientation(viewport = viewportSize()) {
 }
 
 function mapLayout() {
-  return workspaceOrientation() === workspaceApi.ORIENTATION.HORIZONTAL ? "wide" : "tall";
+  // Always request the wide stream: the compositor covers the pane, so the wide
+  // frame also fills the wide portrait split pane, where the tall frame was cropped.
+  return "wide";
 }
 
 async function refreshStreamGate(force = false) {
