@@ -1,5 +1,35 @@
 # WIP
 
+## 328cha (코드 변경 있음: carrot-ryu 9cb1bc3 -> dbe6fa3, 실기기 검증 미실시) (Claude, Claude Sonnet 5.5) - 세로 화면에서 지도가 확대돼 보이는 문제: 웹이 지도 스트림을 방향과 상관없이 항상 wide(1040x720)로 요청
+
+**배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 폰 스크린샷(세로 화면 주행 탭)과 함께 "신규 커밋 깃풀했는데 가로모드 네비 변함이 없어"라고 말했다. 이어서 "내가 처음 질문을 잘못했어. 가로주행은 네비가 잘 보임. 처음 첨부했던 세로모드주행시 네비가 확대된것처럼 나옴. 지금 올린것처럼 많은 부분이 보이게 나오게 해"라고 정정했다. 실제 요청은 세로 화면(폰 세로, 위 주행/아래 지도 분할)에서 지도가 확대돼 보이는 것을 가로 화면처럼 넓게 보이게 해달라는 것이다. carrot-ms 신규 커밋 점검은 하지 않았다.
+
+**1. 4절 0단계.** 지침 문서를 브랜치 URL로 먼저 `curl`했고(25,942자, 첫 읽기는 `cat | head -c`가 UTF-8 경계에서 깨져 Python으로 다시 읽었다) 그 뒤 `git ls-remote`로 note HEAD `c680b9c`(전체 SHA `c680b9ce03791a7e359a70c8c0bab893f1446f53`)를 얻어 SHA 고정본을 받고 `cmp`로 브랜치 URL본과 일치함을 확인했다. 지침의 순서(ls-remote 먼저)와 반대였다. HANDOFF.md(327cha)는 같은 SHA 고정본으로 읽었다. 첫 응답에서 "지침 문서 확인함(v2, 커밋 c680b9c)"을 보고했다. 작업 시작 때 carrot-ryu HEAD는 `9cb1bc3`(`git ls-remote`)로 HANDOFF와 같았다.
+
+**2. 조사 경과(전부 기기 화면·터미널 출력 기준).**
+- 사용자가 웹 도구 탭의 `git log`로 기기에 `9cb1bc3d6`까지 들어온 것을 보였다(HEAD -> carrot-ryu).
+- 내가 처음에 "네이티브 빌드를 안 했을 가능성"을 먼저 짚었고, 터미널의 `python3 -c "from openpilot.common.params import Params ..."`는 터미널 기본 `python3`가 openpilot 가상환경이 아니라 `ModuleNotFoundError: No module named 'serial'`로 실패했다(내가 준 명령의 문제였고 빌드와 무관).
+- 파이썬 대신 `/data/params/d/CarrotNaviMapWide` 파일을 직접 읽게 했다. 세로 접속 상태에서 값 `0`(파일 시각 Nov 22 18:20), 웹을 가로로 돌려 접속하니 `1`(시각 18:38)로 바뀌었다. 키 등록과 서버 기록은 정상이었고, 빌드 필요 추정은 원인이 아니었다(그 키가 `params_keys.h`에 등록돼 있어야 쓸 수 있으므로 기기 빌드가 반영된 상태로 읽는다. 빌드·재부팅 시점은 못 봤다).
+- 사용자의 가로 화면 스크린샷(`9cb1bc3` 상태): 폰 가로에서 왼쪽 탭바 + 주행 화면 + 오른쪽 세로로 긴 지도 pane(약 570x770)에 지도가 잘 나왔다. 세로 화면 스크린샷 2장(같은 `9cb1bc3`): 지도 pane은 가로로 넓은 모양(약 1080x745)이고, 한 장은 지도가 확대돼 있었고(tall 404x720 스트림으로 읽음) 한 장은 넓게 나왔다(wide 스트림이 남아 있던 것으로 읽음, 확인하지 못했다).
+
+**3. 원인(정적 분석, 기기 확인 아님).** `compositor.js`의 `render()`는 영상을 pane에 cover 방식(`scale = Math.max(...)`, 넘치는 부분은 가운데만 잘라 그림)으로 채운다. `runtime.js`의 `mapLayout()`은 작업공간 방향이 HORIZONTAL이면 wide, 아니면 tall을 요청했다. 세로 화면의 pane은 가로로 넓은 모양인데 tall(404x720, 세로로 긴) 영상을 받아 가운데 일부만 크게 잘려 확대돼 보였다. 가로 화면은 세로로 긴 pane에 wide 영상이 가운데 크롭되는 구성인데 사용자가 "잘 나옴"이라고 했다.
+
+**4. 결정.** 내가 처음 제안한 "pane 가로세로 비율 기준으로 wide/tall 선택" 안은 가로 화면을 tall로 바꾸게 돼 잘 나오는 화면이 달라지므로 접고, "방향과 상관없이 항상 wide" 안을 제안했다. 사용자가 "진행. 파워쉘"로 승인하고 셸을 PowerShell로 정했다(지난 327cha는 Termux였다). 세로로 전체 화면 지도를 키우는 레이아웃에서는 wide 영상의 좌우가 잘릴 수 있다는 점을 제안 때 말했다.
+
+**5. 변경 내용(carrot-ryu `dbe6fa3048345449b6cf8dbf9d9512d93749ef09`, 부모 `9cb1bc3d60713a7d584f717337b0c9d8151bc66e`).** 커밋 메시지 "carrot navi: always request the wide map stream (portrait split pane no longer crops/zooms the tall frame)". 파일 3개 +6/-4: `openpilot/selfdrive/carrot/web/src/features/drive/contents/carrot_navi/runtime.js` +3/-1(`mapLayout()`이 `return "wide";`만 반환, 주석 2줄), 생성 번들 `js/generated/drive.js` +2/-2, `generated/asset-manifest.json` +1/-1. 서버·파이썬은 변경 없음. 이제 웹은 tall을 요청하지 않으므로 `syncLayout`의 재연결(방향이 바뀔 때 지도 끊김)도 일어나지 않는다. 서버·`carrot_navi.py`의 tall 크기 코드와 `layout=tall` 테스트는 그대로 남아 있고 웹이 쓰지 않는 경로가 됐다.
+
+**6. 반영 스크립트와 샌드박스 검증(Windows PowerShell 5.1 실행 아님).** `carrot-navi-always-wide-v1.ps1`(PowerShell, UTF-8 BOM, 이름은 v1 하나뿐). 로컬 bare 저장소로 일반 체크아웃과 CRLF 체크아웃(`core.eol=crlf` 환경 재현)을 둘 다 끝까지 실행했고, 두 모드 모두 변경 파일 3개 +6/-4와 같은 blob 해시(`drive.js` `ed98838`, `asset-manifest.json` `ea18c73`, `runtime.js` `cb44d70`)를 확인했다. `carrot_navi_transport_layout` 테스트 3/3 통과(종료코드 사용, 출력 파싱 없음). 웹 전체 785개 중 4개 실패(`projection fixture ...`, `compact_ar_wire_contract`, `route_summary_architecture`, `xiaoge_diagnostics`)는 수정 전에도 똑같이 실패했다(샌드박스가 웹 폴더만 받아 생기는 실패로 읽음, 확인하지 못했다). `pwsh` 7.7.0 파서 구문 오류 0건(후행 쉼표 대조군은 오류로 잡힘). 이 샌드박스에서 `git clone --filter=blob:none --no-checkout`는 300초를 넘겨 중단됐고 `git fetch --depth 1 --filter=blob:none origin <SHA>` + sparse checkout + `raw.githubusercontent.com` 조회로 대체했다. `api.github.com`은 rate limit이라 못 썼다.
+- 발견: CRLF 재현의 첫 실행이 커밋 전에 안전 중단됐다. Windows식 CRLF 체크아웃 소스로 `node build.mjs`를 돌리면 생성 번들 20여 개 파일이 달라졌고, 스크립트의 변경 파일 검사가 이를 막았다. 또 `core.eol=crlf`에서는 `git status --porcelain`이 내용이 같은 LF 파일도 수정됨으로 보여줬다(`git diff --name-only`는 내용 기준이라 정확했다). 그래서 빌드 전에 웹 폴더의 추적 텍스트 파일을 LF로 바꾸고(바이너리 제외, Latin-1 왕복으로 바이트 정확), 변경 검사를 `git diff --name-only` + 추적되지 않은 파일 0건 확인으로 고쳤다.
+- 이 스크립트는 base가 `9cb1bc3`이 아니면, Node 20 미만이거나 없으면, 변경 파일이 예상 3개와 다르면, 번들에 옛 표현이 남았거나 새 표현이 없으면 커밋 전에 중단한다.
+
+**7. 사용자 실행.** 사용자가 스크립트를 실행한 것으로 보이나 실행 로그(push 출력)는 이 세션에서 받지 못했다. "다시검증" 요청 때 GitHub를 조회해 반영을 확인했다(아래 8항). 첫 "의도대로 보여지는지 검증해봐" 시점에는 GitHub HEAD가 아직 `9cb1bc3`이었고 소스·번들에 수정이 없었다(스크립트 미실행 또는 중단 상태).
+
+**8. 직접 확인(GitHub).** `git ls-remote`로 carrot-ryu HEAD = `dbe6fa3048345449b6cf8dbf9d9512d93749ef09`, depth 2 blobless fetch로 부모 `9cb1bc3d60713a7d584f717337b0c9d8151bc66e`, 커밋 시각 2026-11-23 10:44:37 +09:00, `git diff-tree` 변경 파일 3개(M), `git diff --numstat` `asset-manifest.json` 1/1, `drive.js` 2/2, `runtime.js` 3/1. SHA 고정 raw로 `runtime.js`의 `mapLayout()`이 `return "wide";`이고 `drive.js`에 `function Re(){return"wide"}`가 있으며 옛 표현(`ORIENTATION.HORIZONTAL?"wide":"tall"`)이 없음을 확인했다. 파일 모드·트리 파일 수·BOM은 보지 않았다.
+
+**9. 열린 항목(전부 실기기 미검증).** (a) 기기에서 `dbe6fa3`을 받고(`git log`로 확인) 웹을 새로고침(번들 캐시 가능)한 뒤 세로 화면 지도가 넓게 나오는지, 가로 화면이 이전과 같은지 스크린샷으로 확인한다. 이 세션에서 수정 후 화면은 받지 못했다(위의 "가로 잘 나옴"은 `9cb1bc3` 시점이다). (b) 세로로 지도를 전체 화면으로 키우는 레이아웃에서 좌우가 잘리는지. (c) 327cha의 열린 항목 중 네이티브 빌드(a)는 `CarrotNaviMapWide` 값이 접속 방향에 따라 0/1로 바뀌는 것으로 키 동작을 확인했다. 327cha의 (b)(c)(d)는 이 세션에서 확정하지 못했고 (c) 가로 pane 비율은 가로 화면이 "잘 나옴"이라는 사용자 말만 있다. (d) 웹이 tall을 안 쓰게 됐으므로 서버·기기의 tall 경로와 `layout=tall` 테스트를 정리할지는 결정하지 않았다.
+
+**10. 하지 않은 것.** 실기기 동작 확인, 수정 후 스크린샷 확인, Windows PowerShell 5.1에서의 스크립트 실행 확인, carrot-ms 신규 커밋 점검(체크포인트는 326cha의 `b9d0d5d5` 그대로이고 HANDOFF.md 6번째 줄의 `e1fdfafe`는 326cha부터 낡은 값이다. 이 줄은 이번에도 고치지 않았다), tall 경로 정리, 설정 UI 변경.
+
 ## 327cha (코드 변경 있음: carrot-ryu 7ac4438 -> 9cb1bc3, 실기기 검증 미실시) (Claude, Claude Sonnet 5.5) - 지도 스트림이 웹 화면 방향을 따르도록 변경(가로 wide 1040x720 / 세로 tall 404x720), Termux 스크립트 중단 사고(`node --test | grep`)
 
 **배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 이 코드 변경을 진행시켰다. 요청 원문은 이 세션 기록에 남아 있지 않고, 첫 응답이 "이전 대화 요약"을 언급했다(그 요약에서는 가로/세로 표기가 뒤바뀌어 보였다고 첫 응답이 적었다). 구현은 가로 화면 = wide다. carrot-ms 신규 커밋 점검은 하지 않았다.
