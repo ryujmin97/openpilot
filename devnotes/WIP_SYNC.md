@@ -1,5 +1,12 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-24 (330차) -- carrot-ms `b9d0d5d5..70d86946` 신규 3건 점검, 전부 제외 확정, 체크포인트 `b9d0d5d5` -> `70d86946`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) `b9d0d5d5`(`b9d0d5d5fef502adbe32e3f535230828f8b58d3f`)..`70d86946`(`70d869461f23298ffee1026f6086c51c89790780`) 신규 3건(전부 ajouatom, git log 표시 기준 2026-11-22~23, `git rev-list --count` 3, `b9d0d5d5`는 `70d86946`의 조상). 점검 중과 스크립트 작성 때 HEAD가 `70d86946`였고 이후 올라갔을 수 있다. carrot-ryu `dbe6fa3` 트리와 대조했다. 정적 분석, 일부 diff만 읽음(`hyundai_kick.py`·`tbt_signal.py`·`indicator_display.py`·jetlink 테스트·문서·PV5 테스트 본문 미확인), `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 330cha.
+- 제외 3건: ATC 우회전 전 자동 차선변경 거리 2000m 확장 1건(`44a36409`, carrot-ryu에 `AutoTurnControlRightLaneChange`·`atc_params.py`·`tbt_signal.py`·`hyundai_kick.py` 없음, `desire_helper.py`에 `kick_supported`·`tbt_lane_signal` 없음, USB2CAN/BLE/SPAS와 CAN-FD Kick 전제), 그 웹 테스트 최대값 수정 1건(`ec92c920`, 대상 설정 없음), Kia PV5 CAN-FD 클러스터 차선 표시 1건(`70d86946`, `CAR.KIA_PV5` 전용, carrot-ryu에 `KIA_PV5`·`_pv5_stock_lane_lines` 없음).
+- 사용자 결정: "제외확정. 파워셀"을 3건 전부 제외 확정과 PowerShell 스크립트 요청으로 해석했다. 이식 0건, carrot-ryu 반영 없음. 재검토 조건은 WIP.md 330cha 6항.
+- 체크포인트: `b9d0d5d5` -> `70d86946`. 다음 점검은 `git cat-file -t 70d86946`로 존재부터 확인하고 `70d86946` 이후를 본다(carrot-ms는 재생성되므로).
+
 ## 중간 기록: 2026-11-22 (326차) -- carrot-ms `e1fdfafe..b9d0d5d5` 신규 7건 점검, 전부 제외 확정, 체크포인트 `e1fdfafe` -> `b9d0d5d5`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) `e1fdfafe`(`e1fdfafe60e090db6bfed66a16b669cfbe18d192`)..`b9d0d5d5`(`b9d0d5d5fef502adbe32e3f535230828f8b58d3f`) 신규 7건(ajouatom 5, Hermes Agent 2, git log 표시 기준 2026-11-20~21, `git rev-list --count` 7, `e1fdfafe`는 `b9d0d5d5`의 조상). 점검 중과 스크립트 작성 때 HEAD가 `b9d0d5d5`였고 이후 올라갔을 수 있다. carrot-ryu `7ac4438` 트리와 대조했다. 정적 분석, 일부 diff만 읽음(`a439daf5`·`b9d0d5d5` 본문 미확인), `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 326cha.

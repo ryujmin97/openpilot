@@ -1,5 +1,24 @@
 # WIP
 
+## 330cha (코드 변경 없음, carrot-ryu dbe6fa3 그대로, carrot-ms 신규 3건 전부 제외 확정) (Claude, Claude Sonnet 5.5) - carrot-ms `b9d0d5d5..70d86946` 신규 3건 점검, 체크포인트 `b9d0d5d5` -> `70d86946`
+
+**배경.** 사용자가 새 대화 시작 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)을 주고 "최신커밋분석"을 요청했다. 점검 결과를 보고하자 사용자가 "제외확정. 파워셀"이라고 답했다. 3건 전부 제외 확정과 PowerShell 스크립트 요청으로 해석했다(직전 세션들은 Termux였으나 이번에는 PowerShell을 명시했다).
+
+**1. 4절 0단계.** 지침 문서(49,324바이트)를 브랜치 URL로 먼저 `curl`했고 그 뒤 `git ls-remote`로 note HEAD `c031068`(전체 SHA `c0310689fe47d46ec54ffc2aad75351dceb55db2`)을 얻어 SHA 고정본과 `cmp`로 같음을 확인했다(지침의 순서인 ls-remote 먼저와 반대). HANDOFF.md(329cha)를 SHA 고정본으로 읽었다. 작업 중 carrot-ryu HEAD는 `dbe6fa3048345449b6cf8dbf9d9512d93749ef09`(`git ls-remote`)였다.
+
+**2. 점검 범위와 방법.** carrot-ms(`happymaj11r/openpilot`) `b9d0d5d5`(`b9d0d5d5fef502adbe32e3f535230828f8b58d3f`)..`70d86946`(`70d869461f23298ffee1026f6086c51c89790780`) 신규 3건(전부 ajouatom, git log 표시 기준 2026-11-22~23, `git rev-list --count` 3, `b9d0d5d5`는 `70d86946`의 조상). `api.github.com`이 rate limit(403)이라 blobless bare clone(`--filter=blob:none`)으로 조회했다. carrot-ryu `dbe6fa3` 트리와의 대조는 파일 존재는 `git cat-file -e`로, 심볼은 파일 단위 `git show | grep`으로 했다. 처음 시도한 `git grep`은 blobless 저장소에서 blob을 모두 받으려다 300초 제한에 걸려 중단돼 버렸다. 점검 시작과 스크립트 작성 때 carrot-ms HEAD가 `70d86946`이었고 이후 올라갔을 수 있다.
+
+**3. 분류(전부 제외).**
+- `44a36409`(Fix native ATC lane signal admission and extend highway distance to 2000m, 17 files +393/-33, 2026-11-22): ATC "우회전 전 자동 차선변경 거리" 설정 최대를 500에서 2000m로 늘리고(고속도로로 확인될 때만 설정값, 일반도로는 500m 제한) 네이티브 Kick 점등을 차선변경 판단에 연결한다. carrot-ryu에 `AutoTurnControlRightLaneChange` 키(`carrot_settings.json` 0건), `atc_params.py`, `tbt_signal.py`, `indicator_display.py`, `hyundai_kick.py`, `tools/jetlink/*`가 없고 `desire_helper.py`에도 `kick_supported`·`tbt_lane_signal`이 없다. 전제는 protocol-matched USB2CAN, BLE 또는 Panda/SPAS 점멸 경로이고 Kick은 CAN-FD 전용이다.
+- `ec92c920`(Update ATC web setting test for the 2000m maximum, 3 files +11/-1): 위 설정의 웹 테스트 기대 최대값 500을 2000으로 고친다. 대상 설정이 carrot-ryu에 없다.
+- `70d86946`(Preserve fresh PV5 stock cluster lane markings, 6 files +205/-2, 2026-11-23): 실제 Kia PV5에서만 카메라 `0x161` 차선 표시 상태(관측 코드 8 포함)를 250ms 동안 클러스터에 유지한다. `_pv5_stock_lane_lines`가 `CAR.KIA_PV5`를 조건으로 하고 커밋 메시지도 다른 차량 출력은 바뀌지 않는다고 적었다. carrot-ryu `hyundaicanfd.py`에는 `create_ccnc_messages`가 있으나 `KIA_PV5`·`_pv5_stock_lane_lines`는 없다. 제네시스 DH(비 CAN-FD)와 무관하다.
+
+**4. 사용자 결정.** "제외확정. 파워셀"(점검 보고의 "3건 전부 제외로 확정하고 체크포인트를 `70d86946`으로 옮겨 devnotes 반영 스크립트를 만들까요"에 대한 답으로 해석). 이식 0건, carrot-ryu 반영 없음.
+
+**5. 하지 않은 것.** 정적 분석이고 일부 diff만 읽었다. 읽음: `44a36409`의 `atc_params.py`·`carrot_settings.json`·`desire_helper.py` diff, `ec92c920` 전체, `70d86946`의 `carcontroller.py` diff와 `hyundaicanfd.py` diff 앞부분. 미확인: `hyundai_kick.py`·`tbt_signal.py`·`indicator_display.py`·`tools/jetlink/*`·문서·PV5 테스트 본문, `70d86946`의 `hyundaicanfd.py` diff 뒷부분. `git apply --check`와 실차 검증은 미실시다. 코드 변경은 없다(carrot-ryu `dbe6fa3` 그대로).
+
+**6. 재검토 조건.** ATC 우회전 전 자동 차선변경(`44a36409`, `ec92c920`)은 `AutoTurnControl*` 키와 Jetson USB2CAN/BLE/SPAS 경로·Kick 개념을 carrot-ryu에 도입할 때, PV5 클러스터 차선(`70d86946`)은 Kia PV5(CAN-FD) 지원이 필요할 때 다시 본다. 체크포인트는 `70d86946`이고 다음 점검은 `git cat-file -t 70d86946`로 존재부터 확인한다(carrot-ms는 재생성되므로). 329cha의 열린 항목(지도 확대 증상 재현 시 `CarrotNaviMapWide` 관찰, 328cha의 세로 전체 화면 지도 좌우 잘림, tall 경로 정리 여부)은 이 세션에서 건드리지 않았고 그대로 유효하다.
+
 ## 329cha (코드 변경 없음, carrot-ryu dbe6fa3 그대로, 사용자가 스크린샷으로 세로·가로 정상 확인) (Claude, Claude Sonnet 5.5) - 세로 화면 지도가 처음엔 넓다가 1~2초 뒤 확대되는 증상 재조사와 해소 확인(원인 미확정)
 
 **배경.** 사용자가 새 세션 지침(저장소 ryujmin97/openpilot, 브랜치 carrot-ryu-note, 지침 문서 경로·raw URL, 4절 확인 순서)과 스크린샷 2장을 주며 "최신 깃풀후 세로모드에서 처음에는 좌측처럼 네비가 나오다가 1,2초후 우측처럼 바뀜. 좌측화면처럼 유지되게해줘"라고 했다(스크린샷 시각 18:13:11 / 18:13:14, 왼쪽은 지도가 넓게, 오른쪽은 확대되고 흐릿함). 328cha의 `dbe6fa3`(웹이 항상 wide 요청)을 받은 뒤라는 뜻으로 읽었으나 기기에 `dbe6fa3`이 있는지는 이 세션에서 확인하지 못했다. carrot-ms 신규 커밋 점검은 하지 않았다.
