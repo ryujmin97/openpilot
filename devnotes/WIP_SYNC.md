@@ -1,5 +1,13 @@
 # WIP SYNC
 
+## 중간 기록: 2026-11-25 (331차) -- carrot-ms `70d86946..798e24b5` 신규 1건 점검, carrot-ryu용으로 변형 이식(carrot-ryu `3f57c50`), 체크포인트 `70d86946` -> `798e24b5`
+
+- 점검 범위: carrot-ms(`happymaj11r/openpilot`) `70d86946`(`70d869461f23298ffee1026f6086c51c89790780`)..`798e24b5`(`798e24b5663a1fddc91f59b9120b0e24c90584b7`) 신규 1건(ajouatom, 2026-11-25, `git rev-list --count` 1). 점검 시작 때와 이 세션 확인 때 HEAD가 `798e24b5`였고 이후 올라갔을 수 있다. carrot-ryu `dbe6fa3` 트리와 대조했다. 정적 분석, `git apply --check`는 원본 패치를 파일별로만 했고, 실차·기기 검증 미실시. 상세는 WIP.md 331cha.
+- 이식 1건(변형): `798e24b5` "Prepare pyserial before AGNOS updater initialization"(`2e8908ef`의 cherry-pick, 5개 +71/-2). AGNOS 업데이트 UI가 application -> HARDWARE -> TiciLPA -> `import serial`을 최상위에서 불러오는데 pyserial 준비가 그 뒤라서 pyserial이 없으면 업데이트 UI가 못 뜬다. carrot-ryu에도 같은 import 경로가 있다(AST 확인). 원본은 carrot-ryu에 없는 `run_startup_command`/`show_startup_failure`를 쓰고 `agnos_init` 앞에 호출을 넣는 구조라 그대로 넣지 않고, `agnos_init`의 업데이트 분기(`--verify` 직후, `jeepney` 앞)에 `ensure_python_package serial pyserial 1`과 실패 시 `show_agnos_update_failure` + `return 1`을 넣었다(`launch_chffrplus.sh` +8, `test_launch_order.py`에 순서 테스트 +17, carrot-ryu `dbe6fa3` -> `3f57c5060744ab6c02d39c4752efda939a82a1fd`, 총 +25/-0).
+- 가져오지 않은 부분: `.github/workflows/tests.yaml`, `AGENTS.md`(첫 대화에서 가져오지 않기로 함), `test_runtime_python_install.py`(+52, carrot-ryu에도 같은 이름 파일이 있고 원본 추가분의 적용 가능 여부는 점검하지 않았다). 원본 `test_launch_order.py` 변경은 적용되지 않아(`git apply --check` 실패) 순서 테스트를 새로 작성했다.
+- 사용자 결정: 첫 보고의 "제외" 제안(기기에 영향이 없을 가능성이 크다는 추측 근거)에 사용자가 AGNOS 업데이트는 중요하니 다시 분석하라고 했고, 재분석으로 제안을 철회한 뒤 "파워셀 진행"으로 승인했다.
+- 체크포인트: `70d86946` -> `798e24b5`. 다음 점검은 `git cat-file -t 798e24b5`로 존재부터 확인하고 `798e24b5` 이후를 본다(carrot-ms는 재생성되므로). 재검토 조건: 기기에서 OS 업데이트 때 업데이트 UI 동작을 확인하거나 `test_runtime_python_install.py` 원본 추가분을 이식할지 정할 때.
+
 ## 중간 기록: 2026-11-24 (330차) -- carrot-ms `b9d0d5d5..70d86946` 신규 3건 점검, 전부 제외 확정, 체크포인트 `b9d0d5d5` -> `70d86946`
 
 - 점검 범위: carrot-ms(`happymaj11r/openpilot`) `b9d0d5d5`(`b9d0d5d5fef502adbe32e3f535230828f8b58d3f`)..`70d86946`(`70d869461f23298ffee1026f6086c51c89790780`) 신규 3건(전부 ajouatom, git log 표시 기준 2026-11-22~23, `git rev-list --count` 3, `b9d0d5d5`는 `70d86946`의 조상). 점검 중과 스크립트 작성 때 HEAD가 `70d86946`였고 이후 올라갔을 수 있다. carrot-ryu `dbe6fa3` 트리와 대조했다. 정적 분석, 일부 diff만 읽음(`hyundai_kick.py`·`tbt_signal.py`·`indicator_display.py`·jetlink 테스트·문서·PV5 테스트 본문 미확인), `git apply --check` 미실시, 실차 검증 미실시. 상세는 WIP.md 330cha.
