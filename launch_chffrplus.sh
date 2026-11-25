@@ -206,6 +206,14 @@ function agnos_init {
       return 1
     fi
 
+    # The updater UI and its failure screen import HARDWARE -> TiciLPA -> serial at
+    # module level, before bootstrap_runtime_dependencies runs. pyserial is a bundled
+    # pure-Python wheel, so it also installs on the OS that is about to be replaced.
+    if ! ensure_python_package serial pyserial 1; then
+      show_agnos_update_failure "The updater UI dependency pyserial could not be installed from the bundled wheel."
+      return 1
+    fi
+
     if python3 -c "import jeepney" > /dev/null 2>&1; then
       echo "jeepney already installed."
     else

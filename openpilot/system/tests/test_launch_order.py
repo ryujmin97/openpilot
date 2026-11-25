@@ -127,6 +127,23 @@ def test_agnos_ui_failure_never_auto_installs_and_shows_recovery_status() -> Non
   assert source.index("if ! agnos_init; then") < source.index('bash "$DIR/scripts/ensure_params_build.sh"')
 
 
+def test_agnos_updater_ui_gets_pyserial_before_it_starts() -> None:
+  launcher = Path(BASEDIR) / "launch_chffrplus.sh"
+  source = launcher.read_text(encoding="utf-8")
+  agnos_init = source[source.index("function agnos_init {"):source.index("function start_carrot_recovery {")]
+
+  # updater.py (and text.py) import HARDWARE -> TiciLPA -> serial before
+  # bootstrap_runtime_dependencies runs, so pyserial is prepared inside the update branch.
+  update_branch = agnos_init.index('if [ "$(< /VERSION)" != "$AGNOS_VERSION" ]; then')
+  verify = agnos_init.index('python3 "$AGNOS_PY" --verify "$MANIFEST"')
+  prepare = agnos_init.index("ensure_python_package serial pyserial 1")
+  updater_ui = agnos_init.index('python3 "$DIR/openpilot/system/ui/updater.py"')
+
+  assert update_branch < verify < prepare < updater_ui
+  assert "show_agnos_update_failure" in agnos_init[prepare:updater_ui]
+  assert "return 1" in agnos_init[prepare:updater_ui]
+
+
 def test_agnos_update_ui_dispatch_uses_only_the_selected_device_ui() -> None:
   updater = Path(BASEDIR) / "openpilot/system/ui/updater.py"
   tree = ast.parse(updater.read_text(encoding="utf-8"))
